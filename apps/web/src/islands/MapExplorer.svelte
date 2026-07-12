@@ -71,6 +71,18 @@
       return couches.length ? { id: `sec-${s.slug}`, titre: s.titre, couleur: s.couleur, couches } : null;
     }).filter((g) => g),
   ];
+  // État d'affichage dérivé : dépend explicitement de `visibles`/`ouvertsManuel` pour que Svelte
+  // réévalue interrupteurs de groupe et accordéons à chaque bascule (une fonction masquerait ces
+  // dépendances au compilateur). Un groupe est déplié s'il a une couche active ou est ouvert manuellement.
+  $: etatGroupes = groupes.map((g) => {
+    const partiel = g.couches.some((c) => visibles.has(c.slug));
+    return {
+      ...g,
+      tout: g.couches.every((c) => visibles.has(c.slug)),
+      ouvert: partiel || ouvertsManuel.has(g.id),
+      badge: g.couches.reduce((s, c) => s + (c.nb ?? 0), 0),
+    };
+  });
 
   function appliquerTheme(t) {
     theme = t;
@@ -104,24 +116,10 @@
     visibles = new Set(visibles);
   }
 
-  function groupeToutVisible(g) {
-    return g.couches.every((c) => visibles.has(c.slug));
-  }
-
   function basculerGroupe(g) {
-    const tout = groupeToutVisible(g);
+    const tout = g.couches.every((c) => visibles.has(c.slug));
     for (const c of g.couches) definirVisibiliteCouche(c.slug, !tout);
     visibles = new Set(visibles);
-  }
-
-  function badgeGroupe(g) {
-    return g.couches.reduce((s, c) => s + (c.nb ?? 0), 0);
-  }
-
-  // Un groupe est déplié s'il contient une couche active (forcé) ou s'il a été ouvert manuellement.
-  function estOuvert(g) {
-    if (g.couches.some((c) => visibles.has(c.slug))) return true;
-    return ouvertsManuel.has(g.id);
   }
 
   function basculerOuvert(id) {
@@ -496,15 +494,15 @@
     {/if}
 
     <ul class="liste-groupes">
-      {#each groupes as g (g.id)}
+      {#each etatGroupes as g (g.id)}
         <li>
           <div class="ligne-groupe">
             <button
               type="button"
               class="interrupteur"
-              class:actif={groupeToutVisible(g)}
+              class:actif={g.tout}
               role="switch"
-              aria-checked={groupeToutVisible(g)}
+              aria-checked={g.tout}
               aria-label={`Afficher tout : ${g.titre}`}
               on:click={() => basculerGroupe(g)}
             >
@@ -514,20 +512,20 @@
             <button
               type="button"
               class="entete-groupe"
-              aria-expanded={estOuvert(g)}
+              aria-expanded={g.ouvert}
               on:click={() => basculerOuvert(g.id)}
             >
               <span class="nom-groupe">{g.titre}</span>
-              {#if badgeGroupe(g)}
-                <span class="badge">{badgeGroupe(g)}</span>
+              {#if g.badge}
+                <span class="badge">{g.badge}</span>
               {/if}
-              <svg class="chevron" class:ouvert={estOuvert(g)} viewBox="0 0 12 12" aria-hidden="true">
+              <svg class="chevron" class:ouvert={g.ouvert} viewBox="0 0 12 12" aria-hidden="true">
                 <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </button>
           </div>
 
-          {#if estOuvert(g)}
+          {#if g.ouvert}
             <ul class="liste-couches">
               {#each g.couches as c (c.slug)}
                 <li class="ligne-couche">
