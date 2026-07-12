@@ -77,10 +77,12 @@ Ajouter une source aujourd'hui touche **4 à 5 endroits**, et deux d'entre eux d
 
 ## Chantier A — Socle modulaire
 
+> ✅ **Chantier A livré le 2026-07-12** — les 6 étapes sont implémentées, buildées et vérifiées en base (dépôt git initialisé, un commit par étape). Le gel de l'ajout de sources est levé : le chantier B peut démarrer. Reste à faire côté humain : parcours navigateur de `/carte` et des sections, et renseigner la source INSEE réelle (cf. étape 5).
+
 **Priorité** : 🔴 P0 — **l'ajout de sources est gelé jusqu'à la fin des étapes 1, 2 et 6** (les étapes 3, 4, 5 peuvent glisser en parallèle).
 **Invariants** : aucune URL ne change (`/api/couches/:slug`, pages), Astro reste statique, migrations SQL additives, pas de nouveau framework, chaque étape laisse le site iso-fonctionnel et livrable.
 
-### Étape 1 — Descripteur de couche unique ⏳ 🔴 P0
+### Étape 1 — Descripteur de couche unique ✅ 🔴 P0
 
 **Objectif** : séparer « source amont » (jeu de données externe, ingéré par un job) et « couche » (ce qui s'affiche), et déclarer en **un seul endroit** tout ce dont le front a besoin.
 
@@ -133,7 +135,7 @@ Le nom `CATALOGUE_SOURCES` est conservé (compat `metaSources.ts`, `SectionLayou
 
 **Vérification** : `pnpm build:web` passe ; `curl /api/couches/<slug>/geojson` répond pour chacun des 14 slugs ; `/sources` affiche toutes les sections ; `pnpm worker:once` avec `RUN_ONLY=meta_sources` repeuple `meta.sources` sans erreur.
 
-### Étape 2 — Le front consomme le descripteur ⏳ 🔴 P0 (dépend de 1)
+### Étape 2 — Le front consomme le descripteur ✅ 🔴 P0 (dépend de 1)
 
 **Objectif** : supprimer les mappings manuels et tous les `if (slug === ...)` des îles — une seule fabrique de couche MapLibre, une seule fabrique de popup.
 
@@ -148,7 +150,7 @@ Le nom `CATALOGUE_SOURCES` est conservé (compat `metaSources.ts`, `SectionLayou
 
 **Vérification** : sur `/carte`, cliquer une feature de chaque couche (dont piezo avec graphe et adresse avec titre composé) ; `/population`, `/economie`, `/meteo` : popups identiques à avant ; `natura2000`/`znieff` ont désormais une couleur propre.
 
-### Étape 3 — Panneau de couches à l'échelle ⏳ 🟠 P1 (dépend de 2)
+### Étape 3 — Panneau de couches à l'échelle ✅ 🟠 P1 (dépend de 2)
 
 **Objectif** : panneau de `MapExplorer.svelte` groupé par section, dérivé du descripteur — l'ajout d'une couche au catalogue fait apparaître son entrée sans toucher le composant.
 
@@ -160,7 +162,7 @@ Le nom `CATALOGUE_SOURCES` est conservé (compat `metaSources.ts`, `SectionLayou
 
 **Vérification** : toutes les couches non vides apparaissent groupées par section ; ajouter une couche fictive dans `COUCHES` la fait apparaître sans modification de `MapExplorer` ; accessibilité conservée (`role="switch"`, `aria-checked`).
 
-### Étape 4 — Socle indicateurs ⏳ 🟠 P1 (parallélisable avec 2-3)
+### Étape 4 — Socle indicateurs ✅ 🟠 P1 (parallélisable avec 2-3)
 
 **Objectif** : généraliser le pattern météo (table `series.*` → endpoint → île graphique) pour toute série non cartographique (INSEE, OFGL/DGFiP…). **Les tables et pages météo existantes ne bougent pas.**
 
@@ -184,7 +186,7 @@ Le nom `CATALOGUE_SOURCES` est conservé (compat `metaSources.ts`, `SectionLayou
 
 **Vérification** : insérer 2-3 lignes en SQL, `curl /api/indicateurs/population_municipale?territoire=30339`, monter l'île sur une page locale.
 
-### Étape 5 — Première source d'indicateurs (preuve de bout en bout) ⏳ 🟠 P1 (dépend de 4)
+### Étape 5 — Première source d'indicateurs (preuve de bout en bout) 🟡 🟠 P1 (dépend de 4)
 
 **Objectif** : valider le socle avec la population historique INSEE (recensements 1968 → aujourd'hui, séries historiques data.gouv/INSEE, sans clé).
 
@@ -192,7 +194,11 @@ Le nom `CATALOGUE_SOURCES` est conservé (compat `metaSources.ts`, `SectionLayou
 
 **Vérification** : `RUN_ONCE=true RUN_ONLY=insee_population` sans erreur, courbe visible sur `/population`, run consigné dans `meta.fetch_log`.
 
-### Étape 6 — SectionAuto : fin des placeholders ⏳ 🔴 P0 (dépend de 2 ; enrichie par 4-5 sans en dépendre)
+> ⚠️ **À finaliser — URL de la source INSEE (🔑 découverte de donnée)**. Le code est livré et vérifié (parseur tolérant aux deux formats de colonnes INSEE `PMUN`/`PSDC` et `P/D_POP` testé ; chaîne API→île prouvée en base avec des points injectés), **mais l'URL du fichier CSV historique INSEE n'a pas pu être épinglée** : les identifiants de fichier `insee.fr` testés renvoient 500 (INSEE les fait tourner à chaque édition), et la recherche data.gouv ne remonte pas la série nationale par commune. En conséquence :
+> - le worker lit l'URL dans la variable d'environnement **`INSEE_POPULATION_CSV_URL`** et le job est **ignoré proprement** (prédicat `actif`) tant qu'elle n'est pas renseignée — donc aucune régression ;
+> - **action requise** : identifier le bon fichier (candidats : INSEE « base des populations historiques » / « séries historiques du recensement », ou un miroir CSV data.gouv/ODS ; attention aux formats `.xlsx`/`.zip` qui nécessiteraient un dézippage — privilégier un CSV brut), renseigner `INSEE_POPULATION_CSV_URL` dans `.env`, puis `RUN_ONCE=true RUN_ONLY=insee_population`. Adapter au besoin les motifs de colonnes dans `anneeDeColonne` (`insee_population.ts`).
+
+### Étape 6 — SectionAuto : fin des placeholders ✅ 🔴 P0 (dépend de 2 ; enrichie par 4-5 sans en dépendre)
 
 **Objectif** : restitution par défaut automatique dès qu'une section a des couches et/ou des indicateurs. Une page peut toujours surcharger via le slot (`meteo.astro` inchangée).
 
