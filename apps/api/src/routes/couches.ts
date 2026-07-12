@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import type pg from "pg";
-import { CATALOGUE_SOURCES } from "@opendata-vda/shared";
+import { CATALOGUE_SOURCES, COUCHES } from "@opendata-vda/shared";
 
-const SLUG_AUTORISES = new Set(CATALOGUE_SOURCES.map((s) => s.slug));
+const SLUG_AUTORISES = new Set<string>(COUCHES.map((c) => c.slug));
 
 export function registerCouchesRoutes(app: FastifyInstance, pool: pg.Pool): void {
   app.get("/api/couches", async () => {
@@ -15,7 +15,7 @@ export function registerCouchesRoutes(app: FastifyInstance, pool: pg.Pool): void
 
   app.get<{ Params: { slug: string } }>("/api/couches/:slug/geojson", async (req, reply) => {
     const { slug } = req.params;
-    if (!SLUG_AUTORISES.has(slug as (typeof CATALOGUE_SOURCES)[number]["slug"])) {
+    if (!SLUG_AUTORISES.has(slug)) {
       reply.code(404);
       return { error: "couche inconnue" };
     }
