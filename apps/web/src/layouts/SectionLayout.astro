@@ -3,6 +3,7 @@ import Layout from "./Layout.astro";
 import SiteHeader from "../components/SiteHeader.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SourcesDomaine from "../components/SourcesDomaine.astro";
+import SectionAuto from "../components/SectionAuto.astro";
 import { SECTIONS, CATALOGUE_SOURCES, TERRITOIRE, type SectionSlug } from "@opendata-vda/shared";
 
 interface Props {
@@ -27,7 +28,7 @@ const sources = CATALOGUE_SOURCES.filter((s) => s.theme === slug);
 
     <div class="contenu-section conteneur">
       <slot>
-        <p class="en-preparation">Cette rubrique est en préparation. Les données arrivent bientôt.</p>
+        <SectionAuto slug={slug} />
       </slot>
     </div>
 
@@ -70,13 +71,5 @@ const sources = CATALOGUE_SOURCES.filter((s) => s.theme === slug);
 
   .contenu-section {
     margin-bottom: 2.4rem;
-  }
-
-  .en-preparation {
-    padding: 2.4rem 0;
-    font-size: 0.95rem;
-    color: var(--border);
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
   }
 </style>

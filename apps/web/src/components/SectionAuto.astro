@@ -1,0 +1,105 @@
+---
+// Restitution par défaut d'une section, entièrement dérivée du descripteur :
+//  - couches de la section  -> carte thématique + légende (pastille, libellé, attribution)
+//  - indicateurs de la section -> une courbe par indicateur
+//  - ni l'un ni l'autre     -> message « en préparation »
+// Une page de section peut toujours surcharger via le <slot> de SectionLayout.
+import CarteThematique from "../islands/CarteThematique.svelte";
+import GrapheIndicateur from "../islands/GrapheIndicateur.svelte";
+import { couchesDeSection, sourceDeCouche } from "@opendata-vda/shared/catalogue";
+import { indicateursDeSection } from "@opendata-vda/shared/indicateurs";
+import { TERRITOIRE, type SectionSlug } from "@opendata-vda/shared";
+
+interface Props {
+  slug: SectionSlug;
+}
+const { slug } = Astro.props;
+const couches = couchesDeSection(slug);
+const indicateurs = indicateursDeSection(slug);
+const slugsCouches = couches.map((c) => c.slug);
+const aDuContenu = couches.length > 0 || indicateurs.length > 0;
+---
+{
+  aDuContenu ? (
+    <div class="section-auto">
+      {couches.length > 0 && (
+        <section>
+          <h2>Sur la carte</h2>
+          <CarteThematique client:only="svelte" couches={slugsCouches} />
+          <ul class="legende-carte">
+            {couches.map((c) => (
+              <li>
+                <span class="pastille" style={`background:${c.couleur}`} />
+                <span class="nom">{c.libellePluriel}</span>
+                {sourceDeCouche(c)?.attribution && (
+                  <span class="attribution">{sourceDeCouche(c)?.attribution}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {indicateurs.length > 0 && (
+        <section class="section-indicateurs">
+          {indicateurs.map((i) => (
+            <GrapheIndicateur
+              client:only="svelte"
+              indicateur={i.slug}
+              territoire={TERRITOIRE.commune.codeInsee}
+            />
+          ))}
+        </section>
+      )}
+    </div>
+  ) : (
+    <p class="en-preparation">Cette rubrique est en préparation. Les données arrivent bientôt.</p>
+  )
+}
+
+<style>
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin: 0 0 0.6rem;
+  }
+
+  .section-indicateurs {
+    margin-top: 2rem;
+  }
+
+  .legende-carte {
+    list-style: none;
+    margin: 0.8rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.4rem;
+    font-size: 0.85rem;
+  }
+
+  .legende-carte li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .pastille {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .attribution {
+    color: var(--border);
+    font-size: 0.75rem;
+  }
+
+  .en-preparation {
+    padding: 2.4rem 0;
+    font-size: 0.95rem;
+    color: var(--border);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+</style>
