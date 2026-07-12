@@ -1,0 +1,10 @@
+---
+import Layout from "../layouts/Layout.astro";
+import ReliefExplorer from "../islands/ReliefExplorer.svelte";
+---
+<Layout
+  title="Relief 3D — Val-d'Aigoual — Explorateur de données ouvertes"
+  description="Représentation 3D du relief de Val-d'Aigoual et de la Communauté de communes Causses Aigoual Cévennes : teinte hypsométrique et ombrage calculés à partir du modèle numérique de terrain (Copernicus GLO-30 et LiDAR HD IGN)."
+>
+  <ReliefExplorer client:only="svelte" />
+</Layout>

@@ -1,0 +1,87 @@
+---
+interface SourceAffichee {
+  nom: string;
+  url: string;
+  licence: string;
+  frequence: string;
+}
+interface Props {
+  sources: readonly SourceAffichee[];
+}
+const { sources } = Astro.props;
+---
+<section class="sources-domaine conteneur">
+  <h2>Sources de ce domaine</h2>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Licence</th>
+          <th>Fréquence</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sources.map((s) => (
+          <tr>
+            <td><a href={s.url} target="_blank" rel="noopener">{s.nom}</a></td>
+            <td>{s.licence}</td>
+            <td>{s.frequence}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+  .sources-domaine {
+    margin-top: 1rem;
+    padding-top: 1.4rem;
+    padding-bottom: 3rem;
+    background-image: var(--contour-rule);
+    background-repeat: repeat-x;
+    background-position: top;
+    background-size: 64px 12px;
+  }
+
+  h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+  }
+
+  .table-scroll {
+    margin-top: 1.2rem;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    min-width: 32rem;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+
+  thead th {
+    padding: 0.5rem 0.8rem;
+    text-align: left;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--border);
+    border-bottom: 1.5px solid var(--fg);
+  }
+
+  tbody td {
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody td:nth-child(2),
+  tbody td:nth-child(3) {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--border);
+  }
+</style>

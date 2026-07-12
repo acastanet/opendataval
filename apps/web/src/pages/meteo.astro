@@ -1,0 +1,120 @@
+---
+import SectionLayout from "../layouts/SectionLayout.astro";
+import CarteThematique from "../islands/CarteThematique.svelte";
+import MeteoTempsReel from "../islands/MeteoTempsReel.svelte";
+import MeteoStationsDirect from "../islands/MeteoStationsDirect.svelte";
+import MeteoPrevisions from "../islands/MeteoPrevisions.svelte";
+import MeteoClimat from "../islands/MeteoClimat.svelte";
+import { STATIONS_METEO, TERRITOIRE } from "@opendata-vda/shared";
+
+const { normales, altitudeM } = TERRITOIRE.stationMeteo;
+// Emprise englobant l'ensemble du réseau de stations (au-delà du seul territoire de l'EPCI).
+const BBOX_STATIONS = [3.2, 43.85, 4.05, 44.35];
+---
+
+<SectionLayout slug="meteo">
+  <dl class="chiffres-cles">
+    <div class="chiffre">
+      <dt>Altitude</dt>
+      <dd>{altitudeM} m</dd>
+    </div>
+    <div class="chiffre">
+      <dt>Température moyenne</dt>
+      <dd>{normales.tMoyC} °C</dd>
+    </div>
+    <div class="chiffre">
+      <dt>Précipitations</dt>
+      <dd>{normales.precipMmAn} mm/an</dd>
+    </div>
+    <div class="chiffre">
+      <dt>Jours de gel</dt>
+      <dd>{normales.joursGelAn}/an</dd>
+    </div>
+  </dl>
+  <p class="source-normales">Normales {normales.periode}, station Météo-France du mont Aigoual.</p>
+
+  <h2>En direct</h2>
+  <p>
+    Observations en temps réel : température, vent, humidité, pression et précipitations. Par défaut,
+    la station du sommet du mont Aigoual (1 567 m) ; changez de station pour voir les vallées.
+  </p>
+  <MeteoTempsReel client:only="svelte" />
+
+  <h2>Le réseau d'observation</h2>
+  <p>
+    {STATIONS_METEO.length} stations autour du massif, du sommet de l'Aigoual aux vallées cévenoles :
+    réseau officiel Météo-France (DPObs, jusqu'à 6 minutes de fraîcheur sur les stations RADOME) complété
+    par les stations amateurs du réseau Infoclimat.
+  </p>
+  <MeteoStationsDirect client:only="svelte" />
+  <CarteThematique
+    client:only="svelte"
+    couches={["station_meteo"]}
+    cluster={false}
+    hauteur="45vh"
+    bounds={BBOX_STATIONS}
+  />
+
+  <h2>Prévisions à 7 jours</h2>
+  <p>
+    Prévisions issues des modèles Météo-France (AROME/ARPEGE), au point du sommet du mont Aigoual.
+  </p>
+  <MeteoPrevisions client:only="svelte" />
+
+  <h2>Un siècle de climat</h2>
+  <p>
+    L'observatoire du mont Aigoual, fondé en 1894, est le dernier observatoire de montagne habité de
+    France. Les séries climatologiques quotidiennes publiques couvrent la période 1950 à aujourd'hui.
+  </p>
+  <MeteoClimat client:only="svelte" />
+</SectionLayout>
+
+<style>
+  .chiffres-cles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0;
+    margin: 0 0 0.4rem;
+  }
+
+  .chiffre {
+    padding: 0 1.4rem;
+    border-left: 1px solid var(--border);
+  }
+
+  .chiffre:first-child {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .chiffre dt {
+    margin: 0 0 0.25rem;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--border);
+  }
+
+  .chiffre dd {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.4rem, 2.6vw, 1.9rem);
+  }
+
+  .source-normales {
+    margin: 0 0 2.2rem;
+    font-size: 0.76rem;
+    color: var(--border);
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin: 0 0 0.6rem;
+  }
+
+  p {
+    max-width: 62ch;
+    line-height: 1.55;
+  }
+</style>

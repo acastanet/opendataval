@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+*.log
+.env
+.pnpm-store/
+
+# Extraits de relief 3D — volumineux (~2 Go) et régénérables via go-pmtiles (cf. CLAUDE.md)
+apps/web/public/relief/*.pmtiles

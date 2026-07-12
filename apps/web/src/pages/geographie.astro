@@ -1,0 +1,35 @@
+---
+import SectionLayout from "../layouts/SectionLayout.astro";
+import CarteThematique from "../islands/CarteThematique.svelte";
+import { TERRITOIRE } from "@opendata-vda/shared";
+---
+<SectionLayout slug="geographie">
+  <h2>Le relief du territoire</h2>
+  <p>
+    Le territoire s'étend des vallées cévenoles jusqu'au sommet du mont Aigoual, point culminant à
+    {TERRITOIRE.montAigoual.altitudeM} m d'altitude. Inclinez et faites pivoter la carte pour explorer le
+    relief en trois dimensions.
+  </p>
+  <p class="lien-relief">
+    <a href="/relief">Explorer le relief en plein écran, avec teinte hypsométrique et ombrage réglable →</a>
+  </p>
+  <CarteThematique client:only="svelte" relief3d couches={[]} afficherContours hauteur="75vh" />
+</SectionLayout>
+
+<style>
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin: 0 0 0.6rem;
+  }
+
+  p {
+    max-width: 62ch;
+    line-height: 1.55;
+  }
+
+  .lien-relief {
+    margin-top: 0.9rem;
+    font-size: 0.9rem;
+  }
+</style>

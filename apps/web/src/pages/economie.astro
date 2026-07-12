@@ -1,0 +1,42 @@
+---
+import SectionLayout from "../layouts/SectionLayout.astro";
+import CarteThematique from "../islands/CarteThematique.svelte";
+---
+<SectionLayout slug="economie">
+  <h2>Les établissements du territoire</h2>
+  <p>
+    Chaque point représente un établissement actif recensé dans le répertoire SIRENE (commerces,
+    artisans, exploitations agricoles, hébergements touristiques, services publics…) pour les 15
+    communes de l'intercommunalité. Zoomez pour distinguer les établissements les uns des autres.
+  </p>
+  <CarteThematique client:only="svelte" couches={["entreprise"]} />
+
+  <h2>Les parcelles agricoles</h2>
+  <p>
+    Le Registre Parcellaire Graphique (RPG) recense chaque année les parcelles agricoles déclarées
+    par les exploitants (PAC), avec leur culture principale. Il dessine le paysage agro-pastoral du
+    territoire — prairies, vergers, maraîchage, châtaigneraies.
+  </p>
+  <CarteThematique client:only="svelte" couches={["parcelle_agricole"]} cluster={false} />
+
+  <h2>Signes de qualité (AOC/AOP/IGP)</h2>
+  <p>
+    Plusieurs communes de l'intercommunalité sont comprises dans l'aire géographique de signes
+    officiels de qualité et d'origine (Pélardon, Châtaigne des Cévennes, Oignon doux des Cévennes,
+    Miel des Cévennes…), recensés par l'INAO. Cliquez sur une commune pour voir ses labels.
+  </p>
+  <CarteThematique client:only="svelte" couches={["signe_qualite"]} cluster={false} />
+</SectionLayout>
+
+<style>
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin: 0 0 0.6rem;
+  }
+
+  p {
+    max-width: 62ch;
+    line-height: 1.55;
+  }
+</style>

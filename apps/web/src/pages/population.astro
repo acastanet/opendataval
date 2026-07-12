@@ -1,0 +1,77 @@
+---
+import SectionLayout from "../layouts/SectionLayout.astro";
+import CarteThematique from "../islands/CarteThematique.svelte";
+import { COMMUNES_EPCI } from "@opendata-vda/shared";
+
+const population = COMMUNES_EPCI.reduce((somme, c) => somme + c.population, 0);
+const formatNombre = (n: number) => n.toLocaleString("fr-FR");
+const communePlusPeuplee = [...COMMUNES_EPCI].sort((a, b) => b.population - a.population)[0];
+---
+<SectionLayout slug="population">
+  <dl class="chiffres-cles">
+    <div class="chiffre">
+      <dt>Population de l'EPCI</dt>
+      <dd>{formatNombre(population)}</dd>
+    </div>
+    <div class="chiffre">
+      <dt>Communes membres</dt>
+      <dd>{COMMUNES_EPCI.length}</dd>
+    </div>
+    <div class="chiffre">
+      <dt>Commune la plus peuplée</dt>
+      <dd>{communePlusPeuplee?.nom}</dd>
+    </div>
+  </dl>
+
+  <h2>Les adresses du territoire</h2>
+  <p>
+    Chaque point représente une adresse répertoriée dans la Base Adresse Nationale (BAN) pour les
+    15 communes de l'intercommunalité. Zoomez pour distinguer les hameaux et voies isolées propres
+    à ce territoire de montagne.
+  </p>
+  <CarteThematique client:only="svelte" couches={["adresse"]} />
+</SectionLayout>
+
+<style>
+  .chiffres-cles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0;
+    margin: 0 0 2.2rem;
+  }
+
+  .chiffre {
+    padding: 0 1.4rem;
+    border-left: 1px solid var(--border);
+  }
+
+  .chiffre:first-child {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .chiffre dt {
+    margin: 0 0 0.25rem;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--border);
+  }
+
+  .chiffre dd {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.4rem, 2.6vw, 1.9rem);
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin: 0 0 0.6rem;
+  }
+
+  p {
+    max-width: 62ch;
+    line-height: 1.55;
+  }
+</style>

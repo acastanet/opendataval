@@ -1,0 +1,19 @@
+{
+  "name": "web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@opendata-vda/shared": "workspace:*",
+    "astro": "^4.16.7",
+    "@astrojs/svelte": "^5.7.3",
+    "svelte": "^4.2.19",
+    "maplibre-gl": "^5.9.0",
+    "pmtiles": "^4.4.1"
+  }
+}

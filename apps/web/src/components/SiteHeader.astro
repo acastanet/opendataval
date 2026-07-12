@@ -1,0 +1,180 @@
+---
+import { TERRITOIRE, SECTIONS } from "@opendata-vda/shared";
+
+interface Props {
+  sectionActive?: string;
+}
+const { sectionActive } = Astro.props;
+const themes = SECTIONS.filter((s) => s.slug !== "sources");
+---
+<header class="entete-site">
+  <div class="conteneur entete-interieur">
+    <a class="marque" href="/">
+      <span class="nom">{TERRITOIRE.commune.nom}</span>
+      <span class="soustitre">Données ouvertes</span>
+    </a>
+    <nav aria-label="Navigation principale">
+      <a href="/">Accueil</a>
+      <a href="/carte">Carte</a>
+      <a href="/relief">Relief 3D</a>
+      <details class="menu-themes">
+        <summary>Thèmes</summary>
+        <ul>
+          {themes.map((s) => (
+            <li>
+              <a href={`/${s.slug}`} aria-current={s.slug === sectionActive ? "page" : undefined}>
+                {s.titre}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </details>
+      <a href="/sources" aria-current={sectionActive === "sources" ? "page" : undefined}>Sources</a>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const menu = document.querySelector<HTMLDetailsElement>(".menu-themes");
+  if (menu) {
+    document.addEventListener("click", (e) => {
+      if (menu.open && !menu.contains(e.target as Node)) menu.open = false;
+    });
+    menu.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") menu.open = false;
+    });
+  }
+</script>
+
+<style>
+  .entete-site {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .entete-interieur {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .marque {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    text-decoration: none;
+    color: var(--fg);
+  }
+
+  .nom {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    letter-spacing: 0.01em;
+  }
+
+  .soustitre {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--border);
+  }
+
+  nav {
+    display: flex;
+    align-items: baseline;
+    gap: 1.4rem;
+    font-size: 0.85rem;
+  }
+
+  nav > a {
+    color: var(--fg);
+    text-decoration: none;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid transparent;
+  }
+
+  nav > a:hover,
+  nav > a:focus-visible {
+    border-bottom-color: var(--accent);
+  }
+
+  nav > a[aria-current="page"] {
+    border-bottom-color: var(--accent);
+  }
+
+  .menu-themes {
+    position: relative;
+  }
+
+  .menu-themes summary {
+    color: var(--fg);
+    cursor: pointer;
+    list-style: none;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid transparent;
+  }
+
+  .menu-themes summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .menu-themes summary::after {
+    content: "▾";
+    margin-left: 0.3rem;
+    font-size: 0.7em;
+  }
+
+  .menu-themes[open] summary,
+  .menu-themes summary:hover,
+  .menu-themes summary:focus-visible {
+    border-bottom-color: var(--accent);
+  }
+
+  .menu-themes ul {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    left: 0;
+    z-index: 10;
+    margin: 0;
+    padding: 0.5rem;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(11rem, 1fr));
+    gap: 0.1rem 0.6rem;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(2px);
+  }
+
+  .menu-themes li a {
+    display: block;
+    padding: 0.4rem 0.5rem;
+    color: var(--fg);
+    text-decoration: none;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    border-radius: var(--radius);
+  }
+
+  .menu-themes li a:hover,
+  .menu-themes li a:focus-visible {
+    background: rgba(154, 155, 147, 0.18);
+  }
+
+  .menu-themes li a[aria-current="page"] {
+    color: var(--accent);
+  }
+
+  @media (max-width: 640px) {
+    .menu-themes ul {
+      grid-template-columns: 1fr;
+      right: 0;
+      left: auto;
+    }
+  }
+</style>

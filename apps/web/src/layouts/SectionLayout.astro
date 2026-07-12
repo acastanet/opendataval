@@ -1,0 +1,82 @@
+---
+import Layout from "./Layout.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import SourcesDomaine from "../components/SourcesDomaine.astro";
+import { SECTIONS, CATALOGUE_SOURCES, TERRITOIRE, type SectionSlug } from "@opendata-vda/shared";
+
+interface Props {
+  slug: SectionSlug;
+}
+const { slug } = Astro.props;
+const section = SECTIONS.find((s) => s.slug === slug);
+if (!section) throw new Error(`Section inconnue : ${slug}`);
+const sources = CATALOGUE_SOURCES.filter((s) => s.theme === slug);
+---
+<Layout title={`${section.titre} — ${TERRITOIRE.commune.nom}`} description={section.description}>
+  <SiteHeader sectionActive={slug} />
+
+  <main class="page-section">
+    <header class="entete-section conteneur">
+      <span class="pastille-section" style={`background:${section.couleur}`}></span>
+      <div>
+        <h1>{section.titre}</h1>
+        <p class="description-section">{section.description}</p>
+      </div>
+    </header>
+
+    <div class="contenu-section conteneur">
+      <slot>
+        <p class="en-preparation">Cette rubrique est en préparation. Les données arrivent bientôt.</p>
+      </slot>
+    </div>
+
+    {sources.length > 0 && <SourcesDomaine sources={sources} />}
+  </main>
+
+  <SiteFooter />
+</Layout>
+
+<style>
+  .entete-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    margin-top: 2.4rem;
+    margin-bottom: 2rem;
+  }
+
+  .pastille-section {
+    flex-shrink: 0;
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 50%;
+    margin-top: 0.55rem;
+  }
+
+  .entete-section h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+  }
+
+  .description-section {
+    margin: 0.4rem 0 0;
+    max-width: 56ch;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--border);
+  }
+
+  .contenu-section {
+    margin-bottom: 2.4rem;
+  }
+
+  .en-preparation {
+    padding: 2.4rem 0;
+    font-size: 0.95rem;
+    color: var(--border);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+</style>

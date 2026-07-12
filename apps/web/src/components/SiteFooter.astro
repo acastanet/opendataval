@@ -1,0 +1,54 @@
+---
+import { TERRITOIRE, SECTIONS } from "@opendata-vda/shared";
+const annee = new Date().getFullYear();
+---
+<footer class="pied-site">
+  <div class="conteneur pied-interieur">
+    <nav class="plan-site" aria-label="Plan du site">
+      <a href="/carte">Carte</a>
+      <a href="/relief">Relief 3D</a>
+      {SECTIONS.map((s) => <a href={`/${s.slug}`}>{s.titre}</a>)}
+    </nav>
+    <p>{TERRITOIRE.epci.nom} — données publiées sous licences ouvertes (Etalab, ODbL selon la source).</p>
+    <p class="mentions">© {annee} · <a href="/carte">Explorer la carte</a></p>
+  </div>
+</footer>
+
+<style>
+  .pied-site {
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+  }
+
+  .pied-interieur {
+    padding-top: 1.4rem;
+    padding-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    font-size: 0.75rem;
+    color: var(--border);
+  }
+
+  .plan-site {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.1rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .plan-site a {
+    color: var(--border);
+    text-decoration: none;
+  }
+
+  .plan-site a:hover,
+  .plan-site a:focus-visible {
+    color: var(--fg);
+  }
+
+  .mentions a {
+    color: var(--border);
+  }
+</style>

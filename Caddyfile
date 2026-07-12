@@ -1,0 +1,16 @@
+{
+	auto_https off
+}
+
+http://{$SITE_DOMAIN:localhost} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		root * /srv
+		file_server
+	}
+}

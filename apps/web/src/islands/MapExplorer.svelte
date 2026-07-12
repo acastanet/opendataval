@@ -1,0 +1,1055 @@
+<script>
+  import { onMount, onDestroy } from "svelte";
+  import { fly } from "svelte/transition";
+  import maplibregl from "maplibre-gl";
+  import "maplibre-gl/dist/maplibre-gl.css";
+  import { TERRITOIRE } from "@opendata-vda/shared/territoire";
+  import RechercheLieux from "./RechercheLieux.svelte";
+  import {
+    BASEMAPS,
+    GEOLOGIE_WMS,
+    COULEUR,
+    NOM_COUCHE,
+    ajouterCoucheClusterisee,
+    enregistrerProtocolePmtiles,
+    activerRelief,
+    desactiverRelief,
+    reglerExagerationRelief,
+  } from "../lib/carte";
+
+  const GROUPES = [
+    { id: "limites", label: "Limites administratives", couleur: "#2b3238", couches: ["commune", "epci"] },
+    { id: "geologie", label: "Géologie", couleur: "#6b4226", couches: ["geologie"] },
+    { id: "sous-sol", label: "Sous-sol", couleur: "#b5533c", couches: ["cavite", "mouvement", "piezo"] },
+    { id: "eau", label: "Eau", couleur: "#3e6e82", couches: ["station_hydro"] },
+    { id: "nature", label: "Nature", couleur: "#7a8b5e", couches: ["natura2000", "znieff"] },
+    { id: "services", label: "Services", couleur: "#9a9b93", couches: ["ecole", "administration", "poi_osm"] },
+    { id: "adresses", label: "Adresses", couleur: COULEUR.adresse, couches: ["adresse"] },
+    { id: "agriculture", label: "Agriculture", couleur: COULEUR.parcelle_agricole, couches: ["parcelle_agricole", "signe_qualite"] },
+    { id: "economie", label: "Économie", couleur: COULEUR.entreprise, couches: ["entreprise"] },
+  ];
+
+  const GROUPES_ACTIFS_DEFAUT = new Set();
+
+  const LIBELLE_CLE = {
+    altitude_m: "altitude",
+    nom_commune: "commune",
+    cours_eau: "cours d'eau",
+    en_service: "en service",
+    nb_mesures: "mesures",
+    date_debut: "depuis",
+    reperage: "repérage",
+    fiabilite: "fiabilité",
+    precision: "précision",
+    gestionnaire: "gestionnaire",
+    id_mnhn: "identifiant MNHN",
+    statut: "statut",
+    sigle: "sigle",
+    adresse: "adresse",
+    commune: "commune",
+    lieu: "lieu",
+  };
+
+  /** Identifiants des layers MapLibre créés pour chaque couche (une couche peut avoir plusieurs layers). */
+  const layerIdsParCouche = {};
+
+  let mapContainer;
+  let map;
+  let pret = false;
+  let panneauOuvert = true;
+  let theme = "auto";
+  let basemapActif = "photo";
+  let groupesActifs = new Set(GROUPES_ACTIFS_DEFAUT);
+  let catalogue = [];
+  let opaciteGeologie = 0.55;
+  let relief3d = true;
+  let exagerationRelief = 1.3;
+
+  let popup = null; // { titre, lignes: [[label, valeur]], sourceUrl, serie }
+  let popupChargement = false;
+
+  let marqueurRecherche = null;
+  const ZOOM_PAR_TYPE = { adresse: 16, lieu: 15, commune: 13 };
+
+  $: nbParCouche = Object.fromEntries(catalogue.map((c) => [c.couche, c.nb]));
+  $: nbParGroupe = Object.fromEntries(
+    GROUPES.map((g) => [g.id, g.couches.reduce((s, c) => s + (nbParCouche[c] ?? 0), 0)]),
+  );
+
+  function appliquerTheme(t) {
+    theme = t;
+    if (t === "auto") {
+      delete document.documentElement.dataset.theme;
+    } else {
+      document.documentElement.dataset.theme = t;
+    }
+    try {
+      localStorage.setItem("theme", t);
+    } catch {
+      /* stockage indisponible, on ignore */
+    }
+  }
+
+  function estCoucheVisible(slug) {
+    const groupe = GROUPES.find((g) => g.couches.includes(slug));
+    return groupe ? groupesActifs.has(groupe.id) : false;
+  }
+
+  function appliquerVisibiliteGroupe(groupeId) {
+    if (!map) return;
+    const groupe = GROUPES.find((g) => g.id === groupeId);
+    if (!groupe) return;
+    const visible = groupesActifs.has(groupeId) ? "visible" : "none";
+    for (const couche of groupe.couches) {
+      for (const layerId of layerIdsParCouche[couche] ?? []) {
+        if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible);
+      }
+    }
+  }
+
+  function basculerGroupe(groupeId) {
+    if (groupesActifs.has(groupeId)) groupesActifs.delete(groupeId);
+    else groupesActifs.add(groupeId);
+    groupesActifs = new Set(groupesActifs);
+    appliquerVisibiliteGroupe(groupeId);
+  }
+
+  function changerOpaciteGeologie(v) {
+    opaciteGeologie = v;
+    if (map?.getLayer("geologie-layer")) {
+      map.setPaintProperty("geologie-layer", "raster-opacity", v);
+    }
+  }
+
+  function basculerRelief() {
+    if (!map) return;
+    relief3d = !relief3d;
+    if (relief3d) {
+      activerRelief(map, exagerationRelief);
+      map.easeTo({ pitch: 60 });
+    } else {
+      desactiverRelief(map);
+      map.easeTo({ pitch: 0 });
+    }
+  }
+
+  function changerExagerationRelief(v) {
+    exagerationRelief = v;
+    if (map && relief3d) reglerExagerationRelief(map, v);
+  }
+
+  function changerBasemap(id) {
+    basemapActif = id;
+    for (const b of BASEMAPS) {
+      const layerId = `basemap-${b.id}`;
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", b.id === id ? "visible" : "none");
+      }
+    }
+  }
+
+  function ajouterSourceEtLayerPoint(slug, geojson) {
+    const sourceId = `${slug}-src`;
+    const layerId = `${slug}-layer`;
+    map.addSource(sourceId, { type: "geojson", data: geojson });
+    map.addLayer({
+      id: layerId,
+      type: "circle",
+      source: sourceId,
+      paint: {
+        "circle-radius": 6,
+        "circle-color": COULEUR[slug] ?? "#9a9b93",
+        "circle-stroke-width": 1.5,
+        "circle-stroke-color": "#ededea",
+      },
+      layout: { visibility: estCoucheVisible(slug) ? "visible" : "none" },
+    });
+    layerIdsParCouche[slug] = [layerId];
+    map.on("click", layerId, (e) => onClicFeature(slug, e.features?.[0]));
+    map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));
+    map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
+  }
+
+  function ajouterSourceEtLayerPolygone(slug, geojson, tirets) {
+    const sourceId = `${slug}-src`;
+    const fillId = `${slug}-fill`;
+    const lineId = `${slug}-line`;
+    map.addSource(sourceId, { type: "geojson", data: geojson });
+    map.addLayer({
+      id: fillId,
+      type: "fill",
+      source: sourceId,
+      paint: { "fill-color": "#7a8b5e", "fill-opacity": 0.15 },
+      layout: { visibility: estCoucheVisible(slug) ? "visible" : "none" },
+    });
+    map.addLayer({
+      id: lineId,
+      type: "line",
+      source: sourceId,
+      paint: {
+        "line-color": "#7a8b5e",
+        "line-width": 1.5,
+        ...(tirets ? { "line-dasharray": [2, 2] } : {}),
+      },
+      layout: { visibility: estCoucheVisible(slug) ? "visible" : "none" },
+    });
+    layerIdsParCouche[slug] = [fillId, lineId];
+    map.on("click", fillId, (e) => onClicFeature(slug, e.features?.[0]));
+    map.on("mouseenter", fillId, () => (map.getCanvas().style.cursor = "pointer"));
+    map.on("mouseleave", fillId, () => (map.getCanvas().style.cursor = ""));
+  }
+
+  async function onClicFeature(slug, feature) {
+    if (!feature) return;
+    const props = feature.properties ?? {};
+    if (slug === "piezo") {
+      popup = { titre: props.nom || NOM_COUCHE.piezo, lignes: [["altitude", `${props.altitude_m ?? "?"} m`]], sourceUrl: props.source_url, serie: null };
+      popupChargement = true;
+      try {
+        const res = await fetch(`/api/piezo/chronique?code_bss=${encodeURIComponent(props.external_id)}`);
+        const data = await res.json();
+        popup = { ...popup, serie: data.mesures ?? [] };
+      } catch (err) {
+        console.error("chronique piézo indisponible", err);
+      } finally {
+        popupChargement = false;
+      }
+      return;
+    }
+
+    if (slug === "adresse") {
+      const titre = [props.numero, props.rep, props.nom_voie].filter(Boolean).join(" ") || props.nom_ld || NOM_COUCHE.adresse;
+      const lignes = [["commune", [props.code_postal, props.nom_commune].filter(Boolean).join(" ")]].filter(([, v]) => v);
+      popup = { titre, lignes, sourceUrl: props.source_url, serie: null };
+      return;
+    }
+
+    const lignes = Object.entries(props)
+      .filter(([k]) => !["external_id", "source_url", "tags", "nom"].includes(k))
+      .filter(([, v]) => v !== null && v !== undefined && v !== "")
+      .map(([k, v]) => [LIBELLE_CLE[k] ?? k.replace(/_/g, " "), String(v)]);
+
+    popup = { titre: props.nom || NOM_COUCHE[slug] || slug, lignes, sourceUrl: props.source_url, serie: null };
+  }
+
+  function fermerPopup() {
+    popup = null;
+  }
+
+  function serieVersChemin(serie, largeur, hauteur) {
+    if (!serie || serie.length === 0) return "";
+    const pas = Math.max(1, Math.floor(serie.length / 300));
+    const points = serie.filter((_, i) => i % pas === 0).filter((p) => p.niveau_m_ngf !== null);
+    if (points.length < 2) return "";
+    const valeurs = points.map((p) => Number(p.niveau_m_ngf));
+    const min = Math.min(...valeurs);
+    const max = Math.max(...valeurs);
+    const span = max - min || 1;
+    return points
+      .map((p, i) => {
+        const x = (i / (points.length - 1)) * largeur;
+        const y = hauteur - ((Number(p.niveau_m_ngf) - min) / span) * hauteur;
+        return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(" ");
+  }
+
+  function onSelectionRecherche(e) {
+    const r = e.detail;
+    if (!map) return;
+    map.flyTo({ center: [r.lon, r.lat], zoom: ZOOM_PAR_TYPE[r.type] ?? 14 });
+    marqueurRecherche?.remove();
+    marqueurRecherche = new maplibregl.Marker({ color: "#b5533c" }).setLngLat([r.lon, r.lat]).addTo(map);
+  }
+
+  onMount(async () => {
+    try {
+      const stored = localStorage.getItem("theme");
+      if (stored) appliquerTheme(stored);
+    } catch {
+      /* stockage indisponible, thème auto par défaut */
+    }
+
+    enregistrerProtocolePmtiles(maplibregl.addProtocol);
+
+    map = new maplibregl.Map({
+      container: mapContainer,
+      style: {
+        version: 8,
+        sources: {},
+        layers: [],
+        glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+      },
+      center: [TERRITOIRE.montAigoual.lon, TERRITOIRE.montAigoual.lat],
+      zoom: 11,
+      pitch: 60,
+      maxPitch: 75,
+      attributionControl: { compact: true },
+    });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), "bottom-right");
+
+    map.on("load", async () => {
+      for (const b of BASEMAPS) {
+        map.addSource(`basemap-${b.id}-src`, {
+          type: "raster",
+          tiles: [b.tiles],
+          tileSize: 256,
+          attribution: b.attribution,
+        });
+        map.addLayer({
+          id: `basemap-${b.id}`,
+          type: "raster",
+          source: `basemap-${b.id}-src`,
+          layout: { visibility: b.id === basemapActif ? "visible" : "none" },
+        });
+      }
+
+      map.addSource("geologie-src", {
+        type: "raster",
+        tiles: [GEOLOGIE_WMS],
+        tileSize: 256,
+        attribution: "© BRGM",
+      });
+      map.addLayer({
+        id: "geologie-layer",
+        type: "raster",
+        source: "geologie-src",
+        paint: { "raster-opacity": opaciteGeologie },
+        layout: { visibility: estCoucheVisible("geologie") ? "visible" : "none" },
+      });
+      layerIdsParCouche.geologie = ["geologie-layer"];
+
+      try {
+        const res = await fetch("/api/territoire");
+        const data = await res.json();
+        if (data.commune?.geometry) {
+          map.addSource("commune-src", {
+            type: "geojson",
+            data: { type: "Feature", geometry: data.commune.geometry, properties: { nom: data.commune.nom, population: data.commune.population } },
+            attribution: "IGN / INSEE (Etalab)",
+          });
+          map.addLayer({
+            id: "commune-line",
+            type: "line",
+            source: "commune-src",
+            paint: { "line-color": "#2b3238", "line-width": 2.5 },
+            layout: { visibility: estCoucheVisible("commune") ? "visible" : "none" },
+          });
+          layerIdsParCouche.commune = ["commune-line"];
+          map.on("click", "commune-line", () =>
+            (popup = {
+              titre: data.commune.nom,
+              lignes: [
+                ["population", `${data.commune.population} hab.`],
+                ["code INSEE", data.commune.code_insee],
+              ],
+              sourceUrl: "https://geo.api.gouv.fr",
+              serie: null,
+            }),
+          );
+        }
+        if (data.epci?.communes?.length) {
+          map.addSource("epci-src", {
+            type: "geojson",
+            data: {
+              type: "FeatureCollection",
+              features: data.epci.communes.map((c) => ({
+                type: "Feature",
+                geometry: c.geometry,
+                properties: { nom: c.nom, population: c.population, code_insee: c.code_insee },
+              })),
+            },
+            attribution: "IGN / INSEE (Etalab)",
+          });
+          map.addLayer({
+            id: "epci-line",
+            type: "line",
+            source: "epci-src",
+            paint: { "line-color": "#9a9b93", "line-width": 1 },
+            layout: { visibility: estCoucheVisible("epci") ? "visible" : "none" },
+          });
+          map.addLayer({
+            id: "epci-fill",
+            type: "fill",
+            source: "epci-src",
+            paint: { "fill-color": "#9a9b93", "fill-opacity": 0.001 },
+            layout: { visibility: estCoucheVisible("epci") ? "visible" : "none" },
+          });
+          layerIdsParCouche.epci = ["epci-line", "epci-fill"];
+          map.on("click", "epci-fill", (e) => {
+            const p = e.features?.[0]?.properties;
+            if (!p) return;
+            popup = {
+              titre: p.nom,
+              lignes: [
+                ["population", `${p.population} hab.`],
+                ["code INSEE", p.code_insee],
+              ],
+              sourceUrl: "https://geo.api.gouv.fr",
+              serie: null,
+            };
+          });
+        }
+      } catch (err) {
+        console.error("territoire indisponible", err);
+      }
+
+      if (relief3d) activerRelief(map, exagerationRelief);
+
+      try {
+        const res = await fetch("/api/couches");
+        const data = await res.json();
+        catalogue = data.couches ?? [];
+        for (const c of catalogue) {
+          if (c.nb === 0) continue;
+          const slug = c.couche;
+          try {
+            const gjRes = await fetch(`/api/couches/${slug}/geojson`);
+            const geojson = await gjRes.json();
+            const estPolygone = ["natura2000", "znieff"].includes(slug);
+            if (estPolygone) {
+              ajouterSourceEtLayerPolygone(slug, geojson, slug === "znieff");
+            } else if (slug === "adresse") {
+              layerIdsParCouche[slug] = ajouterCoucheClusterisee(
+                map,
+                slug,
+                geojson,
+                COULEUR.adresse,
+                estCoucheVisible(slug),
+              );
+              const pointId = `${slug}-point`;
+              map.on("click", pointId, (e) => onClicFeature(slug, e.features?.[0]));
+            } else {
+              ajouterSourceEtLayerPoint(slug, geojson);
+            }
+          } catch (err) {
+            console.error(`couche ${slug} indisponible`, err);
+          }
+        }
+      } catch (err) {
+        console.error("catalogue des couches indisponible", err);
+      }
+
+      pret = true;
+    });
+  });
+
+  onDestroy(() => {
+    map?.remove();
+  });
+</script>
+
+<div class="explorateur">
+  <div class="carte" bind:this={mapContainer}></div>
+
+  <header class="entete">
+    <a class="lien-accueil" href="/" aria-label="Retour à l'accueil">
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M12.5 4 7 10l5.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </a>
+    <div class="entete-texte">
+      <h1>{TERRITOIRE.commune.nom}</h1>
+      <p class="sous-titre">Explorateur de données ouvertes — {TERRITOIRE.epci.nomCourt}</p>
+    </div>
+  </header>
+
+  <button
+    class="bouton-theme"
+    title="Changer de thème"
+    on:click={() => appliquerTheme(theme === "dark" ? "light" : theme === "light" ? "auto" : "dark")}
+  >
+    {#if theme === "dark"}
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15 11.5A6 6 0 1 1 8.5 5a5 5 0 0 0 6.5 6.5Z" fill="currentColor" /></svg>
+    {:else if theme === "light"}
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r="3.4" fill="currentColor" />
+        <g stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <line x1="10" y1="1.6" x2="10" y2="3.6" />
+          <line x1="10" y1="16.4" x2="10" y2="18.4" />
+          <line x1="1.6" y1="10" x2="3.6" y2="10" />
+          <line x1="16.4" y1="10" x2="18.4" y2="10" />
+          <line x1="4.3" y1="4.3" x2="5.7" y2="5.7" />
+          <line x1="14.3" y1="14.3" x2="15.7" y2="15.7" />
+          <line x1="4.3" y1="15.7" x2="5.7" y2="14.3" />
+          <line x1="14.3" y1="5.7" x2="15.7" y2="4.3" />
+        </g>
+      </svg>
+    {:else}
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r="7.3" fill="none" stroke="currentColor" stroke-width="1.4" />
+        <path d="M10 2.7a7.3 7.3 0 0 1 0 14.6Z" fill="currentColor" />
+      </svg>
+    {/if}
+    <span class="sr-only">Thème : {theme}</span>
+  </button>
+
+  <RechercheLieux on:selection={onSelectionRecherche} />
+
+  <button class="bouton-panneau" on:click={() => (panneauOuvert = !panneauOuvert)}>
+    <svg viewBox="0 0 18 18" aria-hidden="true">
+      <path d="M9 2l7 4-7 4-7-4 7-4Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+      <path d="M2 10l7 4 7-4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+      <path d="M2 13.5l7 4 7-4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+    </svg>
+    {panneauOuvert ? "Masquer les couches" : "Couches"}
+  </button>
+
+  <aside class="panneau" class:ouvert={panneauOuvert}>
+    <button
+      class="poignee"
+      aria-label={panneauOuvert ? "Masquer les couches" : "Afficher les couches"}
+      on:click={() => (panneauOuvert = !panneauOuvert)}
+    ></button>
+    <h2>Couches de données</h2>
+
+    <div class="groupe-fonds" role="radiogroup" aria-label="Fond de carte">
+      {#each BASEMAPS as b}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={basemapActif === b.id}
+          class:actif={basemapActif === b.id}
+          on:click={() => changerBasemap(b.id)}
+        >
+          {b.label}
+        </button>
+      {/each}
+    </div>
+
+    <div class="ligne-groupe ligne-relief" on:click={basculerRelief}>
+      <button
+        type="button"
+        class="interrupteur"
+        class:actif={relief3d}
+        role="switch"
+        aria-checked={relief3d}
+        aria-label="Afficher le relief en 3D"
+        on:click|stopPropagation={basculerRelief}
+      >
+        <span class="poucet"></span>
+      </button>
+      <span class="nom-groupe">Relief 3D</span>
+    </div>
+    {#if relief3d}
+      <div class="controle-opacite controle-relief">
+        <label for="exageration-relief">Exagération</label>
+        <input
+          id="exageration-relief"
+          type="range"
+          min="1"
+          max="2.5"
+          step="0.1"
+          value={exagerationRelief}
+          on:input={(e) => changerExagerationRelief(Number(e.currentTarget.value))}
+        />
+      </div>
+    {/if}
+
+    <ul class="liste-groupes">
+      {#each GROUPES as g}
+        <li>
+          <div class="ligne-groupe" on:click={() => basculerGroupe(g.id)}>
+            <button
+              type="button"
+              class="interrupteur"
+              class:actif={groupesActifs.has(g.id)}
+              role="switch"
+              aria-checked={groupesActifs.has(g.id)}
+              aria-label={`Afficher ${g.label}`}
+              on:click|stopPropagation={() => basculerGroupe(g.id)}
+            >
+              <span class="poucet"></span>
+            </button>
+            <span class="pastille" style={`background:${g.couleur}`}></span>
+            <span class="nom-groupe">{g.label}</span>
+            {#if nbParGroupe[g.id]}
+              <span class="badge">{nbParGroupe[g.id]}</span>
+            {/if}
+          </div>
+          {#if g.id === "geologie" && groupesActifs.has("geologie")}
+            <div class="controle-opacite">
+              <label for="opacite-geologie">Opacité</label>
+              <input
+                id="opacite-geologie"
+                type="range"
+                min="0.1"
+                max="1"
+                step="0.05"
+                value={opaciteGeologie}
+                on:input={(e) => changerOpaciteGeologie(Number(e.currentTarget.value))}
+              />
+            </div>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+
+    <p class="note-panneau">
+      Cliquez sur un élément de la carte pour voir le détail. Les données sont mises à jour
+      automatiquement par un service interne (mensuel à quotidien selon la source).
+    </p>
+  </aside>
+
+  {#if popup}
+    <div class="fiche" role="dialog" aria-label={popup.titre} transition:fly={{ y: 16, duration: 180 }}>
+      <button class="fermer" on:click={fermerPopup} aria-label="Fermer">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+      </button>
+      <h3>{popup.titre}</h3>
+      {#if popupChargement}
+        <p class="chargement">Chargement…</p>
+      {/if}
+      <dl>
+        {#each popup.lignes as [label, valeur]}
+          <dt>{label}</dt>
+          <dd>{valeur}</dd>
+        {/each}
+      </dl>
+      {#if popup.serie && popup.serie.length > 1}
+        <svg viewBox="0 0 240 60" class="graphe" role="img" aria-label="Évolution du niveau de la nappe">
+          <path d={serieVersChemin(popup.serie, 240, 60)} fill="none" stroke="var(--color-torrent)" stroke-width="1.5" />
+        </svg>
+        <p class="legende-graphe">
+          {popup.serie[0].date} → {popup.serie[popup.serie.length - 1].date} ({popup.serie.length} mesures)
+        </p>
+      {/if}
+      {#if popup.sourceUrl}
+        <a href={popup.sourceUrl} target="_blank" rel="noopener">Voir la source →</a>
+      {/if}
+    </div>
+  {/if}
+</div>
+
+<style>
+  .explorateur {
+    position: relative;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+    font-family: var(--font-body);
+  }
+
+  .carte {
+    position: absolute;
+    inset: 0;
+  }
+
+  .entete {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem 1rem 0.9rem;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), transparent);
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    background-image: var(--contour-rule);
+    background-repeat: repeat-x;
+    background-position: bottom;
+    background-size: 64px 12px;
+  }
+
+  .lien-accueil {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    pointer-events: auto;
+    transition: background 150ms ease;
+  }
+
+  .lien-accueil svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .lien-accueil:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .lien-accueil:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+
+  .entete-texte {
+    min-width: 0;
+  }
+
+  .entete h1 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  .sous-titre {
+    margin: 0.15rem 0 0;
+    font-size: 0.8rem;
+    opacity: 0.9;
+  }
+
+  .bouton-theme {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--panel-bg);
+    color: var(--fg);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+
+  .bouton-theme svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .bouton-theme:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .bouton-panneau {
+    display: none;
+  }
+
+  .panneau {
+    position: absolute;
+    top: 3.6rem;
+    left: 1rem;
+    bottom: 1rem;
+    width: 17rem;
+    z-index: 4;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.9rem;
+    overflow-y: auto;
+    backdrop-filter: blur(2px);
+    box-shadow: var(--shadow);
+  }
+
+  .panneau h2 {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    margin: 0 0 0.6rem;
+  }
+
+  .poignee {
+    display: none;
+  }
+
+  .groupe-fonds {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 0.9rem;
+  }
+
+  .groupe-fonds button {
+    flex: 1;
+    padding: 0.45rem 0.3rem;
+    border: none;
+    border-right: 1px solid var(--border);
+    background: transparent;
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease;
+  }
+
+  .groupe-fonds button:last-child {
+    border-right: none;
+  }
+
+  .groupe-fonds button.actif {
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  .groupe-fonds button:not(.actif):hover {
+    background: rgba(154, 155, 147, 0.18);
+  }
+
+  .groupe-fonds button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .liste-groupes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .ligne-groupe {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+
+  .nom-groupe {
+    flex: 1;
+  }
+
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    color: var(--border);
+    background: rgba(154, 155, 147, 0.18);
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+  }
+
+  .interrupteur {
+    position: relative;
+    flex-shrink: 0;
+    width: 2rem;
+    height: 1.15rem;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: transparent;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease;
+  }
+
+  .interrupteur .poucet {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 50%;
+    background: var(--border);
+    transition: transform 150ms ease, background 150ms ease;
+  }
+
+  .interrupteur.actif {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .interrupteur.actif .poucet {
+    background: var(--panel-bg);
+    transform: translateX(0.85rem);
+  }
+
+  .interrupteur:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .pastille {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .ligne-relief {
+    margin-bottom: 0.9rem;
+    font-size: 0.9rem;
+  }
+
+  .controle-opacite {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.35rem 0 0 2.5rem;
+    font-size: 0.7rem;
+    color: var(--border);
+  }
+
+  .controle-relief {
+    margin: -0.5rem 0 0.9rem 2.5rem;
+  }
+
+  .controle-opacite input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+
+  .note-panneau {
+    margin-top: 0.9rem;
+    font-size: 0.72rem;
+    color: var(--border);
+    line-height: 1.4;
+  }
+
+  .fiche {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 6;
+    width: 17rem;
+    max-width: calc(100vw - 2rem);
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.9rem;
+    font-size: 0.85rem;
+    box-shadow: var(--shadow);
+  }
+
+  .fiche h3 {
+    font-family: var(--font-display);
+    margin: 0 0 0.5rem;
+    padding-right: 1.2rem;
+  }
+
+  .fermer {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--fg);
+  }
+
+  .fermer svg {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+
+  .fermer:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .fiche dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.15rem 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  .fiche dt {
+    color: var(--border);
+  }
+
+  .fiche dd {
+    margin: 0;
+  }
+
+  .graphe {
+    width: 100%;
+    height: auto;
+    margin-top: 0.6rem;
+  }
+
+  .legende-graphe {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--border);
+    margin: 0.2rem 0 0;
+  }
+
+  .fiche a {
+    display: inline-block;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .chargement {
+    font-size: 0.75rem;
+    color: var(--border);
+  }
+
+  @media (max-width: 720px) {
+    .entete {
+      padding-right: 3rem;
+    }
+
+    .bouton-panneau {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      position: absolute;
+      left: 1rem;
+      bottom: 1rem;
+      z-index: 5;
+      border: 1px solid var(--border);
+      background: var(--panel-bg);
+      color: var(--fg);
+      border-radius: var(--radius);
+      padding: 0.5rem 0.9rem;
+      font-size: 0.85rem;
+      box-shadow: var(--shadow);
+    }
+
+    .bouton-panneau svg {
+      width: 1rem;
+      height: 1rem;
+      flex-shrink: 0;
+    }
+
+    .panneau {
+      top: auto;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      max-height: 45vh;
+      border-radius: var(--radius) var(--radius) 0 0;
+      border-bottom: none;
+      transform: translateY(calc(100% - 2.5rem));
+      transition: transform 200ms ease;
+    }
+
+    .panneau.ouvert {
+      transform: translateY(0);
+    }
+
+    .poignee {
+      display: block;
+      width: 2.5rem;
+      height: 0.3rem;
+      padding: 0;
+      border: none;
+      border-radius: 999px;
+      background: var(--border);
+      margin: 0 auto 0.6rem;
+      cursor: pointer;
+    }
+
+    .fiche {
+      left: 1rem;
+      right: 1rem;
+      width: auto;
+      bottom: 5rem;
+    }
+  }
+</style>
