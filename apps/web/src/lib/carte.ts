@@ -1,4 +1,5 @@
 import type maplibregl from "maplibre-gl";
+import type { CoucheCarte } from "@opendata-vda/shared/catalogue";
 import { PMTiles } from "pmtiles";
 
 export const IGN_WMTS = (layer: string, format: string): string =>
@@ -14,38 +15,6 @@ export const BASEMAPS = [
 export const GEOLOGIE_WMS =
   "https://geoservices.brgm.fr/geologie?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=SCAN_D_GEOL50" +
   "&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true";
-
-export const COULEUR: Record<string, string> = {
-  cavite: "#6b4226",
-  mouvement: "#b5533c",
-  piezo: "#3e6e82",
-  station_hydro: "#3e6e82",
-  ecole: "#2b3238",
-  administration: "#2b3238",
-  poi_osm: "#9a9b93",
-  adresse: "#3e6e82",
-  entreprise: "#6b4226",
-  parcelle_agricole: "#5c7a44",
-  signe_qualite: "#c99a3e",
-  station_meteo: "#3e6e82",
-};
-
-export const NOM_COUCHE: Record<string, string> = {
-  cavite: "Cavité souterraine",
-  mouvement: "Mouvement de terrain",
-  piezo: "Piézomètre (nappe)",
-  station_hydro: "Station hydrométrique",
-  ecole: "École",
-  administration: "Service public",
-  poi_osm: "Point d'intérêt",
-  natura2000: "Site Natura 2000",
-  znieff: "ZNIEFF",
-  adresse: "Adresse",
-  entreprise: "Établissement (SIRENE)",
-  parcelle_agricole: "Parcelle agricole (RPG)",
-  signe_qualite: "Signe de qualité (AOC/AOP/IGP)",
-  station_meteo: "Station météo",
-};
 
 /**
  * Ajoute une source GeoJSON clusterisée (clusters + halo + points individuels) et retourne
@@ -131,6 +100,89 @@ export function ajouterCoucheClusterisee(
   map.on("mouseleave", pointId, () => (map.getCanvas().style.cursor = ""));
 
   return [clustersId, countId, pointId];
+}
+
+/**
+ * Fabrique unique d'une couche de données, entièrement pilotée par le descripteur `CoucheCarte`.
+ * Remplace les créations ad hoc de MapExplorer et CarteThematique : délègue au rendu clusterisé
+ * si `couche.cluster`, sinon crée les layers point (`<slug>-layer`) ou polygone
+ * (`<slug>-fill` + `<slug>-line`, pointillés si `couche.tirets`) selon `couche.geometrie`.
+ * `onClic(feature, lngLat)` est câblé sur le layer cliquable. Retourne les IDs de layers créés
+ * (pour alimenter le panneau de couches). Les polygones étant insérés avant les points par
+ * l'appelant, ils restent visuellement sous les marqueurs.
+ */
+export function ajouterCoucheCarte(
+  map: maplibregl.Map,
+  couche: CoucheCarte,
+  geojson: GeoJSON.FeatureCollection,
+  visible: boolean,
+  onClic: (feature: maplibregl.MapGeoJSONFeature, lngLat: maplibregl.LngLat) => void,
+): string[] {
+  const slug = couche.slug;
+  const sourceId = `${slug}-src`;
+  const visibility = visible ? "visible" : "none";
+
+  const clic = (layerId: string): void => {
+    map.on("click", layerId, (e) => {
+      const f = e.features?.[0];
+      if (f) onClic(f, e.lngLat);
+    });
+    map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));
+    map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
+  };
+
+  if (couche.cluster && couche.geometrie === "point") {
+    const ids = ajouterCoucheClusterisee(map, slug, geojson, couche.couleur, visible);
+    // ajouterCoucheClusterisee câble déjà les survols ; il reste le clic sur les points individuels.
+    map.on("click", `${slug}-point`, (e) => {
+      const f = e.features?.[0];
+      if (f) onClic(f, e.lngLat);
+    });
+    return ids;
+  }
+
+  if (couche.geometrie === "polygone") {
+    const fillId = `${slug}-fill`;
+    const lineId = `${slug}-line`;
+    map.addSource(sourceId, { type: "geojson", data: geojson });
+    map.addLayer({
+      id: fillId,
+      type: "fill",
+      source: sourceId,
+      paint: { "fill-color": couche.couleur, "fill-opacity": 0.28 },
+      layout: { visibility },
+    });
+    map.addLayer({
+      id: lineId,
+      type: "line",
+      source: sourceId,
+      paint: {
+        "line-color": couche.couleur,
+        "line-width": 1.4,
+        ...(couche.tirets ? { "line-dasharray": [2, 2] } : {}),
+      },
+      layout: { visibility },
+    });
+    clic(fillId);
+    return [fillId, lineId];
+  }
+
+  const layerId = `${slug}-layer`;
+  map.addSource(sourceId, { type: "geojson", data: geojson });
+  map.addLayer({
+    id: layerId,
+    type: "circle",
+    source: sourceId,
+    paint: {
+      "circle-radius": 5.5,
+      "circle-color": couche.couleur,
+      "circle-stroke-width": 1.3,
+      "circle-stroke-color": "#ededea",
+    },
+    layout: { visibility },
+  });
+  clic(layerId);
+  return [layerId];
 }
 
 const RELIEF_PMTILES_URL = "/relief/aigoual.pmtiles";

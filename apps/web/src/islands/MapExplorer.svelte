@@ -8,14 +8,13 @@
   import {
     BASEMAPS,
     GEOLOGIE_WMS,
-    COULEUR,
-    NOM_COUCHE,
-    ajouterCoucheClusterisee,
+    ajouterCoucheCarte,
     enregistrerProtocolePmtiles,
     activerRelief,
     desactiverRelief,
     reglerExagerationRelief,
   } from "../lib/carte";
+  import { COUCHES_PAR_SLUG, titrePopup, lignesPopup } from "@opendata-vda/shared/catalogue";
 
   const GROUPES = [
     { id: "limites", label: "Limites administratives", couleur: "#2b3238", couches: ["commune", "epci"] },
@@ -24,31 +23,12 @@
     { id: "eau", label: "Eau", couleur: "#3e6e82", couches: ["station_hydro"] },
     { id: "nature", label: "Nature", couleur: "#7a8b5e", couches: ["natura2000", "znieff"] },
     { id: "services", label: "Services", couleur: "#9a9b93", couches: ["ecole", "administration", "poi_osm"] },
-    { id: "adresses", label: "Adresses", couleur: COULEUR.adresse, couches: ["adresse"] },
-    { id: "agriculture", label: "Agriculture", couleur: COULEUR.parcelle_agricole, couches: ["parcelle_agricole", "signe_qualite"] },
-    { id: "economie", label: "Économie", couleur: COULEUR.entreprise, couches: ["entreprise"] },
+    { id: "adresses", label: "Adresses", couleur: "#3e6e82", couches: ["adresse"] },
+    { id: "agriculture", label: "Agriculture", couleur: "#5c7a44", couches: ["parcelle_agricole", "signe_qualite"] },
+    { id: "economie", label: "Économie", couleur: "#6b4226", couches: ["entreprise"] },
   ];
 
   const GROUPES_ACTIFS_DEFAUT = new Set();
-
-  const LIBELLE_CLE = {
-    altitude_m: "altitude",
-    nom_commune: "commune",
-    cours_eau: "cours d'eau",
-    en_service: "en service",
-    nb_mesures: "mesures",
-    date_debut: "depuis",
-    reperage: "repérage",
-    fiabilite: "fiabilité",
-    precision: "précision",
-    gestionnaire: "gestionnaire",
-    id_mnhn: "identifiant MNHN",
-    statut: "statut",
-    sigle: "sigle",
-    adresse: "adresse",
-    commune: "commune",
-    lieu: "lieu",
-  };
 
   /** Identifiants des layers MapLibre créés pour chaque couche (une couche peut avoir plusieurs layers). */
   const layerIdsParCouche = {};
@@ -148,88 +128,26 @@
     }
   }
 
-  function ajouterSourceEtLayerPoint(slug, geojson) {
-    const sourceId = `${slug}-src`;
-    const layerId = `${slug}-layer`;
-    map.addSource(sourceId, { type: "geojson", data: geojson });
-    map.addLayer({
-      id: layerId,
-      type: "circle",
-      source: sourceId,
-      paint: {
-        "circle-radius": 6,
-        "circle-color": COULEUR[slug] ?? "#9a9b93",
-        "circle-stroke-width": 1.5,
-        "circle-stroke-color": "#ededea",
-      },
-      layout: { visibility: estCoucheVisible(slug) ? "visible" : "none" },
-    });
-    layerIdsParCouche[slug] = [layerId];
-    map.on("click", layerId, (e) => onClicFeature(slug, e.features?.[0]));
-    map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));
-    map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
-  }
-
-  function ajouterSourceEtLayerPolygone(slug, geojson, tirets) {
-    const sourceId = `${slug}-src`;
-    const fillId = `${slug}-fill`;
-    const lineId = `${slug}-line`;
-    map.addSource(sourceId, { type: "geojson", data: geojson });
-    map.addLayer({
-      id: fillId,
-      type: "fill",
-      source: sourceId,
-      paint: { "fill-color": "#7a8b5e", "fill-opacity": 0.15 },
-      layout: { visibility: estCoucheVisible(slug) ? "visible" : "none" },
-    });
-    map.addLayer({
-      id: lineId,
-      type: "line",
-      source: sourceId,
-      paint: {
-        "line-color": "#7a8b5e",
-        "line-width": 1.5,
-        ...(tirets ? { "line-dasharray": [2, 2] } : {}),
-      },
-      layout: { visibility: estCoucheVisible(slug) ? "visible" : "none" },
-    });
-    layerIdsParCouche[slug] = [fillId, lineId];
-    map.on("click", fillId, (e) => onClicFeature(slug, e.features?.[0]));
-    map.on("mouseenter", fillId, () => (map.getCanvas().style.cursor = "pointer"));
-    map.on("mouseleave", fillId, () => (map.getCanvas().style.cursor = ""));
-  }
-
-  async function onClicFeature(slug, feature) {
+  async function onClicFeature(couche, feature) {
     if (!feature) return;
     const props = feature.properties ?? {};
-    if (slug === "piezo") {
-      popup = { titre: props.nom || NOM_COUCHE.piezo, lignes: [["altitude", `${props.altitude_m ?? "?"} m`]], sourceUrl: props.source_url, serie: null };
+    const titre = titrePopup(couche, props);
+    const lignes = lignesPopup(couche, props).map((l) => [l.libelle, l.valeur]);
+    popup = { titre, lignes, sourceUrl: props.source_url, serie: null };
+
+    if (couche.chronique) {
       popupChargement = true;
       try {
-        const res = await fetch(`/api/piezo/chronique?code_bss=${encodeURIComponent(props.external_id)}`);
+        const cle = props[couche.chronique.cle];
+        const res = await fetch(`${couche.chronique.endpoint}?code_bss=${encodeURIComponent(cle)}`);
         const data = await res.json();
         popup = { ...popup, serie: data.mesures ?? [] };
       } catch (err) {
-        console.error("chronique piézo indisponible", err);
+        console.error("chronique indisponible", err);
       } finally {
         popupChargement = false;
       }
-      return;
     }
-
-    if (slug === "adresse") {
-      const titre = [props.numero, props.rep, props.nom_voie].filter(Boolean).join(" ") || props.nom_ld || NOM_COUCHE.adresse;
-      const lignes = [["commune", [props.code_postal, props.nom_commune].filter(Boolean).join(" ")]].filter(([, v]) => v);
-      popup = { titre, lignes, sourceUrl: props.source_url, serie: null };
-      return;
-    }
-
-    const lignes = Object.entries(props)
-      .filter(([k]) => !["external_id", "source_url", "tags", "nom"].includes(k))
-      .filter(([, v]) => v !== null && v !== undefined && v !== "")
-      .map(([k, v]) => [LIBELLE_CLE[k] ?? k.replace(/_/g, " "), String(v)]);
-
-    popup = { titre: props.nom || NOM_COUCHE[slug] || slug, lignes, sourceUrl: props.source_url, serie: null };
   }
 
   function fermerPopup() {
@@ -400,30 +318,25 @@
         const res = await fetch("/api/couches");
         const data = await res.json();
         catalogue = data.couches ?? [];
-        for (const c of catalogue) {
-          if (c.nb === 0) continue;
-          const slug = c.couche;
+        // Résout chaque couche non vide via le descripteur ; polygones d'abord (sous les points).
+        const couchesResolues = catalogue
+          .filter((c) => c.nb > 0)
+          .map((c) => COUCHES_PAR_SLUG.get(c.couche))
+          .filter((c) => c)
+          .sort((a, b) => (a.geometrie === b.geometrie ? 0 : a.geometrie === "polygone" ? -1 : 1));
+        for (const couche of couchesResolues) {
           try {
-            const gjRes = await fetch(`/api/couches/${slug}/geojson`);
+            const gjRes = await fetch(`/api/couches/${couche.slug}/geojson`);
             const geojson = await gjRes.json();
-            const estPolygone = ["natura2000", "znieff"].includes(slug);
-            if (estPolygone) {
-              ajouterSourceEtLayerPolygone(slug, geojson, slug === "znieff");
-            } else if (slug === "adresse") {
-              layerIdsParCouche[slug] = ajouterCoucheClusterisee(
-                map,
-                slug,
-                geojson,
-                COULEUR.adresse,
-                estCoucheVisible(slug),
-              );
-              const pointId = `${slug}-point`;
-              map.on("click", pointId, (e) => onClicFeature(slug, e.features?.[0]));
-            } else {
-              ajouterSourceEtLayerPoint(slug, geojson);
-            }
+            layerIdsParCouche[couche.slug] = ajouterCoucheCarte(
+              map,
+              couche,
+              geojson,
+              estCoucheVisible(couche.slug),
+              (feature) => onClicFeature(couche, feature),
+            );
           } catch (err) {
-            console.error(`couche ${slug} indisponible`, err);
+            console.error(`couche ${couche.slug} indisponible`, err);
           }
         }
       } catch (err) {

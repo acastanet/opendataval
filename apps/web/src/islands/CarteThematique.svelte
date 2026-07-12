@@ -3,18 +3,13 @@
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import { TERRITOIRE } from "@opendata-vda/shared/territoire";
-  import {
-    IGN_WMTS,
-    COULEUR,
-    NOM_COUCHE,
-    ajouterCoucheClusterisee,
-    enregistrerProtocolePmtiles,
-    activerRelief,
-  } from "../lib/carte";
+  import { IGN_WMTS, ajouterCoucheCarte, enregistrerProtocolePmtiles, activerRelief } from "../lib/carte";
+  import { COUCHES_PAR_SLUG, titrePopup, lignesPopup } from "@opendata-vda/shared/catalogue";
 
-  /** Slugs de couches (CATALOGUE_SOURCES) à afficher, chargées depuis /api/couches/:slug/geojson. */
+  /** Slugs de couches (COUCHES) à afficher, chargées depuis /api/couches/:slug/geojson. */
   export let couches = [];
-  export let cluster = true;
+  /** Override du clustering ; `null` = valeur du descripteur (`couche.cluster`). */
+  export let cluster = null;
   export let hauteur = "70vh";
   export let afficherContours = true;
   /** Affiche la carte en relief 3D incliné (source Mapterhorn), caméra initiale inclinée sur le massif. */
@@ -26,122 +21,29 @@
   let map;
   let total = 0;
 
-  function construirePopup(slug, feature) {
+  function construirePopup(couche, feature) {
     const props = feature.properties ?? {};
     const el = document.createElement("div");
     el.className = "popup-carte-thematique";
 
     const titre = document.createElement("strong");
-    titre.textContent =
-      slug === "adresse"
-        ? [props.numero, props.rep, props.nom_voie].filter(Boolean).join(" ") || props.nom_ld || NOM_COUCHE.adresse
-        : props.nom || NOM_COUCHE[slug] || slug;
+    titre.textContent = titrePopup(couche, props);
     el.appendChild(titre);
 
-    if (slug === "adresse") {
-      const sousLigne = [props.code_postal, props.nom_commune].filter(Boolean).join(" ");
-      if (sousLigne) {
-        const p = document.createElement("p");
-        p.textContent = sousLigne;
-        el.appendChild(p);
-      }
-    }
-    if (slug === "entreprise") {
-      const sousLigne = [props.enseigne, props.naf, props.commune].filter(Boolean).join(" · ");
-      if (sousLigne) {
-        const p = document.createElement("p");
-        p.textContent = sousLigne;
-        el.appendChild(p);
-      }
-    }
-    if (slug === "parcelle_agricole") {
-      titre.textContent = props.libelleCulture || props.codeCulture || NOM_COUCHE[slug];
-      if (props.surfaceHa) {
-        const p = document.createElement("p");
-        p.textContent = `${Number(props.surfaceHa).toLocaleString("fr-FR")} ha`;
-        el.appendChild(p);
-      }
-    }
-    if (slug === "station_meteo") {
-      const lignes = [
-        props.altitude_m != null ? `${props.altitude_m} m` : null,
-        props.reseau === "meteofrance"
-          ? `Météo-France${props.pack ? ` (${props.pack})` : ""}`
-          : "Infoclimat (station amateur)",
-        props.licence,
-      ].filter(Boolean);
-      if (lignes.length) {
-        const p = document.createElement("p");
-        p.textContent = lignes.join(" · ");
-        el.appendChild(p);
-      }
-    }
-    if (slug === "signe_qualite") {
-      titre.textContent = props.commune || NOM_COUCHE[slug];
-      // MapLibre GL sérialise les propriétés non scalaires (tableaux/objets) des sources GeoJSON
-      // en chaîne JSON : `labels` arrive donc en string, pas en tableau, une fois la couche rendue.
-      let labels = props.labels;
-      if (typeof labels === "string") {
-        try {
-          labels = JSON.parse(labels);
-        } catch {
-          labels = [];
-        }
-      }
-      if (!Array.isArray(labels)) labels = [];
-      if (labels.length) {
-        const p = document.createElement("p");
-        p.textContent = labels.map((l) => `${l.label} (${l.type})`).join(" · ");
-        el.appendChild(p);
-      }
+    for (const { libelle, valeur } of lignesPopup(couche, props)) {
+      const p = document.createElement("p");
+      p.textContent = libelle ? `${libelle} : ${valeur}` : valeur;
+      el.appendChild(p);
     }
     return el;
   }
 
-  function ouvrirPopup(slug, feature, lngLat) {
+  function ouvrirPopup(couche, feature, lngLat) {
     if (!feature) return;
     new maplibregl.Popup({ closeButton: true })
       .setLngLat(lngLat)
-      .setDOMContent(construirePopup(slug, feature))
+      .setDOMContent(construirePopup(couche, feature))
       .addTo(map);
-  }
-
-  function ajouterCoucheSimple(slug, geojson, couleur) {
-    const sourceId = `${slug}-src`;
-    map.addSource(sourceId, { type: "geojson", data: geojson });
-
-    const estPolygone = (geojson.features?.[0]?.geometry?.type ?? "").includes("Polygon");
-    if (estPolygone) {
-      const fillId = `${slug}-fill`;
-      const lineId = `${slug}-line`;
-      map.addLayer({
-        id: fillId,
-        type: "fill",
-        source: sourceId,
-        paint: { "fill-color": couleur, "fill-opacity": 0.35 },
-      });
-      map.addLayer({ id: lineId, type: "line", source: sourceId, paint: { "line-color": couleur, "line-width": 1 } });
-      map.on("click", fillId, (e) => ouvrirPopup(slug, e.features?.[0], e.lngLat));
-      map.on("mouseenter", fillId, () => (map.getCanvas().style.cursor = "pointer"));
-      map.on("mouseleave", fillId, () => (map.getCanvas().style.cursor = ""));
-      return;
-    }
-
-    const layerId = `${slug}-layer`;
-    map.addLayer({
-      id: layerId,
-      type: "circle",
-      source: sourceId,
-      paint: {
-        "circle-radius": 5,
-        "circle-color": couleur,
-        "circle-stroke-width": 1.2,
-        "circle-stroke-color": "#ededea",
-      },
-    });
-    map.on("click", layerId, (e) => ouvrirPopup(slug, e.features?.[0], e.lngLat));
-    map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));
-    map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
   }
 
   onMount(() => {
@@ -198,22 +100,23 @@
         }
       }
 
-      for (const slug of couches) {
+      // Polygones d'abord pour qu'ils restent visuellement sous les points.
+      const couchesResolues = couches
+        .map((slug) => COUCHES_PAR_SLUG.get(slug))
+        .filter((c) => c)
+        .sort((a, b) => (a.geometrie === b.geometrie ? 0 : a.geometrie === "polygone" ? -1 : 1));
+
+      for (const couche of couchesResolues) {
         try {
-          const res = await fetch(`/api/couches/${slug}/geojson`);
+          const res = await fetch(`/api/couches/${couche.slug}/geojson`);
           const geojson = await res.json();
           total += geojson.features?.length ?? 0;
-          const couleur = COULEUR[slug] ?? "#9a9b93";
-          const estPoint = geojson.features?.[0]?.geometry?.type === "Point";
-          if (cluster && estPoint) {
-            ajouterCoucheClusterisee(map, slug, geojson, couleur, true);
-            const pointId = `${slug}-point`;
-            map.on("click", pointId, (e) => ouvrirPopup(slug, e.features?.[0], e.lngLat));
-          } else {
-            ajouterCoucheSimple(slug, geojson, couleur);
-          }
+          const clusterEffectif = (cluster ?? couche.cluster ?? false) && couche.geometrie === "point";
+          ajouterCoucheCarte(map, { ...couche, cluster: clusterEffectif }, geojson, true, (feature, lngLat) =>
+            ouvrirPopup(couche, feature, lngLat),
+          );
         } catch (err) {
-          console.error(`couche ${slug} indisponible`, err);
+          console.error(`couche ${couche.slug} indisponible`, err);
         }
       }
     });
