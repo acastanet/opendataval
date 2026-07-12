@@ -10,6 +10,7 @@
     "./territoire": "./src/territoire.ts",
     "./sections": "./src/sections.ts",
     "./catalogue": "./src/catalogue.ts",
+    "./indicateurs": "./src/indicateurs.ts",
     "./stations-meteo": "./src/stationsMeteo.ts"
   },
   "dependencies": {

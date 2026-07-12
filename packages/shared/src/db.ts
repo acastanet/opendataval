@@ -90,6 +90,35 @@ export async function upsertObjetsEnLot(pool: pg.Pool, objets: ObjetInput[]): Pr
   );
 }
 
+export interface IndicateurInput {
+  indicateur: string;
+  territoire: string;
+  periode: string;
+  valeur: number | null;
+  source: string;
+}
+
+/** Upsert par lots des points d'indicateurs (unnest), calqué sur upsertObjetsEnLot. */
+export async function upsertIndicateurs(pool: pg.Pool, lignes: IndicateurInput[]): Promise<void> {
+  if (lignes.length === 0) return;
+  await pool.query(
+    `insert into series.indicateurs (indicateur, territoire, periode, valeur, source, maj)
+     select i, t, p, v, s, now()
+     from unnest($1::text[], $2::text[], $3::text[], $4::numeric[], $5::text[]) as u(i, t, p, v, s)
+     on conflict (indicateur, territoire, periode) do update set
+       valeur = excluded.valeur,
+       source = excluded.source,
+       maj = now()`,
+    [
+      lignes.map((l) => l.indicateur),
+      lignes.map((l) => l.territoire),
+      lignes.map((l) => l.periode),
+      lignes.map((l) => l.valeur),
+      lignes.map((l) => l.source),
+    ],
+  );
+}
+
 export async function upsertPiezoMesures(
   pool: pg.Pool,
   codeBss: string,
