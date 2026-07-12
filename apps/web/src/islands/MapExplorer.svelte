@@ -14,21 +14,28 @@
     desactiverRelief,
     reglerExagerationRelief,
   } from "../lib/carte";
-  import { COUCHES_PAR_SLUG, titrePopup, lignesPopup } from "@opendata-vda/shared/catalogue";
+  import { SECTIONS } from "@opendata-vda/shared/sections";
+  import { COUCHES, COUCHES_PAR_SLUG, couchesDeSection, titrePopup, lignesPopup } from "@opendata-vda/shared/catalogue";
 
-  const GROUPES = [
-    { id: "limites", label: "Limites administratives", couleur: "#2b3238", couches: ["commune", "epci"] },
-    { id: "geologie", label: "Géologie", couleur: "#6b4226", couches: ["geologie"] },
-    { id: "sous-sol", label: "Sous-sol", couleur: "#b5533c", couches: ["cavite", "mouvement", "piezo"] },
-    { id: "eau", label: "Eau", couleur: "#3e6e82", couches: ["station_hydro"] },
-    { id: "nature", label: "Nature", couleur: "#7a8b5e", couches: ["natura2000", "znieff"] },
-    { id: "services", label: "Services", couleur: "#9a9b93", couches: ["ecole", "administration", "poi_osm"] },
-    { id: "adresses", label: "Adresses", couleur: "#3e6e82", couches: ["adresse"] },
-    { id: "agriculture", label: "Agriculture", couleur: "#5c7a44", couches: ["parcelle_agricole", "signe_qualite"] },
-    { id: "economie", label: "Économie", couleur: "#6b4226", couches: ["entreprise"] },
+  // Groupes d'infrastructure fixes (couches non issues de couches.objets : contours servis par
+  // /api/territoire, géologie en WMS). Les groupes thématiques, eux, sont dérivés de SECTIONS.
+  const GROUPES_INFRA = [
+    {
+      id: "limites",
+      titre: "Limites administratives",
+      couleur: "#2b3238",
+      couches: [
+        { slug: "commune", libelle: "Commune" },
+        { slug: "epci", libelle: "Intercommunalité (EPCI)" },
+      ],
+    },
+    {
+      id: "geologie",
+      titre: "Géologie (BRGM)",
+      couleur: "#6b4226",
+      couches: [{ slug: "geologie", libelle: "Carte géologique 1/50 000" }],
+    },
   ];
-
-  const GROUPES_ACTIFS_DEFAUT = new Set();
 
   /** Identifiants des layers MapLibre créés pour chaque couche (une couche peut avoir plusieurs layers). */
   const layerIdsParCouche = {};
@@ -39,7 +46,9 @@
   let panneauOuvert = true;
   let theme = "auto";
   let basemapActif = "photo";
-  let groupesActifs = new Set(GROUPES_ACTIFS_DEFAUT);
+  // Couches actuellement visibles (granularité par couche). État initial : descripteur `visibleParDefaut`.
+  let visibles = new Set(COUCHES.filter((c) => c.visibleParDefaut).map((c) => c.slug));
+  let ouvertsManuel = new Set(); // groupes explicitement dépliés par l'utilisateur
   let catalogue = [];
   let opaciteGeologie = 0.55;
   let relief3d = true;
@@ -52,9 +61,16 @@
   const ZOOM_PAR_TYPE = { adresse: 16, lieu: 15, commune: 13 };
 
   $: nbParCouche = Object.fromEntries(catalogue.map((c) => [c.couche, c.nb]));
-  $: nbParGroupe = Object.fromEntries(
-    GROUPES.map((g) => [g.id, g.couches.reduce((s, c) => s + (nbParCouche[c] ?? 0), 0)]),
-  );
+  // Un groupe thématique par section ayant au moins une couche non vide en base.
+  $: groupes = [
+    ...GROUPES_INFRA,
+    ...SECTIONS.map((s) => {
+      const couches = couchesDeSection(s.slug)
+        .filter((c) => (nbParCouche[c.slug] ?? 0) > 0)
+        .map((c) => ({ slug: c.slug, libelle: c.libellePluriel, nb: nbParCouche[c.slug] }));
+      return couches.length ? { id: `sec-${s.slug}`, titre: s.titre, couleur: s.couleur, couches } : null;
+    }).filter((g) => g),
+  ];
 
   function appliquerTheme(t) {
     theme = t;
@@ -71,27 +87,47 @@
   }
 
   function estCoucheVisible(slug) {
-    const groupe = GROUPES.find((g) => g.couches.includes(slug));
-    return groupe ? groupesActifs.has(groupe.id) : false;
+    return visibles.has(slug);
   }
 
-  function appliquerVisibiliteGroupe(groupeId) {
-    if (!map) return;
-    const groupe = GROUPES.find((g) => g.id === groupeId);
-    if (!groupe) return;
-    const visible = groupesActifs.has(groupeId) ? "visible" : "none";
-    for (const couche of groupe.couches) {
-      for (const layerId of layerIdsParCouche[couche] ?? []) {
-        if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible);
-      }
+  function definirVisibiliteCouche(slug, on) {
+    if (on) visibles.add(slug);
+    else visibles.delete(slug);
+    const visibility = on ? "visible" : "none";
+    for (const layerId of layerIdsParCouche[slug] ?? []) {
+      if (map?.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visibility);
     }
   }
 
-  function basculerGroupe(groupeId) {
-    if (groupesActifs.has(groupeId)) groupesActifs.delete(groupeId);
-    else groupesActifs.add(groupeId);
-    groupesActifs = new Set(groupesActifs);
-    appliquerVisibiliteGroupe(groupeId);
+  function basculerCouche(slug) {
+    definirVisibiliteCouche(slug, !visibles.has(slug));
+    visibles = new Set(visibles);
+  }
+
+  function groupeToutVisible(g) {
+    return g.couches.every((c) => visibles.has(c.slug));
+  }
+
+  function basculerGroupe(g) {
+    const tout = groupeToutVisible(g);
+    for (const c of g.couches) definirVisibiliteCouche(c.slug, !tout);
+    visibles = new Set(visibles);
+  }
+
+  function badgeGroupe(g) {
+    return g.couches.reduce((s, c) => s + (c.nb ?? 0), 0);
+  }
+
+  // Un groupe est déplié s'il contient une couche active (forcé) ou s'il a été ouvert manuellement.
+  function estOuvert(g) {
+    if (g.couches.some((c) => visibles.has(c.slug))) return true;
+    return ouvertsManuel.has(g.id);
+  }
+
+  function basculerOuvert(id) {
+    if (ouvertsManuel.has(id)) ouvertsManuel.delete(id);
+    else ouvertsManuel.add(id);
+    ouvertsManuel = new Set(ouvertsManuel);
   }
 
   function changerOpaciteGeologie(v) {
@@ -460,39 +496,73 @@
     {/if}
 
     <ul class="liste-groupes">
-      {#each GROUPES as g}
+      {#each groupes as g (g.id)}
         <li>
-          <div class="ligne-groupe" on:click={() => basculerGroupe(g.id)}>
+          <div class="ligne-groupe">
             <button
               type="button"
               class="interrupteur"
-              class:actif={groupesActifs.has(g.id)}
+              class:actif={groupeToutVisible(g)}
               role="switch"
-              aria-checked={groupesActifs.has(g.id)}
-              aria-label={`Afficher ${g.label}`}
-              on:click|stopPropagation={() => basculerGroupe(g.id)}
+              aria-checked={groupeToutVisible(g)}
+              aria-label={`Afficher tout : ${g.titre}`}
+              on:click={() => basculerGroupe(g)}
             >
               <span class="poucet"></span>
             </button>
             <span class="pastille" style={`background:${g.couleur}`}></span>
-            <span class="nom-groupe">{g.label}</span>
-            {#if nbParGroupe[g.id]}
-              <span class="badge">{nbParGroupe[g.id]}</span>
-            {/if}
+            <button
+              type="button"
+              class="entete-groupe"
+              aria-expanded={estOuvert(g)}
+              on:click={() => basculerOuvert(g.id)}
+            >
+              <span class="nom-groupe">{g.titre}</span>
+              {#if badgeGroupe(g)}
+                <span class="badge">{badgeGroupe(g)}</span>
+              {/if}
+              <svg class="chevron" class:ouvert={estOuvert(g)} viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
           </div>
-          {#if g.id === "geologie" && groupesActifs.has("geologie")}
-            <div class="controle-opacite">
-              <label for="opacite-geologie">Opacité</label>
-              <input
-                id="opacite-geologie"
-                type="range"
-                min="0.1"
-                max="1"
-                step="0.05"
-                value={opaciteGeologie}
-                on:input={(e) => changerOpaciteGeologie(Number(e.currentTarget.value))}
-              />
-            </div>
+
+          {#if estOuvert(g)}
+            <ul class="liste-couches">
+              {#each g.couches as c (c.slug)}
+                <li class="ligne-couche">
+                  <button
+                    type="button"
+                    class="interrupteur"
+                    class:actif={visibles.has(c.slug)}
+                    role="switch"
+                    aria-checked={visibles.has(c.slug)}
+                    aria-label={`Afficher ${c.libelle}`}
+                    on:click={() => basculerCouche(c.slug)}
+                  >
+                    <span class="poucet"></span>
+                  </button>
+                  <span class="nom-couche">{c.libelle}</span>
+                  {#if c.nb}
+                    <span class="badge">{c.nb}</span>
+                  {/if}
+                </li>
+              {/each}
+              {#if g.id === "geologie" && visibles.has("geologie")}
+                <div class="controle-opacite">
+                  <label for="opacite-geologie">Opacité</label>
+                  <input
+                    id="opacite-geologie"
+                    type="range"
+                    min="0.1"
+                    max="1"
+                    step="0.05"
+                    value={opaciteGeologie}
+                    on:input={(e) => changerOpaciteGeologie(Number(e.currentTarget.value))}
+                  />
+                </div>
+              {/if}
+            </ul>
           {/if}
         </li>
       {/each}
@@ -725,11 +795,64 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .entete-groupe {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    text-align: left;
     cursor: pointer;
+  }
+
+  .entete-groupe:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   .nom-groupe {
     flex: 1;
+  }
+
+  .chevron {
+    width: 0.7rem;
+    height: 0.7rem;
+    flex-shrink: 0;
+    color: var(--border);
+    transition: transform 150ms ease;
+  }
+
+  .chevron.ouvert {
+    transform: rotate(180deg);
+  }
+
+  .liste-couches {
+    list-style: none;
+    margin: 0.35rem 0 0 2.5rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .ligne-couche {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+  }
+
+  .nom-couche {
+    flex: 1;
+    min-width: 0;
   }
 
   .badge {
