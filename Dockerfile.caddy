@@ -14,3 +14,5 @@ RUN pnpm --filter web build
 FROM caddy:2-alpine
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY --from=webbuild /app/apps/web/dist /srv
+# Les extraits de relief (/srv/relief/*.pmtiles, ~2 Go) ne sont pas buildés ici : ils sont
+# exclus du contexte (.dockerignore) et montés au runtime depuis l'hôte (docker-compose.yml).

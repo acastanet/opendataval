@@ -62,6 +62,9 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+      # Extraits de relief 3D servis en statique (URL /relief/*.pmtiles) : montés depuis
+      # l'hôte plutôt qu'embarqués dans l'image (cf. .dockerignore). ~2 Go, régénérables.
+      - ./apps/web/public/relief:/srv/relief:ro
 
 volumes:
   db_data:

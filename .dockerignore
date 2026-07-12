@@ -7,3 +7,7 @@ dist
 .git
 .env
 *.log
+
+# Extraits de relief 3D (~2 Go) : montés au runtime dans Caddy (docker-compose.yml),
+# jamais embarqués dans un contexte de build. Régénérables via go-pmtiles (cf. CLAUDE.md).
+apps/web/public/relief/*.pmtiles
