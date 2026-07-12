@@ -12,6 +12,7 @@ import * as entreprises from "./sources/entreprises.js";
 import * as rpg from "./sources/rpg.js";
 import * as signesQualite from "./sources/signesQualite.js";
 import * as metaSources from "./sources/metaSources.js";
+import * as inseePopulation from "./sources/insee_population.js";
 import * as meteoObs from "./sources/meteo_obs.js";
 import * as meteoRadome from "./sources/meteo_radome.js";
 import * as meteoInfoclimat from "./sources/meteo_infoclimat.js";
@@ -40,6 +41,12 @@ export const JOBS: SourceJob[] = [
   { slug: "entreprises", cron: "0 4 6 * *", run: entreprises.run }, // mensuel
   { slug: "rpg", cron: "0 4 15 1 *", run: rpg.run }, // annuel (15 janvier)
   { slug: "signes_qualite", cron: "0 4 20 1 *", run: signesQualite.run }, // annuel (20 janvier)
+  {
+    slug: "insee_population",
+    cron: "0 5 25 1 *", // annuel (25 janvier, après publication des populations légales)
+    run: inseePopulation.run,
+    actif: () => Boolean(process.env.INSEE_POPULATION_CSV_URL),
+  },
   {
     slug: "meteo_obs",
     cron: "20 * * * *", // horaire (hh:20, après publication DPObs vers hh+5/+15)

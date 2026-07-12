@@ -1,7 +1,8 @@
 ---
 import SectionLayout from "../layouts/SectionLayout.astro";
 import CarteThematique from "../islands/CarteThematique.svelte";
-import { COMMUNES_EPCI } from "@opendata-vda/shared";
+import GrapheIndicateur from "../islands/GrapheIndicateur.svelte";
+import { COMMUNES_EPCI, TERRITOIRE } from "@opendata-vda/shared";
 
 const population = COMMUNES_EPCI.reduce((somme, c) => somme + c.population, 0);
 const formatNombre = (n: number) => n.toLocaleString("fr-FR");
@@ -22,6 +23,17 @@ const communePlusPeuplee = [...COMMUNES_EPCI].sort((a, b) => b.population - a.po
       <dd>{communePlusPeuplee?.nom}</dd>
     </div>
   </dl>
+
+  <h2>Évolution de la population</h2>
+  <p>
+    Population municipale de {TERRITOIRE.commune.nom} au fil des recensements INSEE. La série est
+    ingérée automatiquement dès qu'une source de populations historiques est configurée.
+  </p>
+  <GrapheIndicateur
+    client:only="svelte"
+    indicateur="population_municipale"
+    territoire={TERRITOIRE.commune.codeInsee}
+  />
 
   <h2>Les adresses du territoire</h2>
   <p>

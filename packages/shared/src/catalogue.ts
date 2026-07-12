@@ -64,6 +64,16 @@ export const CATALOGUE_SOURCES = [
     job: "geoapi",
   },
   {
+    slug: "insee_population",
+    nom: "INSEE — Populations historiques (recensements)",
+    url: "https://www.insee.fr/fr/statistiques/serie/s/population",
+    licence: "Licence Ouverte 2.0",
+    attribution: "© INSEE",
+    frequence: "annuelle",
+    theme: "population",
+    job: "insee_population",
+  },
+  {
     slug: "adresse",
     nom: "Base Adresse Nationale (BAN)",
     url: "https://adresse.data.gouv.fr",
