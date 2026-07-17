@@ -17,11 +17,13 @@ interface StationPiezo {
   nb_mesures_piezo: number | null;
   libelle_pe: string | null;
   date_debut_mesure: string | null;
+  date_fin_mesure: string | null;
 }
 
 interface MesurePiezo {
   date_mesure: string;
   niveau_nappe_eau: number | null;
+  profondeur_nappe: number | null;
 }
 
 interface StationHydro {
@@ -68,6 +70,7 @@ export async function run(pool: pg.Pool): Promise<number> {
         altitude_m: s.altitude_station,
         nb_mesures: s.nb_mesures_piezo,
         date_debut: s.date_debut_mesure,
+        date_fin: s.date_fin_mesure,
       },
       geometry: { type: "Point", coordinates: coords },
       sourceUrl: "https://ades.eaufrance.fr/",
@@ -81,7 +84,11 @@ export async function run(pool: pg.Pool): Promise<number> {
     await upsertPiezoMesures(
       pool,
       s.code_bss,
-      mesures.map((m) => ({ date: m.date_mesure, niveauMNgf: m.niveau_nappe_eau })),
+      mesures.map((m) => ({
+        date: m.date_mesure,
+        niveauMNgf: m.niveau_nappe_eau,
+        profondeurM: m.profondeur_nappe,
+      })),
     );
   }
 

@@ -4,6 +4,18 @@ import { TERRITOIRE, COMMUNES_EPCI } from "@opendata-vda/shared";
 
 const CODES_EPCI = new Set<string>(COMMUNES_EPCI.map((c) => c.codeInsee));
 
+// Stations de l'Hérault télésuivies par Vigicrues (repli live hors Hub'Eau).
+const CODES_VIGICRUES = new Set<string>([
+  "Y200002701",
+  "Y210001001",
+  "Y210002001",
+  "Y214001002",
+  "Y214002001",
+  "Y230002001",
+  "Y233001002",
+  "Y237002001",
+]);
+
 const NOM_COUCHE: Record<string, string> = {
   cavite: "Cavité souterraine",
   mouvement: "Mouvement de terrain",
@@ -98,6 +110,39 @@ export function registerOutilsRoutes(app: FastifyInstance, pool: pg.Pool): void 
     const res = await fetch(url);
     return res.json();
   });
+
+  // Repli temps réel pour l'hydrométrie (observations_tr Hub'Eau en panne).
+  // Vigicrues ne renvoie aucun en-tête CORS → proxy côté serveur obligatoire.
+  app.get<{ Querystring: { code?: string; grandeur?: string } }>(
+    "/api/vigicrues/observations",
+    async (req, reply) => {
+      const { code, grandeur } = req.query;
+      if (!code || !CODES_VIGICRUES.has(code)) {
+        reply.code(400);
+        return { error: "code de station non autorisé" };
+      }
+      if (grandeur !== "H" && grandeur !== "Q") {
+        reply.code(400);
+        return { error: "grandeur doit valoir H (hauteur) ou Q (débit)" };
+      }
+      const url =
+        `https://www.vigicrues.gouv.fr/services/observations.json/?CdStationHydro=${encodeURIComponent(code)}` +
+        `&GrdSerie=${encodeURIComponent(grandeur)}`;
+      const res = await fetch(url, { headers: { "User-Agent": "OpenDataVdA/1.0" } });
+      if (!res.ok) {
+        req.log.error(`Vigicrues → HTTP ${res.status} pour ${code}/${grandeur}`);
+        reply.code(502);
+        return { error: `Vigicrues indisponible (HTTP ${res.status})` };
+      }
+      const json = (await res.json()) as { error_msg?: string };
+      if (json && json.error_msg) {
+        reply.code(502);
+        return { error: json.error_msg };
+      }
+      reply.header("Cache-Control", "public, max-age=600");
+      return json;
+    }
+  );
 
   app.get<{ Querystring: { q?: string } }>("/api/recherche", async (req, reply) => {
     const { q } = req.query;

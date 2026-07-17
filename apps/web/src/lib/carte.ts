@@ -251,7 +251,7 @@ const RELIEF_HD_MINZOOM = 13;
 const RELIEF_HD_MAXZOOM = 15;
 /** Bbox couverte par les deux extraits pmtiles (cf. commande de régénération dans CLAUDE.md). */
 const RELIEF_BOUNDS: [number, number, number, number] = [3.2, 43.8, 4.1, 44.4];
-const RELIEF_PROTOCOL = "aigoualdem";
+export const RELIEF_PROTOCOL = "aigoualdem";
 export const RELIEF_SOURCE_ID = "relief-dem-src";
 const RELIEF_HILLSHADE_ID = "relief-hillshade";
 const RELIEF_ATTRIBUTION = '© <a href="https://mapterhorn.com/attribution">Mapterhorn</a>';

@@ -1,0 +1,527 @@
+:root {
+  --color-ardoise: #2b3238;
+  --color-brume: #ededea;
+  --color-chataigne: #6b4226;
+  --color-torrent: #3e6e82;
+  --color-granite: #6b7280;
+  --color-alerte: #b5533c;
+
+  --bg: var(--color-brume);
+  --fg: var(--color-ardoise);
+  --accent: var(--color-chataigne);
+  --border: var(--color-granite);
+  --panel-bg: rgba(237, 237, 234, 0.96);
+  --shadow: 0 2px 12px rgba(43, 50, 56, 0.14);
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+
+  --radius: 4px;
+}
+
+html.dark {
+  --bg: var(--color-ardoise);
+  --fg: var(--color-brume);
+  --accent: #a9714f;
+  --border: #b0b5ba;
+  --panel-bg: rgba(43, 50, 56, 0.96);
+  --shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.page {
+  width: min(52rem, 94vw);
+  margin: 0 auto;
+}
+
+.entete {
+  position: relative;
+  margin-bottom: 1.4rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid var(--accent);
+}
+
+.retour-didactique {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--color-torrent);
+  text-decoration: none;
+}
+
+.retour-didactique:hover {
+  text-decoration: underline;
+}
+
+.entete h1 {
+  font-family: var(--font-display);
+  margin: 0;
+  font-size: 1.9rem;
+}
+
+.sous-titre {
+  margin: 0.2rem 0 0;
+  color: var(--border);
+  font-size: 0.9rem;
+}
+
+.bouton-theme {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.bouton-theme:hover {
+  background: rgba(154, 155, 147, 0.18);
+}
+
+.bloc {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.3rem 1.3rem;
+  margin-bottom: 1.2rem;
+  box-shadow: var(--shadow);
+}
+
+.bloc h2 {
+  font-family: var(--font-display);
+  margin: 0 0 0.7rem;
+  font-size: 1.25rem;
+}
+
+.chargement {
+  font-size: 0.88rem;
+  color: var(--border);
+}
+
+.chargement.erreur {
+  color: var(--color-alerte);
+}
+
+/* ---- Cartouche rivière ---- */
+.cartouche {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cartouche-principal {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.cartouche-valeur {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.cartouche-tendance {
+  font-size: 1.4rem;
+}
+
+.cartouche-tendance.haut { color: var(--color-alerte); }
+.cartouche-tendance.bas { color: var(--color-torrent); }
+.cartouche-tendance.stable { color: var(--border); }
+
+.cartouche-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  font-size: 0.82rem;
+  color: var(--border);
+}
+
+.cartouche-meta a {
+  font-size: 0.8rem;
+}
+
+/* ---- Sélecteur de période ---- */
+.periode {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.8rem 0 0.4rem;
+}
+
+.periode button {
+  font-size: 0.82rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.periode button.actif {
+  background: var(--accent);
+  color: var(--panel-bg);
+  border-color: var(--accent);
+}
+
+/* ---- Graphe & infobulle ---- */
+.graphe-cont {
+  position: relative;
+  width: 100%;
+  margin-top: 0.6rem;
+}
+
+.graphe-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.graphe-svg .grille-line {
+  stroke: var(--border);
+  stroke-opacity: 0.35;
+  stroke-dasharray: 2 2;
+}
+
+.graphe-svg .axes-x,
+.graphe-svg .axes-y {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--border);
+}
+
+.graphe-svg .aire-graphe {
+  fill: var(--color-torrent);
+  fill-opacity: 0.12;
+}
+
+.graphe-svg .chemin-graphe {
+  stroke: var(--color-torrent);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.graphe-svg .overlay-survol {
+  cursor: crosshair;
+}
+
+.graphe-svg .ligne-curseur {
+  stroke: var(--fg);
+  stroke-opacity: 0.5;
+  stroke-dasharray: 3 3;
+}
+
+.graphe-svg .point-curseur {
+  fill: var(--color-alerte);
+  stroke: var(--panel-bg);
+  stroke-width: 1.5;
+}
+
+.graphe-svg .marqueur-episode {
+  fill: var(--color-alerte);
+  stroke: var(--panel-bg);
+  stroke-width: 1.5;
+}
+
+.graphe-svg .label-episode {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--color-alerte);
+}
+
+.graphe-infobulle {
+  position: absolute;
+  pointer-events: none;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius);
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+  z-index: 5;
+}
+
+.legende-graphe {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--border);
+  margin: 0.3rem 0 0;
+}
+
+/* ---- Épisodes rivière ---- */
+.episodes {
+  margin-top: 0.9rem;
+}
+
+.episodes h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.4rem;
+}
+
+.episodes ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.episodes li {
+  margin: 0;
+}
+
+.episode-lien {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--color-alerte);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.episode-lien:hover {
+  background: rgba(181, 83, 60, 0.15);
+}
+
+/* ---- Crues passées ---- */
+.situation-courante {
+  font-size: 0.88rem;
+  margin: 0 0 0.7rem;
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--color-alerte);
+  background: rgba(181, 83, 60, 0.08);
+}
+
+.crues-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.crues-list li {
+  display: grid;
+  grid-template-columns: 11rem 6rem 1fr;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 0.86rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed var(--border);
+}
+
+.crue-date { font-weight: 600; }
+.crue-debit { font-family: var(--font-mono); color: var(--color-alerte); }
+.crue-detail { color: var(--border); font-size: 0.78rem; }
+
+/* ---- Fleuve tuiles ---- */
+.fleuve-intro {
+  font-size: 0.84rem;
+  color: var(--border);
+  margin: 0 0 0.7rem;
+}
+
+.tuiles-fleuve {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.6rem;
+}
+
+.tuile-fleuve {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.6rem;
+  background: var(--bg);
+}
+
+.tuile-tete {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.tuile-nom {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.tuile-valeur {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+}
+
+.tuile-spark {
+  margin: 0.3rem 0;
+  height: 56px;
+}
+
+.tuile-spark .graphe-svg {
+  height: 100%;
+}
+
+.tuile-tendance {
+  font-size: 0.72rem;
+  color: var(--border);
+}
+
+.tuile-tendance.haut { color: var(--color-alerte); }
+.tuile-tendance.bas { color: var(--color-torrent); }
+
+/* ---- Nappe ---- */
+.nappe-altitude {
+  margin: 0 0 0.6rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.nappe-altitude dt { color: var(--border); }
+.nappe-altitude dd { margin: 0; }
+
+.stats-chronique {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.stats-chronique p { margin: 0.2rem 0; }
+
+.detail { color: var(--border); }
+
+.situation {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pastille-situation {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.minmax {
+  color: var(--border);
+  font-size: 0.82rem;
+}
+
+.pics {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.pic {
+  display: inline-block;
+  margin-right: 0.4rem;
+}
+
+.pied {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--border);
+  margin-top: 1rem;
+}
+
+/* ---- Bandeau de santé des sources live ---- */
+.bandeau-sante {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--color-alerte);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: rgba(181, 83, 60, 0.1);
+  font-size: 0.85rem;
+}
+
+.bandeau-sante[hidden] { display: none; }
+
+.bandeau-icone { font-size: 1rem; }
+.bandeau-msg { color: var(--fg); }
+
+/* ---- Note rivière (St-André repli) ---- */
+.riviere-note {
+  margin: 0 0 0.6rem;
+  font-size: 0.83rem;
+  color: var(--color-granite);
+}
+
+/* ---- Tuile fleuve non télésuivie ---- */
+.tuile-tendance.neutre { color: var(--color-granite); }
+
+/* ---- Thème sombre ---- */
+html.dark .graphe-svg .aire-graphe {
+  fill: #5eead4;
+  fill-opacity: 0.18;
+}
+
+html.dark .graphe-svg .chemin-graphe {
+  stroke: #5eead4;
+}
+
+html.dark .graphe-svg .grille-line {
+  stroke: #6b7280;
+  stroke-opacity: 0.6;
+}
+
+html.dark .graphe-svg .marqueur-episode,
+html.dark .graphe-svg .label-episode {
+  fill: #f0ab9c;
+  stroke: var(--color-ardoise);
+}
+
+html.dark .graphe-svg .label-episode {
+  fill: #f0ab9c;
+  stroke: none;
+}
+
+html.dark .graphe-infobulle {
+  background: var(--color-brume);
+  color: var(--color-ardoise);
+}
+
+html.dark .tuile-fleuve {
+  background: var(--color-ardoise);
+}

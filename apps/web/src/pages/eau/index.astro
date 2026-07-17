@@ -1,0 +1,61 @@
+---
+// Diaporama — on ne garde que la première diapo : carte 3D.
+import Carte3D from "../../islands/Carte3D.svelte";
+---
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Le voyage de l'eau — de l'Aigoual à la Méditerranée</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/eau/comprendre.css" />
+  <link rel="stylesheet" href="/eau/style.css" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      line-height: 1.5;
+    }
+
+    #presentation {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    .ecran {
+      position: absolute;
+      inset: 0;
+      opacity: 1;
+      visibility: visible;
+    }
+  </style>
+</head>
+<body>
+  <div id="presentation">
+    <!-- ==================== ÉCRAN 1 : CARTE 3D ==================== -->
+    <section class="ecran ecran-carte actif" data-index="0">
+      <Carte3D client:only="svelte" />
+      <div class="survol-carte">
+        <div>
+          <p style="font-family:var(--font-mono);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.7);margin:0 0 0.4rem;">Val-d'Aigoual · le voyage de l'eau</p>
+          <h1 class="titre-carte">De la pluie sur l'Aigoual à la mer, en cinq étapes</h1>
+          <p class="sous-titre-carte">Explorez le territoire en 3D : nord à gauche, sud à droite. Chaque station jalonne le parcours de l'Hérault.</p>
+        </div>
+        <div class="bas-carte">
+          <span>🖱️ Cliquer pour avancer</span>
+          <span>·</span>
+          <span>10 stations · Aigoual 1567 m → Agde 0 m</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

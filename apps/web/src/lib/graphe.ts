@@ -25,6 +25,38 @@ export function ticks(min: number, max: number, nbCible = 5): number[] {
   return resultat;
 }
 
+/**
+ * Décime une série triée par x en gardant le min et le max de chaque tranche — contrairement à un
+ * pas fixe (1 point sur N), ça préserve les pics ponctuels (ex. crue) qui tomberaient sinon entre
+ * deux points conservés.
+ */
+export function decimerMinMax<T extends { x: number; y: number }>(points: T[], nbBuckets: number): T[] {
+  if (points.length <= nbBuckets * 2) return points;
+  const xMin = points[0].x;
+  const xMax = points[points.length - 1].x;
+  const largeur = (xMax - xMin) / nbBuckets || 1;
+  const resultat: T[] = [];
+  let i = 0;
+  for (let b = 0; b < nbBuckets; b++) {
+    const limite = xMin + (b + 1) * largeur;
+    const bucket: T[] = [];
+    while (i < points.length && (b === nbBuckets - 1 ? points[i].x <= xMax : points[i].x < limite)) {
+      bucket.push(points[i]);
+      i++;
+    }
+    if (bucket.length === 0) continue;
+    if (bucket.length === 1) {
+      resultat.push(bucket[0]);
+      continue;
+    }
+    const min = bucket.reduce((a, c) => (c.y < a.y ? c : a));
+    const max = bucket.reduce((a, c) => (c.y > a.y ? c : a));
+    if (bucket.indexOf(min) <= bucket.indexOf(max)) resultat.push(min, max);
+    else resultat.push(max, min);
+  }
+  return resultat;
+}
+
 /** Chemin SVG "M..L.." reliant les points projetés ; coupe la ligne aux valeurs y nulles (trous de données). */
 export function cheminLigne(points: Array<{ x: number; y: number | null }>): string {
   let d = "";

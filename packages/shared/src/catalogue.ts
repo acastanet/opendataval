@@ -268,7 +268,7 @@ export const COUCHES = [
     source: "hubeau",
     geometrie: "point",
     couleur: "#3e6e82",
-    popup: [{ cle: "altitude_m", libelle: "altitude", format: "metres" }],
+    popup: [{ cle: "altitude_m", libelle: "altitude station", format: "metres" }],
     chronique: { endpoint: "/api/piezo/chronique", cle: "external_id" },
   },
   {

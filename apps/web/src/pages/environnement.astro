@@ -1,4 +1,38 @@
 ---
 import SectionLayout from "../layouts/SectionLayout.astro";
+import SectionAuto from "../components/SectionAuto.astro";
+import PiezoNappe from "../islands/PiezoNappe.svelte";
 ---
-<SectionLayout slug="environnement" />
+<SectionLayout slug="environnement">
+  <SectionAuto slug="environnement" />
+  <section class="section-piezo">
+    <h2>La nappe phréatique</h2>
+    <p>
+      Le niveau de la nappe est suivi en continu par un piézomètre du réseau national
+      (Hub'Eau / ADES). Deux repères pour lire la chronique : le <strong>niveau</strong>, exprimé
+      en mètres NGF (altitude de la surface de la nappe), et la <strong>profondeur</strong> sous
+      le repère de mesure de la station — parfois négative, la nappe pouvant affleurer au-dessus
+      du repère. La situation actuelle est comparée à l'historique du même mois pour tenir compte
+      du cycle naturel de recharge et d'étiage.
+    </p>
+    <PiezoNappe client:only="svelte" />
+  </section>
+</SectionLayout>
+
+<style>
+  .section-piezo {
+    margin-top: 2.4rem;
+  }
+
+  .section-piezo h2 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin: 0 0 0.6rem;
+  }
+
+  .section-piezo p {
+    max-width: 62ch;
+    line-height: 1.6;
+    color: var(--border);
+  }
+</style>

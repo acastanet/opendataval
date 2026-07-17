@@ -8,12 +8,14 @@
   import {
     BASEMAPS,
     GEOLOGIE_WMS,
+    ajouterControleFondIgn,
     ajouterCoucheCarte,
     enregistrerProtocolePmtiles,
     activerRelief,
     desactiverRelief,
     reglerExagerationRelief,
   } from "../lib/carte";
+  import { decimerMinMax } from "../lib/graphe";
   import { SECTIONS } from "@opendata-vda/shared/sections";
   import { COUCHES, COUCHES_PAR_SLUG, couchesDeSection, titrePopup, lignesPopup } from "@opendata-vda/shared/catalogue";
 
@@ -54,8 +56,16 @@
   let relief3d = true;
   let exagerationRelief = 1.3;
 
-  let popup = null; // { titre, lignes: [[label, valeur]], sourceUrl, serie }
+  let popup = null; // { titre, lignes: [[label, valeur]], sourceUrl, serie, stats }
   let popupChargement = false;
+
+  const COULEUR_SITUATION = {
+    tres_bas: "#b5533c",
+    bas: "#c99a3e",
+    modere: "var(--border)",
+    haut: "#5c7a44",
+    tres_haut: "#3e6e82",
+  };
 
   let marqueurRecherche = null;
   const ZOOM_PAR_TYPE = { adresse: 16, lieu: 15, commune: 13 };
@@ -167,7 +177,7 @@
     const props = feature.properties ?? {};
     const titre = titrePopup(couche, props);
     const lignes = lignesPopup(couche, props).map((l) => [l.libelle, l.valeur]);
-    popup = { titre, lignes, sourceUrl: props.source_url, serie: null };
+    popup = { titre, lignes, sourceUrl: props.source_url, serie: null, stats: null };
 
     if (couche.chronique) {
       popupChargement = true;
@@ -175,7 +185,7 @@
         const cle = props[couche.chronique.cle];
         const res = await fetch(`${couche.chronique.endpoint}?code_bss=${encodeURIComponent(cle)}`);
         const data = await res.json();
-        popup = { ...popup, serie: data.mesures ?? [] };
+        popup = { ...popup, serie: data.mesures ?? [], stats: data.stats ?? null };
       } catch (err) {
         console.error("chronique indisponible", err);
       } finally {
@@ -188,19 +198,44 @@
     popup = null;
   }
 
+  function formaterDateCourte(iso) {
+    if (!iso) return "";
+    return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+  }
+
+  function formaterMois(iso) {
+    return new Date(iso).toLocaleDateString("fr-FR", { month: "long" });
+  }
+
+  function formaterNiveau(v) {
+    return v === null || v === undefined ? "—" : `${Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} m NGF`;
+  }
+
+  // profondeur_nappe (Hub'Eau) peut être négative : la nappe est alors au-dessus du repère de
+  // mesure (station en zone de source/artésienne), pas forcément « sous le sol ».
+  function formaterProfondeur(v) {
+    if (v === null || v === undefined) return "";
+    const abs = Math.abs(Number(v)).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+    return v < 0 ? `${abs} m au-dessus du repère` : `${abs} m sous le repère`;
+  }
+
   function serieVersChemin(serie, largeur, hauteur) {
     if (!serie || serie.length === 0) return "";
-    const pas = Math.max(1, Math.floor(serie.length / 300));
-    const points = serie.filter((_, i) => i % pas === 0).filter((p) => p.niveau_m_ngf !== null);
+    const valides = serie
+      .filter((p) => p.niveau_m_ngf !== null)
+      .map((p) => ({ x: Date.parse(p.date), y: Number(p.niveau_m_ngf) }));
+    const points = decimerMinMax(valides, 120);
     if (points.length < 2) return "";
-    const valeurs = points.map((p) => Number(p.niveau_m_ngf));
+    const xs = points.map((p) => p.x);
+    const xMin = Math.min(...xs);
+    const xSpan = Math.max(...xs) - xMin || 1;
+    const valeurs = points.map((p) => p.y);
     const min = Math.min(...valeurs);
-    const max = Math.max(...valeurs);
-    const span = max - min || 1;
+    const span = Math.max(...valeurs) - min || 1;
     return points
       .map((p, i) => {
-        const x = (i / (points.length - 1)) * largeur;
-        const y = hauteur - ((Number(p.niveau_m_ngf) - min) / span) * hauteur;
+        const x = ((p.x - xMin) / xSpan) * largeur;
+        const y = hauteur - ((p.y - min) / span) * hauteur;
         return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(" ");
@@ -255,6 +290,13 @@
           layout: { visibility: b.id === basemapActif ? "visible" : "none" },
         });
       }
+      ajouterControleFondIgn(map, {
+        planLayerId: "basemap-plan",
+        photoLayerId: "basemap-photo",
+        autresLayerIds: ["basemap-satellite"],
+        actif: basemapActif,
+        onChange: (fond) => { changerBasemap(fond); },
+      });
 
       map.addSource("geologie-src", {
         type: "raster",
@@ -589,13 +631,36 @@
           <dd>{valeur}</dd>
         {/each}
       </dl>
+      {#if popup.stats}
+        <div class="stats-chronique">
+          <p class="derniere-mesure">
+            <strong>{formaterNiveau(popup.stats.derniere.niveau_m_ngf)}</strong>
+            {#if popup.stats.derniere.profondeur_m !== null}
+              <span class="detail">(nappe à {formaterProfondeur(popup.stats.derniere.profondeur_m)})</span>
+            {/if}
+            <span class="detail">le {formaterDateCourte(popup.stats.derniere.date)}</span>
+          </p>
+          {#if popup.stats.situation}
+            <p class="situation">
+              <span class="pastille-situation" style={`background:${COULEUR_SITUATION[popup.stats.situation.classe]}`}></span>
+              niveau {popup.stats.situation.libelle} pour un mois de {formaterMois(popup.stats.derniere.date)}
+            </p>
+          {/if}
+          <p class="minmax">
+            plus bas {formaterNiveau(popup.stats.min.niveau_m_ngf)} ({formaterDateCourte(popup.stats.min.date)}) ·
+            plus haut {formaterNiveau(popup.stats.max.niveau_m_ngf)} ({formaterDateCourte(popup.stats.max.date)})
+          </p>
+        </div>
+      {/if}
       {#if popup.serie && popup.serie.length > 1}
         <svg viewBox="0 0 240 60" class="graphe" role="img" aria-label="Évolution du niveau de la nappe">
           <path d={serieVersChemin(popup.serie, 240, 60)} fill="none" stroke="var(--color-torrent)" stroke-width="1.5" />
         </svg>
-        <p class="legende-graphe">
-          {popup.serie[0].date} → {popup.serie[popup.serie.length - 1].date} ({popup.serie.length} mesures)
-        </p>
+        {#if popup.stats}
+          <p class="legende-graphe">
+            {formaterDateCourte(popup.stats.debut)} → {formaterDateCourte(popup.stats.fin)} ({popup.stats.nb} mesures)
+          </p>
+        {/if}
       {/if}
       {#if popup.sourceUrl}
         <a href={popup.sourceUrl} target="_blank" rel="noopener">Voir la source →</a>
@@ -996,6 +1061,40 @@
 
   .fiche dd {
     margin: 0;
+  }
+
+  .stats-chronique {
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  .stats-chronique p {
+    margin: 0.15rem 0;
+  }
+
+  .detail {
+    color: var(--border);
+  }
+
+  .situation {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .pastille-situation {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .minmax {
+    color: var(--border);
+    font-size: 0.72rem;
   }
 
   .graphe {

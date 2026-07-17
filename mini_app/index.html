@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>L'eau à Valleraugue — crues de l'Hérault &amp; nappe</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="entete">
+      <h1>L'eau à Valleraugue</h1>
+      <p class="sous-titre">Hérault à Valleraugue · crues &amp; nappe · données Vigicrues &amp; Hub'Eau en direct</p>
+      <button type="button" id="bouton-theme" class="bouton-theme">🌙 Sombre</button>
+    </header>
+
+    <div class="bandeau-sante" id="bandeau-sante" hidden></div>
+
+    <!-- Bloc 1 : Rivière (principal) -->
+    <section class="bloc" id="bloc-riviere">
+      <h2>L'Hérault à Valleraugue</h2>
+      <p class="riviere-note">Valleraugue n'étant pas télésuivie en direct, cet indicateur montre la station de St-André-de-Majencoules (la plus proche en aval).</p>
+      <p class="chargement" id="riviere-etat">Chargement…</p>
+      <div id="riviere-contenu" hidden>
+        <div class="cartouche" id="riviere-cartouche">
+          <div class="cartouche-principal">
+            <span class="cartouche-valeur" id="riviere-hauteur">—</span>
+            <span class="cartouche-tendance" id="riviere-tendance"></span>
+          </div>
+          <div class="cartouche-meta">
+            <span id="riviere-date"></span>
+            <a id="riviere-source" href="https://www.vigicrues.gouv.fr/fr/station/Y200002701/" target="_blank" rel="noopener">Source Vigicrues — St-André-de-Majencoules →</a>
+          </div>
+        </div>
+
+        <div class="periode" id="riviere-periode" role="group" aria-label="Période affichée">
+          <button type="button" data-jours="1">24 h</button>
+          <button type="button" data-jours="7">7 j</button>
+          <button type="button" data-jours="30" class="actif">30 j</button>
+        </div>
+
+        <div class="graphe-cont" id="riviere-graphe"></div>
+        <p class="legende-graphe" id="riviere-legende"></p>
+
+        <div id="riviere-episodes" class="episodes" hidden>
+          <h3>Épisodes de crue détectés</h3>
+          <ul id="riviere-list-episodes"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bloc 2 : Grandes crues passées -->
+    <section class="bloc" id="bloc-crues">
+      <h2>Les plus fortes crues depuis 2008</h2>
+      <p class="chargement" id="crues-etat">Chargement…</p>
+      <div id="crues-contenu" hidden>
+        <p class="situation-courante" id="crues-situation"></p>
+        <ol id="crues-list" class="crues-list"></ol>
+      </div>
+    </section>
+
+    <!-- Bloc 3 : Fleuve amont → aval -->
+    <section class="bloc" id="bloc-fleuve">
+      <h2>Le fleuve, d'amont en aval</h2>
+      <p class="chargement" id="fleuve-etat">Chargement…</p>
+      <div id="fleuve-contenu" hidden>
+        <p class="fleuve-intro">Hauteur actuelle et tendance 3 h de chaque station (7 j de contexte) — on voit l'onde de crue descendre le fleuve.</p>
+        <div class="tuiles-fleuve" id="fleuve-tuiles"></div>
+      </div>
+    </section>
+
+    <!-- Bloc 4 : Nappe (secondaire) -->
+    <section class="bloc" id="bloc-nappe">
+      <h2>La nappe de Valleraugue</h2>
+      <p class="chargement" id="nappe-etat">Chargement…</p>
+      <div id="nappe-contenu" hidden>
+        <dl id="nappe-altitude" class="nappe-altitude" hidden>
+          <dt>altitude station</dt>
+          <dd id="nappe-valeur-altitude"></dd>
+        </dl>
+        <div class="stats-chronique" id="nappe-stats">
+          <p class="derniere-mesure">
+            <strong id="nappe-niveau-actuel"></strong>
+            <span class="detail" id="nappe-profondeur"></span>
+            <span class="detail" id="nappe-date"></span>
+          </p>
+          <p class="situation" id="nappe-bloc-situation" hidden>
+            <span class="pastille-situation" id="nappe-pastille"></span>
+            <span id="nappe-texte-situation"></span>
+          </p>
+          <p class="minmax" id="nappe-minmax"></p>
+          <p class="pics" id="nappe-pics"></p>
+        </div>
+        <div class="graphe-cont" id="nappe-graphe"></div>
+        <p class="legende-graphe" id="nappe-legende"></p>
+      </div>
+    </section>
+
+    <p class="pied" id="horodatage"></p>
+  </main>
+
+  <script src="./graphe.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

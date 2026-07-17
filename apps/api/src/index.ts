@@ -12,7 +12,14 @@ const MIGRATIONS_DIR = process.env.MIGRATIONS_DIR ?? "/app/db/migrations";
 
 async function main(): Promise<void> {
   const pool = createPool();
-  await runMigrations(pool, MIGRATIONS_DIR);
+  try {
+    await runMigrations(pool, MIGRATIONS_DIR);
+  } catch (err) {
+    console.error(
+      "api : migrations non appliquées (base indisponible ?) — démarrage quand même :",
+      err
+    );
+  }
 
   const app = Fastify({ logger: true });
 

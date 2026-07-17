@@ -122,17 +122,20 @@ export async function upsertIndicateurs(pool: pg.Pool, lignes: IndicateurInput[]
 export async function upsertPiezoMesures(
   pool: pg.Pool,
   codeBss: string,
-  mesures: Array<{ date: string; niveauMNgf: number | null }>,
+  mesures: Array<{ date: string; niveauMNgf: number | null; profondeurM: number | null }>,
 ): Promise<void> {
   if (mesures.length === 0) return;
   const dates = mesures.map((m) => m.date);
   const niveaux = mesures.map((m) => m.niveauMNgf);
+  const profondeurs = mesures.map((m) => m.profondeurM);
   await pool.query(
-    `insert into series.piezo (code_bss, date, niveau_m_ngf)
-     select $1, d, n
-     from unnest($2::date[], $3::numeric[]) as t(d, n)
-     on conflict (code_bss, date) do update set niveau_m_ngf = excluded.niveau_m_ngf`,
-    [codeBss, dates, niveaux],
+    `insert into series.piezo (code_bss, date, niveau_m_ngf, profondeur_m)
+     select $1, d, n, p
+     from unnest($2::date[], $3::numeric[], $4::numeric[]) as t(d, n, p)
+     on conflict (code_bss, date) do update set
+       niveau_m_ngf = excluded.niveau_m_ngf,
+       profondeur_m = excluded.profondeur_m`,
+    [codeBss, dates, niveaux, profondeurs],
   );
 }
 

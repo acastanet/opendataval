@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Piézomètre — Valleraugue</title>
+<style>
+  :root {
+    --color-ardoise: #2b3238;
+    --color-brume: #ededea;
+    --color-chataigne: #6b4226;
+    --color-torrent: #3e6e82;
+    --color-granite: #9a9b93;
+    --color-alerte: #b5533c;
+
+    --bg: var(--color-brume);
+    --fg: var(--color-ardoise);
+    --accent: var(--color-chataigne);
+    --border: var(--color-granite);
+    --panel-bg: rgba(237, 237, 234, 0.94);
+    --shadow: 0 2px 12px rgba(43, 50, 56, 0.14);
+
+    --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+
+    --radius: 4px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: var(--color-ardoise);
+      --fg: var(--color-brume);
+      --accent: #a9714f;
+      --border: #4a525a;
+      --panel-bg: rgba(43, 50, 56, 0.94);
+      --shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    min-height: 100%;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 1.2rem;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+  }
+
+  a {
+    color: var(--accent);
+  }
+
+  button {
+    font-family: inherit;
+  }
+
+  .fiche {
+    position: relative;
+    width: min(20rem, 92vw);
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.9rem 1rem 1rem;
+    font-size: 0.85rem;
+    box-shadow: var(--shadow);
+  }
+
+  .fiche h3 {
+    font-family: var(--font-display);
+    margin: 0 0 0.5rem;
+  }
+
+  .fiche dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.15rem 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  .fiche dt {
+    color: var(--border);
+  }
+
+  .fiche dd {
+    margin: 0;
+  }
+
+  .chargement {
+    font-size: 0.75rem;
+    color: var(--border);
+  }
+
+  .chargement.erreur {
+    color: var(--color-alerte);
+  }
+
+  .stats-chronique {
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  .stats-chronique p {
+    margin: 0.15rem 0;
+  }
+
+  .detail {
+    color: var(--border);
+  }
+
+  .situation {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .pastille-situation {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .minmax {
+    color: var(--border);
+    font-size: 0.72rem;
+  }
+
+  .graphe {
+    width: 100%;
+    height: auto;
+    margin-top: 0.6rem;
+  }
+
+  .legende-graphe {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--border);
+    margin: 0.2rem 0 0;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+  }
+
+  .actions a {
+    font-size: 0.75rem;
+  }
+
+  #bouton-actualiser {
+    font-size: 0.72rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--fg);
+    cursor: pointer;
+  }
+
+  #bouton-actualiser:hover {
+    background: rgba(154, 155, 147, 0.18);
+  }
+
+  #bouton-actualiser:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  #horodatage {
+    margin: 0.4rem 0 0;
+    font-size: 0.65rem;
+    color: var(--border);
+  }
+</style>
+</head>
+<body>
+  <div class="fiche" role="dialog" aria-label="Piézomètre de Valleraugue">
+    <h3 id="titre">Chargement…</h3>
+    <p class="chargement" id="etat-chargement">Chargement…</p>
+
+    <dl id="dl-altitude" hidden>
+      <dt>altitude station</dt>
+      <dd id="valeur-altitude"></dd>
+    </dl>
+
+    <div class="stats-chronique" id="bloc-stats" hidden>
+      <p class="derniere-mesure">
+        <strong id="niveau-actuel"></strong>
+        <span class="detail" id="profondeur-actuelle"></span>
+        <span class="detail" id="date-derniere"></span>
+      </p>
+      <p class="situation" id="bloc-situation" hidden>
+        <span class="pastille-situation" id="pastille-situation"></span>
+        <span id="texte-situation"></span>
+      </p>
+      <p class="minmax" id="minmax"></p>
+    </div>
+
+    <svg viewBox="0 0 240 60" class="graphe" id="graphe" role="img" aria-label="Évolution du niveau de la nappe" hidden>
+      <path id="chemin-graphe" fill="none" stroke="var(--color-torrent)" stroke-width="1.5" />
+    </svg>
+    <p class="legende-graphe" id="legende-graphe"></p>
+
+    <div class="actions">
+      <a href="https://ades.eaufrance.fr/" target="_blank" rel="noopener">Voir la source →</a>
+      <button type="button" id="bouton-actualiser">Actualiser</button>
+    </div>
+    <p id="horodatage"></p>
+  </div>
+
+<script>
+  // Code BSS Hub'Eau de la station à afficher — changer cette valeur pour réutiliser la page
+  // sur une autre station piézométrique.
+  const CODE_BSS = "09364X0017/111111";
+
+  const SEUILS_SITUATION = [
+    { max: 0.1, classe: "tres_bas", libelle: "très bas" },
+    { max: 0.25, classe: "bas", libelle: "bas" },
+    { max: 0.75, classe: "modere", libelle: "modéré" },
+    { max: 0.9, classe: "haut", libelle: "haut" },
+    { max: Infinity, classe: "tres_haut", libelle: "très haut" },
+  ];
+  const NB_REFERENCE_MIN = 24;
+
+  const COULEUR_SITUATION = {
+    tres_bas: "#b5533c",
+    bas: "#c99a3e",
+    modere: "var(--border)",
+    haut: "#5c7a44",
+    tres_haut: "#3e6e82",
+  };
+
+  async function fetchAllHubeau(url) {
+    const resultats = [];
+    let suivant = url;
+    while (suivant) {
+      const res = await fetch(suivant);
+      if (!res.ok) throw new Error(`Hub'Eau ${suivant} → HTTP ${res.status}`);
+      const page = await res.json();
+      resultats.push(...page.data);
+      suivant = page.next;
+    }
+    return resultats;
+  }
+
+  function calculerStats(mesures) {
+    if (mesures.length === 0) return null;
+    const valides = mesures
+      .filter((m) => m.niveau_m_ngf !== null)
+      .map((m) => ({
+        date: m.date,
+        niveau: Number(m.niveau_m_ngf),
+        profondeur: m.profondeur_m === null ? null : Number(m.profondeur_m),
+      }));
+    if (valides.length === 0) return null;
+
+    const derniereMesure = mesures[mesures.length - 1];
+    const derniere = {
+      date: derniereMesure.date,
+      niveau_m_ngf: derniereMesure.niveau_m_ngf === null ? null : Number(derniereMesure.niveau_m_ngf),
+      profondeur_m: derniereMesure.profondeur_m === null ? null : Number(derniereMesure.profondeur_m),
+    };
+
+    const min = valides.reduce((a, b) => (b.niveau < a.niveau ? b : a));
+    const max = valides.reduce((a, b) => (b.niveau > a.niveau ? b : a));
+
+    let situation = null;
+    if (derniere.niveau_m_ngf !== null) {
+      const moisDerniere = derniere.date.slice(5, 7);
+      const reference = valides.filter((m) => m.date.slice(5, 7) === moisDerniere);
+      if (reference.length >= NB_REFERENCE_MIN) {
+        const nbInferieurs = reference.filter((m) => m.niveau < derniere.niveau_m_ngf).length;
+        const percentile = nbInferieurs / reference.length;
+        const seuil = SEUILS_SITUATION.find((s) => percentile < s.max) ?? SEUILS_SITUATION[SEUILS_SITUATION.length - 1];
+        situation = { classe: seuil.classe, libelle: seuil.libelle, percentile, nbReference: reference.length };
+      }
+    }
+
+    return {
+      derniere,
+      min: { date: min.date, niveau_m_ngf: min.niveau },
+      max: { date: max.date, niveau_m_ngf: max.niveau },
+      nb: valides.length,
+      debut: mesures[0].date,
+      fin: derniereMesure.date,
+      situation,
+    };
+  }
+
+  // Décime en gardant le min et le max de chaque tranche (préserve les pics, ex. crue) au lieu
+  // d'un pas fixe qui pourrait les manquer.
+  function decimerMinMax(points, nbBuckets) {
+    if (points.length <= nbBuckets * 2) return points;
+    const xMin = points[0].x;
+    const xMax = points[points.length - 1].x;
+    const largeur = (xMax - xMin) / nbBuckets || 1;
+    const resultat = [];
+    let i = 0;
+    for (let b = 0; b < nbBuckets; b++) {
+      const limite = xMin + (b + 1) * largeur;
+      const bucket = [];
+      while (i < points.length && (b === nbBuckets - 1 ? points[i].x <= xMax : points[i].x < limite)) {
+        bucket.push(points[i]);
+        i++;
+      }
+      if (bucket.length === 0) continue;
+      if (bucket.length === 1) {
+        resultat.push(bucket[0]);
+        continue;
+      }
+      const min = bucket.reduce((a, c) => (c.y < a.y ? c : a));
+      const max = bucket.reduce((a, c) => (c.y > a.y ? c : a));
+      if (bucket.indexOf(min) <= bucket.indexOf(max)) resultat.push(min, max);
+      else resultat.push(max, min);
+    }
+    return resultat;
+  }
+
+  function serieVersChemin(mesures, largeur, hauteur) {
+    const valides = mesures
+      .filter((m) => m.niveau_m_ngf !== null)
+      .map((m) => ({ x: Date.parse(m.date), y: Number(m.niveau_m_ngf) }));
+    const points = decimerMinMax(valides, 120);
+    if (points.length < 2) return "";
+    const xs = points.map((p) => p.x);
+    const xMin = Math.min(...xs);
+    const xSpan = Math.max(...xs) - xMin || 1;
+    const valeurs = points.map((p) => p.y);
+    const min = Math.min(...valeurs);
+    const span = Math.max(...valeurs) - min || 1;
+    return points
+      .map((p, i) => {
+        const x = ((p.x - xMin) / xSpan) * largeur;
+        const y = hauteur - ((p.y - min) / span) * hauteur;
+        return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(" ");
+  }
+
+  function formaterDateCourte(iso) {
+    if (!iso) return "";
+    return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+  }
+
+  function formaterMois(iso) {
+    return new Date(iso).toLocaleDateString("fr-FR", { month: "long" });
+  }
+
+  function formaterNiveau(v) {
+    return v === null || v === undefined ? "—" : `${Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} m NGF`;
+  }
+
+  // profondeur_nappe (Hub'Eau) peut être négative : la nappe est alors au-dessus du repère de
+  // mesure (station en zone de source/artésienne), pas forcément « sous le sol ».
+  function formaterProfondeur(v) {
+    if (v === null || v === undefined) return "";
+    const abs = Math.abs(Number(v)).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+    return v < 0 ? `${abs} m au-dessus du repère` : `${abs} m sous le repère`;
+  }
+
+  const els = {
+    titre: document.getElementById("titre"),
+    etatChargement: document.getElementById("etat-chargement"),
+    dlAltitude: document.getElementById("dl-altitude"),
+    valeurAltitude: document.getElementById("valeur-altitude"),
+    blocStats: document.getElementById("bloc-stats"),
+    niveauActuel: document.getElementById("niveau-actuel"),
+    profondeurActuelle: document.getElementById("profondeur-actuelle"),
+    dateDerniere: document.getElementById("date-derniere"),
+    blocSituation: document.getElementById("bloc-situation"),
+    pastilleSituation: document.getElementById("pastille-situation"),
+    texteSituation: document.getElementById("texte-situation"),
+    minmax: document.getElementById("minmax"),
+    graphe: document.getElementById("graphe"),
+    cheminGraphe: document.getElementById("chemin-graphe"),
+    legendeGraphe: document.getElementById("legende-graphe"),
+    boutonActualiser: document.getElementById("bouton-actualiser"),
+    horodatage: document.getElementById("horodatage"),
+  };
+
+  async function charger() {
+    els.boutonActualiser.disabled = true;
+    els.etatChargement.hidden = false;
+    els.etatChargement.textContent = "Chargement…";
+    els.etatChargement.classList.remove("erreur");
+    els.dlAltitude.hidden = true;
+    els.blocStats.hidden = true;
+    els.graphe.hidden = true;
+    els.legendeGraphe.textContent = "";
+
+    try {
+      const [reponseStation, mesuresBrutes] = await Promise.all([
+        fetch(
+          `https://hubeau.eaufrance.fr/api/v1/niveaux_nappes/stations?code_bss=${encodeURIComponent(CODE_BSS)}&format=json`,
+        ).then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        }),
+        fetchAllHubeau(
+          `https://hubeau.eaufrance.fr/api/v1/niveaux_nappes/chroniques?code_bss=${encodeURIComponent(CODE_BSS)}&format=json&size=5000`,
+        ),
+      ]);
+
+      const station = reponseStation.data && reponseStation.data[0];
+      if (!station) throw new Error("station introuvable");
+
+      els.titre.textContent = station.libelle_pe || station.nom_commune;
+      els.valeurAltitude.textContent = `${Number(station.altitude_station).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} m`;
+      els.dlAltitude.hidden = false;
+
+      const serie = mesuresBrutes
+        .map((m) => ({ date: m.date_mesure, niveau_m_ngf: m.niveau_nappe_eau, profondeur_m: m.profondeur_nappe }))
+        .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
+      const stats = calculerStats(serie);
+      if (!stats) throw new Error("aucune mesure exploitable");
+
+      els.niveauActuel.textContent = formaterNiveau(stats.derniere.niveau_m_ngf);
+      if (stats.derniere.profondeur_m !== null) {
+        els.profondeurActuelle.textContent = `(nappe à ${formaterProfondeur(stats.derniere.profondeur_m)})`;
+        els.profondeurActuelle.hidden = false;
+      } else {
+        els.profondeurActuelle.hidden = true;
+      }
+      els.dateDerniere.textContent = `le ${formaterDateCourte(stats.derniere.date)}`;
+
+      if (stats.situation) {
+        els.pastilleSituation.style.background = COULEUR_SITUATION[stats.situation.classe];
+        els.texteSituation.textContent = `niveau ${stats.situation.libelle} pour un mois de ${formaterMois(stats.derniere.date)}`;
+        els.blocSituation.hidden = false;
+      } else {
+        els.blocSituation.hidden = true;
+      }
+
+      els.minmax.textContent =
+        `plus bas ${formaterNiveau(stats.min.niveau_m_ngf)} (${formaterDateCourte(stats.min.date)}) · ` +
+        `plus haut ${formaterNiveau(stats.max.niveau_m_ngf)} (${formaterDateCourte(stats.max.date)})`;
+
+      els.blocStats.hidden = false;
+
+      els.cheminGraphe.setAttribute("d", serieVersChemin(serie, 240, 60));
+      els.graphe.hidden = false;
+      els.legendeGraphe.textContent = `${formaterDateCourte(stats.debut)} → ${formaterDateCourte(stats.fin)} (${stats.nb.toLocaleString("fr-FR")} mesures)`;
+
+      els.etatChargement.hidden = true;
+      els.horodatage.textContent = `Actualisé à ${new Date().toLocaleTimeString("fr-FR")} — données Hub'Eau en direct`;
+    } catch (err) {
+      console.error("chronique piézo indisponible", err);
+      els.etatChargement.hidden = false;
+      els.etatChargement.textContent = "Données temporairement indisponibles (Hub'Eau injoignable).";
+      els.etatChargement.classList.add("erreur");
+    } finally {
+      els.boutonActualiser.disabled = false;
+    }
+  }
+
+  els.boutonActualiser.addEventListener("click", charger);
+  charger();
+</script>
+</body>
+</html>
