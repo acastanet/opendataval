@@ -42,6 +42,9 @@ importers:
       '@astrojs/svelte':
         specifier: ^5.7.3
         version: 5.7.3(astro@4.16.19(@types/node@22.20.0)(rollup@4.62.2)(typescript@5.9.3))(svelte@4.2.20)(typescript@5.9.3)(vite@5.4.21(@types/node@22.20.0))
+      '@fortawesome/free-solid-svg-icons':
+        specifier: ^7.3.1
+        version: 7.3.1
       '@opendata-vda/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -57,6 +60,9 @@ importers:
       svelte:
         specifier: ^4.2.19
         version: 4.2.20
+      svelte-fa:
+        specifier: ^4.0.4
+        version: 4.0.4(svelte@4.2.20)
 
   apps/worker:
     dependencies:
@@ -528,6 +534,14 @@ packages:
 
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
+
+  '@fortawesome/fontawesome-common-types@7.3.1':
+    resolution: {integrity: sha512-k0C0sdHmZtAo6dRDtd1Z/qcpyHbL0CKsjV8seMY/21xGhY5Wsv0XRmiI/xEEH4y2c9b1+jvgNs/3EqhV27yUEA==}
+    engines: {node: '>=6'}
+
+  '@fortawesome/free-solid-svg-icons@7.3.1':
+    resolution: {integrity: sha512-v0BLa0eqg7ubvVWeNSHVBs8fWH/GJicERZoJaxJ3FE/lj67VSqzoMg9pzfZVOfLMX10y0pGwQAuxoRVVH2patg==}
+    engines: {node: '>=6'}
 
   '@img/sharp-darwin-arm64@0.33.5':
     resolution: {integrity: sha512-UT4p+iz/2H4twwAoLCqfA9UH5pI6DggwKEGuaPy7nCVQ8ZsiY5PIcrRvD1DzuY3qYL07NtIQcWnBSY/heikIFQ==}
@@ -2031,6 +2045,11 @@ packages:
     resolution: {integrity: sha512-vavAMRXOgBVNF6nyEEmL3DBK19iRpDcoIwW+swQ+CbGiu7lju6t+JklA1MHweoWtadgt4ISVUsXLyDq34ddcwA==}
     engines: {node: '>=4'}
 
+  svelte-fa@4.0.4:
+    resolution: {integrity: sha512-85BomCGkTrH8kPDGvb8JrVwq9CqR9foprbKjxemP4Dtg3zPR7OXj5hD0xVYK0C+UCzFI1zooLoK/ndIX6aYXAw==}
+    peerDependencies:
+      svelte: ^4.0.0 || ^5.0.0
+
   svelte-hmr@0.16.0:
     resolution: {integrity: sha512-Gyc7cOS3VJzLlfj7wKS0ZnzDVdv3Pn2IuVeJPk9m2skfhcu5bq3wtIZyQGggr7/Iim5rH5cncyQft/kRLupcnA==}
     engines: {node: ^12.20 || ^14.13.1 || >= 16}
@@ -2610,6 +2629,12 @@ snapshots:
     dependencies:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.4.0
+
+  '@fortawesome/fontawesome-common-types@7.3.1': {}
+
+  '@fortawesome/free-solid-svg-icons@7.3.1':
+    dependencies:
+      '@fortawesome/fontawesome-common-types': 7.3.1
 
   '@img/sharp-darwin-arm64@0.33.5':
     optionalDependencies:
@@ -4439,6 +4464,10 @@ snapshots:
   strip-bom-string@1.0.0: {}
 
   strip-bom@3.0.0: {}
+
+  svelte-fa@4.0.4(svelte@4.2.20):
+    dependencies:
+      svelte: 4.2.20
 
   svelte-hmr@0.16.0(svelte@4.2.20):
     dependencies:

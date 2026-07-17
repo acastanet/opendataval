@@ -12,6 +12,65 @@ export const BASEMAPS = [
   { id: "satellite", label: "Satellite (SPOT)", tiles: IGN_WMTS("ORTHOIMAGERY.ORTHO-SAT.SPOT.2022", "image/jpeg"), attribution: "© IGN" },
 ];
 
+export const ICONES_REGLEMENTATION = {
+  danger: "⚠",
+  interdiction: "⛔",
+  perimetre: "⌁",
+  detection: "●",
+} as const;
+
+export interface ControleFondIgnOptions {
+  planLayerId?: string;
+  photoLayerId?: string;
+  autresLayerIds?: string[];
+  actif?: "plan" | "photo";
+  onChange?: (fond: "plan" | "photo") => void;
+}
+
+/** Ajoute le sélecteur compact Plan IGN / photographie aérienne en haut à droite de la carte. */
+export function ajouterControleFondIgn(map: maplibregl.Map, options: ControleFondIgnOptions): void {
+  let container: HTMLElement | undefined;
+  let actif = options.actif ?? "plan";
+
+  const appliquer = (fond: "plan" | "photo"): void => {
+    actif = fond;
+    const visibles = new Map<string | undefined, boolean>([
+      [options.planLayerId, fond === "plan"],
+      [options.photoLayerId, fond === "photo"],
+    ]);
+    for (const layerId of options.autresLayerIds ?? []) visibles.set(layerId, false);
+    for (const [layerId, visible] of visibles) {
+      if (layerId && map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+    }
+    options.onChange?.(fond);
+    container?.querySelectorAll("button").forEach((button) => {
+      button.classList.toggle("actif", button.dataset.fond === actif);
+    });
+  };
+
+  const control: maplibregl.IControl = {
+    onAdd(): HTMLElement {
+      container = document.createElement("div");
+      container.className = "maplibregl-ctrl opendata-fonds-control";
+      container.setAttribute("aria-label", "Fond de carte");
+      for (const [fond, icone, libelle] of [["plan", "▤", "Plan IGN"], ["photo", "◒", "Vue aérienne"]] as const) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.fond = fond;
+        button.className = fond === actif ? "actif" : "";
+        button.textContent = icone;
+        button.title = libelle;
+        button.setAttribute("aria-label", `Afficher ${libelle}`);
+        button.addEventListener("click", () => appliquer(fond));
+        container.appendChild(button);
+      }
+      return container;
+    },
+    onRemove(): void { container?.remove(); container = undefined; },
+  };
+  map.addControl(control, "top-right");
+}
+
 export const GEOLOGIE_WMS =
   "https://geoservices.brgm.fr/geologie?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=SCAN_D_GEOL50" +
   "&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true";

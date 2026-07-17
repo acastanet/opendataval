@@ -1,0 +1,28 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import FireDashboard from "../../islands/FireDashboard.svelte";
+---
+
+<Layout title="Risque incendie — Aigoual & Cévennes" description="Recommandations officielles incendie pour les massifs gardois autour de l’Aigoual.">
+  <main class="page-incendies">
+    <header class="entete">
+      <p class="sur-titre">Val-d’Aigoual · informations officielles du Gard</p>
+      <h1>Risque incendie<br />Aigoual & Cévennes</h1>
+      <p class="introduction">Avant de partir, vérifiez les recommandations du jour et repérez le massif dans lequel vous vous rendez.</p>
+    </header>
+    <nav class="onglets" aria-label="Sections de l’application incendies">
+      <a href="/incendies/" aria-current="page">Conseils officiels</a>
+      <a href="/incendies/temps-reel/">Temps réel & données</a>
+    </nav>
+    <FireDashboard client:only="svelte" />
+    <p class="portee">Les restrictions peuvent s’appliquer dans un rayon de 200 m autour des massifs. En cas de doute, la carte officielle du Gard fait référence.</p>
+  </main>
+</Layout>
+
+<style>
+  .page-incendies { width: min(1120px, calc(100% - 2rem)); margin: 0 auto; padding: clamp(1.5rem, 6vw, 4.5rem) 0 3rem; }
+  .entete { max-width: 760px; padding-left: clamp(0rem, 2vw, 1rem); border-left: 5px solid var(--navy); } .sur-titre { margin: 0 0 0.6rem; color: var(--navy); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; } h1 { margin: 0; color: var(--fg); font-family: var(--font-display); font-size: clamp(2.35rem, 7vw, 5rem); line-height: 0.94; } .introduction { max-width: 60ch; margin: 1rem 0 0; color: var(--muted); font-size: 1.06rem; font-weight: 500; line-height: 1.55; }
+  .onglets { display: inline-flex; gap: 0.4rem; max-width: 100%; margin: 2rem 0 1.25rem; padding: 0.35rem; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-muted); overflow-x: auto; } .onglets a { display: grid; min-height: 44px; place-items: center; padding: 0.65rem 1rem; border: 1px solid transparent; border-radius: 5px; color: var(--fg); background: transparent; font-weight: 800; white-space: nowrap; text-decoration: none; } .onglets a:hover { border-color: var(--line-strong); background: var(--surface); } .onglets a:focus-visible { outline: 3px solid #2472a4; outline-offset: 2px; } .onglets a[aria-current="page"] { color: #ffffff; border-color: var(--navy); background: var(--navy); box-shadow: 0 1px 2px rgba(23, 56, 75, 0.28); }
+  .portee { max-width: 75ch; margin: 1.5rem auto 0; color: var(--muted); font-size: 0.86rem; line-height: 1.5; text-align: center; }
+  @media (max-width: 700px) { .page-incendies { width: min(100% - 1.25rem, 1120px); } .sur-titre { font-size: 0.68rem; line-height: 1.4; } .introduction { font-size: 1rem; } .onglets { display: flex; width: 100%; margin-top: 1.5rem; } .onglets a { flex: 1; padding-inline: 0.7rem; font-size: 0.9rem; } }
+</style>

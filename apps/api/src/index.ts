@@ -6,6 +6,7 @@ import { registerPiezoRoutes } from "./routes/piezo.js";
 import { registerOutilsRoutes } from "./routes/outils.js";
 import { registerMeteoRoutes } from "./routes/meteo.js";
 import { registerIndicateursRoutes } from "./routes/indicateurs.js";
+import { registerIncendiesRoutes } from "./routes/incendies.js";
 
 const MIGRATIONS_DIR = process.env.MIGRATIONS_DIR ?? "/app/db/migrations";
 
@@ -23,6 +24,7 @@ async function main(): Promise<void> {
   registerOutilsRoutes(app, pool);
   registerMeteoRoutes(app, pool);
   registerIndicateursRoutes(app, pool);
+  registerIncendiesRoutes(app, pool);
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen({ port, host: "0.0.0.0" });

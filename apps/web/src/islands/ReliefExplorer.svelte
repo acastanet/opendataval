@@ -5,6 +5,7 @@
   import { TERRITOIRE } from "@opendata-vda/shared/territoire";
   import {
     IGN_WMTS,
+    ajouterControleFondIgn,
     PALETTE_HYPSOMETRIQUE,
     RELIEF_SOURCE_ID,
     enregistrerProtocolePmtiles,
@@ -137,6 +138,10 @@
         attribution: "© IGN",
       });
       map.addLayer({ id: BASEMAP_ID, type: "raster", source: BASEMAP_SRC, layout: { visibility: "none" } });
+      ajouterControleFondIgn(map, {
+        actif: "photo",
+        onChange: (fond) => { changerFond(fond === "photo" ? "photo" : "plan"); },
+      });
 
       // Teinte hypsométrique (couleur = altitude, calculée pixel par pixel sur GPU).
       map.addLayer({

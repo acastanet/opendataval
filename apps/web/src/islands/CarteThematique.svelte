@@ -3,7 +3,7 @@
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import { TERRITOIRE } from "@opendata-vda/shared/territoire";
-  import { IGN_WMTS, ajouterCoucheCarte, enregistrerProtocolePmtiles, activerRelief } from "../lib/carte";
+  import { IGN_WMTS, ajouterControleFondIgn, ajouterCoucheCarte, enregistrerProtocolePmtiles, activerRelief } from "../lib/carte";
   import { COUCHES_PAR_SLUG, titrePopup, lignesPopup } from "@opendata-vda/shared/catalogue";
 
   /** Slugs de couches (COUCHES) à afficher, chargées depuis /api/couches/:slug/geojson. */
@@ -74,6 +74,14 @@
         attribution: "© IGN",
       });
       map.addLayer({ id: "basemap-plan", type: "raster", source: "basemap-plan-src" });
+      map.addSource("basemap-photo-src", {
+        type: "raster",
+        tiles: [IGN_WMTS("ORTHOIMAGERY.ORTHOPHOTOS", "image/jpeg")],
+        tileSize: 256,
+        attribution: "© IGN",
+      });
+      map.addLayer({ id: "basemap-photo", type: "raster", source: "basemap-photo-src", layout: { visibility: "none" } });
+      ajouterControleFondIgn(map, { planLayerId: "basemap-plan", photoLayerId: "basemap-photo" });
 
       if (relief3d) activerRelief(map, 1.3);
 

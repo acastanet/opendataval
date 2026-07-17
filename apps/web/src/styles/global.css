@@ -14,6 +14,13 @@
   --border: var(--color-granite);
   --panel-bg: rgba(237, 237, 234, 0.94);
   --shadow: 0 2px 12px rgba(43, 50, 56, 0.14);
+  --text: var(--fg);
+  --surface: #ffffff;
+  --surface-muted: #f4f6f5;
+  --muted: #4f5d66;
+  --navy: #17384b;
+  --navy-hover: #0e2938;
+  --line-strong: #9aa8b0;
 
   --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
   --font-body:
@@ -24,17 +31,6 @@
   --contour-rule: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='12' viewBox='0 0 64 12'%3E%3Cpath d='M0 6 Q8 2 16 6 T32 6 T48 6 T64 6' fill='none' stroke='%239a9b93' stroke-width='1' opacity='0.55'/%3E%3Cpath d='M0 9 Q8 6 16 9 T32 9 T48 9 T64 9' fill='none' stroke='%239a9b93' stroke-width='1' opacity='0.3'/%3E%3C/svg%3E");
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: var(--color-ardoise);
-    --fg: var(--color-brume);
-    --accent: #a9714f;
-    --border: #4a525a;
-    --panel-bg: rgba(43, 50, 56, 0.94);
-    --shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
-  }
-}
-
 :root[data-theme="dark"] {
   --bg: var(--color-ardoise);
   --fg: var(--color-brume);
@@ -42,6 +38,13 @@
   --border: #4a525a;
   --panel-bg: rgba(43, 50, 56, 0.94);
   --shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+  --text: var(--fg);
+  --surface: #364047;
+  --surface-muted: #2f383e;
+  --muted: #d1d8dc;
+  --navy: #0b202c;
+  --navy-hover: #061720;
+  --line-strong: #7f8d95;
 }
 
 :root[data-theme="light"] {
@@ -95,6 +98,41 @@ a {
 
 button {
   font-family: inherit;
+}
+
+.opendata-fonds-control {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.22rem;
+  border: 1px solid rgba(23, 56, 75, 0.7);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 4px rgba(23, 56, 75, 0.25);
+}
+
+.opendata-fonds-control button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #17384b;
+  background: #ffffff;
+  font-size: 1.2rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.opendata-fonds-control button.actif {
+  color: #ffffff;
+  border-color: #17384b;
+  background: #17384b;
+}
+
+.opendata-fonds-control button:focus-visible {
+  outline: 3px solid #2472a4;
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

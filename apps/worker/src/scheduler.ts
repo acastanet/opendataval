@@ -18,6 +18,9 @@ import * as meteoRadome from "./sources/meteo_radome.js";
 import * as meteoInfoclimat from "./sources/meteo_infoclimat.js";
 import * as meteoPurge from "./sources/meteo_purge.js";
 import * as meteoClimat from "./sources/meteo_climat.js";
+import * as firms from "./sources/firms.js";
+import * as fireZones from "./sources/fireZones.js";
+import * as fireRiskGard from "./sources/fireRiskGard.js";
 
 export interface SourceJob {
   slug: string;
@@ -31,6 +34,8 @@ export interface SourceJob {
 export const JOBS: SourceJob[] = [
   { slug: "meta_sources", cron: "0 2 1 * *", run: metaSources.run }, // mensuel (premier du mois)
   { slug: "geoapi", cron: "0 3 1 * *", run: geoapi.run }, // mensuel
+  { slug: "fire_zones", cron: "10 3 1 * *", run: fireZones.run }, // mensuel, après geoapi
+  { slug: "fire_risk_gard", cron: "10 18 * * *", run: fireRiskGard.run }, // publication annoncée vers 18 h
   { slug: "georisques", cron: "0 3 2 * *", run: georisques.run }, // mensuel
   { slug: "apicarto", cron: "0 3 1 */3 *", run: apicarto.run }, // trimestriel
   { slug: "education", cron: "0 3 3 * *", run: education.run }, // mensuel
@@ -67,6 +72,12 @@ export const JOBS: SourceJob[] = [
   },
   { slug: "meteo_purge", cron: "40 4 * * *", run: meteoPurge.run }, // quotidien
   { slug: "meteo_climat", cron: "0 6 8 * *", run: meteoClimat.run }, // mensuel (le 8)
+  {
+    slug: "firms",
+    cron: "*/30 * * * *",
+    run: firms.run,
+    actif: () => Boolean(process.env.NASA_FIRMS_MAP_KEY),
+  },
 ];
 
 export async function runJob(pool: pg.Pool, job: SourceJob): Promise<void> {

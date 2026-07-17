@@ -9,11 +9,13 @@
     "preview": "astro preview"
   },
   "dependencies": {
+    "@astrojs/svelte": "^5.7.3",
+    "@fortawesome/free-solid-svg-icons": "^7.3.1",
     "@opendata-vda/shared": "workspace:*",
     "astro": "^4.16.7",
-    "@astrojs/svelte": "^5.7.3",
-    "svelte": "^4.2.19",
     "maplibre-gl": "^5.9.0",
-    "pmtiles": "^4.4.1"
+    "pmtiles": "^4.4.1",
+    "svelte": "^4.2.19",
+    "svelte-fa": "^4.0.4"
   }
 }
