@@ -2,7 +2,7 @@
   import { onDestroy, onMount, tick } from "svelte";
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
-  import { IGN_WMTS } from "../lib/carte";
+  import { IGN_WMTS, ajouterControleIncendies } from "../lib/carte";
 
   interface GeoJsonFeature { type: "Feature"; geometry: { type: string; coordinates: unknown }; properties: Record<string, unknown>; }
   interface GeoJsonCollection { type: "FeatureCollection"; features: GeoJsonFeature[]; }
@@ -17,8 +17,6 @@
   let detections: GeoJsonCollection = { type: "FeatureCollection", features: [] };
   let dernieresDetections: GeoJsonCollection = { type: "FeatureCollection", features: [] };
   let heures = 24;
-  let fondPrincipal: "plan" | "aerien" = "plan";
-  let fondDernieres: "plan" | "aerien" = "plan";
   let mapContainer: HTMLDivElement;
   let dernieresMapContainer: HTMLDivElement;
   let map: maplibregl.Map | undefined;
@@ -44,20 +42,17 @@
     carte.addLayer({ id: `${prefixe}-orthophoto-ign`, type: "raster", source: `${prefixe}-orthophoto-ign`, layout: { visibility: "none" } });
   }
 
-  function appliquerFond(carte: maplibregl.Map | undefined, prefixe: string, nouveauFond: "plan" | "aerien"): void {
-    if (!carte?.isStyleLoaded()) return;
-    carte.setLayoutProperty(`${prefixe}-plan-ign`, "visibility", nouveauFond === "plan" ? "visible" : "none");
-    carte.setLayoutProperty(`${prefixe}-orthophoto-ign`, "visibility", nouveauFond === "aerien" ? "visible" : "none");
-  }
-
-  function choisirFondPrincipal(nouveauFond: "plan" | "aerien"): void {
-    fondPrincipal = nouveauFond;
-    appliquerFond(map, "principal", nouveauFond);
-  }
-
-  function choisirFondDernieres(nouveauFond: "plan" | "aerien"): void {
-    fondDernieres = nouveauFond;
-    appliquerFond(dernieresMap, "dernieres", nouveauFond);
+  function recentrerCarte(carte: maplibregl.Map): void { carte.flyTo({ center: [3.66, 44.12], zoom: 9.05, essential: true }); }
+  function meLocaliser(carte: maplibregl.Map, sourceId: string): void {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const position: [number, number] = [coords.longitude, coords.latitude];
+      const source = carte.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+      const point = { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: position } } as GeoJSON.Feature<GeoJSON.Point>;
+      if (source) source.setData(point);
+      else { carte.addSource(sourceId, { type: "geojson", data: point }); carte.addLayer({ id: sourceId, type: "circle", source: sourceId, paint: { "circle-radius": 8, "circle-color": "#1463a4", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } }); }
+      carte.flyTo({ center: position, zoom: 12, essential: true });
+    });
   }
 
   function initialiserCarte(zones: GeoJsonCollection): void {
@@ -66,6 +61,7 @@
     map.on("load", () => {
       if (!map) return;
       ajouterFondsCarte(map, "principal");
+      ajouterControleIncendies(map, { planLayerId: "principal-plan-ign", photoLayerId: "principal-orthophoto-ign", onRecentrer: () => recentrerCarte(map!), onLocaliser: () => meLocaliser(map!, "position-utilisateur-principale") });
       map.addSource("zones-incendies", { type: "geojson", data: zones as GeoJSON.FeatureCollection });
       for (const zone of [{ type: "veille_15km", color: "#d69d00" }, { type: "proche_5km", color: "#e67524" }, { type: "coeur", color: "#bb2435" }]) {
         map.addLayer({ id: `zone-${zone.type}-fill`, type: "fill", source: "zones-incendies", filter: ["==", ["get", "type_zone"], zone.type], paint: { "fill-color": zone.color, "fill-opacity": zone.type === "coeur" ? 0.1 : 0.045 } });
@@ -96,6 +92,7 @@
     dernieresMap.on("load", () => {
       if (!dernieresMap) return;
       ajouterFondsCarte(dernieresMap, "dernieres");
+      ajouterControleIncendies(dernieresMap, { planLayerId: "dernieres-plan-ign", photoLayerId: "dernieres-orthophoto-ign", onRecentrer: () => recentrerCarte(dernieresMap!), onLocaliser: () => meLocaliser(dernieresMap!, "position-utilisateur-dernieres") });
       dernieresMap.addSource("perimetre-veille", { type: "geojson", data: zones as GeoJSON.FeatureCollection });
       dernieresMap.addLayer({ id: "perimetre-veille", type: "line", source: "perimetre-veille", filter: ["==", ["get", "type_zone"], "veille_15km"], paint: { "line-color": "#d69d00", "line-width": 2.2, "line-opacity": 0.9, "line-dasharray": [2, 1] } });
       dernieresMap.addSource("trois-dernieres-detections", { type: "geojson", data: { type: "FeatureCollection", features: dernieresDetections.features.slice(0, 3) } as GeoJSON.FeatureCollection });
@@ -135,20 +132,20 @@
   </section>
   <section class="exploration" aria-labelledby="titre-exploration">
     <div class="titre-ligne"><div><p class="eyebrow">Exploration</p><h2 id="titre-exploration">Détections et périmètres de veille</h2></div><div class="periodes" aria-label="Période"><button class:actif={heures === 6} on:click={() => choisirPeriode(6)} type="button">6 h</button><button class:actif={heures === 24} on:click={() => choisirPeriode(24)} type="button">24 h</button><button class:actif={heures === 72} on:click={() => choisirPeriode(72)} type="button">72 h</button></div></div>
-    <div class="carte-wrap"><div class="carte" bind:this={mapContainer}></div><div class="fonds-carte" aria-label="Fond de carte"><button class:actif={fondPrincipal === "plan"} on:click={() => choisirFondPrincipal("plan")} type="button" aria-label="Afficher le Plan IGN" title="Plan IGN"><span aria-hidden="true">▤</span></button><button class:actif={fondPrincipal === "aerien"} on:click={() => choisirFondPrincipal("aerien")} type="button" aria-label="Afficher la vue aérienne" title="Vue aérienne"><span aria-hidden="true">◒</span></button></div></div>
+    <div class="carte-wrap"><div class="carte" bind:this={mapContainer}></div></div>
     <div class="legende"><span class="point"></span> Détection thermique &nbsp; <span class="coeur"></span> Cœur &nbsp; <span class="proche"></span> 5 km &nbsp; <span class="veille"></span> 15 km</div>
   </section>
   <section class="liste" aria-labelledby="titre-liste"><h2 id="titre-liste">Détections sur les {heures} dernières heures</h2>{#if detections.features.length === 0}<p>Aucune détection reçue dans la zone de veille. Cela ne signifie pas qu’aucun incendie n’est en cours.</p>{:else}<ol>{#each detections.features as detection}<li><strong>{formaterDate(String(detection.properties.observee_a ?? ""))}</strong><span>{String(detection.properties.position ?? "—")} · {String(detection.properties.satellite ?? "—")} · confiance {String(detection.properties.confiance ?? "—")}</span></li>{/each}</ol>{/if}</section>
   <section class="dernieres" aria-labelledby="titre-dernieres">
     <div><p class="eyebrow">Synthèse historique</p><h2 id="titre-dernieres">Les 3 dernières détections dans le périmètre</h2></div>
     <p>Ces trois points les plus récents ne sont soumis à aucune limite de temps ; le contour pointillé délimite la zone de veille à 15 km.</p>
-    <div class="carte-wrap"><div class="carte carte-dernieres" bind:this={dernieresMapContainer}></div><div class="fonds-carte" aria-label="Fond de carte"><button class:actif={fondDernieres === "plan"} on:click={() => choisirFondDernieres("plan")} type="button" aria-label="Afficher le Plan IGN" title="Plan IGN"><span aria-hidden="true">▤</span></button><button class:actif={fondDernieres === "aerien"} on:click={() => choisirFondDernieres("aerien")} type="button" aria-label="Afficher la vue aérienne" title="Vue aérienne"><span aria-hidden="true">◒</span></button></div></div>
+    <div class="carte-wrap"><div class="carte carte-dernieres" bind:this={dernieresMapContainer}></div></div>
     {#if dernieresDetections.features.length === 0}<p class="absence-detection">Aucune détection thermique historique n’est enregistrée dans le périmètre.</p>{/if}
   </section>
   <p class="avertissement">Les détections NASA FIRMS signalent des anomalies thermiques et ne constituent pas une alerte opérationnelle. En cas de feu observé, appelez le 112 ou le 18.</p>
 {/if}
 
 <style>
-  .etat { padding: 2rem 0; color: var(--muted); font-weight: 600; } .erreur { color: #9f2637; }.resume { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }.resume article,.exploration,.dernieres,.liste { border:1px solid var(--line-strong); border-radius:8px; padding:clamp(1rem,3vw,1.6rem); background:var(--surface); box-shadow:0 2px 8px rgba(23,56,75,.08); }.resume p,.resume span,.eyebrow,.legende { margin:0; color:var(--muted); }.resume p,.eyebrow { color:var(--navy); font-size:.74rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }.resume strong { display:block; margin-top:.4rem; color:var(--fg); font-family:var(--font-display); font-size:2.9rem; line-height:1; }.resume strong.date { font-family:inherit; font-size:1.25rem; line-height:1.25; }.resume span { display:block; margin-top:.45rem; font-size:.88rem; font-weight:600; line-height:1.4; }.exploration,.dernieres,.liste { margin-top:1.25rem; }.titre-ligne { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1rem; }.titre-ligne h2,.dernieres h2,.liste h2 { margin:.3rem 0 0; color:var(--fg); font-family:var(--font-display); font-size:1.6rem; }.periodes { display:flex; gap:.25rem; padding:.25rem; border:1px solid var(--line-strong); border-radius:6px; background:var(--surface-muted); }.periodes button { min-height:40px; border:1px solid transparent; border-radius:4px; padding:.45rem .8rem; color:var(--fg); background:transparent; font:inherit; font-weight:800; cursor:pointer; }.periodes button.actif { color:#ffffff; border-color:var(--navy); background:var(--navy); }.periodes button:focus-visible,.fonds-carte button:focus-visible { outline:3px solid #2472a4; outline-offset:2px; }.carte-wrap { position:relative; }.carte { height:clamp(330px,58vw,580px); border:1px solid var(--line-strong); border-radius:5px; overflow:hidden; }.fonds-carte { position:absolute; top:.75rem; right:.75rem; display:grid; gap:.3rem; padding:.25rem; border:1px solid rgba(23,56,75,.65); border-radius:5px; background:rgba(255,255,255,.92); box-shadow:0 1px 4px rgba(23,56,75,.22); }.fonds-carte button { display:grid; width:38px; height:38px; place-items:center; border:1px solid transparent; border-radius:3px; color:var(--navy); background:#ffffff; font:inherit; font-size:1.2rem; font-weight:900; cursor:pointer; }.fonds-carte button.actif { color:#ffffff; border-color:var(--navy); background:var(--navy); }.carte-dernieres { height:clamp(260px,38vw,400px); margin-top:1rem; }.legende { margin-top:.75rem; font-size:.86rem; font-weight:600; }.legende span { display:inline-block; width:.75rem; height:.75rem; vertical-align:-.05rem; border:1px solid #17242c; border-radius:50%; }.point{ background:#bb2435; }.coeur{ background:#bb2435; border-radius:2px!important; }.proche{ background:#e67524; border-radius:2px!important; }.veille{ background:#d69d00; border-radius:2px!important; }.dernieres > p { max-width:75ch; margin:.75rem 0 0; color:var(--muted); font-weight:600; line-height:1.5; }.dernieres .absence-detection { color:var(--fg); }.liste p { color:var(--fg); font-weight:600; line-height:1.55; }.liste ol { display:grid; gap:.75rem; padding-left:1.2rem; }.liste li strong { color:var(--fg); }.liste li span { display:block; margin-top:.2rem; color:var(--muted); font-size:.9rem; font-weight:600; }.avertissement { max-width:75ch; margin:1.25rem auto 0; color:var(--muted); font-size:.86rem; font-weight:600; line-height:1.5; text-align:center; }
+  .etat { padding: 2rem 0; color: var(--muted); font-weight: 600; } .erreur { color: #9f2637; }.resume { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }.resume article,.exploration,.dernieres,.liste { border:1px solid var(--line-strong); border-radius:8px; padding:clamp(1rem,3vw,1.6rem); background:var(--surface); box-shadow:0 2px 8px rgba(23,56,75,.08); }.resume p,.resume span,.eyebrow,.legende { margin:0; color:var(--muted); }.resume p,.eyebrow { color:var(--navy); font-size:.74rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }.resume strong { display:block; margin-top:.4rem; color:var(--fg); font-family:var(--font-display); font-size:2.9rem; line-height:1; }.resume strong.date { font-family:inherit; font-size:1.25rem; line-height:1.25; }.resume span { display:block; margin-top:.45rem; font-size:.88rem; font-weight:600; line-height:1.4; }.exploration,.dernieres,.liste { margin-top:1.25rem; }.titre-ligne { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1rem; }.titre-ligne h2,.dernieres h2,.liste h2 { margin:.3rem 0 0; color:var(--fg); font-family:var(--font-display); font-size:1.6rem; }.periodes { display:flex; gap:.25rem; padding:.25rem; border:1px solid var(--line-strong); border-radius:6px; background:var(--surface-muted); }.periodes button { min-height:40px; border:1px solid transparent; border-radius:4px; padding:.45rem .8rem; color:var(--fg); background:transparent; font:inherit; font-weight:800; cursor:pointer; }.periodes button.actif { color:#ffffff; border-color:var(--navy); background:var(--navy); }.periodes button:focus-visible { outline:3px solid #2472a4; outline-offset:2px; }.carte-wrap { position:relative; }.carte { height:clamp(330px,58vw,580px); border:1px solid var(--line-strong); border-radius:5px; overflow:hidden; }.carte-dernieres { height:clamp(260px,38vw,400px); margin-top:1rem; }.legende { margin-top:.75rem; font-size:.86rem; font-weight:600; }.legende span { display:inline-block; width:.75rem; height:.75rem; vertical-align:-.05rem; border:1px solid #17242c; border-radius:50%; }.point{ background:#bb2435; }.coeur{ background:#bb2435; border-radius:2px!important; }.proche{ background:#e67524; border-radius:2px!important; }.veille{ background:#d69d00; border-radius:2px!important; }.dernieres > p { max-width:75ch; margin:.75rem 0 0; color:var(--muted); font-weight:600; line-height:1.5; }.dernieres .absence-detection { color:var(--fg); }.liste p { color:var(--fg); font-weight:600; line-height:1.55; }.liste ol { display:grid; gap:.75rem; padding-left:1.2rem; }.liste li strong { color:var(--fg); }.liste li span { display:block; margin-top:.2rem; color:var(--muted); font-size:.9rem; font-weight:600; }.avertissement { max-width:75ch; margin:1.25rem auto 0; color:var(--muted); font-size:.86rem; font-weight:600; line-height:1.5; text-align:center; }
   @media(max-width:760px) { .titre-ligne{ align-items:flex-start; flex-direction:column; }.periodes{ width:100%; }.periodes button{ flex:1; } } @media(max-width:650px) { .resume{ grid-template-columns:1fr; }.liste h2,.dernieres h2{ font-size:1.4rem; } }
 </style>

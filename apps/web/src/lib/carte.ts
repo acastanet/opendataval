@@ -1,5 +1,6 @@
 import type maplibregl from "maplibre-gl";
 import type { CoucheCarte } from "@opendata-vda/shared/catalogue";
+import { faBuildingColumns, faCircleDot, faMap, faPlane } from "@fortawesome/free-solid-svg-icons";
 import { PMTiles } from "pmtiles";
 
 export const IGN_WMTS = (layer: string, format: string): string =>
@@ -25,6 +26,57 @@ export interface ControleFondIgnOptions {
   autresLayerIds?: string[];
   actif?: "plan" | "photo";
   onChange?: (fond: "plan" | "photo") => void;
+}
+
+export interface ControleIncendiesOptions {
+  planLayerId: string;
+  photoLayerId: string;
+  onRecentrer: () => void;
+  onLocaliser: () => void;
+}
+
+/** Contrôles normalisés des cartes de la mini-app incendies. */
+export function ajouterControleIncendies(map: maplibregl.Map, options: ControleIncendiesOptions): void {
+  let container: HTMLElement | undefined;
+  let fond: "plan" | "photo" = "plan";
+  const creerIcone = (definition: typeof faMap): SVGSVGElement => {
+    const [largeur, hauteur, , , trace] = definition.icon;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${largeur} ${hauteur}`);
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", Array.isArray(trace) ? trace.join(" ") : trace);
+    svg.appendChild(path);
+    return svg;
+  };
+  const appliquerFond = (prochainFond: "plan" | "photo"): void => {
+    fond = prochainFond;
+    map.setLayoutProperty(options.planLayerId, "visibility", fond === "plan" ? "visible" : "none");
+    map.setLayoutProperty(options.photoLayerId, "visibility", fond === "photo" ? "visible" : "none");
+    container?.querySelectorAll("button[data-fond]").forEach((button) => button.classList.toggle("actif", (button as HTMLButtonElement).dataset.fond === fond));
+  };
+  const control: maplibregl.IControl = {
+    onAdd(): HTMLElement {
+      container = document.createElement("div");
+      container.className = "maplibregl-ctrl opendata-incendies-control";
+      container.setAttribute("aria-label", "Commandes de la carte");
+      for (const [fondBouton, icone, libelle] of [["plan", faMap, "Afficher le Plan IGN"], ["photo", faPlane, "Afficher la vue aérienne"]] as const) {
+        const button = document.createElement("button");
+        button.type = "button"; button.dataset.fond = fondBouton; button.appendChild(creerIcone(icone)); button.title = libelle; button.setAttribute("aria-label", libelle);
+        button.addEventListener("click", () => appliquerFond(fondBouton));
+        container.appendChild(button);
+      }
+      for (const [icone, libelle, action] of [[faBuildingColumns, "Commune de Val-d’Aigoual", options.onRecentrer], [faCircleDot, "Me localiser", options.onLocaliser]] as const) {
+        const button = document.createElement("button");
+        button.type = "button"; button.appendChild(creerIcone(icone)); button.title = libelle; button.setAttribute("aria-label", libelle);
+        button.addEventListener("click", action);
+        container.appendChild(button);
+      }
+      return container;
+    },
+    onRemove(): void { container?.remove(); container = undefined; },
+  };
+  map.addControl(control, "top-right");
 }
 
 /** Ajoute le sélecteur compact Plan IGN / photographie aérienne en haut à droite de la carte. */

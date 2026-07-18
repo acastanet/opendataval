@@ -1,5 +1,41 @@
 import type { FastifyInstance } from "fastify";
 import type pg from "pg";
+import { deserialize } from "flatgeobuf/lib/mjs/geojson.js";
+
+const MASSIFS_GARD_FGB_URL = "https://www.risque-prevention-incendie.fr/static/30/massifs_30.fgb";
+const IDS_MASSIFS_AIGOUAL = new Set([301, 302, 303]);
+const CACHE_MASSIFS_MS = 6 * 60 * 60 * 1000;
+
+interface MassifGardFeature {
+  type: "Feature";
+  geometry: { type: string; coordinates: unknown };
+  properties: Record<string, unknown> | null;
+}
+
+let cacheMassifsGard: { expireA: number; features: MassifGardFeature[] } | null = null;
+
+async function chargerMassifsGardOfficiels(): Promise<MassifGardFeature[]> {
+  if (cacheMassifsGard && cacheMassifsGard.expireA > Date.now()) return cacheMassifsGard.features;
+
+  const response = await fetch(MASSIFS_GARD_FGB_URL, {
+    headers: { "User-Agent": "OpenDataVdA/1.0 (+https://opendata.valdaigoual.fr)" },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`Massifs officiels du Gard -> HTTP ${response.status}`);
+
+  const features: MassifGardFeature[] = [];
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  for await (const feature of deserialize(bytes)) {
+    const massif = feature as MassifGardFeature;
+    if (IDS_MASSIFS_AIGOUAL.has(Number(massif.properties?.ID))) features.push(massif);
+  }
+  if (features.length !== IDS_MASSIFS_AIGOUAL.size) {
+    throw new Error(`Massifs officiels du Gard : ${features.length}/3 contours reçus`);
+  }
+
+  cacheMassifsGard = { expireA: Date.now() + CACHE_MASSIFS_MS, features };
+  return features;
+}
 
 interface DetectionQuery {
   hours?: string;
@@ -78,6 +114,22 @@ function parseHours(value: string | undefined): number | null {
 }
 
 export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): void {
+  app.get("/api/incendies/massifs-officiels", async (_request, reply) => {
+    try {
+      const features = await chargerMassifsGardOfficiels();
+      reply.header("cache-control", "public, max-age=21600");
+      return {
+        type: "FeatureCollection",
+        source: MASSIFS_GARD_FGB_URL,
+        features,
+      };
+    } catch (error) {
+      app.log.error(error, "Chargement des contours officiels des massifs gardois impossible");
+      reply.code(502);
+      return { error: "Les contours officiels des massifs gardois sont temporairement indisponibles." };
+    }
+  });
+
   app.get("/api/incendies/situation", async (_request, reply) => {
     const [{ rows: counts }, { rows: firmsLogs }, { rows: risks }, { rows: zones }] = await Promise.all([
       pool.query<{ position: string; nombre: number }>(
