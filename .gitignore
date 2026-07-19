@@ -4,6 +4,8 @@ dist/
 *.log
 .env
 .pnpm-store/
+playwright-report/
+test-results/
 
 # Extraits de relief 3D — volumineux (~2 Go) et régénérables via go-pmtiles (cf. CLAUDE.md)
 apps/web/public/relief/*.pmtiles
