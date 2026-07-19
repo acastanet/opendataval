@@ -12,18 +12,20 @@ const MIGRATIONS_DIR = process.env.MIGRATIONS_DIR ?? "/app/db/migrations";
 
 async function main(): Promise<void> {
   const pool = createPool();
-  try {
-    await runMigrations(pool, MIGRATIONS_DIR);
-  } catch (err) {
-    console.error(
-      "api : migrations non appliquées (base indisponible ?) — démarrage quand même :",
-      err
-    );
-  }
+  await runMigrations(pool, MIGRATIONS_DIR);
 
   const app = Fastify({ logger: true });
 
-  app.get("/api/health", async () => ({ status: "ok" }));
+  app.get("/api/health", async (_request, reply) => {
+    try {
+      await pool.query("select 1");
+      return { status: "ok" };
+    } catch (error) {
+      app.log.error(error, "Base PostgreSQL indisponible");
+      reply.code(503);
+      return { status: "error" };
+    }
+  });
 
   registerTerritoireRoutes(app, pool);
   registerCouchesRoutes(app, pool);

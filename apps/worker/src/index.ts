@@ -33,7 +33,7 @@ async function main(): Promise<void> {
   for (const job of JOBS) {
     cron.schedule(job.cron, () => {
       void runJob(pool, job);
-    });
+    }, { timezone: "Europe/Paris" });
   }
   console.log("worker : planification active, en attente des prochaines exécutions.");
 }

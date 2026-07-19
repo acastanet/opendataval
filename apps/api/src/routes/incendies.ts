@@ -1,9 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import type pg from "pg";
 import { deserialize } from "flatgeobuf/lib/mjs/geojson.js";
+import { cleDate, dateParis, evaluerFraicheurFirms, parseHours } from "../lib/incendies.js";
 
 const MASSIFS_GARD_FGB_URL = "https://www.risque-prevention-incendie.fr/static/30/massifs_30.fgb";
 const IDS_MASSIFS_AIGOUAL = new Set([301, 302, 303]);
+const NOMS_MASSIFS_AIGOUAL = new Set(["CAUSSE AIGOUAL", "SUD CEVENNES", "NORD CEVENNES"]);
 const CACHE_MASSIFS_MS = 6 * 60 * 60 * 1000;
 
 interface MassifGardFeature {
@@ -61,6 +63,7 @@ interface DetectionRow {
   jour_nuit: "D" | "N" | null;
   position: "coeur" | "proche" | "veille";
   distance_coeur_m: string;
+  collectee_a: string;
   geometry: PointGeometry;
 }
 
@@ -81,36 +84,53 @@ interface RiskRow {
   niveau: string;
   restrictions: string | null;
   source_url: string;
+  mode_collecte: "automatique" | "manuel";
 }
 
-function resumeRisque(rows: RiskRow[], date: string) {
+interface FetchLogRow {
+  statut: "en_cours" | "ok" | "partiel" | "erreur";
+  demarre_a: string;
+  termine_a: string | null;
+  erreur: string | null;
+}
+
+function collecteLaPlusRecente(rows: RiskRow[]): string | null {
+  const valeurs = rows.map((row) => new Date(row.collectee_a).getTime()).filter(Number.isFinite);
+  return valeurs.length === 0 ? null : new Date(Math.max(...valeurs)).toISOString();
+}
+
+function resumeRisque(rows: RiskRow[], dateDemandee: string, repli: RiskRow[] = []) {
   const ordre = ["inconnu", "vert", "jaune", "orange", "rouge"];
-  const niveauMax = rows.reduce((maximum, risque) => (
+  const lignesCompletes = (lignes: RiskRow[]) => (
+    lignes.length === NOMS_MASSIFS_AIGOUAL.size && lignes.every((ligne) => NOMS_MASSIFS_AIGOUAL.has(ligne.zone_officielle))
+  );
+  const lignesDemandee = lignesCompletes(rows) ? rows : [];
+  const zonesRepli = lignesCompletes(repli) ? repli : [];
+  const zones = lignesDemandee.length > 0 ? lignesDemandee : zonesRepli;
+  const niveauMax = zones.reduce((maximum, risque) => (
     ordre.indexOf(risque.niveau) > ordre.indexOf(maximum) ? risque.niveau : maximum
   ), "inconnu");
 
-  return rows.length === 0
-    ? { etat: "indisponible" as const, date_validite: date, niveau_max: "inconnu", zones: [] }
-    : { etat: "ok" as const, date_validite: date, niveau_max: niveauMax, zones: rows };
-}
-
-function dateParis(decalageJours = 0): string {
-  const date = new Date(Date.now() + decalageJours * 24 * 60 * 60 * 1000);
-  const parts = new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const valeur = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value;
-  return `${valeur("year")}-${valeur("month")}-${valeur("day")}`;
-}
-
-function parseHours(value: string | undefined): number | null {
-  if (value === undefined) return 24;
-  if (!/^\d+$/.test(value)) return null;
-  const hours = Number(value);
-  return Number.isInteger(hours) && hours >= 1 && hours <= 72 ? hours : null;
+  if (zones.length === 0) {
+    return {
+      etat: "indisponible" as const,
+      date_demandee: dateDemandee,
+      date_validite: dateDemandee,
+      niveau_max: "inconnu",
+      derniere_collecte: null,
+      zones: [],
+    };
+  }
+  const ancienne = lignesDemandee.length === 0;
+  return {
+    etat: ancienne ? "ancienne" as const : "ok" as const,
+    date_demandee: dateDemandee,
+    date_validite: cleDate(zones[0]!.date_validite),
+    niveau_max: niveauMax,
+    derniere_collecte: collecteLaPlusRecente(zones),
+    mode_collecte: zones.some((zone) => zone.mode_collecte === "manuel") ? "manuel" as const : "automatique" as const,
+    zones,
+  };
 }
 
 export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): void {
@@ -131,35 +151,53 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
   });
 
   app.get("/api/incendies/situation", async (_request, reply) => {
-    const [{ rows: counts }, { rows: firmsLogs }, { rows: risks }, { rows: zones }] = await Promise.all([
+    const [{ rows: counts }, { rows: firmsLogs }, { rows: gardLogs }, { rows: risks }, { rows: zones }] = await Promise.all([
       pool.query<{ position: string; nombre: number }>(
-        `select position, count(*)::int as nombre
-           from incendies.detections_firms
-          where observee_a >= now() - interval '24 hours'
-          group by position`,
+        `select detection.position, count(*)::int as nombre
+           from incendies.detections_firms as detection
+           join incendies.zones as veille
+             on veille.slug = 'veille_15km' and ST_Covers(veille.geom, detection.geom)
+          where detection.observee_a >= now() - interval '24 hours'
+          group by detection.position`,
       ),
-      pool.query<{ statut: string; termine_a: string | null; erreur: string | null }>(
-        `select statut, termine_a, erreur
+      pool.query<FetchLogRow>(
+        `select statut, demarre_a, termine_a, erreur
            from meta.fetch_log where source = 'firms'
-          order by demarre_a desc limit 1`,
+          order by demarre_a desc limit 20`,
+      ),
+      pool.query<FetchLogRow>(
+        `select statut, demarre_a, termine_a, erreur
+           from meta.fetch_log where source = 'fire_risk_gard'
+          order by demarre_a desc limit 20`,
       ),
       pool.query<RiskRow>(
-        `select date_validite, collectee_a, zone_officielle, niveau, restrictions, source_url
+        `select date_validite, collectee_a, zone_officielle, niveau, restrictions, source_url, mode_collecte
            from incendies.risques_officiels
           where departement = 'Gard'
             and date_validite in (
               (now() at time zone 'Europe/Paris')::date,
-              ((now() at time zone 'Europe/Paris')::date + 1)
+              ((now() at time zone 'Europe/Paris')::date + 1),
+              (select max(date_validite) from incendies.risques_officiels
+                where departement = 'Gard'
+                  and date_validite < (now() at time zone 'Europe/Paris')::date)
             )
-          order by date_validite, zone_officielle`,
+          order by date_validite desc, zone_officielle`,
       ),
       pool.query<{ nombre: number }>("select count(*)::int as nombre from incendies.zones where slug in ('coeur', 'proche_5km', 'veille_15km')"),
     ]);
 
     const byPosition = Object.fromEntries(counts.map((count) => [count.position, count.nombre]));
     const latestFirms = firmsLogs[0] ?? null;
+    const latestFirmsSuccess = firmsLogs.find((log) => log.statut === "ok" || log.statut === "partiel") ?? null;
+    const latestGard = gardLogs[0] ?? null;
+    const latestGardSuccess = gardLogs.find((log) => log.statut === "ok" || log.statut === "partiel") ?? null;
     const aujourdhui = dateParis();
     const demain = dateParis(1);
+    const risquesAujourdhui = risks.filter((risque) => cleDate(risque.date_validite) === aujourdhui);
+    const risquesDemain = risks.filter((risque) => cleDate(risque.date_validite) === demain);
+    const dateRepli = risks.map((risque) => cleDate(risque.date_validite)).find((date) => date < aujourdhui);
+    const risquesRepli = dateRepli ? risks.filter((risque) => cleDate(risque.date_validite) === dateRepli) : [];
+    const fraicheurFirms = evaluerFraicheurFirms(latestFirmsSuccess?.termine_a ?? null);
     reply.header("cache-control", "public, max-age=60");
     return {
       detections_24h: {
@@ -168,15 +206,32 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
         veille: byPosition.veille ?? 0,
       },
       firms: latestFirms === null
-        ? { etat: "non_collecte", derniere_collecte: null }
+        ? { etat: "non_collecte", fraicheur: "indisponible", age_minutes: null, derniere_collecte: null, derniere_tentative: null }
         : {
             etat: latestFirms.statut,
-            derniere_collecte: latestFirms.termine_a,
-            erreur: latestFirms.statut === "erreur" ? "La dernière collecte FIRMS a échoué." : undefined,
+            fraicheur: fraicheurFirms.etat,
+            age_minutes: fraicheurFirms.age_minutes,
+            derniere_collecte: latestFirmsSuccess?.termine_a ?? null,
+            derniere_tentative: latestFirms.termine_a ?? latestFirms.demarre_a,
+            message: latestFirms.statut === "erreur"
+              ? "La dernière tentative FIRMS a échoué ; la dernière collecte valide reste affichée."
+              : latestFirms.statut === "partiel"
+                ? `La dernière collecte FIRMS est partielle${latestFirms.erreur ? ` (${latestFirms.erreur})` : ""}.`
+                : undefined,
           },
       risque_gard: {
-        aujourd_hui: resumeRisque(risks.filter((risque) => new Date(risque.date_validite).toISOString().slice(0, 10) === aujourdhui), aujourdhui),
-        demain: resumeRisque(risks.filter((risque) => new Date(risque.date_validite).toISOString().slice(0, 10) === demain), demain),
+        aujourd_hui: resumeRisque(risquesAujourdhui, aujourdhui, risquesRepli),
+        demain: resumeRisque(risquesDemain, demain),
+        source: {
+          etat: latestGard?.statut ?? "non_collecte",
+          derniere_tentative: latestGard?.termine_a ?? latestGard?.demarre_a ?? null,
+          derniere_reussite: latestGardSuccess?.termine_a ?? null,
+          message: latestGard?.statut === "erreur"
+            ? "La dernière tentative de collecte Gard a échoué ; la dernière publication valide reste affichée."
+            : latestGard?.statut === "partiel"
+              ? `La collecte Gard est partielle${latestGard.erreur ? ` (${latestGard.erreur})` : ""}.`
+              : undefined,
+        },
       },
       zones_initialisees: zones[0]?.nombre === 3,
     };
@@ -190,11 +245,15 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
     }
 
     const { rows } = await pool.query<DetectionRow>(
-      `select external_id, observee_a, satellite, instrument, confiance, frp::text, jour_nuit, position,
-              round(distance_coeur_m)::text as distance_coeur_m, ST_AsGeoJSON(geom, 6)::json as geometry
-         from incendies.detections_firms
-        where observee_a >= now() - ($1::text || ' hours')::interval
-        order by observee_a desc`,
+      `select detection.external_id, detection.observee_a, detection.satellite, detection.instrument,
+              detection.confiance, detection.frp::text, detection.jour_nuit, detection.position,
+              round(detection.distance_coeur_m)::text as distance_coeur_m, detection.collectee_a,
+              ST_AsGeoJSON(detection.geom, 6)::json as geometry
+         from incendies.detections_firms as detection
+         join incendies.zones as veille
+           on veille.slug = 'veille_15km' and ST_Covers(veille.geom, detection.geom)
+        where detection.observee_a >= now() - ($1::text || ' hours')::interval
+        order by detection.observee_a desc`,
       [hours],
     );
     reply.header("cache-control", "public, max-age=60");
@@ -213,6 +272,7 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
           jour_nuit: row.jour_nuit,
           position: row.position,
           distance_coeur_m: Number(row.distance_coeur_m),
+          collectee_a: row.collectee_a,
           source_url: "https://firms.modaps.eosdis.nasa.gov/",
         },
       })),
@@ -221,10 +281,14 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
 
   app.get("/api/incendies/detections/dernieres", async (_request, reply) => {
     const { rows } = await pool.query<DetectionRow>(
-      `select external_id, observee_a, satellite, instrument, confiance, frp::text, jour_nuit, position,
-              round(distance_coeur_m)::text as distance_coeur_m, ST_AsGeoJSON(geom, 6)::json as geometry
-         from incendies.detections_firms
-        order by observee_a desc
+      `select detection.external_id, detection.observee_a, detection.satellite, detection.instrument,
+              detection.confiance, detection.frp::text, detection.jour_nuit, detection.position,
+              round(detection.distance_coeur_m)::text as distance_coeur_m, detection.collectee_a,
+              ST_AsGeoJSON(detection.geom, 6)::json as geometry
+         from incendies.detections_firms as detection
+         join incendies.zones as veille
+           on veille.slug = 'veille_15km' and ST_Covers(veille.geom, detection.geom)
+        order by detection.observee_a desc
         limit 3`,
     );
     reply.header("cache-control", "public, max-age=60");
@@ -243,6 +307,7 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
           jour_nuit: row.jour_nuit,
           position: row.position,
           distance_coeur_m: Number(row.distance_coeur_m),
+          collectee_a: row.collectee_a,
           source_url: "https://firms.modaps.eosdis.nasa.gov/",
         },
       })),
@@ -252,7 +317,7 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
   app.get("/api/incendies/zones", async (_request, reply) => {
     const { rows } = await pool.query<ZoneRow>(
       `select slug, nom, type_zone, source, version_source, maj,
-              ST_AsGeoJSON(geom, 6)::json as geometry
+              ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.00005), 6)::json as geometry
          from incendies.zones
         where type_zone in ('coeur', 'proche_5km', 'veille_15km')
         order by case type_zone when 'veille_15km' then 1 when 'proche_5km' then 2 else 3 end`,

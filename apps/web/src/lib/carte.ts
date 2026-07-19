@@ -53,7 +53,11 @@ export function ajouterControleIncendies(map: maplibregl.Map, options: ControleI
     fond = prochainFond;
     map.setLayoutProperty(options.planLayerId, "visibility", fond === "plan" ? "visible" : "none");
     map.setLayoutProperty(options.photoLayerId, "visibility", fond === "photo" ? "visible" : "none");
-    container?.querySelectorAll("button[data-fond]").forEach((button) => button.classList.toggle("actif", (button as HTMLButtonElement).dataset.fond === fond));
+    container?.querySelectorAll<HTMLButtonElement>("button[data-fond]").forEach((button) => {
+      const actif = button.dataset.fond === fond;
+      button.classList.toggle("actif", actif);
+      button.setAttribute("aria-pressed", String(actif));
+    });
   };
   const control: maplibregl.IControl = {
     onAdd(): HTMLElement {
@@ -62,7 +66,7 @@ export function ajouterControleIncendies(map: maplibregl.Map, options: ControleI
       container.setAttribute("aria-label", "Commandes de la carte");
       for (const [fondBouton, icone, libelle] of [["plan", faMap, "Afficher le Plan IGN"], ["photo", faPlane, "Afficher la vue aérienne"]] as const) {
         const button = document.createElement("button");
-        button.type = "button"; button.dataset.fond = fondBouton; button.appendChild(creerIcone(icone)); button.title = libelle; button.setAttribute("aria-label", libelle);
+        button.type = "button"; button.dataset.fond = fondBouton; button.appendChild(creerIcone(icone)); button.title = libelle; button.setAttribute("aria-label", libelle); button.setAttribute("aria-pressed", String(fondBouton === fond)); button.classList.toggle("actif", fondBouton === fond);
         button.addEventListener("click", () => appliquerFond(fondBouton));
         container.appendChild(button);
       }
@@ -96,7 +100,9 @@ export function ajouterControleFondIgn(map: maplibregl.Map, options: ControleFon
     }
     options.onChange?.(fond);
     container?.querySelectorAll("button").forEach((button) => {
-      button.classList.toggle("actif", button.dataset.fond === actif);
+      const selectionne = button.dataset.fond === actif;
+      button.classList.toggle("actif", selectionne);
+      button.setAttribute("aria-pressed", String(selectionne));
     });
   };
 
@@ -113,6 +119,7 @@ export function ajouterControleFondIgn(map: maplibregl.Map, options: ControleFon
         button.textContent = icone;
         button.title = libelle;
         button.setAttribute("aria-label", `Afficher ${libelle}`);
+        button.setAttribute("aria-pressed", String(fond === actif));
         button.addEventListener("click", () => appliquer(fond));
         container.appendChild(button);
       }

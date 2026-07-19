@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-opendata}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD doit etre defini dans .env}
       POSTGRES_DB: ${POSTGRES_DB:-opendata_vda}
     volumes:
       - db_data:/var/lib/postgresql/data
@@ -23,7 +23,7 @@ services:
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-opendata}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD doit etre defini dans .env}
       POSTGRES_DB: ${POSTGRES_DB:-opendata_vda}
     depends_on:
       db:
@@ -40,14 +40,17 @@ services:
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-opendata}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD doit etre defini dans .env}
       POSTGRES_DB: ${POSTGRES_DB:-opendata_vda}
       METEOFRANCE_API_TOKEN: ${METEOFRANCE_API_TOKEN:-}
       INFOCLIMAT_API_TOKEN: ${INFOCLIMAT_API_TOKEN:-}
       NASA_FIRMS_MAP_KEY: ${NASA_FIRMS_MAP_KEY:-}
+      FIRE_RISK_GARD_FALLBACK_DIR: /app/data/incendies
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - ./data/incendies:/app/data/incendies:ro
 
   caddy:
     build:

@@ -3,6 +3,7 @@ import type pg from "pg";
 const FIRMS_BASE_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv";
 const SOURCES = ["VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"] as const;
 const DAYS_TO_FETCH = 1;
+const MAX_TENTATIVES = 2;
 
 interface FirmsBoundingBox {
   west: number;
@@ -129,12 +130,23 @@ async function getWatchBoundingBox(pool: pg.Pool): Promise<FirmsBoundingBox | nu
 async function fetchSource(mapKey: string, source: string, bbox: FirmsBoundingBox): Promise<FirmsRecord[]> {
   const coordinates = `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
   const url = `${FIRMS_BASE_URL}/${encodeURIComponent(mapKey)}/${source}/${coordinates}/${DAYS_TO_FETCH}`;
-  const response = await fetch(url, {
-    headers: { "User-Agent": "OpenDataVdA/1.0 (+https://opendata.valdaigoual.fr)" },
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!response.ok) throw new Error(`FIRMS ${source} -> HTTP ${response.status}`);
-  return parseCsv(await response.text());
+  let derniereErreur: Error | null = null;
+  for (let tentative = 1; tentative <= MAX_TENTATIVES; tentative += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: { "User-Agent": "OpenDataVdA/1.0 (+https://opendata.valdaigoual.fr)" },
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!response.ok) throw new Error(`FIRMS ${source} -> HTTP ${response.status}`);
+      return parseCsv(await response.text());
+    } catch (error) {
+      derniereErreur = error as Error;
+      if (tentative < MAX_TENTATIVES) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * tentative));
+      }
+    }
+  }
+  throw derniereErreur ?? new Error(`FIRMS ${source} indisponible`);
 }
 
 function externalId(detection: FirmsRecord): string {
@@ -151,6 +163,8 @@ async function upsertDetection(pool: pg.Pool, detection: FirmsRecord): Promise<b
   const { rowCount } = await pool.query(
     `with coeur as (
        select geom from incendies.zones where slug = 'coeur'
+     ), veille as (
+       select geom from incendies.zones where slug = 'veille_15km'
      ), point as (
        select ST_SetSRID(ST_MakePoint($2, $3), 4326) as geom
      )
@@ -164,7 +178,8 @@ async function upsertDetection(pool: pg.Pool, detection: FirmsRecord): Promise<b
        end,
        ST_Distance(coeur.geom::geography, point.geom::geography),
        point.geom
-     from coeur cross join point
+     from coeur cross join veille cross join point
+     where ST_Covers(veille.geom, point.geom)
      on conflict (external_id) do update set
        confiance = excluded.confiance,
        frp = excluded.frp,
@@ -186,7 +201,7 @@ async function upsertDetection(pool: pg.Pool, detection: FirmsRecord): Promise<b
 }
 
 /** Collecte les anomalies thermiques VIIRS dans la zone de veille validée. */
-export async function run(pool: pg.Pool): Promise<number> {
+export async function run(pool: pg.Pool): Promise<number | { nbLignes: number; statut: "partiel"; avertissement: string }> {
   const mapKey = process.env.NASA_FIRMS_MAP_KEY;
   if (!mapKey) throw new Error("FIRMS : NASA_FIRMS_MAP_KEY absente");
 
@@ -196,10 +211,24 @@ export async function run(pool: pg.Pool): Promise<number> {
     return 0;
   }
 
-  const records = (await Promise.all(SOURCES.map((source) => fetchSource(mapKey, source, bbox)))).flat();
+  const resultats = await Promise.allSettled(SOURCES.map(async (source) => ({
+    source,
+    records: await fetchSource(mapKey, source, bbox),
+  })));
+  const succes = resultats.filter((resultat): resultat is PromiseFulfilledResult<{ source: typeof SOURCES[number]; records: FirmsRecord[] }> => resultat.status === "fulfilled");
+  const echecs = resultats.flatMap((resultat, index) => resultat.status === "rejected" ? [SOURCES[index]] : []);
+  if (succes.length === 0) throw new Error("FIRMS : les trois sources VIIRS sont indisponibles");
+  const records = succes.flatMap((resultat) => resultat.value.records);
   let count = 0;
   for (const detection of records) {
     if (await upsertDetection(pool, detection)) count += 1;
+  }
+  if (echecs.length > 0) {
+    return {
+      nbLignes: count,
+      statut: "partiel",
+      avertissement: `${echecs.length} source(s) VIIRS indisponible(s) sur ${SOURCES.length} : ${echecs.join(", ")}`,
+    };
   }
   return count;
 }

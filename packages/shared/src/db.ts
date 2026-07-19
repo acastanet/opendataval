@@ -4,11 +4,13 @@ const { Pool } = pg;
 export type { Pool as PgPool } from "pg";
 
 export function createPool(): pg.Pool {
+  const password = process.env.POSTGRES_PASSWORD;
+  if (!password) throw new Error("POSTGRES_PASSWORD doit être défini");
   return new Pool({
     host: process.env.POSTGRES_HOST ?? "db",
     port: Number(process.env.POSTGRES_PORT ?? 5432),
     user: process.env.POSTGRES_USER ?? "opendata",
-    password: process.env.POSTGRES_PASSWORD ?? "changeme",
+    password,
     database: process.env.POSTGRES_DB ?? "opendata_vda",
   });
 }
@@ -230,7 +232,7 @@ export async function logFetchStart(pool: pg.Pool, source: string): Promise<numb
 export async function logFetchEnd(
   pool: pg.Pool,
   id: number,
-  statut: "ok" | "erreur",
+  statut: "ok" | "partiel" | "erreur",
   nbLignes?: number,
   erreur?: string,
 ): Promise<void> {

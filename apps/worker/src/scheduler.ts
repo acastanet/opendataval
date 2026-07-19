@@ -24,9 +24,9 @@ import * as fireRiskGard from "./sources/fireRiskGard.js";
 
 export interface SourceJob {
   slug: string;
-  /** Expression cron (heure Europe/Paris implicite du conteneur). */
+  /** Expression cron exécutée explicitement dans le fuseau Europe/Paris. */
   cron: string;
-  run: (pool: pg.Pool) => Promise<number>;
+  run: (pool: pg.Pool) => Promise<number | { nbLignes: number; statut: "ok" | "partiel"; avertissement?: string }>;
   /** Prédicat optionnel : si faux au démarrage, le job est ignoré (ex. clé API absente). */
   actif?: () => boolean;
 }
@@ -87,9 +87,11 @@ export async function runJob(pool: pg.Pool, job: SourceJob): Promise<void> {
   }
   const logId = await logFetchStart(pool, job.slug);
   try {
-    const nbLignes = await job.run(pool);
-    await logFetchEnd(pool, logId, "ok", nbLignes);
-    console.log(`[${job.slug}] ok — ${nbLignes} lignes`);
+    const resultat = await job.run(pool);
+    const nbLignes = typeof resultat === "number" ? resultat : resultat.nbLignes;
+    const statut = typeof resultat === "number" ? "ok" : resultat.statut;
+    await logFetchEnd(pool, logId, statut, nbLignes, typeof resultat === "number" ? undefined : resultat.avertissement);
+    console.log(`[${job.slug}] ${statut} — ${nbLignes} lignes${typeof resultat === "number" || !resultat.avertissement ? "" : ` — ${resultat.avertissement}`}`);
   } catch (err) {
     await logFetchEnd(pool, logId, "erreur", undefined, (err as Error).message);
     console.error(`[${job.slug}] erreur —`, err);

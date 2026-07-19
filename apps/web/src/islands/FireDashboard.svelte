@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte";
-  import maplibregl from "maplibre-gl";
+  import type maplibregl from "maplibre-gl";
   import Fa from "svelte-fa";
   import { faCampground, faCircleInfo, faFireFlameCurved, faHammer, faRoad } from "@fortawesome/free-solid-svg-icons";
   import "maplibre-gl/dist/maplibre-gl.css";
@@ -8,6 +8,7 @@
 
   const GARD_REFERENCE_URL = "https://www.risque-prevention-incendie.fr/gard/";
   const GARD_ARRETES_URL = "https://www.gard.gouv.fr/Actions-de-l-Etat/Securite-et-protection-de-la-population/Risques/Gestion-du-risque-feu-de-foret/Carte-de-vigilance";
+  const REGLES_VERIFIEES_LE = "18 juillet 2026";
   const NOMS_MASSIFS: Record<number, string> = { 301: "CAUSSE AIGOUAL", 302: "SUD CEVENNES", 303: "NORD CEVENNES" };
 
   interface RiskZone {
@@ -18,9 +19,30 @@
     restrictions: string | null;
     source_url: string;
   }
-  interface RiskSummary { etat: "ok" | "indisponible"; date_validite: string; niveau_max: string; zones: RiskZone[]; }
+  interface RiskSummary {
+    etat: "ok" | "ancienne" | "indisponible";
+    date_demandee: string;
+    date_validite: string;
+    niveau_max: string;
+    derniere_collecte: string | null;
+    mode_collecte?: "automatique" | "manuel";
+    zones: RiskZone[];
+  }
   interface FireSituation {
-    risque_gard: { aujourd_hui: RiskSummary; demain: RiskSummary };
+    detections_24h: { coeur: number; proche: number; veille: number };
+    firms: {
+      etat: string;
+      fraicheur: "fraiche" | "ancienne" | "indisponible";
+      age_minutes: number | null;
+      derniere_collecte: string | null;
+      derniere_tentative: string | null;
+      message?: string;
+    };
+    risque_gard: {
+      aujourd_hui: RiskSummary;
+      demain: RiskSummary;
+      source: { etat: string; derniere_tentative: string | null; derniere_reussite: string | null; message?: string };
+    };
   }
   interface TerritoireResponse {
     commune: { nom: string; geometry: { type: string; coordinates: unknown } } | null;
@@ -40,7 +62,7 @@
     vert: "#18794e", jaune: "#a56700", orange: "#bd4d11", rouge: "#ad2434", inconnu: "#687076",
   };
   const couleursCarte: Record<string, string> = {
-    vert: "#d7dcdf", jaune: "#f2c84b", orange: "#ee7b32", rouge: "#d83b4b", inconnu: "#b8bec2",
+    vert: "#d7dcdf", jaune: "#f2c84b", orange: "#f28c00", rouge: "#c62828", inconnu: "#b8bec2",
   };
   const niveauxLegende = [
     { niveau: "vert", titre: "Vigilance habituelle", resume: "Accès autorisé · travaux autorisés", classe: "trait" },
@@ -114,11 +136,11 @@
   let situation: FireSituation | null = null;
   let jour: "aujourd_hui" | "demain" = "aujourd_hui";
   let massifSelectionne: string | null = null;
-  let detailOuvert = false;
-  let boutonFermer: HTMLButtonElement;
   let erreurLocalisation: string | null = null;
+  let avertissementCarte: string | null = null;
   let mapContainer: HTMLDivElement;
   let map: maplibregl.Map | undefined;
+  let observationCarte: IntersectionObserver | undefined;
   let limitesCommune: GeoJsonFeature | null = null;
   let empriseCommune: [[number, number], [number, number]] | null = null;
   let featureSurvolee: string | number | null = null;
@@ -130,6 +152,9 @@
     ? risqueActif?.zones.find((risque) => risque.zone_officielle === massifSelectionne) ?? null
     : null;
   $: niveauMassifSelectionne = risqueMassifSelectionne?.niveau ?? "inconnu";
+  $: totalDetections = situation
+    ? situation.detections_24h.coeur + situation.detections_24h.proche + situation.detections_24h.veille
+    : 0;
 
   function formaterJour(value: string): string {
     return new Intl.DateTimeFormat("fr-FR", { dateStyle: "full", timeZone: "Europe/Paris" }).format(new Date(`${value}T12:00:00Z`));
@@ -183,28 +208,35 @@
 
   function recentrerCommune(): void {
     if (!map || !empriseCommune) return;
-    map.fitBounds(empriseCommune, { padding: 48, duration: 800, essential: true });
+    const mouvementReduit = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    map.fitBounds(empriseCommune, { padding: 48, duration: mouvementReduit ? 0 : 800, essential: false });
   }
 
-  async function ouvrirDetailMassif(nom: string): Promise<void> {
+  function ouvrirDetailMassif(nom: string): void {
     massifSelectionne = nom;
-    detailOuvert = true;
-    await tick();
-    boutonFermer?.focus();
   }
 
-  function fermerDetailMassif(): void {
-    detailOuvert = false;
-    mapContainer?.focus();
+  async function attendreCarteVisible(): Promise<void> {
+    if (!("IntersectionObserver" in window) || mapContainer.getBoundingClientRect().top <= window.innerHeight + 400) return;
+    await new Promise<void>((resolve) => {
+      observationCarte = new IntersectionObserver((entrees) => {
+        if (!entrees.some((entree) => entree.isIntersecting)) return;
+        observationCarte?.disconnect();
+        observationCarte = undefined;
+        resolve();
+      }, { rootMargin: "400px" });
+      observationCarte.observe(mapContainer);
+    });
   }
 
-  function initialiserCarte(massifs: GeoJsonCollection): void {
-    map = new maplibregl.Map({
+  async function initialiserCarte(massifs: GeoJsonCollection): Promise<void> {
+    const maplibre = (await import("maplibre-gl")).default;
+    map = new maplibre.Map({
       container: mapContainer,
-      style: { version: 8, sources: {}, layers: [], glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf" },
+      style: { version: 8, sources: {}, layers: [] },
       center: [3.66, 44.12], zoom: 9.05, attributionControl: { compact: true },
     });
-    map.addControl(new maplibregl.NavigationControl(), "bottom-right");
+    map.addControl(new maplibre.NavigationControl(), "bottom-right");
     map.on("load", () => {
       if (!map) return;
       map.addSource("plan-ign", { type: "raster", tiles: [IGN_WMTS("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", "image/png")], tileSize: 256, attribution: "© IGN" });
@@ -235,14 +267,13 @@
           "line-opacity": 0.95,
         },
       });
-      map.addLayer({ id: "massifs-gard-label", type: "symbol", source: "massifs-gard", layout: { "text-field": ["get", "NOM_MASSIF"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-max-width": 9 }, paint: { "text-color": "#182126", "text-halo-color": "#ffffff", "text-halo-width": 1.5 } });
       if (limitesCommune) {
         map.addLayer({ id: "val-aigoual-halo", type: "line", source: "val-aigoual", paint: { "line-color": "#ffffff", "line-width": 7, "line-opacity": 0.95 } });
         map.addLayer({ id: "val-aigoual-line", type: "line", source: "val-aigoual", paint: { "line-color": "#1463a4", "line-width": 3.5, "line-dasharray": [2, 1.4] } });
       }
       map.on("click", "massifs-gard-fill", (event) => {
         const nom = String(event.features?.[0]?.properties?.NOM_MASSIF ?? "");
-        if (nom) void ouvrirDetailMassif(nom);
+        if (nom) ouvrirDetailMassif(nom);
       });
       map.on("mousemove", "massifs-gard-fill", (event) => {
         if (!map) return;
@@ -257,6 +288,9 @@
         if (featureSurvolee !== null) map.setFeatureState({ source: "massifs-gard", id: featureSurvolee }, { survol: false });
         featureSurvolee = null;
       });
+    });
+    map.on("error", () => {
+      avertissementCarte = "Une partie du fond cartographique n’a pas pu être chargée. Les niveaux restent disponibles dans la liste.";
     });
   }
 
@@ -274,7 +308,7 @@
           map.addSource("position-utilisateur", { type: "geojson", data: point });
           map.addLayer({ id: "position-utilisateur", type: "circle", source: "position-utilisateur", paint: { "circle-radius": 8, "circle-color": "#1463a4", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
         }
-        map.flyTo({ center: position, zoom: 12, essential: true });
+        map.flyTo({ center: position, zoom: 12, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 800, essential: false });
       },
       () => { erreurLocalisation = "Votre position n’a pas pu être obtenue. Vérifiez l’autorisation de localisation."; },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
@@ -284,7 +318,6 @@
   async function changerJour(prochainJour: "aujourd_hui" | "demain"): Promise<void> {
     jour = prochainJour;
     massifSelectionne = null;
-    detailOuvert = false;
     featureSurvolee = null;
     if (!situation) return;
     const massifs = await chargerMassifsGard(situation.risque_gard[prochainJour].zones);
@@ -293,47 +326,68 @@
   }
 
   async function charger(): Promise<void> {
-    try {
-      const [situationRecue, territoire] = await Promise.all([
-        fetchJson<FireSituation>("/api/incendies/situation"),
-        fetchJson<TerritoireResponse>("/api/territoire"),
-      ]);
-      situation = situationRecue;
-      if (territoire.commune?.geometry) {
-        limitesCommune = { type: "Feature", geometry: territoire.commune.geometry, properties: { nom: territoire.commune.nom } };
-        empriseCommune = calculerEmprise(territoire.commune.geometry);
-      }
-      const massifs = await chargerMassifsGard(situation.risque_gard.aujourd_hui.zones);
-      etat = "ok";
-      await tick();
-      initialiserCarte(massifs);
-    } catch (error) {
-      console.error("conseils incendies indisponibles", error);
+    const [resultatSituation, resultatTerritoire] = await Promise.allSettled([
+      fetchJson<FireSituation>("/api/incendies/situation"),
+      fetchJson<TerritoireResponse>("/api/territoire"),
+    ]);
+    if (resultatSituation.status === "rejected") {
+      console.error("conseils incendies indisponibles", resultatSituation.reason);
       etat = "erreur";
+      return;
+    }
+    situation = resultatSituation.value;
+    if (resultatTerritoire.status === "fulfilled" && resultatTerritoire.value.commune?.geometry) {
+      const commune = resultatTerritoire.value.commune;
+      limitesCommune = { type: "Feature", geometry: commune.geometry, properties: { nom: commune.nom } };
+      empriseCommune = calculerEmprise(commune.geometry);
+    } else {
+      avertissementCarte = "La limite communale est indisponible ; les niveaux officiels par massif restent valides.";
+    }
+    const massifs = await chargerMassifsGard(situation.risque_gard.aujourd_hui.zones);
+    if (massifs.features.length === 0) {
+      avertissementCarte = "Les contours officiels sont indisponibles ; utilisez la liste des massifs ci-dessous.";
+    }
+    etat = "ok";
+    await tick();
+    try {
+      await attendreCarteVisible();
+      await initialiserCarte(massifs);
+    } catch (error) {
+      console.error("carte des massifs indisponible", error);
+      avertissementCarte = "La carte interactive est indisponible ; les niveaux et règles restent accessibles ci-dessous.";
     }
   }
 
   onMount(() => { void charger(); });
-  onDestroy(() => map?.remove());
+  onDestroy(() => { observationCarte?.disconnect(); map?.remove(); });
 </script>
 
 {#if etat === "chargement"}
-  <p class="etat">Chargement des recommandations officielles…</p>
+  <p class="etat" role="status" aria-live="polite">Chargement des recommandations officielles…</p>
 {:else if etat === "erreur"}
-  <p class="etat erreur">Les recommandations officielles sont temporairement indisponibles. Consultez la <a href={GARD_REFERENCE_URL} target="_blank" rel="noreferrer">carte du Gard</a>.</p>
+  <p class="etat erreur" role="alert">Les recommandations officielles sont temporairement indisponibles. Consultez la <a href={GARD_REFERENCE_URL} target="_blank" rel="noreferrer">carte du Gard</a>.</p>
 {:else if risqueActif}
   <section class="situation" aria-labelledby="titre-situation">
     <div class="choix-jour" aria-label="Jour des recommandations">
-      <button class:actif={jour === "aujourd_hui"} type="button" on:click={() => changerJour("aujourd_hui")}>Aujourd’hui</button>
-      <button class:actif={jour === "demain"} type="button" on:click={() => changerJour("demain")}>Demain</button>
+      <button class:actif={jour === "aujourd_hui"} aria-pressed={jour === "aujourd_hui"} type="button" on:click={() => changerJour("aujourd_hui")}>Aujourd’hui</button>
+      <button class:actif={jour === "demain"} aria-pressed={jour === "demain"} type="button" on:click={() => changerJour("demain")}>Demain</button>
     </div>
-    <p class="date">{formaterJour(risqueActif.date_validite)}</p>
-    {#if risqueActif.etat === "ok"}
-      <div class="niveau" style={`--couleur-niveau:${couleursNiveaux[niveauActif]}`}>
+    <p class="date">Donnée demandée pour le {formaterJour(risqueActif.date_demandee)}</p>
+    {#if risqueActif.etat === "ancienne"}
+      <p class="alerte-donnee" role="alert">La publication du jour est indisponible. La dernière publication valide, datée du {formaterJour(risqueActif.date_validite)}, est affichée à titre de repère et n’est plus applicable aujourd’hui.</p>
+    {/if}
+    {#if situation?.risque_gard.source.message}
+      <p class="alerte-donnee secondaire" role="status">{situation.risque_gard.source.message}</p>
+    {/if}
+    {#if risqueActif.mode_collecte === "manuel"}
+      <p class="alerte-donnee secondaire" role="status">Cette publication provient d’un fichier de secours vérifié manuellement, utilisé en remplacement du flux automatique.</p>
+    {/if}
+    {#if risqueActif.etat !== "indisponible"}
+      <div class="niveau" style={`--couleur-niveau:${couleursNiveaux[niveauActif]};--fond-niveau:${couleursCarte[niveauActif]}`}>
         <p class="eyebrow">Risque le plus élevé sur les trois massifs</p>
         <h2 id="titre-situation">{niveauActif.toUpperCase()} <span>— {libellesNiveaux[niveauActif]}</span></h2>
       </div>
-      <p class="precision">Les règles peuvent différer selon le massif : sélectionnez-en un sur la carte pour lire son niveau.</p>
+      <p class="precision">Ce maximum est un repère prudent. Consultez ci-dessous le niveau propre au massif où vous vous rendez.</p>
       <div class="consignes" aria-label="Consignes principales">
         {#each consignesActives as consigne}
           <article>
@@ -346,22 +400,74 @@
       <div class="niveau indisponible"><p class="eyebrow">Danger officiel — Gard</p><h2 id="titre-situation">Publication en attente</h2></div>
       <p class="precision">Avant tout déplacement, consultez la carte officielle.</p>
     {/if}
+    <div class="massifs-accessibles" aria-labelledby="titre-massifs">
+      <h3 id="titre-massifs">Niveaux par massif gardois</h3>
+      {#if risqueActif.zones.length > 0}
+        <ul>
+          {#each risqueActif.zones as risque}
+            <li>
+              <button
+                type="button"
+                aria-pressed={massifSelectionne === risque.zone_officielle}
+                on:click={() => ouvrirDetailMassif(risque.zone_officielle)}
+              >
+                <span>{risque.zone_officielle}</span>
+                <strong style={`--couleur-massif:${couleursNiveaux[risque.niveau] ?? couleursNiveaux.inconnu}`}>{risque.niveau.toUpperCase()} · {libellesNiveaux[risque.niveau] ?? libellesNiveaux.inconnu}</strong>
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p>Aucun niveau par massif n’est actuellement disponible.</p>
+      {/if}
+    </div>
+    {#if massifSelectionne}
+      <section class="detail-inline" aria-labelledby="titre-detail" aria-live="polite" style={`--couleur-detail:${couleursCarte[niveauMassifSelectionne]}`}>
+        <p class="eyebrow">Règles du massif sélectionné</p>
+        <h3 id="titre-detail">{massifSelectionne} — {niveauMassifSelectionne.toUpperCase()}</h3>
+        <p>{libellesNiveaux[niveauMassifSelectionne] ?? "Information en attente"}</p>
+        <ul>
+          {#each reglesCompletes[niveauMassifSelectionne] ?? reglesCompletes.inconnu as regle}<li>{regle}</li>{/each}
+        </ul>
+        <p class="date-detail">Valable pour le {formaterJour(risqueActif.date_validite)} · collectée le {risqueMassifSelectionne ? formaterCollecte(risqueMassifSelectionne.collectee_a) : "—"}</p>
+        <p class="portee-detail">(*) Ces interdictions s’appliquent aussi jusqu’à 200 mètres des massifs boisés.</p>
+      </section>
+    {/if}
+    {#if risqueActif.derniere_collecte}
+      <p class="source">Dernière collecte valide : {formaterCollecte(risqueActif.derniere_collecte)}.</p>
+    {/if}
     <p class="source">Source : Prévention incendie Gard · <a href={GARD_REFERENCE_URL} target="_blank" rel="noreferrer">carte et recommandations officielles</a></p>
+  </section>
+
+  <section class="resume-detections" aria-labelledby="titre-detections">
+    <div>
+      <p class="eyebrow">Détections satellitaires — dernières 24 h</p>
+      <h2 id="titre-detections">{totalDetections} anomalie{totalDetections > 1 ? "s" : ""} thermique{totalDetections > 1 ? "s" : ""} reçue{totalDetections > 1 ? "s" : ""}</h2>
+      <p>Une anomalie thermique n’est pas un incendie confirmé. L’absence de point ne signifie pas qu’aucun feu n’est en cours.</p>
+    </div>
+    <span class={`badge-fraicheur ${situation?.firms.fraicheur ?? "indisponible"}`}>
+      {situation?.firms.fraicheur === "fraiche" ? "Données fraîches" : situation?.firms.fraicheur === "ancienne" ? "Données anciennes" : "Source indisponible"}
+    </span>
+    <dl>
+      <div><dt>Cœur</dt><dd>{situation?.detections_24h.coeur ?? 0}</dd></div>
+      <div><dt>À moins de 5 km</dt><dd>{situation?.detections_24h.proche ?? 0}</dd></div>
+      <div><dt>Veille à 15 km</dt><dd>{situation?.detections_24h.veille ?? 0}</dd></div>
+    </dl>
+    {#if situation?.firms.derniere_collecte}
+      <p class="meta-detection">Dernière collecte valide : {formaterCollecte(situation.firms.derniere_collecte)}{situation.firms.age_minutes !== null ? ` · il y a ${situation.firms.age_minutes} min` : ""}.</p>
+    {/if}
+    {#if situation?.firms.message}<p class="alerte-donnee secondaire" role="status">{situation.firms.message}</p>{/if}
+    <a class="lien-donnees" href="./temps-reel/">Explorer les détections et leur méthodologie</a>
   </section>
 
   <section class="orientation" aria-labelledby="titre-orientation">
     <div class="titre-carte">
       <div><p class="eyebrow">Commune de Val-d’Aigoual</p><h2 id="titre-orientation">Dans quel massif allez-vous ?</h2></div>
     </div>
-    <p class="aide">Le trait bleu pointillé délimite précisément la commune de Val-d’Aigoual. Touchez l’un des massifs forestiers officiels qui la recouvrent pour afficher les recommandations applicables.</p>
-    {#if massifSelectionne}
-      <div class="selection">
-        <p><strong>{massifSelectionne}</strong> : <span style={`color:${couleursNiveaux[niveauMassifSelectionne]}`}>{niveauMassifSelectionne.toUpperCase()}</span></p>
-        <button type="button" on:click={() => ouvrirDetailMassif(massifSelectionne ?? "")}>Voir les règles complètes</button>
-      </div>
-    {/if}
+    <p class="aide">Le trait bleu pointillé délimite la commune de Val-d’Aigoual. La liste ci-dessus reste la référence accessible si la carte ne se charge pas.</p>
+    {#if avertissementCarte}<p class="alerte-carte" role="status">{avertissementCarte}</p>{/if}
     {#if erreurLocalisation}<p class="erreur-localisation">{erreurLocalisation}</p>{/if}
-    <div class="carte" bind:this={mapContainer} tabindex="-1" aria-label="Carte des trois principaux massifs gardois autour de l’Aigoual"></div>
+    <div class="carte" bind:this={mapContainer} role="region" aria-label="Carte complémentaire des trois principaux massifs gardois autour de l’Aigoual"></div>
 
     <section class="bloc-legende" aria-labelledby="titre-legende">
       <div class="entete-legende">
@@ -391,58 +497,33 @@
         </div>
       </details>
       <p class="note-reglementaire">(*) Ces interdictions s’appliquent aussi jusqu’à 200 mètres des massifs boisés.</p>
-      <p class="source-carte">Contours et niveaux : <a href={GARD_REFERENCE_URL} target="_blank" rel="noreferrer">Prévention incendie Gard</a> · <a href={GARD_ARRETES_URL} target="_blank" rel="noreferrer">Détail des arrêtés préfectoraux</a> · Fond © IGN</p>
+      <p class="source-carte">Contours et niveaux : <a href={GARD_REFERENCE_URL} target="_blank" rel="noreferrer">Prévention incendie Gard</a> · <a href={GARD_ARRETES_URL} target="_blank" rel="noreferrer">Détail des arrêtés préfectoraux</a> · règles recoupées le {REGLES_VERIFIEES_LE} · Fond © IGN</p>
     </section>
   </section>
-
-  {#if detailOuvert && massifSelectionne}
-    <dialog class="fenetre-detail" open aria-labelledby="titre-detail" on:click={(event) => event.target === event.currentTarget && fermerDetailMassif()} on:keydown={(event) => event.key === "Escape" && fermerDetailMassif()}>
-      <article class="contenu-detail" style={`--couleur-detail:${couleursCarte[niveauMassifSelectionne]}`}>
-        <header>
-          <div>
-            <p class="eyebrow">Principal massif remarquable</p>
-            <h2 id="titre-detail">{massifSelectionne}</h2>
-          </div>
-          <button class="fermer-detail" bind:this={boutonFermer} type="button" aria-label="Fermer le détail" on:click={fermerDetailMassif}>×</button>
-        </header>
-        <div class="niveau-detail">
-          <span class={`pastille-niveau ${niveauxLegende.find((item) => item.niveau === niveauMassifSelectionne)?.classe ?? "trait"}`} aria-hidden="true"></span>
-          <p><strong>{niveauMassifSelectionne.toUpperCase()}</strong><span>{libellesNiveaux[niveauMassifSelectionne] ?? "Information en attente"}</span></p>
-        </div>
-        <p class="date-detail">Prévision pour le {formaterJour(risqueActif.date_validite)} · information collectée le {risqueMassifSelectionne ? formaterCollecte(risqueMassifSelectionne.collectee_a) : "—"}</p>
-        <h3>Règles applicables</h3>
-        <ul class="liste-detail">
-          {#each reglesCompletes[niveauMassifSelectionne] ?? reglesCompletes.inconnu as regle}<li>{regle}</li>{/each}
-        </ul>
-        <p class="portee-detail">(*) Ces interdictions s’appliquent aussi jusqu’à 200 mètres des massifs boisés.</p>
-        <footer>
-          <a class="bouton-source" href={GARD_REFERENCE_URL} target="_blank" rel="noreferrer">Voir la carte officielle</a>
-          <a href={GARD_ARRETES_URL} target="_blank" rel="noreferrer">Consulter les arrêtés préfectoraux</a>
-        </footer>
-      </article>
-    </dialog>
-  {/if}
-
-  <aside class="urgence" aria-label="En cas de feu">
-    <strong>Vous voyez un feu ou de la fumée ?</strong><span>Appelez le <a href="tel:112">112</a> ou le <a href="tel:18">18</a>, sans vous approcher.</span>
-  </aside>
 {/if}
+
+<aside class="urgence" aria-label="En cas de feu">
+  <strong>Vous voyez un feu ou de la fumée ?</strong><span>Appelez le <a href="tel:112">112</a> ou le <a href="tel:18">18</a>, sans vous approcher.</span>
+</aside>
 
 <style>
   .etat { padding: 2rem 0; color: var(--muted); font-weight: 600; } .erreur, .erreur a { color: #9f2637; }
-  .situation, .orientation { border: 1px solid var(--line-strong); border-radius: 8px; padding: clamp(1.15rem, 3.4vw, 2rem); background: var(--surface); box-shadow: 0 2px 8px rgba(23, 56, 75, 0.08); }
+  .situation, .orientation, .resume-detections { border: 1px solid var(--line-strong); border-radius: 8px; padding: clamp(1.15rem, 3.4vw, 2rem); background: var(--surface); box-shadow: 0 2px 8px rgba(23, 56, 75, 0.08); }
   .choix-jour { display: inline-flex; gap: 0.25rem; padding: 0.25rem; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface-muted); } .choix-jour button, .localiser { min-height: 42px; border: 1px solid transparent; border-radius: 4px; font: inherit; font-weight: 800; cursor: pointer; } .choix-jour button { padding: 0.45rem 0.9rem; color: var(--fg); background: transparent; } .choix-jour button:hover { color: #ffffff; border-color: var(--navy); background: var(--navy-hover); } .choix-jour button.actif { color: #ffffff; border-color: var(--navy); background: var(--navy); } .choix-jour button.actif:hover { color: #ffffff; background: var(--navy-hover); } .choix-jour button:focus-visible, .localiser:focus-visible { outline: 3px solid #2472a4; outline-offset: 2px; }
   .date, .eyebrow, .source, .aide, .legende { margin: 0; color: var(--muted); } .date { margin-top: 1rem; color: var(--fg); font-size: 0.95rem; font-weight: 700; text-transform: capitalize; } .eyebrow { color: var(--navy); font-size: 0.74rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; }
-  .niveau { margin-top: 0.75rem; padding: 0.15rem 0 0.15rem 1.15rem; border-left: 0.55rem solid var(--couleur-niveau); } .niveau h2 { margin: 0.3rem 0 0; color: var(--fg); font-family: var(--font-display); font-size: clamp(2rem, 6vw, 3.6rem); line-height: 0.98; } .niveau h2 span { color: var(--fg); font-size: 0.5em; } .indisponible { border-left-color: #687076; } .indisponible h2 { color: var(--fg); font-size: clamp(1.7rem, 5vw, 2.7rem); }
+  .niveau { margin-top: 0.75rem; padding: 0.9rem 1.15rem 1rem; border-left: 0.55rem solid var(--couleur-niveau); border-radius: 0 5px 5px 0; background: var(--fond-niveau); } .niveau .eyebrow, .niveau h2, .niveau h2 span { color: #17242c; } .niveau h2 { margin: 0.3rem 0 0; font-family: var(--font-display); font-size: clamp(2rem, 6vw, 3.6rem); line-height: 0.98; } .niveau h2 span { font-size: 0.5em; } .indisponible { border-left-color: #687076; background: var(--surface-muted); } .indisponible .eyebrow, .indisponible h2 { color: var(--fg); } .indisponible h2 { font-size: clamp(1.7rem, 5vw, 2.7rem); }
   .precision { max-width: 65ch; margin: 1.15rem 0 0; color: var(--fg); font-weight: 600; line-height: 1.55; } .consignes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 1.3rem; } .consignes article { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: 0.8rem; align-items: start; min-height: 100px; padding: 1rem; border: 1px solid var(--line-strong); border-left: 5px solid var(--navy); border-radius: 5px; background: var(--surface); } .pictogramme { display: grid; width: 2.3rem; height: 2.3rem; place-items: center; border-radius: 50%; color: #ffffff; background: var(--navy); } .pictogramme :global(svg) { width: 1.2rem; height: 1.2rem; } .consignes h3 { margin: 0.1rem 0 0; color: var(--fg); font-size: 0.96rem; } .consignes p { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.92rem; font-weight: 600; line-height: 1.45; }
   .source { margin-top: 1.3rem; font-size: 0.88rem; font-weight: 600; line-height: 1.45; } .source a { color: var(--navy); font-weight: 900; }
-  .orientation { margin-top: 1.25rem; } .titre-carte { display: flex; align-items: center; justify-content: space-between; gap: 1rem; } .titre-carte h2 { margin: 0.35rem 0 0; color: var(--fg); font-family: var(--font-display); font-size: clamp(1.6rem, 4vw, 2.25rem); } .aide { margin-top: 0.85rem; max-width: 76ch; font-size: 0.94rem; font-weight: 600; line-height: 1.5; } .selection { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0.85rem 0 0; padding: 0.75rem 0.9rem; border-left: 5px solid var(--navy); border-radius: 4px; background: var(--surface-muted); color: var(--fg); } .selection p { margin: 0; } .selection span { font-weight: 900; } .selection button { min-height: 38px; padding: 0.45rem 0.75rem; border: 1px solid var(--navy); border-radius: 4px; color: #ffffff; background: var(--navy); font-weight: 800; cursor: pointer; } .selection button:hover { color: #ffffff; background: var(--navy-hover); } .erreur-localisation { margin: 0.75rem 0 0; color: #9f2637; font-size: 0.92rem; font-weight: 700; }
+  .alerte-donnee, .alerte-carte { margin: 1rem 0 0; padding: 0.8rem 0.9rem; border-left: 5px solid #ad2434; border-radius: 4px; color: var(--fg); background: #fff2f1; font-weight: 750; line-height: 1.5; } .alerte-donnee.secondaire, .alerte-carte { border-left-color: #a56700; background: #fff8e6; }
+  .massifs-accessibles { margin-top: 1.4rem; } .massifs-accessibles h3 { margin: 0; color: var(--fg); font-size: 1.05rem; } .massifs-accessibles > p { color: var(--muted); font-weight: 650; } .massifs-accessibles ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; margin: 0.75rem 0 0; padding: 0; list-style: none; } .massifs-accessibles button { width: 100%; min-height: 86px; padding: 0.8rem; border: 1px solid var(--line-strong); border-left: 5px solid var(--navy); border-radius: 5px; color: var(--fg); background: var(--surface-muted); text-align: left; cursor: pointer; } .massifs-accessibles button:hover, .massifs-accessibles button[aria-pressed="true"] { border-color: var(--navy); background: #eaf1f4; } .massifs-accessibles button:focus-visible { outline: 3px solid #2472a4; outline-offset: 2px; } .massifs-accessibles button span, .massifs-accessibles button strong { display: block; } .massifs-accessibles button span { font-weight: 850; } .massifs-accessibles button strong { margin-top: 0.45rem; color: var(--couleur-massif); font-size: 0.83rem; }
+  .detail-inline { margin-top: 1rem; padding: 1rem; border: 1px solid var(--line-strong); border-top: 7px solid var(--couleur-detail); border-radius: 5px; background: var(--surface-muted); } .detail-inline h3 { margin: 0.3rem 0 0; color: var(--fg); font-family: var(--font-display); font-size: 1.45rem; } .detail-inline > p { color: var(--muted); font-weight: 650; } .detail-inline ul { padding-left: 1.25rem; color: var(--fg); font-weight: 650; line-height: 1.5; } .detail-inline li + li { margin-top: 0.3rem; }
+  .resume-detections { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; margin-top: 1.25rem; } .resume-detections h2 { margin: 0.35rem 0 0; color: var(--fg); font-family: var(--font-display); font-size: clamp(1.6rem, 4vw, 2.35rem); } .resume-detections > div > p:last-child { max-width: 70ch; margin: 0.7rem 0 0; color: var(--muted); font-weight: 650; line-height: 1.5; } .badge-fraicheur { align-self: start; padding: 0.45rem 0.65rem; border: 1px solid currentColor; border-radius: 999px; font-size: 0.78rem; font-weight: 900; white-space: nowrap; } .badge-fraicheur.fraiche { color: #18794e; background: #e9f7ef; } .badge-fraicheur.ancienne { color: #8a5a00; background: #fff6d8; } .badge-fraicheur.indisponible { color: #9f2637; background: #fff0f2; } .resume-detections dl { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; margin: 0; } .resume-detections dl div { padding: 0.75rem; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface-muted); } .resume-detections dt { color: var(--muted); font-size: 0.8rem; font-weight: 800; } .resume-detections dd { margin: 0.25rem 0 0; color: var(--fg); font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; } .meta-detection, .resume-detections .alerte-donnee, .lien-donnees { grid-column: 1 / -1; margin: 0; } .meta-detection { color: var(--muted); font-size: 0.88rem; font-weight: 700; } .lien-donnees { width: fit-content; color: var(--navy); font-weight: 900; }
+  .orientation { margin-top: 1.25rem; } .titre-carte { display: flex; align-items: center; justify-content: space-between; gap: 1rem; } .titre-carte h2 { margin: 0.35rem 0 0; color: var(--fg); font-family: var(--font-display); font-size: clamp(1.6rem, 4vw, 2.25rem); } .aide { margin-top: 0.85rem; max-width: 76ch; font-size: 0.94rem; font-weight: 600; line-height: 1.5; } .erreur-localisation { margin: 0.75rem 0 0; color: #9f2637; font-size: 0.92rem; font-weight: 700; }
   .carte { height: clamp(330px, 58vw, 560px); margin-top: 1rem; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 5px; }
   .bloc-legende { margin-top: 1rem; padding: 1rem; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface-muted); } .entete-legende h3 { margin: 0.25rem 0 0; color: var(--fg); font-family: var(--font-display); font-size: 1.35rem; } .repere-commune { display: flex; align-items: center; gap: 0.5rem; margin: 0.9rem 0 0; color: var(--fg); font-size: 0.82rem; font-weight: 800; } .repere-commune span { display: inline-block; width: 2rem; border-top: 4px dashed #1463a4; box-shadow: 0 -1px 0 #ffffff, 0 1px 0 #ffffff; }
-  .echelle-risque { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.55rem; margin: 1rem 0 0; padding: 0; list-style: none; } .echelle-risque li { display: grid; grid-template-columns: 1.15rem minmax(0, 1fr); gap: 0.55rem; align-items: start; padding: 0.7rem; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface); } .echelle-risque strong, .echelle-risque small { display: block; } .echelle-risque strong { color: var(--fg); font-size: 0.85rem; line-height: 1.25; } .echelle-risque small { margin-top: 0.25rem; color: var(--muted); font-size: 0.75rem; font-weight: 650; line-height: 1.3; }
-  .pastille-niveau { display: block; width: 1rem; height: 1rem; margin-top: 0.08rem; border: 2px solid #596168; border-radius: 3px; background: #d7dcdf; } .pastille-niveau.jaune { border-color: #8a6500; background: #f2c84b; } .pastille-niveau.orange { border-color: #a93f08; background: #ee7b32; } .pastille-niveau.rouge { border-color: #8f1627; background: #d83b4b; }
+  .echelle-risque { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.55rem; margin: 1rem 0 0; padding: 0; list-style: none; } .echelle-risque li { display: grid; grid-template-columns: 1.35rem minmax(0, 1fr); gap: 0.55rem; align-items: start; padding: 0.7rem; border: 2px solid var(--couleur-legende, #596168); border-radius: 4px; background: var(--fond-legende, var(--surface)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45); } .echelle-risque li:nth-child(1) { --couleur-legende: #596168; --fond-legende: #edf0f1; } .echelle-risque li:nth-child(2) { --couleur-legende: #8a6500; --fond-legende: #fff2bb; } .echelle-risque li:nth-child(3) { --couleur-legende: #a93f08; --fond-legende: #ffe0b2; } .echelle-risque li:nth-child(4) { --couleur-legende: #8f1627; --fond-legende: #ffd3d6; } .echelle-risque strong, .echelle-risque small { display: block; } .echelle-risque strong { color: #17242c; font-size: 0.9rem; line-height: 1.25; } .echelle-risque small { margin-top: 0.25rem; color: #263841; font-size: 0.78rem; font-weight: 750; line-height: 1.35; }
+  .pastille-niveau { display: block; width: 1.15rem; height: 1.15rem; margin-top: 0.08rem; border: 3px solid #596168; border-radius: 3px; background: #d7dcdf; } .pastille-niveau.jaune { border-color: #8a6500; background: #f2c84b; } .pastille-niveau.orange { border-color: #a93f08; background: #f28c00; } .pastille-niveau.rouge { border-color: #8f1627; background: #c62828; }
   .regles-legende { margin-top: 0.9rem; border-top: 1px solid var(--line-strong); } .regles-legende summary { padding: 0.85rem 0 0.1rem; color: var(--navy); font-weight: 900; cursor: pointer; } .grille-regles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; margin-top: 0.85rem; } .grille-regles article { padding: 0.9rem; border: 1px solid var(--line-strong); border-top: 6px solid var(--couleur-regle); border-radius: 4px; background: var(--surface); } .grille-regles h4 { margin: 0; color: var(--fg); } .grille-regles ul { margin: 0.65rem 0 0; padding-left: 1.15rem; color: var(--muted); font-size: 0.82rem; font-weight: 600; line-height: 1.45; } .grille-regles li + li { margin-top: 0.25rem; } .note-reglementaire { margin: 0.85rem 0 0; color: var(--fg); font-size: 0.82rem; font-weight: 800; } .source-carte { margin: 0.55rem 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.4; } .source-carte a { color: var(--navy); font-weight: 850; }
-  .fenetre-detail { position: fixed; inset: 0; z-index: 1000; width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; padding: clamp(0.75rem, 4vw, 2rem); border: 0; background: rgba(7, 21, 29, 0.72); overflow-y: auto; } .contenu-detail { width: min(620px, 100%); margin: min(8vh, 4rem) auto; padding: clamp(1.1rem, 4vw, 1.7rem); border: 1px solid var(--line-strong); border-top: 10px solid var(--couleur-detail); border-radius: 8px; background: var(--surface); color: var(--fg); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32); } .contenu-detail header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; } .contenu-detail h2 { margin: 0.25rem 0 0; color: var(--fg); font-family: var(--font-display); font-size: clamp(1.7rem, 6vw, 2.6rem); line-height: 1; } .fermer-detail { display: grid; flex: 0 0 auto; width: 42px; height: 42px; place-items: center; border: 1px solid var(--navy); border-radius: 50%; color: #ffffff; background: var(--navy); font-size: 1.65rem; line-height: 1; cursor: pointer; } .fermer-detail:hover { color: #ffffff; background: var(--navy-hover); } .fermer-detail:focus-visible { outline: 3px solid #2472a4; outline-offset: 2px; } .niveau-detail { display: flex; align-items: center; gap: 0.7rem; margin-top: 1.2rem; padding: 0.8rem; border-radius: 5px; background: var(--surface-muted); } .niveau-detail .pastille-niveau { width: 1.35rem; height: 1.35rem; margin: 0; } .niveau-detail p { margin: 0; } .niveau-detail strong, .niveau-detail span { display: block; } .niveau-detail strong { color: var(--fg); font-size: 1rem; } .niveau-detail span { margin-top: 0.1rem; color: var(--muted); font-size: 0.86rem; font-weight: 650; } .date-detail { margin: 0.65rem 0 0; color: var(--muted); font-size: 0.88rem; font-weight: 700; text-transform: capitalize; } .contenu-detail > h3 { margin: 1.25rem 0 0; color: var(--fg); font-size: 1rem; } .liste-detail { margin: 0.65rem 0 0; padding-left: 1.25rem; color: var(--fg); font-weight: 650; line-height: 1.5; } .liste-detail li + li { margin-top: 0.35rem; } .portee-detail { margin: 1rem 0 0; padding: 0.7rem; border-left: 4px solid #d75a16; background: var(--surface-muted); color: var(--fg); font-size: 0.84rem; font-weight: 750; line-height: 1.4; } .contenu-detail footer { display: flex; align-items: center; gap: 1rem; margin-top: 1.25rem; } .contenu-detail footer a { color: var(--navy); font-size: 0.86rem; font-weight: 850; } .contenu-detail footer .bouton-source { padding: 0.65rem 0.85rem; border-radius: 4px; color: #ffffff; background: var(--navy); text-decoration: none; } .contenu-detail footer .bouton-source:hover { color: #ffffff; background: var(--navy-hover); }
   .urgence { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; padding: 1.1rem 1.2rem; border-left: 6px solid #d2483b; border-radius: 5px; background: var(--navy); color: #ffffff; } .urgence strong { font-size: 1.05rem; } .urgence span { font-size: 0.98rem; font-weight: 600; } .urgence a { color: #ffffff; font-size: 1.12rem; font-weight: 900; }
-  @media (max-width: 760px) { .urgence { display: grid; gap: 0.35rem; } .titre-carte { align-items: flex-start; flex-direction: column; } .echelle-risque { grid-template-columns: repeat(2, minmax(0, 1fr)); } .entete-legende { align-items: flex-start; flex-direction: column; gap: 0.7rem; } } @media (max-width: 520px) { .selection, .contenu-detail footer { align-items: stretch; flex-direction: column; } .grille-regles { grid-template-columns: 1fr; } .contenu-detail footer .bouton-source { text-align: center; } } @media (max-width: 430px) { .situation, .orientation { padding: 1rem; } .consignes { grid-template-columns: 1fr; } .carte { height: 390px; } .echelle-risque { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .urgence { display: grid; gap: 0.35rem; } .titre-carte { align-items: flex-start; flex-direction: column; } .echelle-risque { grid-template-columns: repeat(2, minmax(0, 1fr)); } .entete-legende { align-items: flex-start; flex-direction: column; gap: 0.7rem; } .massifs-accessibles ul { grid-template-columns: 1fr; } } @media (max-width: 520px) { .grille-regles { grid-template-columns: 1fr; } .resume-detections { grid-template-columns: 1fr; } .resume-detections dl { grid-template-columns: 1fr; } } @media (max-width: 430px) { .situation, .orientation, .resume-detections { padding: 1rem; } .consignes { grid-template-columns: 1fr; } .carte { height: 390px; } .echelle-risque { grid-template-columns: 1fr; } }
 </style>
