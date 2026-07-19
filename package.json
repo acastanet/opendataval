@@ -8,10 +8,13 @@
     "dev:worker": "pnpm --filter worker dev",
     "worker:once": "pnpm --filter worker run once",
     "build:web": "pnpm --filter web build",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "test:incendies": "pnpm --filter api test && pnpm --filter worker test",
     "check:incendies": "pnpm test:incendies && pnpm --filter api exec tsc --noEmit && pnpm --filter worker exec tsc --noEmit && pnpm build:web"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "typescript": "^5.7.0"
   },
   "packageManager": "pnpm@11.10.0"

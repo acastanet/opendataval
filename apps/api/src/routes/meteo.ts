@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type pg from "pg";
-import { STATIONS_METEO, STATIONS_PAR_ID, TERRITOIRE } from "@opendata-vda/shared";
+import { STATIONS_METEO, STATIONS_PAR_ID, TERRITOIRE, stationsMeteoFrance } from "@opendata-vda/shared";
+import { distanceKm, resumerEnsemble, validerCoordonnees } from "../lib/meteoPoint.js";
 
 const NUM_POSTE = TERRITOIRE.stationMeteo.numPoste;
 
@@ -13,6 +14,172 @@ const URL_PREVISIONS =
 
 const TTL_PREVISIONS_MS = 30 * 60 * 1000;
 let cachePrevisions: { expiresAt: number; data: unknown } | null = null;
+
+const TTL_POINT_MS = 20 * 60 * 1000;
+const MAX_CACHE_POINTS = 80;
+const cachePoints = new Map<string, { expiresAt: number; data: ReponseMeteoPoint }>();
+
+interface ReponseMeteoPoint {
+  localisation: {
+    demandee: { lat: number; lon: number };
+    dansTerritoire: boolean;
+  };
+  genereLe: string;
+  observation: ObservationPoint | null;
+  courtTerme: SourceModele | null;
+  moyenTerme: (SourceModele & { ensemble: ReturnType<typeof resumerEnsemble> }) | null;
+  vigilance: { departement: string; code: string; url: string; widgetUrl: string } | null;
+  liens: { ecmwf: string; meteoFrance: string | null };
+  sourcesIndisponibles: string[];
+  perime: boolean;
+}
+
+interface SourceModele {
+  fournisseur: string;
+  modele: string;
+  statut: "modele-officiel-diffusion-tierce";
+  resolution: string;
+  horizon: string;
+  pointModele: { lat: number | null; lon: number | null; altitudeM: number | null };
+  hourly?: unknown;
+  daily: unknown;
+}
+
+interface ObservationPoint {
+  station: {
+    id: string;
+    nom: string;
+    altitudeM: number;
+    distanceKm: number;
+    reseau: "meteofrance";
+    licence: string;
+  };
+  mesure: Record<string, unknown> | null;
+  perime: boolean;
+}
+
+function valeurNumerique(objet: unknown, cle: string): number | null {
+  if (typeof objet !== "object" || objet === null || Array.isArray(objet)) return null;
+  const valeur = (objet as Record<string, unknown>)[cle];
+  return typeof valeur === "number" && Number.isFinite(valeur) ? valeur : null;
+}
+
+async function fetchJson(url: string): Promise<unknown> {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "opendata-vda-api/1.0" },
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function urlModele(base: string, lat: number, lon: number, parametres: Record<string, string>): string {
+  const url = new URL(base);
+  url.searchParams.set("latitude", String(lat));
+  url.searchParams.set("longitude", String(lon));
+  url.searchParams.set("timezone", "Europe/Paris");
+  for (const [cle, valeur] of Object.entries(parametres)) url.searchParams.set(cle, valeur);
+  return url.toString();
+}
+
+function extraireBloc(objet: unknown, cle: string): unknown {
+  if (typeof objet !== "object" || objet === null || Array.isArray(objet)) return null;
+  return (objet as Record<string, unknown>)[cle] ?? null;
+}
+
+function sourceCourtTerme(data: unknown): SourceModele {
+  return {
+    fournisseur: "Open-Meteo",
+    modele: "Météo-France AROME HD / AROME, puis ARPEGE",
+    statut: "modele-officiel-diffusion-tierce",
+    resolution: "1,5 à 2,5 km jusqu'à 48 h, puis 11 à 25 km",
+    horizon: "0 à 4 jours",
+    pointModele: {
+      lat: valeurNumerique(data, "latitude"),
+      lon: valeurNumerique(data, "longitude"),
+      altitudeM: valeurNumerique(data, "elevation"),
+    },
+    hourly: extraireBloc(data, "hourly"),
+    daily: extraireBloc(data, "daily"),
+  };
+}
+
+function sourceMoyenTerme(deterministe: unknown, ensemble: unknown): ReponseMeteoPoint["moyenTerme"] {
+  const point = deterministe ?? ensemble;
+  return {
+    fournisseur: "ECMWF via Open-Meteo",
+    modele: "IFS HRES 9 km + IFS ENS 51 scénarios à 0,25°",
+    statut: "modele-officiel-diffusion-tierce",
+    resolution: "9 km (scénario central) et environ 25 km (ensemble)",
+    horizon: "jusqu'à 10 jours dans ce MVP",
+    pointModele: {
+      lat: valeurNumerique(point, "latitude"),
+      lon: valeurNumerique(point, "longitude"),
+      altitudeM: valeurNumerique(point, "elevation"),
+    },
+    daily: extraireBloc(deterministe, "daily"),
+    ensemble: resumerEnsemble(ensemble),
+  };
+}
+
+async function observationLaPlusProche(pool: pg.Pool, lat: number, lon: number): Promise<ObservationPoint | null> {
+  const stations = stationsMeteoFrance()
+    .map((station) => ({ station, distance: distanceKm({ lat, lon }, station) }))
+    .sort((a, b) => a.distance - b.distance);
+  if (!stations.length) return null;
+
+  const ids = stations.map(({ station }) => station.id);
+  const { rows } = await pool.query(
+    `select distinct on (num_poste) num_poste, heure_utc, t, humidite, vent_dir, vent_kmh,
+            rafale_kmh, pluie_1h_mm, pression_hpa, neige_cm
+     from series.meteo_horaire
+     where num_poste = any($1)
+     order by num_poste, heure_utc desc`,
+    [ids],
+  );
+  const mesures = new Map(rows.map((row) => [String(row.num_poste), row as Record<string, unknown>]));
+  const maintenant = Date.now();
+  const avecMesureRecente = stations.find(({ station }) => {
+    const mesure = mesures.get(station.id);
+    const date = mesure?.heure_utc;
+    const timestamp = date instanceof Date ? date.getTime() : typeof date === "string" ? Date.parse(date) : Number.NaN;
+    return Number.isFinite(timestamp) && maintenant - timestamp <= 3 * 60 * 60 * 1000;
+  });
+  const selection = avecMesureRecente ?? stations[0];
+  if (!selection) return null;
+  const mesure = mesures.get(selection.station.id) ?? null;
+  const date = mesure?.heure_utc;
+  const timestamp = date instanceof Date ? date.getTime() : typeof date === "string" ? Date.parse(date) : Number.NaN;
+
+  return {
+    station: {
+      id: selection.station.id,
+      nom: selection.station.nom,
+      altitudeM: selection.station.altitudeM,
+      distanceKm: Math.round(selection.distance * 10) / 10,
+      reseau: "meteofrance",
+      licence: selection.station.licence,
+    },
+    mesure,
+    perime: !Number.isFinite(timestamp) || maintenant - timestamp > 3 * 60 * 60 * 1000,
+  };
+}
+
+function estDansTerritoire(lat: number, lon: number): boolean {
+  const [ouest, sud, est, nord] = TERRITOIRE.bbox;
+  return lon >= ouest && lon <= est && lat >= sud && lat <= nord;
+}
+
+function clePoint(lat: number, lon: number): string {
+  return `${lat.toFixed(3)},${lon.toFixed(3)}`;
+}
+
+function memoriserPoint(cle: string, data: ReponseMeteoPoint): void {
+  cachePoints.set(cle, { expiresAt: Date.now() + TTL_POINT_MS, data });
+  if (cachePoints.size <= MAX_CACHE_POINTS) return;
+  const plusAncienne = cachePoints.keys().next().value as string | undefined;
+  if (plusAncienne) cachePoints.delete(plusAncienne);
+}
 
 async function recupererPrevisions(): Promise<{ data: unknown; perime: boolean }> {
   const maintenant = Date.now();
@@ -132,6 +299,98 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
       reply.code(502);
       return { error: "prévisions indisponibles", detail: (err as Error).message };
     }
+  });
+
+  app.get<{ Querystring: { lat?: string; lon?: string } }>("/api/meteo/point", async (req, reply) => {
+    const coordonnees = validerCoordonnees(req.query.lat, req.query.lon);
+    if (!coordonnees) {
+      reply.code(400);
+      return { error: "coordonnées lat/lon invalides" };
+    }
+
+    const { lat, lon } = coordonnees;
+    const cle = clePoint(lat, lon);
+    const precedent = cachePoints.get(cle);
+    if (precedent && precedent.expiresAt > Date.now()) {
+      reply.header("cache-control", "public, max-age=300");
+      return precedent.data;
+    }
+
+    const urlCourtTerme = urlModele("https://api.open-meteo.com/v1/meteofrance", lat, lon, {
+      forecast_days: "4",
+      hourly: "temperature_2m,relative_humidity_2m,precipitation,snowfall,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code",
+      daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,wind_gusts_10m_max",
+    });
+    const urlEcmwf = urlModele("https://api.open-meteo.com/v1/ecmwf", lat, lon, {
+      models: "ecmwf_ifs",
+      forecast_days: "10",
+      daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,wind_gusts_10m_max",
+    });
+    const urlEcmwfEnsemble = urlModele("https://ensemble-api.open-meteo.com/v1/ensemble", lat, lon, {
+      models: "ecmwf_ifs025",
+      forecast_days: "10",
+      daily: "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_gusts_10m_max",
+    });
+
+    const [observationResultat, courtTermeResultat, ecmwfResultat, ensembleResultat] = await Promise.allSettled([
+      observationLaPlusProche(pool, lat, lon),
+      fetchJson(urlCourtTerme),
+      fetchJson(urlEcmwf),
+      fetchJson(urlEcmwfEnsemble),
+    ]);
+
+    const sourcesIndisponibles: string[] = [];
+    if (observationResultat.status === "rejected") sourcesIndisponibles.push("observations Météo-France");
+    if (courtTermeResultat.status === "rejected") sourcesIndisponibles.push("modèles Météo-France");
+    if (ecmwfResultat.status === "rejected") sourcesIndisponibles.push("ECMWF déterministe");
+    if (ensembleResultat.status === "rejected") sourcesIndisponibles.push("ECMWF ensemble");
+    if (sourcesIndisponibles.length) {
+      app.log.warn({ sourcesIndisponibles, lat, lon }, "météo point : réponse partielle");
+    }
+
+    const courtTermeData = courtTermeResultat.status === "fulfilled" ? courtTermeResultat.value : null;
+    const ecmwfData = ecmwfResultat.status === "fulfilled" ? ecmwfResultat.value : null;
+    const ensembleData = ensembleResultat.status === "fulfilled" ? ensembleResultat.value : null;
+
+    if (!courtTermeData && !ecmwfData && !ensembleData && precedent) {
+      reply.header("cache-control", "public, max-age=60");
+      return { ...precedent.data, perime: true, sourcesIndisponibles };
+    }
+
+    const dansTerritoire = estDansTerritoire(lat, lon);
+    const meteogramme = new URL("https://charts.ecmwf.int/products/opencharts_meteogram");
+    meteogramme.searchParams.set("epsgram", "classical_10d");
+    meteogramme.searchParams.set("lat", String(lat));
+    meteogramme.searchParams.set("lon", String(lon));
+    meteogramme.searchParams.set("station_name", `Point ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+
+    const data: ReponseMeteoPoint = {
+      localisation: { demandee: { lat, lon }, dansTerritoire },
+      genereLe: new Date().toISOString(),
+      observation: observationResultat.status === "fulfilled" ? observationResultat.value : null,
+      courtTerme: courtTermeData ? sourceCourtTerme(courtTermeData) : null,
+      moyenTerme: ecmwfData || ensembleData ? sourceMoyenTerme(ecmwfData, ensembleData) : null,
+      vigilance: dansTerritoire
+        ? {
+            departement: "Gard",
+            code: "30",
+            url: "https://vigilance.meteofrance.fr/fr/gard",
+            widgetUrl: "https://vigilance.meteofrance.fr/fr/widget-vigilance/vigilance-departement/30",
+          }
+        : null,
+      liens: {
+        ecmwf: meteogramme.toString(),
+        meteoFrance: dansTerritoire
+          ? "https://previ.meteofrance.com/previsions-meteo-france/val-d-aigoual/30570"
+          : null,
+      },
+      sourcesIndisponibles,
+      perime: false,
+    };
+
+    memoriserPoint(cle, data);
+    reply.header("cache-control", "public, max-age=300");
+    return data;
   });
 
   app.get<{ Querystring: { debut?: string; fin?: string } }>("/api/meteo/climat/normales", async (req, reply) => {

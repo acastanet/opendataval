@@ -5,6 +5,7 @@ import MeteoTempsReel from "../islands/MeteoTempsReel.svelte";
 import MeteoStationsDirect from "../islands/MeteoStationsDirect.svelte";
 import MeteoPrevisions from "../islands/MeteoPrevisions.svelte";
 import MeteoClimat from "../islands/MeteoClimat.svelte";
+import MeteoPoint from "../islands/MeteoPoint.svelte";
 import { STATIONS_METEO, TERRITOIRE } from "@opendata-vda/shared";
 
 const { normales, altitudeM } = TERRITOIRE.stationMeteo;
@@ -32,6 +33,8 @@ const BBOX_STATIONS = [3.2, 43.85, 4.05, 44.35];
     </div>
   </dl>
   <p class="source-normales">Normales {normales.periode}, station Météo-France du mont Aigoual.</p>
+
+  <MeteoPoint client:only="svelte" />
 
   <h2>En direct</h2>
   <p>
