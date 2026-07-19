@@ -1,3 +1,5 @@
+@import "./map-controls.css";
+
 /* Palette « Cévennes / Aigoual » — schiste, granite, châtaigne, lichen, torrent. */
 :root {
   --color-ardoise: #2b3238;
@@ -98,105 +100,6 @@ a {
 
 button {
   font-family: inherit;
-}
-
-.opendata-fonds-control {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.22rem;
-  border: 1px solid rgba(23, 56, 75, 0.7);
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 1px 4px rgba(23, 56, 75, 0.25);
-}
-
-.opendata-fonds-control button {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  color: #17384b;
-  background: #ffffff;
-  font-size: 1.2rem;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.opendata-fonds-control button.actif {
-  color: #ffffff;
-  border-color: #17384b;
-  background: #17384b;
-}
-
-.opendata-fonds-control button:not(:disabled):hover,
-.opendata-fonds-control button:not(:disabled):focus-visible {
-  color: #ffffff !important;
-  border-color: #17384b !important;
-  background-color: #17384b !important;
-}
-
-.opendata-fonds-control button.actif:hover {
-  color: #ffffff !important;
-  background-color: #0e2938 !important;
-}
-
-.maplibregl-ctrl-group button:not(:disabled):hover,
-.maplibregl-ctrl-group button:not(:disabled):focus-visible {
-  background-color: #17384b !important;
-}
-
-.maplibregl-ctrl-group button:not(:disabled):hover .maplibregl-ctrl-icon,
-.maplibregl-ctrl-group button:not(:disabled):focus-visible .maplibregl-ctrl-icon {
-  filter: invert(1);
-}
-
-.opendata-fonds-control button:focus-visible {
-  outline: 3px solid #2472a4;
-  outline-offset: 2px;
-}
-
-/* Groupe de quatre actions identique sur toutes les cartes incendies. */
-.opendata-incendies-control {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.22rem;
-  border: 1px solid rgba(23, 56, 75, 0.7);
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 1px 4px rgba(23, 56, 75, 0.25);
-}
-
-.opendata-incendies-control button {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  color: #17384b;
-  background: #ffffff;
-  cursor: pointer;
-}
-
-.opendata-incendies-control button svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
-}
-
-.opendata-incendies-control button.actif,
-.opendata-incendies-control button:not(:disabled):hover,
-.opendata-incendies-control button:not(:disabled):focus-visible {
-  color: #ffffff;
-  border-color: #17384b;
-  background: #17384b;
-}
-
-.opendata-incendies-control button:focus-visible {
-  outline: 3px solid #2472a4;
-  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

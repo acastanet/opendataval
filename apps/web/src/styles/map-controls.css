@@ -1,0 +1,129 @@
+/* Système partagé pour toutes les commandes superposées aux cartes. */
+:root {
+  --map-control-size: 44px;
+  --map-control-ink: #17384b;
+  --map-control-active: #17384b;
+  --map-control-focus: #2472a4;
+  --map-control-surface: rgba(255, 255, 255, 0.96);
+}
+
+.opendata-carte-controls,
+.opendata-fonds-control,
+.opendata-incendies-control {
+  display: grid;
+  width: max-content;
+  gap: 4px;
+  padding: 4px;
+  overflow: visible;
+  border: 1px solid rgba(23, 56, 75, 0.55);
+  border-radius: 7px;
+  background: var(--map-control-surface);
+  box-shadow: 0 2px 8px rgba(23, 56, 75, 0.22);
+}
+
+.opendata-carte-button,
+.opendata-fonds-control button,
+.opendata-incendies-control button,
+.maplibregl-ctrl-group button {
+  position: relative;
+  display: grid;
+  width: var(--map-control-size);
+  min-width: var(--map-control-size);
+  height: var(--map-control-size);
+  min-height: var(--map-control-size);
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--map-control-ink);
+  background: #fff;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+
+.opendata-carte-button svg,
+.opendata-fonds-control button svg,
+.opendata-incendies-control button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+}
+
+.opendata-incendies-control button svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+.opendata-carte-button.actif,
+.opendata-carte-button[aria-pressed="true"],
+.opendata-fonds-control button.actif,
+.opendata-incendies-control button.actif,
+.opendata-carte-button:hover,
+.opendata-fonds-control button:not(:disabled):hover,
+.opendata-incendies-control button:not(:disabled):hover,
+.maplibregl-ctrl-group button:not(:disabled):hover {
+  color: #fff;
+  border-color: var(--map-control-active);
+  background: var(--map-control-active);
+}
+
+.opendata-carte-button:focus-visible,
+.opendata-fonds-control button:focus-visible,
+.opendata-incendies-control button:focus-visible,
+.maplibregl-ctrl-group button:focus-visible {
+  z-index: 2;
+  color: #fff;
+  border-color: var(--map-control-active);
+  outline: 3px solid var(--map-control-focus);
+  outline-offset: 2px;
+  background: var(--map-control-active);
+}
+
+.maplibregl-ctrl-group button:not(:disabled):hover .maplibregl-ctrl-icon,
+.maplibregl-ctrl-group button:not(:disabled):focus-visible .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+
+/* Le libellé apparaît à gauche sans masquer la zone cartographique visée. */
+[data-tooltip]::after {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 10px);
+  z-index: 20;
+  max-width: 230px;
+  padding: 0.48rem 0.65rem;
+  border-radius: 5px;
+  color: #fff;
+  background: rgba(14, 41, 56, 0.96);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+  content: attr(data-tooltip);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: left;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(4px, -50%);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+[data-tooltip][aria-expanded="true"]::after {
+  display: none;
+}
+
+@media (hover: none) {
+  [data-tooltip]::after { display: none; }
+}

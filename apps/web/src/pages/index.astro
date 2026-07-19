@@ -1,355 +1,193 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import SiteHeader from "../components/SiteHeader.astro";
-import SiteFooter from "../components/SiteFooter.astro";
-import { TERRITOIRE, COMMUNES_EPCI, CATALOGUE_SOURCES, SECTIONS } from "@opendata-vda/shared";
 
-const population = COMMUNES_EPCI.reduce((somme, c) => somme + c.population, 0);
-const formatNombre = (n: number) => n.toLocaleString("fr-FR");
-
-// Position du pic le plus marqué de l'horizon SVG (voir viewBox 1200×220 ci-dessous), en %.
-const POSITION_SOMMET = "50.8%";
-
-const THEMATIQUES = SECTIONS.filter((s) => s.slug !== "sources");
+const applications = [
+  {
+    nom: "Feu",
+    statut: "Déjà disponible",
+    description: "Consignes officielles et niveau de danger dans les massifs gardois.",
+    href: "/feu/",
+    classe: "feu",
+    action: "Consulter le risque incendie",
+  },
+  {
+    nom: "Eau",
+    statut: "En cours de déploiement",
+    description: "Suivre l'eau à Valleraugue : rivière, crues et nappe.",
+    href: "/eau/",
+    classe: "eau",
+    action: "Découvrir l'application Eau",
+  },
+  {
+    nom: "Terre",
+    statut: "En cours de déploiement",
+    description: "Explorer le territoire, ses paysages et ses données ouvertes.",
+    href: "/carte/",
+    classe: "terre",
+    action: "Explorer la carte du territoire",
+  },
+];
 ---
-<Layout title={`${TERRITOIRE.commune.nom} — Données ouvertes du territoire`}>
-  <SiteHeader />
 
-  <main class="accueil">
-    <section class="heros">
-      <div class="conteneur heros-interieur">
-        <div class="heros-texte">
-          <p class="eyebrow">{TERRITOIRE.epci.nom}</p>
-          <h1>Le territoire, données ouvertes.</h1>
-          <p class="intro">
-            Géologie, eau, risques, nature, services publics : explorez sur la carte les données
-            publiques des {COMMUNES_EPCI.length} communes de la Communauté de communes {TERRITOIRE.epci.nomCourt}.
-          </p>
-          <a class="cta" href="/carte">Explorer la carte<span aria-hidden="true"> →</span></a>
-        </div>
-
-        <dl class="stats">
-          <div class="stat">
-            <dt>Communes</dt>
-            <dd>{COMMUNES_EPCI.length}</dd>
-          </div>
-          <div class="stat">
-            <dt>Habitants</dt>
-            <dd>{formatNombre(population)}</dd>
-          </div>
-          <div class="stat">
-            <dt>Point culminant</dt>
-            <dd>{TERRITOIRE.montAigoual.altitudeM} m</dd>
-          </div>
-          <div class="stat">
-            <dt>Sources ouvertes</dt>
-            <dd>{CATALOGUE_SOURCES.length}</dd>
-          </div>
-          <div class="stat" id="stat-objets" hidden>
-            <dt>Objets géolocalisés</dt>
-            <dd id="val-objets">—</dd>
-          </div>
-        </dl>
-      </div>
-
-      <svg class="horizon" viewBox="0 0 1200 220" preserveAspectRatio="none" aria-hidden="true">
-        <path
-          class="crete crete-lointaine"
-          d="M0,180 C100,120 220,150 320,110 C420,70 520,130 620,90 C720,50 800,100 900,70 C1000,40 1100,90 1200,60 L1200,220 L0,220 Z"
-        ></path>
-        <path
-          class="crete crete-moyenne"
-          d="M0,200 C150,150 250,170 350,140 C450,110 530,150 620,110 C720,65 780,120 880,90 C980,60 1080,110 1200,90 L1200,220 L0,220 Z"
-        ></path>
-        <path
-          class="crete crete-proche"
-          d="M0,220 C80,190 140,200 200,175 C260,150 300,190 360,165 C420,140 460,120 520,95 C560,70 585,60 610,55 C635,60 660,80 700,120 C740,150 800,170 860,180 C940,195 1040,190 1120,205 L1200,200 L1200,220 L0,220 Z"
-        ></path>
-      </svg>
-      <p class="sommet-label" style={`left:${POSITION_SOMMET}`}>
-        Mont Aigoual · {TERRITOIRE.montAigoual.altitudeM} m
-      </p>
-    </section>
-
-    <section class="thematiques">
+<Layout
+  title="Val-d'Aigoual — Feu, Eau, Terre"
+  description="Les applications de terrain de Val-d'Aigoual : Feu, Eau et Terre."
+>
+  <main>
+    <section class="accueil" aria-labelledby="titre">
       <div class="conteneur">
-        <h2>Thématiques</h2>
-        <ul class="grille-thematiques">
-          {THEMATIQUES.map((t) => (
-            <li>
-              <a href={`/${t.slug}`}>
-                <span class="pastille" style={`background:${t.couleur}`}></span>
-                <span class="nom-theme">{t.titre}</span>
-                <span class="texte-theme">{t.description}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+        <p class="sur-titre">Val-d'Aigoual</p>
+        <h1 id="titre">Feu, Eau, Terre</h1>
+        <p class="introduction">Des applications simples pour comprendre le territoire et agir au bon moment.</p>
 
-    <section class="sources">
-      <div class="conteneur">
-        <h2>Sources &amp; licences</h2>
-        <p class="note-sources">
-          Les données sont ingérées automatiquement depuis {CATALOGUE_SOURCES.length} sources
-          publiques, à fréquence régulière, et servies par une API interne — le portail reste
-          disponible même si une source externe est indisponible.
-        </p>
-        <a class="lien-sources" href="/sources">Voir le catalogue complet des sources<span aria-hidden="true"> →</span></a>
+        <nav aria-label="Applications du territoire">
+          <ul class="applications">
+            {
+              applications.map((application) => (
+                <li>
+                  <a class={`application ${application.classe}`} href={application.href} aria-label={application.action}>
+                    <span class="repere" aria-hidden="true"></span>
+                    <span class="statut">{application.statut}</span>
+                    <strong>{application.nom}</strong>
+                    <span class="description">{application.description}</span>
+                    <span class="action">{application.action}<span aria-hidden="true"> →</span></span>
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
       </div>
     </section>
   </main>
-
-  <SiteFooter />
 </Layout>
 
-<script>
-  fetch("/api/couches")
-    .then((r) => r.json())
-    .then((data) => {
-      const nb = (data.couches ?? []).reduce((s: number, c: { nb?: number }) => s + (c.nb ?? 0), 0);
-      if (nb > 0) {
-        const val = document.getElementById("val-objets");
-        const stat = document.getElementById("stat-objets");
-        if (val) val.textContent = nb.toLocaleString("fr-FR");
-        if (stat) stat.hidden = false;
-      }
-    })
-    .catch(() => {
-      /* API indisponible : les chiffres statiques suffisent */
-    });
-</script>
-
 <style>
-  section {
-    position: relative;
+  .accueil {
+    display: grid;
+    min-height: 100vh;
+    align-items: center;
+    padding: clamp(2rem, 8vw, 6rem) 0;
+    background: linear-gradient(150deg, #f6f4ed 0%, #e7eee7 100%);
   }
 
-  /* Héros */
-  .heros {
-    position: relative;
-    overflow: hidden;
-    background: var(--bg);
-    background: linear-gradient(to bottom, var(--bg), color-mix(in srgb, var(--bg) 85%, var(--color-torrent)));
+  .conteneur {
+    width: min(1120px, calc(100% - 2rem));
+    margin: 0 auto;
   }
 
-  .heros-interieur {
-    position: relative;
-    z-index: 1;
-    padding-top: clamp(2.6rem, 6vw, 5rem);
-    padding-bottom: clamp(120px, 20vw, 220px);
-  }
-
-  .eyebrow {
+  .sur-titre {
     margin: 0;
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
+    color: #37534b;
+    font-size: 0.75rem;
+    font-weight: 900;
     letter-spacing: 0.14em;
-    color: var(--accent);
+    text-transform: uppercase;
   }
 
   h1 {
-    margin: 0.5rem 0 0;
-    max-width: 16ch;
+    margin: 0.45rem 0 0;
+    color: #17242c;
     font-family: var(--font-display);
-    font-size: clamp(2.3rem, 5.4vw, 4rem);
-    line-height: 1.04;
-    letter-spacing: -0.01em;
+    font-size: clamp(3.2rem, 10vw, 7.5rem);
+    line-height: 0.88;
+    letter-spacing: -0.045em;
   }
 
-  .intro {
-    margin: 1rem 0 0;
-    max-width: 46ch;
-    font-size: 1.02rem;
-    line-height: 1.55;
+  .introduction {
+    max-width: 48ch;
+    margin: 1.25rem 0 0;
+    color: #37534b;
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    font-weight: 600;
+    line-height: 1.5;
   }
 
-  .cta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 1.6rem;
-    padding: 0.75rem 1.4rem;
-    border: 1.5px solid var(--fg);
-    border-radius: var(--radius);
-    color: var(--fg);
-    font-size: 0.85rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    text-decoration: none;
-    transition: background 150ms ease, color 150ms ease;
-  }
-
-  .cta:hover {
-    background: var(--fg);
-    color: var(--bg);
-  }
-
-  .cta:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 3px;
-  }
-
-  .stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem 0;
-    margin: 2.4rem 0 0;
-  }
-
-  .stat {
-    padding: 0 1.4rem;
-    border-left: 1px solid var(--border);
-  }
-
-  .stat:first-child {
-    padding-left: 0;
-    border-left: none;
-  }
-
-  .stat dt {
-    order: 2;
-    margin: 0.25rem 0 0;
-    font-size: 0.66rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--border);
-  }
-
-  .stat dd {
-    order: 1;
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: clamp(1.5rem, 3vw, 2.1rem);
-    display: flex;
-    flex-direction: column;
-  }
-
-  .horizon {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    height: clamp(90px, 16vw, 190px);
-    pointer-events: none;
-  }
-
-  .crete {
-    fill: var(--fg);
-  }
-
-  .crete-lointaine {
-    opacity: 0.16;
-  }
-
-  .crete-moyenne {
-    opacity: 0.3;
-  }
-
-  .crete-proche {
-    opacity: 0.85;
-  }
-
-  .sommet-label {
-    position: absolute;
-    bottom: clamp(74px, 13vw, 152px);
-    margin: 0;
-    transform: translateX(-50%);
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
-    letter-spacing: 0.02em;
-    color: var(--border);
-    white-space: nowrap;
-  }
-
-  @media (max-width: 480px) {
-    .sommet-label {
-      display: none;
-    }
-  }
-
-  /* Thématiques & sources : divisées par le motif de courbes de niveau */
-  .thematiques,
-  .sources {
-    margin-top: 3rem;
-    padding-top: 1.4rem;
-    background-image: var(--contour-rule);
-    background-repeat: repeat-x;
-    background-position: top;
-    background-size: 64px 12px;
-  }
-
-  .sources {
-    padding-bottom: 3rem;
-  }
-
-  section > .conteneur > h2 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: 1.4rem;
-  }
-
-  .grille-thematiques {
-    list-style: none;
-    margin: 1.4rem 0 0;
-    padding: 0;
+  .applications {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    border-top: 1px solid var(--border);
-    border-left: 1px solid var(--border);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin: clamp(2rem, 6vw, 4.25rem) 0 0;
+    padding: 0;
+    list-style: none;
   }
 
-  .grille-thematiques li a {
+  .application {
+    --couleur: #3e805c;
+    --fond: #e7f1e9;
     display: flex;
+    min-height: 19rem;
     flex-direction: column;
-    gap: 0.4rem;
-    height: 100%;
-    padding: 1.2rem 1.3rem;
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    color: var(--fg);
+    align-items: flex-start;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    border: 2px solid var(--couleur);
+    border-radius: 10px;
+    color: #17242c;
+    background: var(--fond);
+    box-shadow: 0 8px 20px rgba(23, 36, 44, 0.08);
     text-decoration: none;
-    transition: background 150ms ease;
+    transition: transform 160ms ease, box-shadow 160ms ease;
   }
 
-  .grille-thematiques li a:hover,
-  .grille-thematiques li a:focus-visible {
-    background: rgba(154, 155, 147, 0.14);
+  .application.feu { --couleur: #a93f08; --fond: #ffe0b2; }
+  .application.eau { --couleur: #1463a4; --fond: #dceef9; }
+  .application.terre { --couleur: #3e805c; --fond: #e2eedf; }
+
+  .application:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 28px rgba(23, 36, 44, 0.16);
   }
 
-  .pastille {
-    width: 0.6rem;
-    height: 0.6rem;
-    border-radius: 50%;
+  .application:focus-visible {
+    outline: 4px solid #17242c;
+    outline-offset: 4px;
   }
 
-  .nom-theme {
+  .repere {
+    display: block;
+    width: 2.7rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: var(--couleur);
+  }
+
+  .statut {
+    margin-top: 1.5rem;
+    color: #263841;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .application strong {
+    margin-top: 0.35rem;
     font-family: var(--font-display);
-    font-size: 1.05rem;
+    font-size: clamp(2.2rem, 4vw, 3.2rem);
+    line-height: 0.95;
   }
 
-  .texte-theme {
-    font-size: 0.85rem;
-    line-height: 1.4;
-    color: var(--border);
+  .description {
+    margin-top: 0.8rem;
+    color: #263841;
+    font-size: 0.98rem;
+    font-weight: 600;
+    line-height: 1.45;
   }
 
-  .note-sources {
-    max-width: 62ch;
-    margin: 0.8rem 0 0;
-    font-size: 0.9rem;
-    line-height: 1.55;
-    color: var(--border);
-  }
-
-  .lien-sources {
-    display: inline-flex;
-    align-items: center;
+  .action {
+    display: flex;
     gap: 0.4rem;
-    margin-top: 1.2rem;
-    font-size: 0.85rem;
+    margin-top: auto;
+    padding-top: 1.5rem;
+    color: #17242c;
+    font-size: 0.88rem;
+    font-weight: 900;
+    line-height: 1.35;
+  }
+
+  @media (max-width: 760px) {
+    .applications { grid-template-columns: 1fr; }
+    .application { min-height: 14rem; }
   }
 </style>

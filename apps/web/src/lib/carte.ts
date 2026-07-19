@@ -66,13 +66,13 @@ export function ajouterControleIncendies(map: maplibregl.Map, options: ControleI
       container.setAttribute("aria-label", "Commandes de la carte");
       for (const [fondBouton, icone, libelle] of [["plan", faMap, "Afficher le Plan IGN"], ["photo", faPlane, "Afficher la vue aérienne"]] as const) {
         const button = document.createElement("button");
-        button.type = "button"; button.dataset.fond = fondBouton; button.appendChild(creerIcone(icone)); button.title = libelle; button.setAttribute("aria-label", libelle); button.setAttribute("aria-pressed", String(fondBouton === fond)); button.classList.toggle("actif", fondBouton === fond);
+        button.type = "button"; button.dataset.fond = fondBouton; button.dataset.tooltip = libelle; button.appendChild(creerIcone(icone)); button.title = libelle; button.setAttribute("aria-label", libelle); button.setAttribute("aria-pressed", String(fondBouton === fond)); button.classList.toggle("actif", fondBouton === fond);
         button.addEventListener("click", () => appliquerFond(fondBouton));
         container.appendChild(button);
       }
       for (const [icone, libelle, action] of [[faBuildingColumns, "Commune de Val-d’Aigoual", options.onRecentrer], [faCircleDot, "Me localiser", options.onLocaliser]] as const) {
         const button = document.createElement("button");
-        button.type = "button"; button.appendChild(creerIcone(icone)); button.title = libelle; button.setAttribute("aria-label", libelle);
+        button.type = "button"; button.dataset.tooltip = libelle; button.appendChild(creerIcone(icone)); button.title = libelle; button.setAttribute("aria-label", libelle);
         button.addEventListener("click", action);
         container.appendChild(button);
       }
@@ -118,6 +118,7 @@ export function ajouterControleFondIgn(map: maplibregl.Map, options: ControleFon
         button.className = fond === actif ? "actif" : "";
         button.textContent = icone;
         button.title = libelle;
+        button.dataset.tooltip = libelle;
         button.setAttribute("aria-label", `Afficher ${libelle}`);
         button.setAttribute("aria-pressed", String(fond === actif));
         button.addEventListener("click", () => appliquer(fond));

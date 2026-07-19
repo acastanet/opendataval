@@ -2,7 +2,8 @@
   import { onMount, onDestroy } from "svelte";
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
-  import { IGN_WMTS, ajouterControleFondIgn } from "../lib/carte";
+  import "../styles/map-controls.css";
+  import { IGN_WMTS } from "../lib/carte";
 
   const STATIONS = [
     { code: "Y200001001", nom: "Mont Aigoual", lon: 3.5814, lat: 44.1216, alt: 1567 },
@@ -22,14 +23,38 @@
 
   let mapContainer;
   let map;
-  let mode = 1;
-  let fondCarte = "plan";
+  let presentation = "route";
+  let menuPresentationOuvert = false;
   let labels3D = [];
   let popupOuvert = false;
-  let imageSelectionnee = null;
+  let questionSelectionnee = null;
+  let imageEnPleinEcran = false;
   let chargement = true;
-  let hoverSlider = false;
-  const labels = ["Carte", "Carte + 3D", "3D seul"];
+  const PRESENTATIONS = [
+    { id: "relief", label: "3D seul", description: "Relief sans fond de carte" },
+    { id: "route", label: "3D · carte routière", description: "Relief avec le Plan IGN" },
+    { id: "aerien", label: "3D · vue aérienne", description: "Relief avec les photographies aériennes" },
+  ];
+  const QUESTIONS_AIGOUAL = [
+    {
+      titre: "Qu'est-ce qu'une ligne de crête ?",
+      image: "/image/partage.png",
+      alt: "Schéma de la ligne de partage des eaux autour du mont Aigoual",
+      texte: "Au mont Aigoual, la ligne de crête sépare les eaux qui partent vers des versants différents. C'est une véritable ligne de partage des eaux : une pluie tombée d'un côté rejoint le bassin de l'Hérault et la Méditerranée ; de l'autre, elle alimente d'autres cours d'eau."
+    },
+    {
+      titre: "Qu'est-ce qu'un bassin versant ?",
+      image: "/image/bassin.png",
+      alt: "Schéma du bassin versant de l'Hérault depuis le mont Aigoual",
+      texte: "Le bassin versant est le territoire dont toutes les eaux s'écoulent vers un même cours d'eau. Depuis les pentes du mont Aigoual, ruisseaux et ravins se rassemblent progressivement pour alimenter l'Hérault, qui poursuit son voyage jusqu'à la mer Méditerranée à Agde."
+    },
+    {
+      titre: "Qu'est-ce qu'un épisode cévenol ?",
+      image: "/image/episode.png",
+      alt: "Schéma d'un épisode cévenol sur le mont Aigoual",
+      texte: "Un épisode cévenol est une forte pluie, souvent très concentrée dans le temps, provoquée lorsque l'air humide venu de Méditerranée rencontre le relief. Le massif de l'Aigoual force cet air à s'élever et peut renforcer les précipitations : les cours d'eau réagissent alors très vite."
+    }
+  ];
 
   const BOUNDS_AIGOUAL_MER = [
     [3.35, 43.28],
@@ -51,30 +76,22 @@
     map.easeTo({ bearing: 0, duration: 1000 });
   }
 
-  function appliquerMode() {
+  function choisirPresentation(id) {
+    presentation = id;
+    menuPresentationOuvert = false;
+    appliquerPresentation();
+  }
+
+  function appliquerPresentation() {
     if (!map) return;
     const terrain = map.getLayer("hillshade-3d");
     const coucheCarte = map.getLayer("basemap-plan");
     const couchePhoto = map.getLayer("basemap-photo");
-    const visibiliteFond = mode === 2 ? "none" : "visible";
-    const afficherFond = () => {
-      if (coucheCarte) map.setLayoutProperty("basemap-plan", "visibility", fondCarte === "plan" ? visibiliteFond : "none");
-      if (couchePhoto) map.setLayoutProperty("basemap-photo", "visibility", fondCarte === "photo" ? visibiliteFond : "none");
-    };
 
-    if (mode === 0) {
-      map.setTerrain(null);
-      if (terrain) map.setLayoutProperty("hillshade-3d", "visibility", "none");
-      afficherFond();
-    } else if (mode === 1) {
-      map.setTerrain({ source: "terrainSource", exaggeration: 1.8 });
-      if (terrain) map.setLayoutProperty("hillshade-3d", "visibility", "visible");
-      afficherFond();
-    } else if (mode === 2) {
-      map.setTerrain({ source: "terrainSource", exaggeration: 1.8 });
-      if (terrain) map.setLayoutProperty("hillshade-3d", "visibility", "visible");
-      afficherFond();
-    }
+    map.setTerrain({ source: "terrainSource", exaggeration: 1.8 });
+    if (terrain) map.setLayoutProperty("hillshade-3d", "visibility", "visible");
+    if (coucheCarte) map.setLayoutProperty("basemap-plan", "visibility", presentation === "route" ? "visible" : "none");
+    if (couchePhoto) map.setLayoutProperty("basemap-photo", "visibility", presentation === "aerien" ? "visible" : "none");
   }
 
   onMount(() => {
@@ -123,11 +140,7 @@
       chargement = false;
       map.addSource("basemap-photo-src", { type: "raster", tiles: [IGN_WMTS("ORTHOIMAGERY.ORTHOPHOTOS", "image/jpeg")], tileSize: 256, attribution: "© IGN" });
       map.addLayer({ id: "basemap-photo", type: "raster", source: "basemap-photo-src", layout: { visibility: "none" } }, "hillshade-3d");
-      ajouterControleFondIgn(map, {
-        planLayerId: "basemap-plan",
-        photoLayerId: "basemap-photo",
-        onChange: (fond) => { fondCarte = fond; appliquerMode(); },
-      });
+      appliquerPresentation();
 
       map.fitBounds(BOUNDS_AIGOUAL_MER, {
         padding: 48,
@@ -164,7 +177,8 @@
           wrap.style.cursor = "pointer";
           wrap.addEventListener("click", () => {
             popupOuvert = true;
-            imageSelectionnee = null;
+            questionSelectionnee = null;
+            imageEnPleinEcran = false;
           });
         }
       });
@@ -210,65 +224,99 @@
       </div>
     </div>
   {:else}
-    <div class="controles">
-      <button class="btn-controle" on:click={recentrerAxeFleuve} title="Recentrer sur l'axe Aigoual → Agde">
+    <div class="controles opendata-carte-controls" aria-label="Commandes de la carte">
+      <button class="opendata-carte-button" on:click={recentrerAxeFleuve} data-tooltip="Voir tout le parcours Aigoual–Agde" aria-label="Recentrer sur l'axe Aigoual vers Agde">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"></polyline>
           <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
         </svg>
       </button>
 
-      <button class="btn-controle" on:click={orienterNord} title="Orienter vers le nord">
+      <button class="opendata-carte-button" on:click={orienterNord} data-tooltip="Orienter la carte vers le nord" aria-label="Orienter la carte vers le nord">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
         </svg>
       </button>
 
-      <div class="slider-controle">
-        <input
-          type="range"
-          min="0"
-          max="2"
-          step="1"
-          bind:value={mode}
-          on:change={appliquerMode}
-          on:mouseenter={() => hoverSlider = true}
-          on:mouseleave={() => hoverSlider = false}
-          class="slider"
-        />
-        <div class="slider-tooltip" class:visible={hoverSlider}>
-          {labels[mode]}
-        </div>
+      <div class="presentation-control">
+        <button
+          class="opendata-carte-button actif"
+          type="button"
+          aria-haspopup="true"
+          aria-expanded={menuPresentationOuvert}
+          on:click={() => menuPresentationOuvert = !menuPresentationOuvert}
+          data-tooltip="Choisir la présentation 3D"
+          aria-label="Choisir la présentation 3D"
+        >
+          <span aria-hidden="true">3D</span>
+        </button>
+
+        {#if menuPresentationOuvert}
+          <div class="presentation-menu" aria-label="Présentations de la carte">
+            {#each PRESENTATIONS as option}
+              <button
+                type="button"
+                class="presentation-option"
+                class:selectionnee={presentation === option.id}
+                aria-pressed={presentation === option.id}
+                on:click={() => choisirPresentation(option.id)}
+              >
+                <span class="presentation-label">{option.label}</span>
+                <span class="presentation-description">{option.description}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
       </div>
+
+      <a class="opendata-carte-button" href="/eau/tableau-de-bord/" data-tooltip="Voir toutes les données Eau" aria-label="Accéder au tableau de bord de toutes les données Eau">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+        </svg>
+      </a>
     </div>
 
     {#if popupOuvert}
-      <div class="popup-overlay" on:click={() => popupOuvert = false}>
-        <div class="popup" on:click={(e) => e.stopPropagation()}>
+      <div class="popup-overlay" role="presentation" on:click|self={() => popupOuvert = false}>
+        <div class="popup">
           <div class="popup-header">
             <h3>Mont Aigoual</h3>
-            <button class="popup-close" on:click={() => popupOuvert = false}>×</button>
+            <button class="popup-close" aria-label="Fermer" on:click={() => popupOuvert = false}>×</button>
           </div>
 
-          {#if !imageSelectionnee}
+          {#if !questionSelectionnee}
             <div class="popup-options">
-              <button class="popup-option" on:click={() => imageSelectionnee = "/image/episode.png"}>
-                <span class="option-label">Épisode</span>
-                <span class="option-desc">Afficher l'infographie épisode</span>
-              </button>
-              <button class="popup-option" on:click={() => imageSelectionnee = "/image/partage.png"}>
-                <span class="option-label">Partage</span>
-                <span class="option-desc">Afficher l'infographie partage</span>
-              </button>
+              <p class="popup-intro">Choisissez une question pour comprendre le rôle particulier du mont Aigoual dans le voyage de l'eau.</p>
+              {#each QUESTIONS_AIGOUAL as question}
+                <button class="popup-option" on:click={() => questionSelectionnee = question}>
+                  <span class="option-label">{question.titre}</span>
+                  <span class="option-desc">Voir l'image et l'explication</span>
+                </button>
+              {/each}
             </div>
           {:else}
-            <div class="popup-image-container">
-              <img src={imageSelectionnee} alt="Infographie Mont Aigoual" class="popup-image" />
-              <button class="popup-back" on:click={() => imageSelectionnee = null}>← Retour</button>
+            <div class="popup-detail">
+              <h4>{questionSelectionnee.titre}</h4>
+              <button class="image-button" on:click={() => imageEnPleinEcran = true} aria-label="Agrandir l'image en plein écran">
+                <img src={questionSelectionnee.image} alt={questionSelectionnee.alt} class="popup-image" />
+                <span class="image-hint">Cliquer sur l'image pour l'agrandir</span>
+              </button>
+              <p class="popup-texte">{questionSelectionnee.texte}</p>
+              <button class="popup-back" on:click={() => questionSelectionnee = null}>← Les trois questions</button>
             </div>
           {/if}
         </div>
+      </div>
+    {/if}
+
+    {#if imageEnPleinEcran && questionSelectionnee}
+      <div class="fullscreen-overlay" role="presentation" on:click|self={() => imageEnPleinEcran = false}>
+        <button class="fullscreen-close" aria-label="Fermer l'image en plein écran" on:click={() => imageEnPleinEcran = false}>×</button>
+        <img class="fullscreen-image" src={questionSelectionnee.image} alt={questionSelectionnee.alt} />
       </div>
     {/if}
   {/if}
@@ -361,96 +409,65 @@
 
   .controles {
     position: absolute;
-    top: 1.2rem;
-    right: 1.2rem;
+    top: 2.6rem;
+    right: 2.6rem;
     z-index: 10;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
   }
 
-  .btn-controle {
-    width: 2.2rem;
-    height: 2.2rem;
-    padding: 0;
-    border: 1px solid rgba(255,255,255,0.5);
-    border-radius: 0.5rem;
-    background: rgba(0,0,0,0.45);
-    color: #fff;
-    cursor: pointer;
-    backdrop-filter: blur(4px);
-    transition: background 150ms;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .btn-controle:hover {
-    background: rgba(0,0,0,0.65);
-  }
-
-  .slider-controle {
+  .presentation-control {
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,0.45);
-    border: 1px solid rgba(255,255,255,0.5);
-    border-radius: 0.5rem;
-    padding: 0.5rem;
-    backdrop-filter: blur(4px);
+    width: var(--map-control-size);
+    height: var(--map-control-size);
   }
 
-  .slider {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100px;
-    height: 6px;
-    border-radius: 3px;
-    background: rgba(255,255,255,0.25);
-    outline: none;
-    cursor: pointer;
-  }
-
-  .slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: #fff;
-    border: 2px solid rgba(0,0,0,0.4);
-    cursor: pointer;
-  }
-
-  .slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: #fff;
-    border: 2px solid rgba(0,0,0,0.4);
-    cursor: pointer;
-  }
-
-  .slider-tooltip {
+  .presentation-menu {
     position: absolute;
-    bottom: -1.8rem;
-    left: 50%;
-    transform: translateX(-50%) translateY(4px);
-    background: rgba(0, 0, 0, 0.85);
-    color: #fff;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-    font-size: 0.7rem;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 150ms, transform 150ms;
+    top: 0;
+    right: calc(100% + 12px);
+    width: min(270px, calc(100vw - 7rem));
+    padding: 0.35rem;
+    border: 1px solid rgba(23, 56, 75, 0.55);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 4px 18px rgba(23, 56, 75, 0.28);
   }
 
-  .slider-tooltip.visible {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
+  .presentation-option {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #17384b;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .presentation-option:hover,
+  .presentation-option:focus-visible {
+    border-color: #9aa8b0;
+    background: #edf3f6;
+    outline: none;
+  }
+
+  .presentation-option.selectionnee {
+    color: #fff;
+    border-color: #17384b;
+    background: #17384b;
+  }
+
+  .presentation-label {
+    font-size: 0.88rem;
+    font-weight: 800;
+  }
+
+  .presentation-description {
+    font-size: 0.75rem;
+    line-height: 1.3;
+    opacity: 0.82;
   }
 
   :global(.marqueur-station-3d) {
@@ -554,6 +571,11 @@
     gap: 0.6rem;
   }
 
+  .popup-intro {
+    margin: 0 0 0.3rem;
+    font-size: 0.9rem;
+  }
+
   .popup-option {
     display: flex;
     flex-direction: column;
@@ -584,12 +606,27 @@
     opacity: 0.8;
   }
 
-  .popup-image-container {
+  .popup-detail {
     padding: 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
-    align-items: center;
+    overflow-y: auto;
+  }
+
+  .popup-detail h4, .popup-texte { margin: 0; }
+
+  .popup-detail h4 { font-size: 1rem; }
+
+  .popup-texte { font-size: 0.92rem; line-height: 1.55; }
+
+  .image-button {
+    position: relative;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+    text-align: left;
   }
 
   .popup-image {
@@ -597,6 +634,15 @@
     height: auto;
     border-radius: var(--radius, 4px);
     border: 1px solid var(--border);
+  }
+
+  .image-hint {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--fg);
+    font-size: 0.78rem;
+    opacity: 0.75;
+    text-align: center;
   }
 
   .popup-back {
@@ -612,5 +658,41 @@
 
   .popup-back:hover {
     background: var(--border);
+  }
+
+  .fullscreen-overlay {
+    position: fixed;
+    z-index: 110;
+    inset: 0;
+    padding: 1.5rem;
+    background: rgba(0, 0, 0, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+  }
+
+  .fullscreen-image {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    cursor: default;
+  }
+
+  .fullscreen-close {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 1.7rem;
+    line-height: 1;
+    cursor: pointer;
   }
 </style>
