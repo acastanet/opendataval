@@ -13,12 +13,31 @@ const prevision = {
   },
   courtTerme: {
     modele: "Météo-France AROME HD / AROME, puis ARPEGE",
+    resolution: "1,5 à 2,5 km jusqu'à 48 h, puis 11 à 25 km",
     pointModele: { altitudeM: 1210 },
+    current: {
+      time: "2026-07-19T10:00",
+      temperature_2m: 18.4,
+      apparent_temperature: 17.2,
+      relative_humidity_2m: 61,
+      surface_pressure: 886,
+      precipitation: 0,
+      weather_code: 1,
+      wind_speed_10m: 17,
+      wind_direction_10m: 45,
+      wind_gusts_10m: 36,
+    },
     hourly: {
       time: heures,
       temperature_2m: heures.map((_, index) => 15 + (index % 8)),
+      apparent_temperature: heures.map((_, index) => 14 + (index % 8)),
+      relative_humidity_2m: heures.map((_, index) => 58 + (index % 10)),
+      surface_pressure: heures.map(() => 886),
       precipitation: heures.map((_, index) => (index === 5 ? 1.2 : 0)),
+      wind_speed_10m: heures.map((_, index) => 12 + index / 2),
+      wind_direction_10m: heures.map(() => 45),
       wind_gusts_10m: heures.map((_, index) => 22 + index),
+      weather_code: heures.map((_, index) => index === 5 ? 61 : 1),
     },
     daily: {
       time: jours.slice(0, 4),
@@ -29,6 +48,11 @@ const prevision = {
       snowfall_sum: [0, 0, 0, 0],
       wind_gusts_10m_max: [33, 41, 56, 38],
     },
+  },
+  qualiteAir: {
+    modele: "Copernicus CAMS European Air Quality Ensemble",
+    resolution: "environ 11 km",
+    current: { european_aqi: 24, pm10: 12.1, pm2_5: 6.4, nitrogen_dioxide: 4.8, ozone: 71.2 },
   },
   moyenTerme: {
     modele: "IFS HRES 9 km + IFS ENS 51 scénarios à 0,25°",
@@ -57,7 +81,6 @@ const prevision = {
     departement: "Gard",
     code: "30",
     url: "https://vigilance.meteofrance.fr/fr/gard",
-    widgetUrl: "https://vigilance.meteofrance.fr/fr/widget-vigilance/vigilance-departement/30",
   },
   liens: { ecmwf: "https://charts.ecmwf.int/", meteoFrance: "https://meteofrance.com/" },
   sourcesIndisponibles: [],
@@ -67,10 +90,25 @@ const prevision = {
 let requetesPoint = 0;
 
 async function installerMocks(page: Page) {
-  await page.route("**/api/**", (route) => route.fulfill({ contentType: "application/json", body: "{}" }));
-  await page.route("**/api/meteo/point?*", (route) => {
-    requetesPoint += 1;
-    return route.fulfill({ contentType: "application/json", body: JSON.stringify(prevision) });
+  await page.route(/\/api\//, (route) => {
+    const chemin = new URL(route.request().url()).pathname;
+    if (chemin === "/api/meteo/point") {
+      requetesPoint += 1;
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify(prevision) });
+    }
+    if (chemin === "/api/meteo/localisation") {
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ lieu: { label: "La Borie du Ponteil (Valleraugue) 30570 Val-d’Aigoual", nom: "La Borie du Ponteil", type: "locality", distanceM: 32, lat: 44.064757, lon: 3.682706 } }),
+      });
+    }
+    if (chemin === "/api/meteo/lieux") {
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ lieux: [{ label: "Valleraugue 30570 Val-d’Aigoual", nom: "Valleraugue", type: "locality", lat: 44.082639, lon: 3.640504 }] }),
+      });
+    }
+    return route.fulfill({ contentType: "application/json", body: "{}" });
   });
   await page.route("https://vigilance.meteofrance.fr/**", (route) => route.fulfill({
     contentType: "text/html",
@@ -81,6 +119,9 @@ async function installerMocks(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   requetesPoint = 0;
+  await page.addInitScript(() => {
+    Date.now = () => new Date("2026-07-19T08:05:00.000Z").getTime();
+  });
   await installerMocks(page);
 });
 
@@ -88,18 +129,51 @@ test("hiérarchise les informations météo d'un point", async ({ page }) => {
   await page.goto("/meteo/");
 
   const bloc = page.getByTestId("meteo-point");
-  await expect(bloc.getByRole("heading", { name: "Vigilance Météo-France — Gard" })).toBeVisible();
-  await expect(bloc.getByRole("heading", { name: "Station Météo-France la plus proche" })).toBeVisible();
-  await expect(bloc.getByRole("heading", { name: "Prévision Météo-France AROME" })).toBeVisible();
-  await expect(bloc.getByRole("heading", { name: "ECMWF IFS et ensemble de 51 scénarios" })).toBeVisible();
-  await expect(bloc.getByText("Modèle européen")).toBeVisible();
-  await expect(bloc.locator(".carte-point .maplibregl-marker")).toBeVisible();
-  await expect(bloc).toHaveScreenshot("meteo-point.png", {
+  await expect(bloc.getByRole("heading", { name: "La Borie du Ponteil" })).toBeVisible();
+  await expect(bloc.getByTestId("precision-localisation")).toContainText("Lieu-dit BAN");
+  await expect(bloc.getByText("Ressenti 17 °C")).toBeVisible();
+  await expect(bloc.getByText("Pas de phénomène marqué à court terme")).toBeVisible();
+  await expect(bloc.getByRole("heading", { name: "Heure par heure" })).toBeVisible();
+  await expect(bloc.getByRole("heading", { name: "Les 4 prochains jours" })).toBeVisible();
+  await expect(bloc.getByRole("heading", { name: "Qualité de l’air" })).toBeVisible();
+  await expect(bloc.getByText("Relais progressif ARPEGE")).toBeVisible();
+  await expect(bloc.locator(".meteo-hero")).toHaveScreenshot("meteo-accueil.png", {
     animations: "disabled",
-    mask: [bloc.locator(".carte-point")],
-    maskColor: "#ffffff",
+    maxDiffPixelRatio: 0.01,
   });
 
-  await bloc.locator(".carte-point").click({ position: { x: 160, y: 120 } });
+  await bloc.locator("details.tendance-ecmwf > summary").click({ force: true });
+  await expect(bloc.getByText("≥ 20 mm : 18% · rafale ≥ 70 km/h : 0%").first()).toBeVisible();
+  await expect(bloc.getByRole("link", { name: /Vérifier le météogramme officiel ECMWF/ })).toBeVisible();
+
+  await bloc.locator("details.choisir-lieu > summary").click({ force: true });
+  await expect(bloc.locator(".carte-point .maplibregl-marker")).toBeVisible();
+  await bloc.getByLabel("Latitude").fill("44.065000");
+  await bloc.getByLabel("Longitude").fill("3.683000");
+  await bloc.getByLabel("Longitude").press("Enter");
   await expect.poll(() => requetesPoint).toBeGreaterThan(1);
+
+  await bloc.getByLabel("Rechercher une adresse ou un lieu-dit").fill("Valleraugue");
+  await expect(bloc.getByRole("button", { name: /Valleraugue 30570/ })).toBeVisible();
+});
+
+test("affiche la météo essentielle sans navigation du site", async ({ page }) => {
+  await page.goto("/meteo/essentiel/");
+
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  const bloc = page.getByTestId("meteo-point");
+  await expect(page.locator(".entete-site")).toHaveCount(0);
+  await expect(page.locator(".pied-site")).toHaveCount(0);
+  await expect(bloc.getByRole("heading", { name: "La Borie du Ponteil" })).toBeVisible();
+  await expect(bloc.getByRole("button", { name: "Utiliser ma position" })).toBeVisible();
+  await expect(bloc.getByText("Ressenti 17 °C")).toBeVisible();
+  await expect(bloc.getByRole("heading", { name: "Heure par heure" })).toBeVisible();
+  await expect(bloc.getByRole("heading", { name: "Qualité de l’air" })).toBeVisible();
+  await expect(bloc.getByText("Tendance probabiliste ECMWF")).toHaveCount(0);
+  await expect(bloc.getByText("Précision réelle et sources")).toHaveCount(0);
+  await expect(bloc.locator(".meteo-hero")).toHaveScreenshot("meteo-essentiel.png", {
+    animations: "disabled",
+    maxDiffPixelRatio: 0.01,
+  });
 });

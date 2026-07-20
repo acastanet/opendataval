@@ -24,6 +24,13 @@
   --navy-hover: #0e2938;
   --line-strong: #9aa8b0;
 
+  /* Thème unique de l'application météo. */
+  --meteo-background:
+    radial-gradient(circle at 85% 12%, rgba(104, 151, 158, 0.22), transparent 30%),
+    linear-gradient(145deg, #0b171b, #13262b);
+  --meteo-hero-text: #f7faf8;
+  --meteo-hero-muted: #aab9bb;
+
   --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
   --font-body:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -66,6 +73,9 @@ html,
 body {
   margin: 0;
   height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-body);
@@ -80,6 +90,29 @@ body {
   margin: 0 auto;
   padding-left: clamp(1.2rem, 4vw, 3rem);
   padding-right: clamp(1.2rem, 4vw, 3rem);
+}
+
+.page-meteo-shell {
+  width: 100%;
+  max-width: 76rem;
+  margin: 1rem auto 3rem;
+  padding: 0 clamp(1.2rem, 4vw, 3rem);
+}
+
+/* Variante plein écran : les composants restent identiques, seuls les jetons
+   de couleur changent afin de laisser apparaître le fond météo continu. */
+.theme-meteo-sombre {
+  --text: var(--meteo-hero-text);
+  --surface: #10262a;
+  --surface-muted: #183438;
+  --muted: #c2d0d1;
+  --border: #3a565a;
+  --line-strong: rgba(255, 255, 255, 0.35);
+  --navy: #17384b;
+  --accent: #d49b69;
+  --shadow: none;
+  color: var(--text);
+  background: var(--meteo-background);
 }
 
 .sr-only {
@@ -106,5 +139,12 @@ button {
   * {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-meteo-shell {
+    margin-top: 0;
+    padding: 0;
   }
 }

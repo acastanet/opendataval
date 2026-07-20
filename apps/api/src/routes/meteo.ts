@@ -28,7 +28,8 @@ interface ReponseMeteoPoint {
   observation: ObservationPoint | null;
   courtTerme: SourceModele | null;
   moyenTerme: (SourceModele & { ensemble: ReturnType<typeof resumerEnsemble> }) | null;
-  vigilance: { departement: string; code: string; url: string; widgetUrl: string } | null;
+  qualiteAir: SourceQualiteAir | null;
+  vigilance: { departement: string; code: string; url: string } | null;
   liens: { ecmwf: string; meteoFrance: string | null };
   sourcesIndisponibles: string[];
   perime: boolean;
@@ -41,8 +42,32 @@ interface SourceModele {
   resolution: string;
   horizon: string;
   pointModele: { lat: number | null; lon: number | null; altitudeM: number | null };
+  current?: unknown;
   hourly?: unknown;
   daily: unknown;
+}
+
+interface SourceQualiteAir {
+  fournisseur: string;
+  modele: string;
+  statut: "modele-officiel-diffusion-tierce";
+  resolution: string;
+  pointModele: { lat: number | null; lon: number | null };
+  current: unknown;
+  hourly: unknown;
+}
+
+interface LieuGeocode {
+  label: string;
+  nom: string;
+  commune: string | null;
+  codePostal: string | null;
+  type: string | null;
+  score: number | null;
+  distanceM: number | null;
+  lat: number;
+  lon: number;
+  source: "Géoplateforme IGN / Base Adresse Nationale";
 }
 
 interface ObservationPoint {
@@ -99,9 +124,62 @@ function sourceCourtTerme(data: unknown): SourceModele {
       lon: valeurNumerique(data, "longitude"),
       altitudeM: valeurNumerique(data, "elevation"),
     },
+    current: extraireBloc(data, "current"),
     hourly: extraireBloc(data, "hourly"),
     daily: extraireBloc(data, "daily"),
   };
+}
+
+function sourceQualiteAir(data: unknown): SourceQualiteAir {
+  return {
+    fournisseur: "Open-Meteo",
+    modele: "Copernicus CAMS European Air Quality Ensemble",
+    statut: "modele-officiel-diffusion-tierce",
+    resolution: "environ 11 km",
+    pointModele: {
+      lat: valeurNumerique(data, "latitude"),
+      lon: valeurNumerique(data, "longitude"),
+    },
+    current: extraireBloc(data, "current"),
+    hourly: extraireBloc(data, "hourly"),
+  };
+}
+
+function normaliserLieu(feature: unknown): LieuGeocode | null {
+  if (typeof feature !== "object" || feature === null || Array.isArray(feature)) return null;
+  const objet = feature as Record<string, unknown>;
+  const geometry = objet.geometry;
+  const properties = objet.properties;
+  if (typeof geometry !== "object" || geometry === null || Array.isArray(geometry)) return null;
+  if (typeof properties !== "object" || properties === null || Array.isArray(properties)) return null;
+  const coordonnees = (geometry as Record<string, unknown>).coordinates;
+  if (!Array.isArray(coordonnees) || coordonnees.length < 2) return null;
+  const lon = Number(coordonnees[0]);
+  const lat = Number(coordonnees[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const props = properties as Record<string, unknown>;
+  const texte = (cle: string): string | null => typeof props[cle] === "string" ? props[cle] as string : null;
+  const nombre = (cle: string): number | null => typeof props[cle] === "number" && Number.isFinite(props[cle]) ? props[cle] as number : null;
+  const label = texte("label") ?? texte("name") ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  return {
+    label,
+    nom: texte("name") ?? label,
+    commune: texte("city"),
+    codePostal: texte("postcode"),
+    type: texte("type"),
+    score: nombre("score"),
+    distanceM: nombre("distance"),
+    lat,
+    lon,
+    source: "Géoplateforme IGN / Base Adresse Nationale",
+  };
+}
+
+function extraireLieux(data: unknown): LieuGeocode[] {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
+  const features = (data as Record<string, unknown>).features;
+  if (!Array.isArray(features)) return [];
+  return features.map(normaliserLieu).filter((lieu): lieu is LieuGeocode => lieu !== null);
 }
 
 function sourceMoyenTerme(deterministe: unknown, ensemble: unknown): ReponseMeteoPoint["moyenTerme"] {
@@ -301,6 +379,48 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
     }
   });
 
+  app.get<{ Querystring: { q?: string } }>("/api/meteo/lieux", async (req, reply) => {
+    const q = req.query.q?.trim() ?? "";
+    if (q.length < 2 || q.length > 120) return { lieux: [] };
+
+    try {
+      const url = new URL("https://data.geopf.fr/geocodage/search");
+      url.searchParams.set("q", q);
+      url.searchParams.set("limit", "8");
+      url.searchParams.set("autocomplete", "1");
+      const lieux = extraireLieux(await fetchJson(url.toString())).slice(0, 6);
+      reply.header("cache-control", "public, max-age=3600");
+      return { lieux, attribution: "Géoplateforme IGN / Base Adresse Nationale" };
+    } catch (err) {
+      app.log.warn({ err, q }, "géocodage : recherche indisponible");
+      reply.code(502);
+      return { error: "recherche d’adresse indisponible", lieux: [] };
+    }
+  });
+
+  app.get<{ Querystring: { lat?: string; lon?: string } }>("/api/meteo/localisation", async (req, reply) => {
+    const coordonnees = validerCoordonnees(req.query.lat, req.query.lon);
+    if (!coordonnees) {
+      reply.code(400);
+      return { error: "coordonnées lat/lon invalides" };
+    }
+
+    const { lat, lon } = coordonnees;
+    try {
+      const url = new URL("https://data.geopf.fr/geocodage/reverse");
+      url.searchParams.set("lat", String(lat));
+      url.searchParams.set("lon", String(lon));
+      url.searchParams.set("limit", "1");
+      const lieu = extraireLieux(await fetchJson(url.toString()))[0] ?? null;
+      reply.header("cache-control", "public, max-age=86400");
+      return { lieu, attribution: "Géoplateforme IGN / Base Adresse Nationale" };
+    } catch (err) {
+      app.log.warn({ err, lat, lon }, "géocodage inverse indisponible");
+      reply.code(502);
+      return { error: "localisation précise indisponible", lieu: null };
+    }
+  });
+
   app.get<{ Querystring: { lat?: string; lon?: string } }>("/api/meteo/point", async (req, reply) => {
     const coordonnees = validerCoordonnees(req.query.lat, req.query.lon);
     if (!coordonnees) {
@@ -318,7 +438,8 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
 
     const urlCourtTerme = urlModele("https://api.open-meteo.com/v1/meteofrance", lat, lon, {
       forecast_days: "4",
-      hourly: "temperature_2m,relative_humidity_2m,precipitation,snowfall,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code",
+      current: "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure",
+      hourly: "temperature_2m,apparent_temperature,relative_humidity_2m,surface_pressure,precipitation,snowfall,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code",
       daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,wind_gusts_10m_max",
     });
     const urlEcmwf = urlModele("https://api.open-meteo.com/v1/ecmwf", lat, lon, {
@@ -331,12 +452,19 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
       forecast_days: "10",
       daily: "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_gusts_10m_max",
     });
+    const urlQualiteAir = urlModele("https://air-quality-api.open-meteo.com/v1/air-quality", lat, lon, {
+      domains: "cams_europe",
+      forecast_days: "4",
+      current: "european_aqi,pm10,pm2_5,nitrogen_dioxide,ozone",
+      hourly: "european_aqi",
+    });
 
-    const [observationResultat, courtTermeResultat, ecmwfResultat, ensembleResultat] = await Promise.allSettled([
+    const [observationResultat, courtTermeResultat, ecmwfResultat, ensembleResultat, qualiteAirResultat] = await Promise.allSettled([
       observationLaPlusProche(pool, lat, lon),
       fetchJson(urlCourtTerme),
       fetchJson(urlEcmwf),
       fetchJson(urlEcmwfEnsemble),
+      fetchJson(urlQualiteAir),
     ]);
 
     const sourcesIndisponibles: string[] = [];
@@ -344,6 +472,7 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
     if (courtTermeResultat.status === "rejected") sourcesIndisponibles.push("modèles Météo-France");
     if (ecmwfResultat.status === "rejected") sourcesIndisponibles.push("ECMWF déterministe");
     if (ensembleResultat.status === "rejected") sourcesIndisponibles.push("ECMWF ensemble");
+    if (qualiteAirResultat.status === "rejected") sourcesIndisponibles.push("qualité de l’air Copernicus CAMS");
     if (sourcesIndisponibles.length) {
       app.log.warn({ sourcesIndisponibles, lat, lon }, "météo point : réponse partielle");
     }
@@ -351,6 +480,7 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
     const courtTermeData = courtTermeResultat.status === "fulfilled" ? courtTermeResultat.value : null;
     const ecmwfData = ecmwfResultat.status === "fulfilled" ? ecmwfResultat.value : null;
     const ensembleData = ensembleResultat.status === "fulfilled" ? ensembleResultat.value : null;
+    const qualiteAirData = qualiteAirResultat.status === "fulfilled" ? qualiteAirResultat.value : null;
 
     if (!courtTermeData && !ecmwfData && !ensembleData && precedent) {
       reply.header("cache-control", "public, max-age=60");
@@ -370,12 +500,12 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
       observation: observationResultat.status === "fulfilled" ? observationResultat.value : null,
       courtTerme: courtTermeData ? sourceCourtTerme(courtTermeData) : null,
       moyenTerme: ecmwfData || ensembleData ? sourceMoyenTerme(ecmwfData, ensembleData) : null,
+      qualiteAir: qualiteAirData ? sourceQualiteAir(qualiteAirData) : null,
       vigilance: dansTerritoire
         ? {
             departement: "Gard",
             code: "30",
             url: "https://vigilance.meteofrance.fr/fr/gard",
-            widgetUrl: "https://vigilance.meteofrance.fr/fr/widget-vigilance/vigilance-departement/30",
           }
         : null,
       liens: {

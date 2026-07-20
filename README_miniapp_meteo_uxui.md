@@ -1,145 +1,133 @@
 # Mini-app météo localisée — guide UX/UI
 
-Ce document décrit l’interface de la mini-app météo située sur la page `/meteo/`. Il s’adresse à un agent chargé de faire évoluer son design. Le périmètre est l’interface de météo localisée, pas les autres modules historiques de la page météo.
+Ce document décrit l’interface de la page `/meteo/` et sert de brief à l’agent chargé de son design. Le produit est une application météo locale pensée **d’abord pour le mobile**, pas une page de données exhaustive.
 
 ## Intention produit
 
-L’utilisateur choisit un point dans la commune de Val-d’Aigoual (clic sur la carte, coordonnées saisies, ou géolocalisation) et reçoit une lecture météo **hiérarchisée par importance**.
+La page doit répondre immédiatement à une seule question : **« Quel temps fera-t-il ici, maintenant, et que dois-je anticiper ? »**
 
-L’interface ne doit pas présenter toutes les données comme équivalentes. Elle aide à décider dans cet ordre :
+La localisation est au cœur de la réponse. L’utilisateur peut partir de son GPS, rechercher une adresse ou un lieu-dit, choisir un favori (« Maison »), puis consulter les détails seulement s’il le souhaite. Une prévision de modèle n’est jamais présentée comme exacte à l’adresse près : l’interface distingue toujours le lieu sélectionné de la résolution du modèle et de la représentativité éventuelle d’une station.
 
-1. **Danger officiel :** la Vigilance Météo-France et les consignes associées.
-2. **Situation observée :** la mesure de la station Météo-France la plus proche.
-3. **Très court terme :** AROME / ARPEGE, utile pour les 48 prochaines heures et le relief local.
-4. **Tendance :** ECMWF IFS et son ensemble de 51 scénarios, utile à J+3–J+10 mais intrinsèquement moins certain.
+L’inspiration visuelle est une application sombre, calme et très lisible : température dominante, peu de cadres, espaces généreux, informations secondaires progressives.
 
-Le design doit rendre cet ordre évident sans que l’utilisateur ait besoin de lire toute la page.
-
-## Emplacement et fichiers
+## Fichiers et contrats à préserver
 
 - Page Astro : `apps/web/src/pages/meteo.astro`
-- Composant Svelte principal : `apps/web/src/islands/MeteoPoint.svelte`
-- Route API : `apps/api/src/routes/meteo.ts`, endpoint `GET /api/meteo/point?lat={lat}&lon={lon}`
-- Test visuel Playwright : `e2e/meteo-point.spec.ts`
+- Composant Svelte : `apps/web/src/islands/MeteoPoint.svelte`
+- API : `apps/api/src/routes/meteo.ts`
+- Test d’intégration / visuel : `e2e/meteo-point.spec.ts`
 - Captures de référence : `e2e/meteo-point.spec.ts-snapshots/`
 
-Le composant racine a l’attribut `data-testid="meteo-point"`. Le conserver : il est utilisé par le test automatisé.
+Le composant racine porte `data-testid="meteo-point"`. Le conserver : Playwright l’utilise pour les contrôles visuels.
 
-## Parcours utilisateur
+## Hiérarchie : premier écran mobile
 
-### 1. Choisir le lieu
+Sur un téléphone, le premier écran ne montre que ce qui permet de décider en quelques secondes. Les détails, la carte et les projections longues ne doivent pas repousser ce contenu sous le pli.
 
-La zone supérieure comprend :
-
-- un titre et une explication courte de la lecture hiérarchisée ;
-- le bouton « Me localiser » ;
-- deux champs latitude / longitude et le bouton « Afficher ce point » ;
-- une carte interactive MapLibre ;
-- un repère rouge sur le point sélectionné.
-
-Un clic sur la carte déclenche une nouvelle requête météo. Les coordonnées hors de la commune sont refusées avec un message clair. Sur mobile, les champs et le bouton passent sur plusieurs lignes.
-
-### 2. Lire la réponse
-
-Quand les données sont disponibles, quatre cartes apparaissent dans l’ordre de priorité. Chaque carte a :
-
-- un numéro dans un cercle (`1` à `4`) ;
-- un libellé d’échéance / niveau ;
-- un titre ;
-- un badge de nature de source ;
-- un code couleur de bordure gauche distinct.
-
-Les cartes forment la structure principale de la page. Ne pas les réordonner selon la quantité de contenu ou l’esthétique seule.
-
-### 3. Agir ou comprendre les limites
-
-La carte Vigilance contient un widget officiel Météo-France et un lien vers le bulletin / les consignes. Un encart final rappelle qu’une coordonnée n’est pas une station et que le relief cévenol crée des écarts rapides.
-
-## Architecture visuelle actuelle
-
-| Priorité | Carte | Rôle | Traitement visuel actuel |
-| --- | --- | --- | --- |
-| 1 | Vigilance Météo-France — Gard | Danger et consignes | Bordure rouge, badge « Officiel expertisé » |
-| 2 | Station Météo-France la plus proche | Mesure présente | Bordure vert lichen, grille de cinq métriques |
-| 3 | Prévision Météo-France AROME | 0–48 h | Bordure bleu torrent, résumé 12 h et 4 jours |
-| 4 | ECMWF IFS et ensemble de 51 scénarios | J+3 à J+10 | Bordure brun châtaigne, scénarios journaliers et dispersion |
-
-Les données détaillées doivent être plus compactes que le niveau d’alerte. La Vigilance doit être visible avant toute projection de modèle, même si elle ne contient pas de phénomène actif.
-
-## Contenus et règles de présentation
-
-### Vigilance (priorité 1)
-
-- C’est une source officielle : ne pas la mélanger visuellement aux cartes de modèle.
-- Le widget est intégré dans une `iframe` Météo-France. Sa hauteur actuelle est `11rem` et il doit rester lisible sur mobile.
-- Le lien « Ouvrir le bulletin officiel et les consignes » est une action importante et explicite.
-
-### Observation de station (priorité 2)
-
-- Afficher température, humidité, vent, rafale et pluie sur 1 h.
-- Afficher systématiquement la station, sa distance, son altitude et l’heure de mesure : ces informations expliquent la représentativité limitée de la mesure.
-- Si la mesure est ancienne, le signaler explicitement ; ne jamais faire croire à du temps réel.
-
-### Prévision courte échéance (priorité 3)
-
-- Le résumé « Prochaines 12 h » porte température min/max, cumul de pluie et rafale maximale.
-- Les quatre cartes journalières sont comparables d’un coup d’œil.
-- À partir du troisième jour, un marqueur « Relais progressif ARPEGE » indique le changement de modèle. Ce repère doit rester visible.
-- La provenance indique que les modèles Météo-France sont diffusés / adaptés par Open-Meteo ; ce n’est pas une prévision éditorialisée directement par Météo-France.
-
-### Tendance ECMWF (priorité 4)
-
-- Cette zone commence à J+3 : elle ne doit pas concurrencer le court terme.
-- Pour chaque jour : température médiane, probabilité de pluie, pluie médiane et scénario humide P90.
-- Le badge de dispersion (`faible`, `moyenne`, `forte`) est une aide de lecture. Ce n’est **pas** un indice officiel ECMWF.
-- Les probabilités de pluie forte et de fortes rafales sont des signaux secondaires, visuellement moins saillants que la Vigilance.
-- Conserver le lien vers le météogramme probabiliste officiel ECMWF.
-
-## États à designer
-
-| État | Déclencheur | Attente UX |
+| Ordre | Élément | Règle de design |
 | --- | --- | --- |
-| Chargement | requête en cours | Message court, non bloquant, sans masquer le point choisi |
-| Erreur de coordonnées | point hors territoire ou saisie invalide | Message précis et actionnable |
-| Erreur réseau | API indisponible | Expliquer que les données sont indisponibles, rappeler que la Vigilance officielle reste consultable |
-| Réponse partielle | une source est indisponible | Afficher les sources manquantes sans cacher les données restantes |
-| Données périmées | dernière valeur mise en cache après échec d’actualisation | Signaler clairement qu’il s’agit des dernières données connues |
-| Sans station récente | aucune observation voisine utilisable | Ne pas afficher de métriques vides ; expliquer la limite |
+| 1 | Lieu choisi | Nom précis de l’adresse / lieu-dit ou coordonnées ; action de recherche immédiatement disponible |
+| 2 | Niveau de précision | Badge clair : GPS avec précision estimée, adresse BAN/Géoplateforme, ou coordonnées manuelles |
+| 3 | Situation actuelle | Température, ressenti et condition météo dans le bloc visuellement dominant |
+| 4 | Quatre repères | Humidité, vent, rafale et pluie à court terme, compacts et comparables |
+| 5 | Signal à anticiper | Une phrase courte et actionnable : orage, pluie, vent, chaleur, gel ou situation calme |
+| 6 | Prochaines heures | Une bande de quatre créneaux ; elle donne la tendance sans devenir un tableau |
 
-Ces états font partie du produit : ils méritent une conception aussi soignée que l’état nominal.
+Le titre général, la recherche de lieu, le bouton GPS et le bouton « Maison » accompagnent ce premier écran. Ne pas y ajouter le radar, une carte, des dizaines de chiffres ou une longue explication de sources.
+
+## Parcours de localisation
+
+### Recherche et sélection
+
+- Le champ « Rechercher une adresse ou un lieu-dit » interroge `GET /api/meteo/lieux?q=` à partir de deux caractères.
+- Les suggestions doivent afficher le nom réellement sélectionné et son contexte administratif lorsque nécessaire.
+- Une suggestion retenue actualise les coordonnées et toute la météo ; elle ne doit pas être traitée comme une simple étiquette décorative.
+- La géolocalisation utilise la précision fournie par le navigateur et l’affiche. Si l’utilisateur refuse, le champ de recherche reste la voie principale.
+- `GET /api/meteo/localisation?lat=&lon=` transforme les coordonnées GPS en nom de lieu lorsque possible.
+- Le favori « Maison » est local au navigateur (`localStorage`) et correspond à des coordonnées, pas seulement à un libellé.
+
+### Transparence sur la précision
+
+Une adresse précise améliore le point de calcul mais ne transforme pas une maille météo en station à domicile. Le libellé de précision doit donc expliciter :
+
+- GPS : précision estimée par l’appareil ;
+- adresse / lieu-dit : point géocodé ;
+- coordonnées : position saisie ou pointée ;
+- prévision : résolution AROME d’environ 1,5 à 2,5 km, avec limites renforcées dans le relief cévenol.
+
+La section Sources et précision rappelle la distance / l’altitude de la station lorsqu’une observation est disponible. Elle doit aussi indiquer qu’un versant, une vallée ou un orage local peuvent faire diverger les conditions de celles du point calculé.
+
+## Sections de détail
+
+Après le premier écran, la page peut être riche, mais chaque bloc doit répondre à une question explicite.
+
+| Section | Contenu | Importance visuelle |
+| --- | --- | --- |
+| Heure par heure | Température, ressenti, pluie, vent et rafales pour les prochaines heures | Première section détaillée |
+| Prochains jours | Quatre jours AROME puis relais ARPEGE, avec pluie et rafales | Forte, mais secondaire au présent |
+| Pluie, vent et confort | Cumul, vent, direction, humidité, pression et ressenti | Grille d’appoint |
+| Vigilance | Widget et lien officiels Météo-France | Très visible si un phénomène est signalé ; jamais confondu avec un modèle |
+| Qualité de l’air | Indice européen, PM2.5, PM10, ozone et NO₂ | Bien séparée ; estimation CAMS à environ 11 km, donc pas une mesure à l’adresse |
+| Sources et précision | Station, distance, altitude, modèles, limites du relief | Zone de confiance et pédagogie |
+| Tendance ECMWF | J+3 à J+10, ensemble de 51 scénarios, dispersion et probabilités | Repliée au départ : tendance, non certitude locale |
+| Carte et coordonnées | Carte interactive, clic sur un point et saisie manuelle | Repliée au départ, jamais nécessaire à la lecture initiale |
+
+Les sections « Tendance ECMWF » et « Carte et coordonnées » restent dans des éléments `details` fermés au chargement. La carte MapLibre est initialisée seulement lors de l’ouverture : ne pas casser ce chargement différé.
+
+## Sources et vocabulaire
+
+Les termes de source font partie de l’interface ; ils empêchent une fausse promesse de précision.
+
+- **Vigilance Météo-France** : information officielle de danger et consignes ; elle prime sur les indicateurs de modèle.
+- **Observation de station** : mesure en un point, avec heure, distance et altitude ; ne pas l’appeler « météo chez vous ».
+- **AROME / ARPEGE** : prévision courte échéance. Le relais ARPEGE doit être explicite lorsqu’il commence.
+- **ECMWF IFS / ensemble** : tendance J+3 à J+10. Les 51 scénarios et la dispersion représentent une incertitude, pas un score de fiabilité officiel.
+- **CAMS** : prévision de qualité de l’air à maille européenne ; utiliser le libellé « estimation ».
+- **Géocodage Géoplateforme** : permet de convertir une adresse, un lieu-dit ou des coordonnées en point de prévision ; ne pas l’afficher comme une source météo.
+
+En cas de source indisponible, conserver les autres données et nommer la source manquante. Ne jamais remplir une carte vide avec une valeur ancienne sans signalement explicite.
+
+## États à concevoir
+
+| État | Attente UX |
+| --- | --- |
+| Chargement | Conserver le lieu sélectionné, afficher une attente concise et éviter une page vide |
+| Recherche sans résultat | Dire qu’aucun lieu du territoire n’a été trouvé et proposer GPS / coordonnées |
+| Hors territoire | Message précis : le point doit rester dans le périmètre pris en charge |
+| Refus GPS | Message non culpabilisant et retour immédiat à la recherche |
+| Erreur réseau ou partielle | Garder les sections valides et indiquer les sources indisponibles |
+| Données périmées | Afficher l’heure et dire clairement qu’il s’agit de la dernière donnée connue |
+| Pas de station représentative | Expliquer la limite ; ne pas afficher de métriques artificiellement vides |
 
 ## Responsive et accessibilité
 
-- Point de rupture actuel : `760px`.
-- Sur mobile, les métriques station passent de 5 colonnes à 2 ; les jours AROME passent de 4 colonnes à 2 ; les données ECMWF passent en une colonne.
-- Les badges ne doivent ni être coupés ni porter seuls l’information importante.
-- Les contrastes des quatre couleurs de priorité doivent rester lisibles avec du texte et sans dépendre seulement de la couleur.
-- Conserver des titres structurés (`h2`, puis `h3`), des labels visibles pour les coordonnées et des états `role="status"` / `role="alert"`.
-- La carte doit conserver une alternative utilisable : champs de coordonnées et bouton de géolocalisation.
+- Le design est mobile-first. Le premier écran à 393 px doit contenir lieu, précision, température / ressenti, signal anticipé et début de la bande horaire sans surcharge.
+- Le point de rupture principal est `760px`. Sur bureau, la mise en page peut s’élargir mais ne doit pas modifier l’ordre mental : présent local avant détails et tendance.
+- Les informations critiques ne reposent jamais uniquement sur une couleur ou une icône : conserver un texte descriptif.
+- Les contrôles ont des labels visibles, les messages utilisent `role="status"` ou `role="alert"`, et la structure de titres reste cohérente (`h1`, puis `h2`, puis `h3`).
+- Le contraste du thème sombre, les états de focus et la taille de toucher des boutons doivent être vérifiés en priorité sur mobile.
 
-## Contraintes techniques de design
+## Contraintes techniques
 
-- Le composant est en Svelte avec styles locaux dans `MeteoPoint.svelte`. Une refonte peut déplacer les styles, mais doit conserver les comportements Svelte et les attributs d’accessibilité.
-- La carte est MapLibre avec des tuiles IGN distantes. Ne pas faire dépendre une information critique de la seule visibilité des tuiles.
-- L’iframe Vigilance exige l’autorisation CSP `frame-src https://vigilance.meteofrance.fr` dans `Caddyfile`.
-- Les données sont asynchrones : prévoir des tailles de carte stables pour limiter les sauts de mise en page.
-- Ne pas afficher de fausse précision : les valeurs de modèle, les probabilités et la dispersion doivent toujours être accompagnées de leur horizon et de leur provenance.
+- Les styles sont locaux à `MeteoPoint.svelte`. Une évolution graphique peut les restructurer, sans enlever les comportements Svelte, les attributs d’accessibilité ou les `data-testid` utiles aux tests.
+- La carte est une interaction secondaire ; les champs de recherche et de coordonnées doivent toujours permettre de faire la même action.
+- La Vigilance est présentée dans un encart avec un lien vers le bulletin officiel Météo-France. Ne pas intégrer le widget distant : ses appels internes peuvent exiger une autorisation et polluer la console avec des erreurs `401`.
+- Les données sont asynchrones. Prévoir des hauteurs raisonnablement stables pour limiter les sauts de mise en page.
+- Les données de test sont simulées dans Playwright : le design ne doit pas dépendre d’une donnée externe ou d’un fond de carte chargé pour rester vérifiable.
 
-## Vérification après une évolution graphique
-
-Lancer :
+## Vérifier une évolution graphique
 
 ```powershell
-pnpm test:e2e
 pnpm build:web
+pnpm test:e2e
 ```
 
-Les tests contrôlent le rendu en Chromium bureau et mobile, la présence des quatre niveaux de lecture et le clic sur la carte. Les données météo, la Vigilance et les tuiles IGN sont simulées dans le test afin que les captures soient reproductibles. La zone raster de la carte est volontairement masquée dans la comparaison d’image ; l’interaction cartographique reste testée séparément.
+Les tests couvrent les rendus Chromium bureau et mobile, la lecture essentielle du héros, la recherche d’adresse, le passage aux détails et la carte. Les captures nommées `meteo-accueil-…png` sont les références du premier écran ; elles doivent être vérifiées humainement avant toute mise à jour.
 
-Pour accepter volontairement un nouveau rendu comme référence :
+Pour accepter volontairement un nouveau rendu :
 
 ```powershell
 pnpm test:e2e -- --update-snapshots
 ```
 
-Ne mettre à jour les captures qu’après une vérification visuelle du bureau et du mobile.
+Ne mettre à jour les captures qu’après vérification visuelle en bureau et en mobile.
