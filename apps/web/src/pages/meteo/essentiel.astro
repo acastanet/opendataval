@@ -1,24 +1,29 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import MeteoPoint from "../../islands/MeteoPoint.svelte";
+import MeteoEssentiel from "../../islands/MeteoEssentiel.svelte";
 ---
 
 <Layout
   title="Météo essentielle — Val-d’Aigoual"
   description="Météo locale essentielle : position GPS, situation actuelle, risque à venir et prévisions utiles."
 >
-  <main class="page-meteo-shell theme-meteo-sombre">
-    <MeteoPoint client:only="svelte" mode="essentiel" />
+  <main class="page-meteo-essentiel">
+    <MeteoEssentiel client:only="svelte" />
   </main>
 </Layout>
 
 <style>
   :global(body) {
-    background: var(--meteo-background);
+    background: #fcfcfa;
   }
 
   :global(#racine) {
     min-height: 100%;
+  }
+
+  .page-meteo-essentiel {
+    min-height: 100%;
+    background: #fcfcfa;
   }
 
 </style>
