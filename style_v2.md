@@ -1,10 +1,26 @@
 # Objectif
 
-Infographie — La ligne de partage des eaux
+Infographie
 
 # SUJET
 
- La ligne de partage des eaux
+## Que consomme une requête simple ?
+
+Prenons une demande ordinaire : **« Faire une fiche de révision pour le brevet. »** Lorsque cette requête est envoyée, des machines installées dans un centre de données produisent la réponse.
+
+Une étude publiée par Google estime qu’une requête textuelle médiane adressée à Gemini en mai 2025 a nécessité environ **0,24 Wh d’électricité**, consommé **0,26 mL d’eau** et produit **0,03 g de CO₂e**.
+
+Les **0,24 Wh** comprennent l’électricité des puces spécialisées dans l’IA (**0,14 Wh**), des processeurs et de la mémoire (**0,06 Wh**), des machines momentanément inactives (**0,02 Wh**) ainsi que du refroidissement et du fonctionnement du centre de données (**0,02 Wh**).
+
+Ce résultat n’est pas la mesure directe d’une question précise. Google mesure l’énergie utilisée par ses machines, puis la répartit entre les requêtes traitées. La valeur retenue est une médiane : elle décrit une requête située au milieu des observations.
+
+Ce chiffre est solide pour le service et le périmètre étudiés. Il ne comprend cependant pas l’appareil de l’utilisateur, les réseaux extérieurs à Google, l’entraînement du modèle ni le stockage des données. En ajoutant l’ordinateur et le Wi-Fi, on peut proposer un ordre de grandeur d’environ **0,3 à 1,5 Wh**, mais cette estimation est moins fiable.
+
+L’équivalence avec **environ 11 secondes de vidéo en ligne** sert uniquement de repère électrique. Elle reste approximative, car les deux estimations n’ont pas exactement le même périmètre.
+
+L’empreinte complète d’une requête, incluant l’entraînement et la fabrication du matériel, reste aujourd’hui inconnue.
+
+**Sources :** [Google, 2025](https://arxiv.org/html/2508.15734v1) ; [Agence internationale de l’énergie, 2020](https://www.iea.org/commentaries/the-carbon-footprint-of-streaming-video-fact-checking-the-headlines).
 
 ---
 

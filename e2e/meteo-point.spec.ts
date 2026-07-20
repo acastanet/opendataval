@@ -165,15 +165,25 @@ test("affiche la météo essentielle sans navigation du site", async ({ page }) 
   const bloc = page.getByTestId("meteo-point");
   await expect(page.locator(".entete-site")).toHaveCount(0);
   await expect(page.locator(".pied-site")).toHaveCount(0);
-  await expect(bloc.getByRole("heading", { name: "La Borie du Ponteil" })).toBeVisible();
+  await expect(bloc.getByText("Mairie de Val-d’Aigoual · Rue de la Mairie, Valleraugue")).toBeVisible();
+  await expect(bloc.locator(".date-heure")).toHaveText("DIM. 19 JUIL. · 10:05");
   await expect(bloc.getByRole("button", { name: "Utiliser ma position" })).toBeVisible();
-  await expect(bloc.getByText("Ressenti 17 °C")).toBeVisible();
-  await expect(bloc.getByRole("heading", { name: "Heure par heure" })).toBeVisible();
-  await expect(bloc.getByRole("heading", { name: "Qualité de l’air" })).toBeVisible();
+  await expect(bloc.getByTestId("temperature-actuelle")).toHaveText("18°C");
+  await expect(bloc.getByTestId("temperature-plus-trois")).toHaveText("20°C");
+  await expect(bloc.getByRole("heading", { name: "Les 3 jours à venir" })).toBeVisible();
+  await expect(bloc.getByRole("heading", { name: "Demain" })).toBeVisible();
+  await expect(bloc.getByRole("heading", { name: "Heure par heure" })).toHaveCount(0);
+  await expect(bloc.getByRole("heading", { name: "Qualité de l’air" })).toHaveCount(0);
   await expect(bloc.getByText("Tendance probabiliste ECMWF")).toHaveCount(0);
   await expect(bloc.getByText("Précision réelle et sources")).toHaveCount(0);
-  await expect(bloc.locator(".meteo-hero")).toHaveScreenshot("meteo-essentiel.png", {
+
+  await expect(bloc).toHaveScreenshot("meteo-essentiel.png", {
     animations: "disabled",
     maxDiffPixelRatio: 0.01,
   });
+
+  await page.context().grantPermissions(["geolocation"]);
+  await page.context().setGeolocation({ latitude: 44.064757, longitude: 3.682706 });
+  await bloc.getByRole("button", { name: "Utiliser ma position" }).click();
+  await expect(bloc.getByText("La Borie du Ponteil (Valleraugue) 30570 Val-d’Aigoual")).toBeVisible();
 });

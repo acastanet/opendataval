@@ -10,6 +10,78 @@ La localisation est au cœur de la réponse. L’utilisateur peut partir de son 
 
 L’inspiration visuelle est une application sombre, calme et très lisible : température dominante, peu de cadres, espaces généreux, informations secondaires progressives.
 
+## Variante `/meteo/essentiel/` — brief autonome pour agent de design
+
+`/meteo/essentiel/` est une vue de consultation immédiate, distincte de la mini-app complète `/meteo/`. Elle ne cherche pas à répondre à toutes les questions météo : en une lecture, elle indique **où se situe le point de prévision, quelle température il fait, comment elle évolue dans les trois heures et ce que donnent les trois jours suivants**.
+
+Cette page doit rester une seule composition éditoriale, sans navigation du site, carte, recherche d’adresse, favori, météo heure par heure détaillée, humidité, vent, vigilance, qualité de l’air ou sources longues.
+
+### Point de départ et localisation
+
+- Au chargement, ne pas demander de lieu ni ouvrir la permission GPS.
+- Le point initial est la mairie de Val-d’Aigoual : `44.081192, 3.641467`, libellé visible « Mairie de Val-d’Aigoual · Rue de la Mairie, Valleraugue ».
+- Un bouton de localisation est placé à droite de la date et de l’heure. Il est toujours visible, y compris sur mobile.
+- Après accord du navigateur, recalculer la météo avec la position GPS et appeler `GET /api/meteo/localisation?lat=&lon=`. Remplacer le libellé de la mairie par l’adresse ou le lieu-dit le plus proche retourné par l’API.
+- En cas de refus ou d’échec GPS, conserver la météo de la mairie et afficher un message bref, non culpabilisant. Ne pas proposer de carte ou de recherche dans cette variante.
+
+### Données à afficher et règles de calcul
+
+| Bloc | Donnée attendue | Règle de lecture |
+| --- | --- | --- |
+| Horodatage | Horloge du navigateur en `Europe/Paris` | Format condensé en capitales : `DIM. 19 JUIL. · 10:05`, heure sur 24 h. |
+| Température actuelle | `courtTerme.current.temperature_2m` ; repli sur la première prévision horaire | C’est le nombre le plus grand de la page, affiché en `°C`. Employer « estimation locale », pas « mesure à votre adresse ». |
+| Extrêmes du jour | `courtTerme.daily.temperature_2m_max` et `temperature_2m_min` pour la date locale du jour | Afficher `MAX` puis `MIN` en retrait, à côté de la température actuelle. |
+| Tendance à 3 h | Première heure de prévision à partir de l’heure locale, puis quatrième valeur horaire | Une seule flèche part de la température présente et se termine par la température prévue à `+3 H`. La pente traduit hausse, baisse ou stabilité. |
+| Trois jours suivants | Les trois entrées quotidiennes après aujourd’hui | Uniquement le nom du jour, `MAX` et `MIN`. Ne pas ajouter d’icône, pluie, vent ou commentaire. |
+
+Si une valeur n’est pas disponible, afficher un tiret cadratin (`–`) sans inventer de donnée. Lors d’un chargement initial, conserver le libellé de la mairie et une attente courte, avec une hauteur réservée pour éviter le saut de mise en page.
+
+### Construction de la composition
+
+L’ordre est fixe et constitue la hiérarchie de la page :
+
+1. Ligne d’en-tête : date/heure à gauche, bouton de localisation à droite.
+2. Ligne de lieu : petit carré bleu puis libellé du point de prévision.
+3. Bloc « maintenant » : sur-titre, température géante, `MAX` et `MIN` alignés à droite.
+4. Bande « prochaines 3 heures » : libellé et titre à gauche ; flèche et température cible à droite.
+5. Bande « après aujourd’hui » : titre à gauche ; trois colonnes de jours à droite.
+6. Quatre micro-marques colorées en bas à droite, comme des repères d’impression.
+
+Sur bureau, les bandes « tendance » et « jours » utilisent une colonne d’intitulé étroite à gauche et une zone de données plus large à droite. Sur mobile, elles se replient verticalement, sauf les trois jours qui restent trois colonnes compactes et comparables. La page doit tenir dans un premier écran mobile avec une lecture naturelle de haut en bas ; aucun carrousel ni défilement horizontal.
+
+### Langage visuel : Swiss Brutalism × éditorial papier
+
+Cette variante applique les principes de `brutalist_interpretabilite.md` à une interface web, sans reprendre le format de diapositive 16:9 :
+
+- fond blanc, avec au plus une très légère nuance de papier ;
+- texte noir mat `#1A1A1A` ;
+- bleu d’identité `#0047AB` pour les repères, les températures maximales, la flèche et les éléments actifs ;
+- police sans sérif unique, préférer Inter, Helvetica Neue ou une sans-serif système ;
+- nombres très grands et gras, textes secondaires petits mais contrastés ;
+- bordures noires fines et rectilignes ; aucune carte arrondie, ombre portée, dégradé décoratif ou effet météo réaliste ;
+- composition asymétrique avec de larges respirations, mais alignements stricts à l’intérieur de chaque bande ;
+- système de micro-accents limité aux quatre petits carrés de fin : jaune `#FFD600`, rouge `#E63946`, orange `#F77F00`, vert `#06A77D`.
+
+La flèche est un élément d’information, pas une décoration : bleue, fine, tendue de gauche à droite et terminée par une pointe. Elle monte si la température à `+3 H` dépasse la température actuelle de plus de `0,5 °C`, descend si elle est inférieure de plus de `0,5 °C`, sinon elle reste horizontale. Le texte « Tendance à la hausse », « à la baisse » ou « stable » doit toujours l’accompagner.
+
+### Accessibilité et interactions à préserver
+
+- Le bouton porte le libellé accessible « Utiliser ma position » ; sur petit écran le texte peut être visuellement masqué, jamais supprimé pour les lecteurs d’écran.
+- La date est un élément `<time>` et les sections emploient des titres réels (`h1`, puis `h2`, puis `h3`).
+- L’adresse mise à jour utilise une région `aria-live="polite"` ; les erreurs GPS ou réseau utilisent `role="alert"`.
+- Le contraste bleu/blanc et noir/blanc doit rester suffisant. Une couleur ou la seule forme de la flèche ne doit jamais être l’unique indication de la tendance.
+- Respecter `prefers-reduced-motion` : l’indicateur de chargement ne doit pas rester animé dans ce mode.
+
+### Fichiers, contrats et références visuelles propres à cette vue
+
+- Page Astro : `apps/web/src/pages/meteo/essentiel.astro`
+- Composant Svelte : `apps/web/src/islands/MeteoEssentiel.svelte`
+- API utilisée : `GET /api/meteo/point?lat=&lon=` et, après GPS, `GET /api/meteo/localisation?lat=&lon=`
+- Contrat de test à conserver : racine `data-testid="meteo-point"`, température courante `data-testid="temperature-actuelle"`, température à trois heures `data-testid="temperature-plus-trois"`
+- Références Playwright : `meteo-essentiel-chromium-mobile-win32.png` et `meteo-essentiel-chromium-desktop-win32.png`
+
+Ne pas faire évoluer l’interface essentielle en copiant des blocs de `/meteo/`. Si de nouvelles informations deviennent nécessaires, elles doivent remplacer une information existante ou faire l’objet d’une décision explicite de changement de périmètre.
+
 ## Fichiers et contrats à préserver
 
 - Page Astro : `apps/web/src/pages/meteo.astro`
