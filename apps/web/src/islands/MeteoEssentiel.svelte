@@ -280,20 +280,24 @@
     <div class="donnees-essentielles">
       {#if vigilance}
         <section
-          class={`vigilance-essentiel vigilance-bord-${vigilance.couleurMax}`}
+          class={`vigilance-essentiel ${vigilance.indisponible ? "vigilance-bord-indisponible" : `vigilance-bord-${vigilance.couleurMax}`}`}
           aria-labelledby="titre-vigilance"
         >
           <div class="vigilance-entete">
             <p class="etiquette" id="titre-vigilance">Vigilance {etiquetteVigilance}</p>
-            <span class={`pastille-niveau niveau-${vigilance.couleurMax}`}>
-              {#if vigilance.couleurMax === "vert"}Aucune vigilance{:else}Vigilance {libelleNiveau(vigilance.couleurMax)}{/if}
-            </span>
+            {#if vigilance.indisponible}
+              <span class="pastille-niveau niveau-indisponible">Niveau inconnu</span>
+            {:else}
+              <span class={`pastille-niveau niveau-${vigilance.couleurMax}`}>
+                {#if vigilance.couleurMax === "vert"}Aucune vigilance{:else}Vigilance {libelleNiveau(vigilance.couleurMax)}{/if}
+              </span>
+            {/if}
           </div>
 
           {#if vigilance.indisponible}
-            <p class="vigilance-indispo">
-              Vigilance momentanément indisponible.
-              <a href={vigilance.url} target="_blank" rel="noopener">Bulletin Météo-France</a>
+            <p class="vigilance-indispo" role="alert">
+              Vigilance momentanément indisponible : le niveau réel ne peut pas être confirmé.
+              <a href={vigilance.url} target="_blank" rel="noopener">Vérifier le bulletin officiel Météo-France</a>
             </p>
           {:else}
             <div class="vigilance-periodes">
@@ -495,6 +499,8 @@
   .vigilance-bord-jaune { --vig-couleur: #f2c200; }
   .vigilance-bord-orange { --vig-couleur: #ff8f00; }
   .vigilance-bord-rouge { --vig-couleur: #d7261e; }
+  /* Jamais vert : le niveau réel est inconnu, il ne faut pas laisser croire à une situation sûre. */
+  .vigilance-bord-indisponible { --vig-couleur: #4a4a4a; }
 
   .vigilance-entete { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 
@@ -513,6 +519,7 @@
   .niveau-jaune { background: #f2c200; color: #1a1a1a; }
   .niveau-orange { background: #ff8f00; color: #1a1a1a; }
   .niveau-rouge { background: #d7261e; color: #fff; }
+  .niveau-indisponible { background: #4a4a4a; color: #fff; }
 
   .vigilance-periodes { display: flex; flex-wrap: wrap; gap: 0.75rem 2.75rem; margin-top: 0.7rem; }
   .vigilance-periode { min-width: 0; }
@@ -522,7 +529,7 @@
   .vigilance-item { display: flex; align-items: center; gap: 0.6rem; }
   .vigilance-nature { min-width: 0; font-size: 0.86rem; font-weight: 700; letter-spacing: -0.01em; }
 
-  .vigilance-indispo { margin: 0.55rem 0 0; color: var(--gris); font-size: 0.8rem; font-weight: 600; }
+  .vigilance-indispo { margin: 0.55rem 0 0; color: var(--noir); font-size: 0.8rem; font-weight: 700; }
   .vigilance-indispo a { color: var(--bleu); }
   .vigilance-maj { margin: 0.6rem 0 0; color: var(--gris); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.02em; }
 

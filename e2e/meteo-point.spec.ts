@@ -225,3 +225,37 @@ test("affiche la météo essentielle sans navigation du site", async ({ page }) 
   await bloc.getByRole("button", { name: "Utiliser ma position" }).click();
   await expect(bloc.getByText("La Borie du Ponteil (Valleraugue) 30570 Val-d’Aigoual")).toBeVisible();
 });
+
+test("n'affiche jamais un niveau vert quand la vigilance est indisponible", async ({ page }) => {
+  // Sécurité : le niveau réel est inconnu quand la source est indisponible — ne jamais rassurer
+  // à tort avec un bandeau vert qui pourrait masquer une vigilance orange/rouge en cours.
+  await page.route(/\/api\/meteo\/point/, (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      ...prevision,
+      vigilance: {
+        departement: "Gard",
+        code: "30",
+        url: "https://vigilance.meteofrance.fr/fr/gard",
+        miseAJour: null,
+        couleurMax: "vert",
+        periodes: [],
+        indisponible: true,
+        perime: false,
+      },
+    }),
+  }));
+
+  await page.goto("/meteo/essentiel/");
+
+  const bloc = page.getByTestId("meteo-point");
+  const vigilance = bloc.locator(".vigilance-essentiel");
+  await expect(vigilance).toBeVisible();
+  await expect(vigilance.getByText("Vigilance Gard · 30")).toBeVisible();
+  await expect(vigilance.getByText("Aucune vigilance")).toHaveCount(0);
+  await expect(vigilance.locator(".niveau-vert")).toHaveCount(0);
+  await expect(vigilance.locator(".vigilance-bord-vert")).toHaveCount(0);
+  await expect(vigilance.getByText("Niveau inconnu")).toBeVisible();
+  await expect(vigilance.getByRole("alert")).toContainText("le niveau réel ne peut pas être confirmé");
+  await expect(vigilance.getByRole("link", { name: /bulletin officiel Météo-France/ })).toBeVisible();
+});
