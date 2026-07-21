@@ -2,6 +2,7 @@
 setlocal enabledelayedexpansion
 
 cd /d "%~dp0"
+title Lancement - OpenDataVdA (stack complete)
 
 if not exist ".env" (
     if exist ".env.example" (
@@ -31,7 +32,13 @@ if not errorlevel 1 (
 
 echo.
 echo Demarrage de la stack OpenDataVdA (base de donnees, api, worker, site web)...
-echo Site accessible sur http://localhost:8080 une fois les conteneurs prets.
+echo.
+echo Accueil : http://localhost:8080
+echo Mini-apps accessibles depuis la meme stack :
+echo   - Incendies : http://localhost:8080/incendies/
+echo   - Meteo     : http://localhost:8080/meteo/essentiel/
+echo   - Eau       : http://localhost:8080/eau/
+echo.
 echo Ctrl+C dans cette fenetre pour tout arreter.
 echo.
 

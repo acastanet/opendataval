@@ -432,11 +432,6 @@
   <div class="carte" bind:this={mapContainer}></div>
 
   <header class="entete">
-    <a class="lien-accueil" href="/" aria-label="Retour à l'accueil">
-      <svg viewBox="0 0 20 20" aria-hidden="true">
-        <path d="M12.5 4 7 10l5.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-    </a>
     <div class="entete-texte">
       <h1>{TERRITOIRE.commune.nom}</h1>
       <p class="sous-titre">Explorateur de données ouvertes — {TERRITOIRE.epci.nomCourt}</p>
@@ -691,7 +686,8 @@
     display: flex;
     align-items: center;
     gap: 0.7rem;
-    padding: 0.6rem 1rem 0.9rem;
+    /* padding-left élargi pour dégager le chevron « retour accueil » flottant. */
+    padding: 0.6rem 1rem 0.9rem 3.4rem;
     background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), transparent);
     color: #fff;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
@@ -700,34 +696,6 @@
     background-repeat: repeat-x;
     background-position: bottom;
     background-size: 64px 12px;
-  }
-
-  .lien-accueil {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-    pointer-events: auto;
-    transition: background 150ms ease;
-  }
-
-  .lien-accueil svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  .lien-accueil:hover {
-    background: rgba(255, 255, 255, 0.3);
-  }
-
-  .lien-accueil:focus-visible {
-    outline: 2px solid #fff;
-    outline-offset: 2px;
   }
 
   .entete-texte {

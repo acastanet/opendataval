@@ -1,9 +1,11 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import BoutonAccueil from "../../components/BoutonAccueil.astro";
 import FireExpertDashboard from "../../islands/FireExpertDashboard.svelte";
 ---
 
 <Layout title="Temps réel incendies — Aigoual & Cévennes" description="Exploration des détections thermiques NASA FIRMS et périmètres de veille autour de l’Aigoual.">
+  <BoutonAccueil />
   <main class="page-incendies">
     <header class="entete"><p class="sur-titre">Val-d’Aigoual · espace d’exploration</p><h1>Détections satellitaires récentes</h1><p class="introduction">Données NASA FIRMS en quasi-temps réel et périmètres de veille. Une détection peut être publiée plusieurs heures après le passage du satellite et ne confirme pas un incendie.</p></header>
     <nav class="onglets" aria-label="Sections de l’application incendies"><a href="../">Conseils officiels</a><a href="./" aria-current="page">Détections récentes</a></nav>

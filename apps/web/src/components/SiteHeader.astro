@@ -1,5 +1,6 @@
 ---
 import { TERRITOIRE, SECTIONS } from "@opendata-vda/shared";
+import BoutonAccueil from "./BoutonAccueil.astro";
 
 interface Props {
   sectionActive?: string;
@@ -9,6 +10,7 @@ const themes = SECTIONS.filter((s) => s.slug !== "sources");
 ---
 <header class="entete-site">
   <div class="conteneur entete-interieur">
+    <BoutonAccueil variante="inline" />
     <a class="marque" href="/">
       <span class="nom">{TERRITOIRE.commune.nom}</span>
       <span class="soustitre">Données ouvertes</span>

@@ -1,6 +1,7 @@
 ---
 // Diaporama — on ne garde que la première diapo : carte 3D.
 import Carte3D from "../../islands/Carte3D.svelte";
+import BoutonAccueil from "../../components/BoutonAccueil.astro";
 ---
 <!doctype html>
 <html lang="fr">
@@ -39,6 +40,7 @@ import Carte3D from "../../islands/Carte3D.svelte";
   </style>
 </head>
 <body>
+  <BoutonAccueil />
   <div id="presentation">
     <!-- ==================== ÉCRAN 1 : CARTE 3D ==================== -->
     <section class="ecran ecran-carte actif" data-index="0">

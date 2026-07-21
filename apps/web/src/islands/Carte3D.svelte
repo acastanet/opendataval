@@ -3,7 +3,7 @@
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import "../styles/map-controls.css";
-  import { IGN_WMTS } from "../lib/carte";
+  import { IGN_WMTS, enregistrerProtocolePmtiles, ajouterSourceRelief, RELIEF_SOURCE_ID } from "../lib/carte";
 
   const STATIONS = [
     { code: "Y200001001", nom: "Mont Aigoual", lon: 3.5814, lat: 44.1216, alt: 1567 },
@@ -88,13 +88,17 @@
     const coucheCarte = map.getLayer("basemap-plan");
     const couchePhoto = map.getLayer("basemap-photo");
 
-    map.setTerrain({ source: "terrainSource", exaggeration: 1.8 });
+    map.setTerrain({ source: RELIEF_SOURCE_ID, exaggeration: 1.8 });
     if (terrain) map.setLayoutProperty("hillshade-3d", "visibility", "visible");
     if (coucheCarte) map.setLayoutProperty("basemap-plan", "visibility", presentation === "route" ? "visible" : "none");
     if (couchePhoto) map.setLayoutProperty("basemap-photo", "visibility", presentation === "aerien" ? "visible" : "none");
   }
 
   onMount(() => {
+    // Relief servi depuis les PMTiles locaux (protocole aigoualdem://), comme le reste du site :
+    // aucun appel externe au runtime, donc compatible avec la CSP stricte de Caddy en production.
+    enregistrerProtocolePmtiles(maplibregl.addProtocol);
+
     map = new maplibregl.Map({
       container: mapContainer,
       hash: "map",
@@ -110,34 +114,24 @@
             tileSize: 256,
             attribution: "© IGN",
           },
-          "terrainSource": {
-            type: "raster-dem",
-            url: "https://tiles.mapterhorn.com/tilejson.json",
-          },
-          "hillshade-3d-src": {
-            type: "raster-dem",
-            url: "https://tiles.mapterhorn.com/tilejson.json",
-          },
         },
         layers: [
           { id: "basemap-plan", type: "raster", source: "basemap-plan-src" },
-          {
-            id: "hillshade-3d",
-            type: "hillshade",
-            source: "hillshade-3d-src",
-            paint: { "hillshade-shadow-color": "#2b4a3f" },
-          },
         ],
-        terrain: {
-          source: "terrainSource",
-          exaggeration: 1.8,
-        },
         sky: {},
       },
     });
 
     map.on("load", () => {
       chargement = false;
+      // Source de relief locale + couche d'ombrage, ajoutées une fois la carte prête.
+      ajouterSourceRelief(map);
+      map.addLayer({
+        id: "hillshade-3d",
+        type: "hillshade",
+        source: RELIEF_SOURCE_ID,
+        paint: { "hillshade-shadow-color": "#2b4a3f" },
+      });
       map.addSource("basemap-photo-src", { type: "raster", tiles: [IGN_WMTS("ORTHOIMAGERY.ORTHOPHOTOS", "image/jpeg")], tileSize: 256, attribution: "© IGN" });
       map.addLayer({ id: "basemap-photo", type: "raster", source: "basemap-photo-src", layout: { visibility: "none" } }, "hillshade-3d");
       appliquerPresentation();

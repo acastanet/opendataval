@@ -3,6 +3,7 @@
 // l'API → pas de CORS). La page grand public didactique vit à /eau/ (index.astro).
 // Les assets (style.css, graphe.js, eau-commun.js, app.js, data/) restent dans public/eau/ et sont
 // chargés en absolu depuis /eau/. is:inline empêche Astro de bundler les scripts.
+import BoutonAccueil from "../../components/BoutonAccueil.astro";
 ---
 <!doctype html>
 <html lang="fr">
@@ -11,8 +12,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Tableau de bord — L'eau à Valleraugue</title>
   <link rel="stylesheet" href="/eau/style.css" />
+  <style>
+    /* Dégage la place du chevron « retour accueil » flottant en haut à gauche. */
+    .page { padding-top: 2.6rem; }
+  </style>
 </head>
 <body>
+  <BoutonAccueil />
   <main class="page">
     <header class="entete">
       <a class="retour-didactique" href="/eau/">← Comprendre l'eau à Valleraugue</a>

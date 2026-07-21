@@ -1,12 +1,13 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { SECTIONS } from "@opendata-vda/shared/sections";
 
 const applications = [
   {
     nom: "Feu",
     statut: "Déjà disponible",
     description: "Consignes officielles et niveau de danger dans les massifs gardois.",
-    href: "/feu/",
+    href: "/incendies/",
     classe: "feu",
     action: "Consulter le risque incendie",
   },
@@ -25,6 +26,26 @@ const applications = [
     href: "/carte/",
     classe: "terre",
     action: "Explorer la carte du territoire",
+  },
+];
+
+// Index complet de toutes les pages du portail, regroupées par famille.
+const groupes = [
+  {
+    titre: "Applications de terrain",
+    liens: [
+      { nom: "Feu — risque incendie", href: "/incendies/" },
+      { nom: "Feu — temps réel & méthodologie", href: "/incendies/temps-reel/" },
+      { nom: "Eau — rivière, crues & nappe", href: "/eau/" },
+      { nom: "Eau — tableau de bord", href: "/eau/tableau-de-bord/" },
+      { nom: "Terre — carte du territoire", href: "/carte/" },
+      { nom: "Relief 3D", href: "/relief/" },
+      { nom: "Météo essentielle", href: "/meteo/essentiel/" },
+    ],
+  },
+  {
+    titre: "Thèmes & données",
+    liens: SECTIONS.map((section) => ({ nom: section.titre, href: `/${section.slug}/` })),
   },
 ];
 ---
@@ -57,6 +78,29 @@ const applications = [
             }
           </ul>
         </nav>
+      </div>
+    </section>
+
+    <section class="plan" aria-labelledby="titre-plan">
+      <div class="conteneur">
+        <p class="sur-titre">Plan du site</p>
+        <h2 id="titre-plan">Toutes les pages du portail</h2>
+        <div class="groupes">
+          {
+            groupes.map((groupe) => (
+              <nav class="groupe" aria-label={groupe.titre}>
+                <h3>{groupe.titre}</h3>
+                <ul>
+                  {groupe.liens.map((lien) => (
+                    <li>
+                      <a href={lien.href}>{lien.nom}</a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))
+          }
+        </div>
       </div>
     </section>
   </main>
@@ -189,5 +233,76 @@ const applications = [
   @media (max-width: 760px) {
     .applications { grid-template-columns: 1fr; }
     .application { min-height: 14rem; }
+  }
+
+  .plan {
+    padding: clamp(2.5rem, 8vw, 5rem) 0;
+    background: #17242c;
+  }
+
+  .plan .conteneur {
+    width: min(1120px, calc(100% - 2rem));
+    margin: 0 auto;
+  }
+
+  .plan .sur-titre {
+    color: #9db7ac;
+  }
+
+  .plan h2 {
+    margin: 0.45rem 0 0;
+    color: #f6f4ed;
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+
+  .groupes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: clamp(1.5rem, 4vw, 3rem);
+    margin-top: clamp(1.75rem, 5vw, 3rem);
+  }
+
+  .groupe h3 {
+    margin: 0 0 0.9rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid rgba(246, 244, 237, 0.18);
+    color: #f6f4ed;
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .groupe ul {
+    display: grid;
+    gap: 0.15rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .groupe a {
+    display: block;
+    padding: 0.5rem 0.6rem;
+    margin: 0 -0.6rem;
+    border-radius: 6px;
+    color: #dfe7e2;
+    font-size: 0.98rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 140ms ease, color 140ms ease;
+  }
+
+  .groupe a:hover {
+    background: rgba(246, 244, 237, 0.08);
+    color: #fff;
+  }
+
+  .groupe a:focus-visible {
+    outline: 3px solid #9db7ac;
+    outline-offset: 2px;
   }
 </style>

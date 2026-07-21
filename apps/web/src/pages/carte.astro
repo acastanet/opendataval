@@ -1,10 +1,12 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import BoutonAccueil from "../components/BoutonAccueil.astro";
 import MapExplorer from "../islands/MapExplorer.svelte";
 ---
 <Layout
   title="Carte — Val-d'Aigoual — Explorateur de données ouvertes"
   description="Carte interactive des données ouvertes de Val-d'Aigoual et de la Communauté de communes Causses Aigoual Cévennes : géologie, sous-sol, eau, nature, services publics."
 >
+  <BoutonAccueil />
   <MapExplorer client:only="svelte" />
 </Layout>
