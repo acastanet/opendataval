@@ -15,7 +15,10 @@
   let positionGps = false;
   let horloge = Date.now();
   let timerHorloge;
+  let timerRefresh;
   let requeteCourante = 0;
+  let latCourante = POINT_MAIRIE.lat;
+  let lonCourante = POINT_MAIRIE.lon;
 
   const nombre = (valeur) => {
     const resultat = Number(valeur);
@@ -29,6 +32,14 @@
 
   function tableau(bloc, cle) {
     return Array.isArray(bloc?.[cle]) ? bloc[cle] : [];
+  }
+
+  function tableauPeriodes(periodes) {
+    return (Array.isArray(periodes) ? periodes : []).map((periode) => ({
+      echeance: periode?.echeance ?? null,
+      couleurMax: periode?.couleurMax ?? "vert",
+      phenomenes: Array.isArray(periode?.phenomenes) ? periode.phenomenes : [],
+    }));
   }
 
   function partiesDate(timestamp = horloge) {
@@ -83,6 +94,30 @@
     }));
   }
 
+  const NIVEAU_VIGILANCE = { vert: "Vert", jaune: "Jaune", orange: "Orange", rouge: "Rouge" };
+
+  function libelleNiveau(couleur) {
+    return NIVEAU_VIGILANCE[couleur] ?? "Vert";
+  }
+
+  function libelleEcheance(echeance) {
+    return echeance === "J1" ? "Demain" : "Aujourd’hui";
+  }
+
+  function dateHeureMaj(iso) {
+    if (!iso) return "";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("fr-FR", {
+      timeZone: FUSEAU,
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(date);
+  }
+
   function libelleJour(iso, index) {
     if (index === 0) return "Demain";
     const date = new Date(`${iso}T12:00:00Z`);
@@ -106,6 +141,8 @@
     const numeroRequete = ++requeteCourante;
     etat = avecAdresse ? "localisation" : "chargement";
     erreur = "";
+    latCourante = lat;
+    lonCourante = lon;
 
     try {
       const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
@@ -133,6 +170,20 @@
     }
   }
 
+  async function rafraichirEssentiel() {
+    const numeroRequete = ++requeteCourante;
+    try {
+      const params = new URLSearchParams({ lat: String(latCourante), lon: String(lonCourante) });
+      const reponse = await fetch(`/api/meteo/point?${params}`);
+      if (!reponse.ok) return;
+      const resultat = await reponse.json();
+      if (numeroRequete !== requeteCourante) return;
+      donnees = resultat;
+    } catch {
+      // Rafraîchissement silencieux : on conserve la dernière météo affichée.
+    }
+  }
+
   function meLocaliser() {
     if (!navigator.geolocation) {
       erreur = "La géolocalisation n’est pas disponible. La météo de la mairie reste affichée.";
@@ -153,11 +204,22 @@
 
   onMount(() => {
     timerHorloge = window.setInterval(() => { horloge = Date.now(); }, 30_000);
+    timerRefresh = window.setInterval(rafraichirEssentiel, 15 * 60 * 1000);
     chargerPoint(POINT_MAIRIE.lat, POINT_MAIRIE.lon);
   });
 
-  onDestroy(() => clearInterval(timerHorloge));
+  onDestroy(() => {
+    clearInterval(timerHorloge);
+    clearInterval(timerRefresh);
+  });
 
+  $: vigilance = donnees?.vigilance ?? null;
+  $: periodesVigilance = vigilance && !vigilance.indisponible ? tableauPeriodes(vigilance.periodes) : [];
+  $: etiquetteVigilance = vigilance
+    ? (vigilance.departement && vigilance.departement !== vigilance.code
+        ? `${vigilance.departement} · ${vigilance.code}`
+        : (vigilance.code ?? vigilance.departement ?? ""))
+    : "";
   $: maintenant = donnees?.courtTerme?.current ?? null;
   $: heures = construireHeures(donnees?.courtTerme?.hourly, horloge);
   $: temperatureActuelle = nombre(maintenant?.temperature_2m) ?? nombre(heures[0]?.temperature);
@@ -216,6 +278,50 @@
 
   {#if donnees}
     <div class="donnees-essentielles">
+      {#if vigilance}
+        <section
+          class={`vigilance-essentiel vigilance-bord-${vigilance.couleurMax}`}
+          aria-labelledby="titre-vigilance"
+        >
+          <div class="vigilance-entete">
+            <p class="etiquette" id="titre-vigilance">Vigilance {etiquetteVigilance}</p>
+            <span class={`pastille-niveau niveau-${vigilance.couleurMax}`}>
+              {#if vigilance.couleurMax === "vert"}Aucune vigilance{:else}Vigilance {libelleNiveau(vigilance.couleurMax)}{/if}
+            </span>
+          </div>
+
+          {#if vigilance.indisponible}
+            <p class="vigilance-indispo">
+              Vigilance momentanément indisponible.
+              <a href={vigilance.url} target="_blank" rel="noopener">Bulletin Météo-France</a>
+            </p>
+          {:else}
+            <div class="vigilance-periodes">
+              {#each periodesVigilance as periode}
+                <div class="vigilance-periode">
+                  <p class="vigilance-echeance">{libelleEcheance(periode.echeance)}</p>
+                  {#if periode.phenomenes.length === 0}
+                    <p class="vigilance-aucun">Aucun phénomène</p>
+                  {:else}
+                    <ul class="vigilance-liste">
+                      {#each periode.phenomenes as phenomene}
+                        <li class="vigilance-item">
+                          <span class="vigilance-nature">{phenomene.nom}</span>
+                          <span class={`pastille-niveau niveau-${phenomene.couleur}`}>{libelleNiveau(phenomene.couleur)}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+            {#if vigilance.miseAJour}
+              <p class="vigilance-maj">Mise à jour {dateHeureMaj(vigilance.miseAJour)}{vigilance.perime ? " · dernière valeur connue" : ""}</p>
+            {/if}
+          {/if}
+        </section>
+      {/if}
+
       <section class="temperature-actuelle" aria-label="Température actuelle estimée">
         <p class="etiquette">Maintenant · estimation locale</p>
         <div class="temperature-ligne">
@@ -376,6 +482,50 @@
     font-weight: 600;
   }
 
+  /* Bandeau de vigilance météo (Gard) — placé avant la température */
+  .vigilance-essentiel {
+    --vig-couleur: var(--gris);
+    margin: 0.35rem 0 0;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--filet);
+    border-left: 5px solid var(--vig-couleur);
+    background: #fff;
+  }
+  .vigilance-bord-vert { --vig-couleur: #2e8b57; }
+  .vigilance-bord-jaune { --vig-couleur: #f2c200; }
+  .vigilance-bord-orange { --vig-couleur: #ff8f00; }
+  .vigilance-bord-rouge { --vig-couleur: #d7261e; }
+
+  .vigilance-entete { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+
+  .pastille-niveau {
+    display: inline-block;
+    padding: 0.14rem 0.5rem;
+    background: var(--noir);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .niveau-vert { background: #2e8b57; color: #fff; }
+  .niveau-jaune { background: #f2c200; color: #1a1a1a; }
+  .niveau-orange { background: #ff8f00; color: #1a1a1a; }
+  .niveau-rouge { background: #d7261e; color: #fff; }
+
+  .vigilance-periodes { display: flex; flex-wrap: wrap; gap: 0.75rem 2.75rem; margin-top: 0.7rem; }
+  .vigilance-periode { min-width: 0; }
+  .vigilance-echeance { margin: 0 0 0.4rem; color: var(--gris); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+  .vigilance-aucun { margin: 0; color: var(--noir); font-size: 0.82rem; font-weight: 600; }
+  .vigilance-liste { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+  .vigilance-item { display: flex; align-items: center; gap: 0.6rem; }
+  .vigilance-nature { min-width: 0; font-size: 0.86rem; font-weight: 700; letter-spacing: -0.01em; }
+
+  .vigilance-indispo { margin: 0.55rem 0 0; color: var(--gris); font-size: 0.8rem; font-weight: 600; }
+  .vigilance-indispo a { color: var(--bleu); }
+  .vigilance-maj { margin: 0.6rem 0 0; color: var(--gris); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.02em; }
+
   /* Corps : le héros absorbe l'espace, les bandes restent au plus juste */
   .donnees-essentielles { display: flex; flex: 1; flex-direction: column; min-height: 0; }
   .etiquette { margin: 0; color: var(--bleu); font-size: 0.67rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
@@ -393,7 +543,7 @@
   .valeur-geante {
     font-size: clamp(7.2rem, 23vw, 13rem);
     font-weight: 800;
-    letter-spacing: -0.11em;
+    letter-spacing: -0.06em;
     line-height: 0.8;
   }
 
@@ -482,6 +632,7 @@
     .meteo-essentiel { min-height: 100svh; padding: 1.1rem 1rem 0.85rem; }
     .bouton-localisation { width: 2.75rem; padding: 0; justify-content: center; }
     .bouton-localisation span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .vigilance-periodes { flex-direction: column; gap: 0.55rem; }
     .temperature-actuelle { gap: 0.8rem; padding: 1rem 0 1.2rem; }
     .temperature-ligne { gap: 0.75rem; }
     .valeur-geante { font-size: clamp(6.7rem, 33vw, 8.3rem); }

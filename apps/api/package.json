@@ -6,17 +6,19 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "test": "tsx --test src/lib/incendies.test.ts"
+    "test": "tsx --test src/lib/incendies.test.ts src/lib/meteoPoint.test.ts src/lib/radar.test.ts"
   },
   "dependencies": {
     "@opendata-vda/shared": "workspace:*",
     "fastify": "^5.1.0",
     "flatgeobuf": "4.4.0",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.10",
+    "@types/pngjs": "^6.0.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.0"
   }

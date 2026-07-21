@@ -5,8 +5,6 @@
   import { TERRITOIRE } from "@opendata-vda/shared/territoire";
   import { BASEMAPS, ajouterControleFondIgn } from "../lib/carte";
 
-  export let mode = "complet";
-
   const POINT_INITIAL = { lat: 44.064579, lon: 3.683019 };
   const CLE_FAVORI = "opendata-vda-meteo-favori-v1";
   const CODES_WMO = {
@@ -44,6 +42,19 @@
   let timerHorloge;
   let horloge = Date.now();
   let requeteCourante = 0;
+
+  let radar = null;
+  let derniereMajMs = Date.now();
+  let timerRefresh;
+
+  let conteneurRadar;
+  let mapRadar;
+  let marqueurRadar;
+  let timerRadar;
+  let indexFrameRadar = 0;
+  let frameRadarCourante = null;
+
+  const LIBELLE_RADAR = { faible: "pluie faible", moderee: "averse modérée", forte: "forte averse" };
 
   const nombre = (valeur) => {
     const resultat = Number(valeur);
@@ -101,6 +112,7 @@
       direction: tableau(bloc, "wind_direction_10m")[index],
       rafale: tableau(bloc, "wind_gusts_10m")[index],
       code: tableau(bloc, "weather_code")[index],
+      estJour: tableau(bloc, "is_day")[index],
     }));
   }
 
@@ -128,10 +140,11 @@
     return deterministes.slice(2).map((jour) => ({ ...jour, ensemble: ensembleParDate.get(jour.date) ?? null }));
   }
 
-  function symboleMeteo(code) {
+  function symboleMeteo(code, estJour = 1) {
     const n = nombre(code);
-    if (n === 0) return "☀";
-    if (n !== null && n <= 2) return "☼";
+    const nuit = estJour === 0;
+    if (n === 0) return nuit ? "☾" : "☀";
+    if (n !== null && n <= 2) return nuit ? "☾" : "☼";
     if (n === 3) return "☁";
     if (n !== null && n >= 95) return "ϟ";
     if (n !== null && n >= 71 && n <= 86) return "❄";
@@ -179,8 +192,108 @@
 
   function placerMarqueur(lat, lon) {
     if (!map) return;
-    if (!marqueur) marqueur = new maplibregl.Marker({ color: "#f2b45e" });
+    if (!marqueur) marqueur = new maplibregl.Marker({ color: "#0047ab" });
     marqueur.setLngLat([lon, lat]).addTo(map);
+  }
+
+  function isoFrameRadar(secondes) {
+    return secondes ? new Date(secondes * 1000).toISOString() : null;
+  }
+
+  function heureFrameRadar(frame) {
+    if (!frame?.time) return "";
+    return new Date(frame.time * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function idCoucheRadar(i) {
+    return `radar-lyr-${i}`;
+  }
+
+  function retirerFramesRadar() {
+    if (!mapRadar || !mapRadar.isStyleLoaded()) return;
+    for (const couche of mapRadar.getStyle().layers ?? []) {
+      if (!couche.id.startsWith("radar-lyr-")) continue;
+      if (mapRadar.getLayer(couche.id)) mapRadar.removeLayer(couche.id);
+      if (mapRadar.getSource(couche.id)) mapRadar.removeSource(couche.id);
+    }
+  }
+
+  function montrerFrameRadar(i) {
+    const frames = radar?.frames ?? [];
+    if (!mapRadar || !frames.length) return;
+    frames.forEach((_, j) => {
+      const id = idCoucheRadar(j);
+      if (mapRadar.getLayer(id)) mapRadar.setPaintProperty(id, "raster-opacity", j === i ? 0.75 : 0);
+    });
+    frameRadarCourante = frames[i] ?? null;
+  }
+
+  // Une couche raster préchargée par frame : l'animation ne fait que basculer l'opacité,
+  // sans recharger les tuiles (sinon les zones de pluie n'ont pas le temps de s'afficher).
+  function poserFramesRadar() {
+    const frames = radar?.frames ?? [];
+    if (!mapRadar || !frames.length) return;
+    frames.forEach((frame, i) => {
+      const id = idCoucheRadar(i);
+      if (mapRadar.getSource(id)) return;
+      mapRadar.addSource(id, { type: "raster", tiles: [frame.tileUrl], tileSize: 256, attribution: "RainViewer" });
+      mapRadar.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": 0 } });
+    });
+    const passees = frames.filter((f) => f.kind === "passe").length;
+    indexFrameRadar = Math.max(0, passees - 1); // démarre sur l'observation la plus récente
+    montrerFrameRadar(indexFrameRadar);
+  }
+
+  function demarrerAnimationRadar() {
+    clearInterval(timerRadar);
+    const frames = radar?.frames ?? [];
+    if (!mapRadar || !frames.length) return;
+    timerRadar = window.setInterval(() => {
+      const frs = radar?.frames ?? [];
+      if (!mapRadar || !frs.length) return;
+      indexFrameRadar = (indexFrameRadar + 1) % frs.length;
+      montrerFrameRadar(indexFrameRadar);
+    }, 900);
+  }
+
+  function rechargerFramesRadar() {
+    if (!mapRadar || !mapRadar.isStyleLoaded()) return;
+    retirerFramesRadar();
+    poserFramesRadar();
+    demarrerAnimationRadar();
+  }
+
+  function initialiserRadar() {
+    if (mapRadar || !conteneurRadar) return;
+    const lat = Number(latitudeSaisie);
+    const lon = Number(longitudeSaisie);
+    mapRadar = new maplibregl.Map({
+      container: conteneurRadar,
+      style: {
+        version: 8,
+        sources: { "ign-plan": { type: "raster", tiles: [BASEMAPS[0].tiles], tileSize: 256, attribution: BASEMAPS[0].attribution } },
+        layers: [{ id: "ign-plan-layer", type: "raster", source: "ign-plan" }],
+      },
+      center: [Number.isFinite(lon) ? lon : POINT_INITIAL.lon, Number.isFinite(lat) ? lat : POINT_INITIAL.lat],
+      zoom: 7.5,
+      minZoom: 5,
+      maxZoom: 11,
+    });
+    mapRadar.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    mapRadar.on("load", () => {
+      marqueurRadar = new maplibregl.Marker({ color: "#0047ab" }).setLngLat([Number(longitudeSaisie), Number(latitudeSaisie)]).addTo(mapRadar);
+      poserFramesRadar();
+      // Laisse les tuiles de la frame courante se charger avant d'animer.
+      setTimeout(demarrerAnimationRadar, 1200);
+    });
+  }
+
+  function ouvrirRadar(event) {
+    if (!event.currentTarget.open) return;
+    setTimeout(() => {
+      initialiserRadar();
+      mapRadar?.resize();
+    }, 0);
   }
 
   async function identifierLieu(lat, lon) {
@@ -194,9 +307,21 @@
     }
   }
 
+  async function chargerRadar(lat, lon) {
+    try {
+      const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+      const res = await fetch(`/api/meteo/radar?${params}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return Array.isArray(data?.frames) ? data : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function chargerPoint(lat, lon, options = {}) {
     const numeroRequete = ++requeteCourante;
-    etat = "chargement";
+    if (!options.silencieux) etat = "chargement";
     erreur = "";
     latitudeSaisie = lat.toFixed(6);
     longitudeSaisie = lon.toFixed(6);
@@ -205,31 +330,53 @@
 
     try {
       const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
-      const [meteoRes, lieuTrouve] = await Promise.all([
+      const [meteoRes, radarData, lieuTrouve] = await Promise.all([
         fetch(`/api/meteo/point?${params}`),
-        options.lieu ? Promise.resolve(options.lieu) : identifierLieu(lat, lon),
+        chargerRadar(lat, lon),
+        options.lieu ? Promise.resolve(options.lieu) : options.silencieux ? Promise.resolve(lieuSelectionne) : identifierLieu(lat, lon),
       ]);
       if (!meteoRes.ok) throw new Error(`HTTP ${meteoRes.status}`);
       const resultat = await meteoRes.json();
       if (numeroRequete !== requeteCourante) return;
       donnees = resultat;
-      lieuSelectionne = lieuTrouve ?? {
-        label: `Point ${lat.toFixed(5)}, ${lon.toFixed(5)}`,
-        nom: "Point sélectionné",
-        type: options.type ?? "coordonnees",
-        lat,
-        lon,
-        distanceM: options.accuracy ?? null,
-        score: null,
-      };
-      if (options.type === "gps") lieuSelectionne = { ...lieuSelectionne, type: "gps", distanceM: options.accuracy ?? lieuSelectionne.distanceM };
+      radar = radarData;
+      derniereMajMs = Date.now();
+      if (!options.silencieux) {
+        lieuSelectionne = lieuTrouve ?? {
+          label: `Point ${lat.toFixed(5)}, ${lon.toFixed(5)}`,
+          nom: "Point sélectionné",
+          type: options.type ?? "coordonnees",
+          lat,
+          lon,
+          distanceM: options.accuracy ?? null,
+          score: null,
+        };
+        if (options.type === "gps") lieuSelectionne = { ...lieuSelectionne, type: "gps", distanceM: options.accuracy ?? lieuSelectionne.distanceM };
+      }
       etat = "ok";
+      if (marqueurRadar) marqueurRadar.setLngLat([lon, lat]);
+      if (mapRadar && options.deplacerCarte) mapRadar.easeTo({ center: [lon, lat] });
+      if (mapRadar && radar?.frames?.length) rechargerFramesRadar();
     } catch (cause) {
       console.error("météo localisée indisponible", cause);
       if (numeroRequete !== requeteCourante) return;
+      if (options.silencieux) return;
       etat = "erreur";
       erreur = "Les données météo sont momentanément indisponibles. La Vigilance officielle reste accessible dans les détails.";
     }
+  }
+
+  function rafraichir() {
+    const lat = Number(latitudeSaisie);
+    const lon = Number(longitudeSaisie);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    chargerPoint(lat, lon, { silencieux: true });
+  }
+
+  function surRetourOnglet() {
+    if (document.visibilityState !== "visible") return;
+    if (Date.now() - derniereMajMs < 5 * 60 * 1000) return;
+    rafraichir();
   }
 
   function programmerRecherche() {
@@ -284,9 +431,7 @@
       ({ coords }) => chargerPoint(coords.latitude, coords.longitude, { deplacerCarte: true, type: "gps", accuracy: coords.accuracy }),
       () => {
         etat = "erreur";
-        erreur = modeEssentiel
-          ? "Votre position n’a pas pu être obtenue. Choisissez un point sur la carte."
-          : "Votre position n’a pas pu être obtenue. Recherchez une adresse ou choisissez un point sur la carte.";
+        erreur = "Votre position n’a pas pu être obtenue. Recherchez une adresse ou choisissez un point sur la carte.";
       },
       { enableHighAccuracy: true, timeout: 12_000, maximumAge: 120_000 },
     );
@@ -346,6 +491,8 @@
 
   onMount(() => {
     timerHorloge = window.setInterval(() => { horloge = Date.now(); }, 60_000);
+    timerRefresh = window.setInterval(rafraichir, 15 * 60 * 1000);
+    document.addEventListener("visibilitychange", surRetourOnglet);
     try {
       const stocke = JSON.parse(localStorage.getItem(CLE_FAVORI) ?? "null");
       if (stocke && Number.isFinite(Number(stocke.lat)) && Number.isFinite(Number(stocke.lon))) favori = stocke;
@@ -360,7 +507,11 @@
   onDestroy(() => {
     clearTimeout(timerRecherche);
     clearInterval(timerHorloge);
+    clearInterval(timerRefresh);
+    clearInterval(timerRadar);
+    document.removeEventListener("visibilitychange", surRetourOnglet);
     map?.remove();
+    mapRadar?.remove();
   });
 
   $: observation = donnees?.observation ?? null;
@@ -370,6 +521,7 @@
   $: temperatureActuelle = valeur(maintenantModele, "temperature_2m") ?? nombre(heures[0]?.temperature) ?? nombre(mesure?.t);
   $: ressentiActuel = valeur(maintenantModele, "apparent_temperature") ?? nombre(heures[0]?.ressenti) ?? temperatureActuelle;
   $: codeActuel = valeur(maintenantModele, "weather_code") ?? nombre(heures[0]?.code);
+  $: estJourActuel = valeur(maintenantModele, "is_day") ?? nombre(heures[0]?.estJour);
   $: humiditeActuelle = valeur(maintenantModele, "relative_humidity_2m") ?? nombre(heures[0]?.humidite) ?? nombre(mesure?.humidite);
   $: ventActuel = valeur(maintenantModele, "wind_speed_10m") ?? nombre(heures[0]?.vent) ?? nombre(mesure?.vent_kmh);
   $: directionActuelle = valeur(maintenantModele, "wind_direction_10m") ?? nombre(heures[0]?.direction) ?? nombre(mesure?.vent_dir);
@@ -379,9 +531,11 @@
   $: joursEcmwf = construireJoursEcmwf(donnees?.moyenTerme?.daily, donnees?.moyenTerme?.ensemble);
   $: signal = signalAProximite(heures);
   $: pluie12h = heures.slice(0, 12).reduce((somme, heure) => somme + (nombre(heure.pluie) ?? 0), 0);
+  $: neige12h = heures.slice(0, 12).reduce((somme, heure) => somme + (nombre(heure.neige) ?? 0), 0);
   $: qualiteAir = donnees?.qualiteAir?.current ?? null;
   $: indiceAir = libelleAQI(valeur(qualiteAir, "european_aqi"));
-  $: modeEssentiel = mode === "essentiel";
+  $: radarPoint = radar?.point ?? null;
+  $: radarPrecipitation = Boolean(radarPoint && radarPoint.intensite && radarPoint.intensite !== "aucune");
   $: favoriActuel = Boolean(favori && Math.abs(Number(favori.lat) - Number(latitudeSaisie)) < 0.00001 && Math.abs(Number(favori.lon) - Number(longitudeSaisie)) < 0.00001);
   $: precisionPosition = lieuSelectionne?.type === "gps"
     ? `GPS ± ${arrondi(lieuSelectionne.distanceM)} m`
@@ -403,17 +557,17 @@
         <p class="adresse-complete">{lieuSelectionne?.label}</p>
       </div>
       <div class="actions-lieu">
-        {#if !modeEssentiel}<button type="button" class="bouton-icone" class:actif={favoriActuel} on:click={basculerFavori} aria-label={favoriActuel ? "Retirer des favoris" : "Enregistrer comme Maison"} title={favoriActuel ? "Retirer des favoris" : "Enregistrer comme Maison"}>★</button>{/if}
+        <button type="button" class="bouton-icone" class:actif={favoriActuel} on:click={basculerFavori} aria-label={favoriActuel ? "Retirer des favoris" : "Enregistrer comme Maison"} title={favoriActuel ? "Retirer des favoris" : "Enregistrer comme Maison"}>★</button>
         <button type="button" class="bouton-gps" on:click={meLocaliser} aria-label="Utiliser ma position">⌖ <span>Ma position</span></button>
       </div>
     </div>
 
-    {#if !modeEssentiel}<div class="precision" data-testid="precision-localisation">
-        <span class="point-precision"></span>
-        <span><strong>{precisionPosition}</strong> · prévision AROME sur une maille de 1,5 à 2,5 km</span>
-      </div>{/if}
+    <div class="precision" data-testid="precision-localisation">
+      <span class="point-precision" aria-hidden="true"></span>
+      <span><strong>{precisionPosition}</strong> · prévision AROME sur une maille de 1,5 à 2,5 km</span>
+    </div>
 
-    {#if !modeEssentiel}<div class="recherche-wrap">
+    <div class="recherche-wrap">
       <label class="sr-only" for="recherche-lieu">Rechercher une adresse ou un lieu-dit</label>
       <span aria-hidden="true">⌕</span>
       <input id="recherche-lieu" bind:value={recherche} on:input={programmerRecherche} autocomplete="off" placeholder="Adresse ou lieu-dit" />
@@ -427,9 +581,9 @@
       {:else if etatRecherche === "vide"}
         <p class="suggestions vide">Aucun lieu trouvé.</p>
       {/if}
-      </div>{/if}
+    </div>
 
-    {#if !modeEssentiel && favori && !favoriActuel}
+    {#if favori && !favoriActuel}
       <button type="button" class="raccourci-favori" on:click={utiliserFavori}>⌂ Maison · {favori.nom}</button>
     {/if}
 
@@ -442,14 +596,25 @@
     {#if donnees}
       <div class="maintenant">
         <div class="temperature">
-          <strong>{arrondi(temperatureActuelle)}<sup>°</sup></strong>
-          <div><span class="symbole-grand" aria-hidden="true">{symboleMeteo(codeActuel)}</span><p>{CODES_WMO[codeActuel] ?? "Conditions locales"}</p></div>
+          <strong>{arrondi(temperatureActuelle)}<span>°C</span></strong>
+          <div><span class="symbole-grand" aria-hidden="true">{symboleMeteo(codeActuel, estJourActuel)}</span><p>{CODES_WMO[codeActuel] ?? "Conditions locales"}</p></div>
         </div>
         <p class="ressenti">Ressenti {arrondi(ressentiActuel)} °C · actualisé {actualiseDepuis(maintenantModele?.time ?? donnees.genereLe)}</p>
       </div>
 
-      <div class="essentiels" class:essentiels-restreints={modeEssentiel} aria-label="Conditions essentielles">
-        {#if !modeEssentiel}<div><span>Pluie 12 h</span><strong>{arrondi(pluie12h, 1)} mm</strong></div>{/if}
+      {#if radarPrecipitation}
+        <div class={`radar-badge radar-badge-${radarPoint.intensite}`} data-testid="radar-badge">
+          <span class="radar-pastille" aria-hidden="true">☂</span>
+          <div>
+            <strong>Radar · {LIBELLE_RADAR[radarPoint.intensite]} en cours</strong>
+            <p>Précipitations vues par radar {actualiseDepuis(isoFrameRadar(radarPoint.frameTime))} · RainViewer. Le modèle AROME peut ne pas encore l’afficher.</p>
+          </div>
+          <a href="#radar-precipitations">Voir le radar</a>
+        </div>
+      {/if}
+
+      <div class="essentiels" aria-label="Conditions essentielles">
+        <div><span>Pluie 12 h</span><strong>{arrondi(pluie12h, 1)} mm</strong></div>
         <div><span>Vent</span><strong>{arrondi(ventActuel)} km/h {directionVent(directionActuelle)}</strong></div>
         <div><span>Rafales</span><strong>{arrondi(rafaleActuelle)} km/h</strong></div>
         <div><span>Humidité</span><strong>{arrondi(humiditeActuelle)} %</strong></div>
@@ -463,20 +628,20 @@
 
       <div class="mini-heures" aria-label="Résumé des prochaines heures">
         {#each heures.slice(0, 4) as heure, index}
-          <div><span>{index === 0 ? "Maintenant" : heureCourte(heure.time)}</span><b aria-hidden="true">{symboleMeteo(heure.code)}</b><strong>{arrondi(heure.temperature)}°</strong><small>{arrondi(heure.pluie, 1)} mm</small></div>
+          <div><span>{index === 0 ? "Maintenant" : heureCourte(heure.time)}</span><b aria-hidden="true">{symboleMeteo(heure.code, heure.estJour)}</b><strong>{arrondi(heure.temperature)}°</strong><small>{arrondi(heure.pluie, 1)} mm</small></div>
         {/each}
       </div>
     {/if}
   </div>
 
   {#if donnees}
-    {#if !modeEssentiel}<nav class="navigation-details" aria-label="Détails météo">
+    <nav class="navigation-details" aria-label="Détails météo">
       <a href="#heure-par-heure"><span>◷</span>Heures</a>
       <a href="#jours"><span>▦</span>Jours</a>
       <a href="#pluie-vent"><span>☂</span>Pluie & vent</a>
       <a href="#vigilance"><span>!</span>Alertes</a>
       <a href="#precision-sources"><span>◎</span>Précision</a>
-      </nav>{/if}
+    </nav>
 
     {#if donnees.perime}<p class="alerte-partielle">Dernières données connues : l’actualisation a échoué.</p>{/if}
     {#if donnees.sourcesIndisponibles?.length}<p class="alerte-partielle">Réponse partielle — indisponible : {donnees.sourcesIndisponibles.join(", ")}.</p>{/if}
@@ -485,14 +650,15 @@
       <section id="heure-par-heure" class="section-detail">
         <header><div><p class="section-label">Aujourd’hui · {dateLongue()}</p><h2>Heure par heure</h2></div><span>AROME</span></header>
         <div class="heures-scroll">
-          {#each heures.slice(0, modeEssentiel ? 8 : 16) as heure, index}
+          {#each heures.slice(0, 16) as heure, index}
             <article class:maintenant-carte={index === 0}>
               <time>{index === 0 ? "Maint." : heureCourte(heure.time)}</time>
-              <b aria-hidden="true">{symboleMeteo(heure.code)}</b>
+              <b aria-hidden="true">{symboleMeteo(heure.code, heure.estJour)}</b>
               <strong>{arrondi(heure.temperature)}°</strong>
               <span>ress. {arrondi(heure.ressenti ?? heure.temperature)}°</span>
               <small>{arrondi(heure.pluie, 1)} mm</small>
               <small>raf. {arrondi(heure.rafale)}</small>
+              {#if nombre(heure.neige) > 0}<small>{arrondi(heure.neige, 1)} cm</small>{/if}
             </article>
           {/each}
         </div>
@@ -505,31 +671,78 @@
             <article class:transition-modele={index >= 2}>
               <div><strong>{dateCourte(jour.date)}</strong>{#if index === 2}<small>Relais progressif ARPEGE</small>{/if}</div>
               <span class="symbole-jour" aria-hidden="true">{symboleMeteo(jour.code)}</span>
-              <div class="condition-jour"><span>{CODES_WMO[jour.code] ?? "Prévision"}</span><small>{arrondi(jour.pluie, 1)} mm · raf. {arrondi(jour.rafale)} km/h</small></div>
+              <div class="condition-jour"><span>{CODES_WMO[jour.code] ?? "Prévision"}</span><small>{arrondi(jour.pluie, 1)} mm{#if nombre(jour.neige) > 0} · {arrondi(jour.neige, 1)} cm{/if} · raf. {arrondi(jour.rafale)} km/h</small></div>
               <div class="temperatures-jour"><strong>{arrondi(jour.tMax)}°</strong><span>{arrondi(jour.tMin)}°</span></div>
             </article>
           {/each}
         </div>
       </section>
 
-      {#if !modeEssentiel}<section id="pluie-vent" class="section-detail">
+      <section id="pluie-vent" class="section-detail">
         <header><div><p class="section-label">À votre point</p><h2>Pluie, vent et atmosphère</h2></div></header>
         <div class="grille-indicateurs">
           <article><span>Pluie prévue · 12 h</span><strong>{arrondi(pluie12h, 1)} mm</strong><small>Cumul du modèle au point choisi</small></article>
+          {#if neige12h > 0}<article><span>Neige prévue · 12 h</span><strong>{arrondi(neige12h, 1)} cm</strong><small>Cumul du modèle au point choisi</small></article>{/if}
           <article><span>Vent actuel estimé</span><strong>{arrondi(ventActuel)} km/h</strong><small>{directionVent(directionActuelle)} · rafales {arrondi(rafaleActuelle)} km/h</small></article>
           <article><span>Humidité</span><strong>{arrondi(humiditeActuelle)} %</strong><small>Estimation AROME</small></article>
           <article><span>Pression</span><strong>{arrondi(pressionActuelle)} hPa</strong><small>Pression à l’altitude du point modèle</small></article>
         </div>
-        </section>{/if}
+      </section>
+
+      {#if radar && radar.frames?.length}
+        <details id="radar-precipitations" class="section-detail radar-section" on:toggle={ouvrirRadar}>
+          <summary><span><small>Observation radar · RainViewer</small><strong>Radar de précipitations</strong></span><b>Ouvrir</b></summary>
+          <div class="radar-contenu">
+            <p class="radar-intro">Pluie observée (2 h passées) et courte projection. Le radar mesure l’intensité des précipitations, pas la foudre : il peut révéler une averse que le modèle AROME n’affiche pas encore.</p>
+            <div class="radar-carte" bind:this={conteneurRadar} aria-label="Carte radar des précipitations"></div>
+            <div class="radar-legende">
+              {#if frameRadarCourante}
+                <span class="radar-heure">{frameRadarCourante.kind === "prevu" ? "Prévu" : "Observé"} · {heureFrameRadar(frameRadarCourante)}</span>
+              {/if}
+              <span class="radar-attribution">Radar : RainViewer · fond IGN</span>
+            </div>
+          </div>
+        </details>
+      {/if}
 
       <section id="vigilance" class="section-detail vigilance-section">
         <header><div><p class="section-label danger">Sécurité · source officielle</p><h2>Vigilance et alertes</h2></div><span class="badge-officiel">Météo-France</span></header>
         {#if donnees.vigilance}
-          <div class="vigilance-officielle">
-            <strong>Vigilance officielle pour le Gard</strong>
-            <p>Consultez la carte actualisée, le bulletin détaillé et les consignes directement auprès de Météo-France.</p>
-            <a class="lien-action" href={donnees.vigilance.url} target="_blank" rel="noopener">Ouvrir le bulletin officiel et les consignes →</a>
-          </div>
+          {#if donnees.vigilance.indisponible}
+            <div class="vigilance-indisponible">
+              <p>Données de vigilance momentanément indisponibles.</p>
+              <a class="lien-action" href={donnees.vigilance.url} target="_blank" rel="noopener">Consulter le bulletin officiel Météo-France →</a>
+            </div>
+          {:else}
+            <div class="vigilance-donnees">
+              <div class="vigilance-entete">
+                <span class="vigilance-global vigilance-{donnees.vigilance.couleurMax}">
+                  Niveau global&nbsp;: {donnees.vigilance.couleurMax === "vert" ? "Vert" : donnees.vigilance.couleurMax === "jaune" ? "Jaune" : donnees.vigilance.couleurMax === "orange" ? "Orange" : "Rouge"}
+                </span>
+                {#if donnees.vigilance.miseAJour}
+                  <small>Mise à jour {dateHeure(donnees.vigilance.miseAJour)}</small>
+                {/if}
+              </div>
+              {#each donnees.vigilance.periodes as periode}
+                <div class="vigilance-periode">
+                  <h3>{periode.echeance === "J" ? "Aujourd'hui" : "Demain"}</h3>
+                  {#if periode.phenomenes.length === 0}
+                    <p class="vigilance-calme">Pas de vigilance particulière</p>
+                  {:else}
+                    <ul class="vigilance-phenomenes">
+                      {#each periode.phenomenes as phenomene}
+                        <li class="vigilance-phenomene">
+                          <span class="vigilance-nom">{phenomene.nom}</span>
+                          <span class="vigilance-badge vigilance-{phenomene.couleur}">{phenomene.couleur === "vert" ? "Vert" : phenomene.couleur === "jaune" ? "Jaune" : phenomene.couleur === "orange" ? "Orange" : "Rouge"}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                  {/if}
+                </div>
+              {/each}
+              <a class="lien-action" href={donnees.vigilance.url} target="_blank" rel="noopener">Ouvrir le bulletin officiel et les consignes →</a>
+            </div>
+          {/if}
         {:else}
           <p>Ce point se trouve hors du territoire couvert par cette intégration de la Vigilance.</p>
         {/if}
@@ -546,18 +759,34 @@
         {:else}<p>Données de qualité de l’air indisponibles.</p>{/if}
       </section>
 
-      {#if !modeEssentiel}<section id="precision-sources" class="section-detail precision-section">
+      <section id="precision-sources" class="section-detail precision-section">
         <header><div><p class="section-label">Transparence</p><h2>Précision réelle et sources</h2></div></header>
         <div class="precision-cards">
           <article><span class="numero">1</span><div><strong>Position demandée</strong><p>{precisionPosition} · {latitudeSaisie}, {longitudeSaisie}. Adresse et lieux-dits : Géoplateforme IGN / BAN.</p></div></article>
           <article><span class="numero">2</span><div><strong>Prévision au point</strong><p>{donnees.courtTerme?.modele ?? "Météo-France AROME / ARPEGE"} · {donnees.courtTerme?.resolution}. Altitude de calcul {arrondi(donnees.courtTerme?.pointModele?.altitudeM)} m.</p></div></article>
           <article><span class="numero">3</span><div><strong>Mesure de comparaison</strong>{#if observation}<p>Station Météo-France {observation.station.nom}, à {arrondi(observation.station.distanceKm, 1)} km et {observation.station.altitudeM} m · relevé du {dateHeure(mesure?.heure_utc)}{observation.perime ? " · mesure ancienne" : ""}.</p>{:else}<p>Aucune station récente disponible à proximité.</p>{/if}</div></article>
         </div>
+
+        {#if observation}
+          <div class="observation-station">
+            <p class="section-label">Observation de station</p>
+            <h3>{observation.station.nom}</h3>
+            <p class="obs-meta">À {arrondi(observation.station.distanceKm, 1)} km · altitude {observation.station.altitudeM} m · relevé du {dateHeure(mesure?.heure_utc)}{observation.perime ? " · mesure ancienne" : ""}</p>
+            <dl class="obs-mesures">
+              <div><dt>Température</dt><dd>{arrondi(mesure?.t)} °C</dd></div>
+              <div><dt>Humidité</dt><dd>{arrondi(mesure?.humidite)} %</dd></div>
+              <div><dt>Vent</dt><dd>{arrondi(mesure?.vent_kmh)} km/h</dd></div>
+              <div><dt>Rafales</dt><dd>{arrondi(mesure?.rafale_kmh)} km/h</dd></div>
+              <div><dt>Pluie 1 h</dt><dd>{arrondi(mesure?.pluie_1h_mm, 1)} mm</dd></div>
+            </dl>
+          </div>
+        {/if}
+
         <div class="avertissement-relief"><strong>Pourquoi ce n’est pas une météo “à la porte près”</strong><p>Dans les Cévennes, l’altitude, l’exposition et les vallées peuvent modifier rapidement pluie, vent et température. La position peut être précise, mais AROME représente une maille de 1,5 à 2,5 km et une station décrit d’abord son propre emplacement.</p></div>
         <p class="note-source">Modèles Météo-France diffusés et adaptés par Open-Meteo. Pour une décision de sécurité, la Vigilance et les consignes officielles priment.</p>
-        </section>{/if}
+      </section>
 
-      {#if !modeEssentiel}<details class="section-detail tendance-ecmwf">
+      <details class="section-detail tendance-ecmwf">
         <summary><span><small>J+3 à J+10 · 51 scénarios</small><strong>Tendance probabiliste ECMWF</strong></span><b>Voir les détails</b></summary>
         <div class="ecmwf-contenu">
           {#if donnees.moyenTerme && joursEcmwf.length}
@@ -573,7 +802,7 @@
             <a class="lien-action" href={donnees.liens.ecmwf} target="_blank" rel="noopener">Vérifier le météogramme officiel ECMWF →</a>
           {:else}<p>La tendance ECMWF est indisponible.</p>{/if}
         </div>
-        </details>{/if}
+      </details>
 
       <details class="section-detail choisir-lieu" on:toggle={redimensionnerCarte}>
         <summary><span><small>Réglage fin</small><strong>Choisir le point sur la carte</strong></span><b>Ouvrir</b></summary>
@@ -589,152 +818,232 @@
       </details>
     </div>
   {/if}
+
+<div class="contrepoints" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
 </section>
 
 <style>
-  .meteo-app { width: 100%; min-width: 0; max-width: 72rem; margin: 0 auto 4rem; overflow-x: clip; }
-  .meteo-hero { min-height: min(47rem, calc(100svh - 5rem)); padding: clamp(1.2rem, 4vw, 2.5rem); color: var(--meteo-hero-text); background: var(--meteo-background); border-radius: 1.2rem; box-shadow: 0 1.2rem 3rem rgba(15, 30, 35, 0.2); }
-  .hero-top { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
-  .sur-titre, .section-label { margin: 0 0 0.35rem; color: #d49b69; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; }
-  .lieu-courant h1 { margin: 0; color: #fff; font-family: var(--font-body); font-size: clamp(1.55rem, 5vw, 2.5rem); line-height: 1.05; }
-  .adresse-complete { margin: 0.4rem 0 0; max-width: 44rem; color: var(--meteo-hero-muted); font-size: 0.85rem; }
+  .meteo-app {
+    --bleu: #0047ab;
+    --noir: #1a1a1a;
+    --gris: #686868;
+    --papier: #fcfcfa;
+    --filet: rgba(26, 26, 26, 0.16);
+    width: 100%;
+    min-width: 0;
+    max-width: 72rem;
+    margin: 0 auto 4rem;
+    color: var(--noir);
+    background: var(--papier);
+    font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Héro : bande à filets noirs, sur papier */
+  .meteo-hero {
+    min-height: min(47rem, calc(100svh - 5rem));
+    padding: clamp(1.2rem, 4vw, 2.5rem);
+    border-top: 2px solid var(--noir);
+    border-bottom: 2px solid var(--noir);
+    background: var(--papier);
+  }
+  .hero-top { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; padding-bottom: 0.9rem; border-bottom: 1px solid var(--filet); }
+  .sur-titre, .section-label { margin: 0 0 0.35rem; color: var(--bleu); font-size: 0.67rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+  .lieu-courant h1 { margin: 0; color: var(--noir); font-family: Inter, "Helvetica Neue", Arial, sans-serif; font-size: clamp(1.6rem, 5vw, 2.6rem); line-height: 1.0; letter-spacing: -0.04em; font-weight: 800; }
+  .adresse-complete { margin: 0.4rem 0 0; max-width: 44rem; color: var(--gris); font-size: 0.85rem; }
   .actions-lieu { display: flex; gap: 0.45rem; }
-  .bouton-icone, .bouton-gps { min-height: 2.75rem; border: 1px solid rgba(255,255,255,0.2); border-radius: 999px; color: #fff; background: rgba(255,255,255,0.08); cursor: pointer; }
-  .bouton-icone { width: 2.75rem; color: #839196; font-size: 1.1rem; }
-  .bouton-icone.actif { color: #f2b45e; }
-  .bouton-gps { padding: 0 1rem; font-weight: 700; }
-  .precision { display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem; padding: 0.4rem 0.65rem; border: 1px solid rgba(116, 209, 164, 0.24); border-radius: 999px; color: #c2d2d3; background: rgba(13, 69, 47, 0.28); font-size: 0.7rem; }
-  .point-precision { width: 0.48rem; height: 0.48rem; border-radius: 50%; background: #74d1a4; box-shadow: 0 0 0 0.2rem rgba(116,209,164,0.12); }
-  .recherche-wrap { position: relative; display: flex; align-items: center; gap: 0.6rem; margin-top: 1rem; padding: 0 0.85rem; border: 1px solid rgba(255,255,255,0.18); border-radius: 0.75rem; background: rgba(255,255,255,0.08); }
-  .recherche-wrap > span:first-child { font-size: 1.3rem; }
-  .recherche-wrap input { width: 100%; min-width: 0; height: 3rem; border: 0; outline: 0; color: #fff; background: transparent; font: inherit; }
-  .recherche-wrap input::placeholder { color: #9fadaf; }
-  .recherche-statut { color: var(--meteo-hero-muted); font-size: 0.72rem; white-space: nowrap; }
-  .suggestions { position: absolute; z-index: 20; top: calc(100% + 0.35rem); right: 0; left: 0; margin: 0; padding: 0.35rem; border: 1px solid #405158; border-radius: 0.75rem; color: #fff; background: #17272c; box-shadow: 0 1rem 2rem rgba(0,0,0,.35); list-style: none; }
-  .suggestions button { display: grid; gap: 0.15rem; width: 100%; padding: 0.7rem; border: 0; border-radius: 0.5rem; color: #fff; background: transparent; text-align: left; cursor: pointer; }
-  .suggestions button:hover, .suggestions button:focus-visible { background: rgba(255,255,255,.09); }
-  .suggestions button span { color: var(--meteo-hero-muted); font-size: 0.72rem; }
+  .bouton-icone, .bouton-gps { min-height: 2.75rem; border: 2px solid var(--bleu); border-radius: 0; color: var(--bleu); background: var(--papier); font: inherit; font-weight: 800; cursor: pointer; }
+  .bouton-icone { width: 2.75rem; color: var(--gris); font-size: 1.1rem; }
+  .bouton-icone.actif { color: #fff; background: var(--bleu); }
+  .bouton-gps { padding: 0 1rem; display: inline-flex; align-items: center; gap: 0.45rem; }
+  .bouton-gps:hover, .bouton-gps:focus-visible, .bouton-icone:hover, .bouton-icone:focus-visible { color: #fff; background: var(--bleu); outline: 0; }
+  .bouton-gps:focus-visible, .bouton-icone:focus-visible { box-shadow: 0 0 0 3px var(--papier), 0 0 0 5px var(--bleu); }
+  .precision { display: inline-flex; align-items: flex-start; gap: 0.5rem; margin-top: 1rem; padding: 0.4rem 0.65rem; border: 1px solid var(--noir); background: var(--papier); color: var(--noir); font-size: 0.7rem; }
+  .point-precision { width: 0.6rem; height: 0.6rem; margin-top: 0.12rem; flex: 0 0 auto; background: var(--bleu); }
+  .recherche-wrap { position: relative; display: flex; align-items: center; gap: 0.6rem; margin-top: 1rem; padding: 0 0.85rem; border: 1px solid var(--noir); background: var(--papier); }
+  .recherche-wrap > span:first-child { font-size: 1.3rem; color: var(--noir); }
+  .recherche-wrap input { width: 100%; min-width: 0; height: 3rem; border: 0; outline: 0; color: var(--noir); background: transparent; font: inherit; }
+  .recherche-wrap input::placeholder { color: var(--gris); }
+  .recherche-statut { color: var(--gris); font-size: 0.72rem; white-space: nowrap; }
+  .suggestions { position: absolute; z-index: 20; top: calc(100% + 0.35rem); right: 0; left: 0; margin: 0; padding: 0.35rem; border: 1px solid var(--noir); color: var(--noir); background: var(--papier); list-style: none; }
+  .suggestions button { display: grid; gap: 0.15rem; width: 100%; padding: 0.7rem; border: 0; color: var(--noir); background: transparent; text-align: left; cursor: pointer; font: inherit; }
+  .suggestions button:hover, .suggestions button:focus-visible { background: rgba(0, 71, 171, 0.06); }
+  .suggestions button span { color: var(--gris); font-size: 0.72rem; }
   .suggestions.vide { padding: 0.8rem; font-size: 0.8rem; }
-  .raccourci-favori { margin-top: 0.65rem; border: 0; color: #f2d5b6; background: transparent; cursor: pointer; }
-  .etat-hero { margin-top: 1rem; padding: 0.7rem; border: 1px solid rgba(255,255,255,.18); border-radius: .6rem; color: var(--meteo-hero-muted); }
-  .etat-hero.erreur { border-color: #d97561; color: #ffd2c8; }
+  .raccourci-favori { margin-top: 0.65rem; border: 0; color: var(--bleu); background: transparent; cursor: pointer; font: inherit; font-weight: 700; }
+  .etat-hero { margin-top: 1rem; padding: 0.7rem; border: 1px solid var(--noir); color: var(--noir); font-size: 0.8rem; }
+  .etat-hero.erreur { border-left: 4px solid #e63946; }
   .maintenant { margin-top: clamp(1.4rem, 5vw, 3rem); }
   .temperature { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-  .temperature > strong { font-size: clamp(4.8rem, 18vw, 8.5rem); font-weight: 300; letter-spacing: -0.08em; line-height: 0.85; }
-  .temperature sup { font-size: 0.42em; vertical-align: top; }
+  .temperature > strong { font-size: clamp(4.8rem, 18vw, 8.5rem); font-weight: 800; letter-spacing: -0.06em; line-height: 0.8; }
+  .temperature > strong > span { display: inline-block; margin-left: 0.06em; font-size: 0.22em; font-weight: 700; letter-spacing: -0.03em; vertical-align: top; }
   .temperature > div { display: grid; justify-items: end; gap: 0.2rem; }
-  .symbole-grand { color: #fff; font-family: "Segoe UI Symbol", sans-serif; font-size: clamp(3.5rem, 10vw, 6rem); font-weight: 300; line-height: 1; }
-  .temperature p { margin: 0; color: #d8e1e1; font-size: 1rem; }
-  .ressenti { margin: 0.8rem 0 0; color: var(--meteo-hero-muted); }
+  .symbole-grand { color: var(--noir); font-family: "Segoe UI Symbol", sans-serif; font-size: clamp(3.5rem, 10vw, 6rem); font-weight: 300; line-height: 1; }
+  .temperature p { margin: 0; color: var(--noir); font-size: 1rem; }
+  .ressenti { margin: 0.8rem 0 0; color: var(--gris); font-size: 0.78rem; }
   .essentiels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.65rem; margin-top: 1.4rem; }
-  .essentiels.essentiels-restreints { grid-template-columns: repeat(3, 1fr); }
-  .essentiels div { display: grid; gap: 0.2rem; padding: 0.75rem 0; border-top: 1px solid rgba(255,255,255,.14); }
-  .essentiels span { color: var(--meteo-hero-muted); font-size: 0.67rem; }
-  .essentiels strong { font-size: 0.9rem; }
-  .signal { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem; margin-top: 1rem; padding: 0.8rem; border: 1px solid rgba(255,255,255,.15); border-radius: 0.75rem; background: rgba(255,255,255,.06); }
-  .signal-attention, .signal-information { border-color: rgba(242,180,94,.45); background: rgba(111,70,29,.22); }
-  .signal-alerte { border-color: rgba(238,108,82,.55); background: rgba(112,37,26,.3); }
-  .signal-icone { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border: 1px solid currentColor; border-radius: 50%; }
-  .signal p { margin: 0.12rem 0 0; color: var(--meteo-hero-muted); font-size: 0.72rem; }
-  .signal a { color: #f4d1ad; font-size: 0.75rem; }
-  .mini-heures { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 1rem; border-top: 1px solid rgba(255,255,255,.14); }
-  .mini-heures div { display: grid; justify-items: center; gap: 0.15rem; padding: 0.8rem 0.25rem 0; border-left: 1px solid rgba(255,255,255,.1); }
+  .essentiels div { display: grid; gap: 0.2rem; padding: 0.75rem 0; border-top: 2px solid var(--noir); }
+  .essentiels span { color: var(--gris); font-size: 0.64rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+  .essentiels strong { font-size: 0.95rem; font-weight: 800; }
+  .signal { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem; margin-top: 1rem; padding: 0.8rem; border: 1px solid var(--noir); border-left: 6px solid var(--noir); background: var(--papier); }
+  .signal-attention, .signal-information { border-left-color: var(--bleu); }
+  .signal-alerte { border-left-color: #e63946; }
+  .signal-icone { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border: 1px solid var(--noir); color: var(--noir); }
+  .signal p { margin: 0.12rem 0 0; color: var(--gris); font-size: 0.72rem; }
+  .signal a { color: var(--bleu); font-size: 0.75rem; font-weight: 800; }
+  .mini-heures { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 1rem; border-top: 1px solid var(--filet); }
+  .mini-heures div { display: grid; justify-items: center; gap: 0.15rem; padding: 0.8rem 0.25rem 0; border-left: 1px solid var(--filet); }
   .mini-heures div:first-child { border-left: 0; }
-  .mini-heures span, .mini-heures small { color: var(--meteo-hero-muted); font-size: 0.65rem; }
-  .mini-heures b { font-family: "Segoe UI Symbol", sans-serif; font-size: 1.4rem; font-weight: 400; }
-  .navigation-details { position: sticky; z-index: 10; top: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; margin: 1rem 0; padding: 0.5rem; border: 1px solid var(--border); border-radius: 1rem; background: color-mix(in srgb, var(--surface) 94%, transparent); box-shadow: var(--shadow); backdrop-filter: blur(12px); }
-  .navigation-details a { display: grid; justify-items: center; gap: 0.2rem; padding: 0.5rem 0.25rem; border-radius: 0.65rem; color: var(--text); font-size: 0.66rem; text-decoration: none; }
-  .navigation-details a:hover { background: var(--surface-muted); }
+  .mini-heures span, .mini-heures small { color: var(--gris); font-size: 0.65rem; }
+  .mini-heures b { font-family: "Segoe UI Symbol", sans-serif; font-size: 1.4rem; font-weight: 400; color: var(--noir); }
+  .mini-heures strong { font-weight: 800; }
+  .navigation-details { position: sticky; z-index: 10; top: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; margin: 1rem 0; padding: 0.5rem; border-top: 1px solid var(--noir); border-bottom: 1px solid var(--noir); background: var(--papier); }
+  .navigation-details a { display: grid; justify-items: center; gap: 0.2rem; padding: 0.5rem 0.25rem; color: var(--bleu); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; text-decoration: none; }
+  .navigation-details a:hover { background: rgba(0, 71, 171, 0.06); }
   .navigation-details span { font-size: 1.1rem; }
-  .alerte-partielle { padding: 0.8rem; border: 1px solid var(--color-alerte); color: var(--color-alerte); background: var(--surface); }
-  .contenu-details { display: grid; width: 100%; min-width: 0; max-width: 100%; gap: 1rem; }
-  .section-detail { width: 100%; min-width: 0; max-width: 100%; scroll-margin-top: 5rem; padding: clamp(1rem, 3vw, 1.5rem); overflow: hidden; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); }
+  .alerte-partielle { padding: 0.8rem; border: 1px solid var(--noir); border-left: 4px solid #e63946; color: var(--noir); background: #fff1f1; }
+  .contenu-details { display: grid; width: 100%; min-width: 0; max-width: 100%; gap: 1rem; margin-top: 1rem; }
+  .section-detail { width: 100%; min-width: 0; max-width: 100%; scroll-margin-top: 5rem; padding: clamp(1rem, 3vw, 1.5rem); border: 1px solid var(--noir); background: var(--papier); }
   .section-detail > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
-  .section-detail h2 { margin: 0; font-family: var(--font-display); font-size: clamp(1.25rem, 3vw, 1.65rem); }
-  .section-detail > header > span { padding: 0.3rem 0.55rem; border-radius: 999px; color: var(--muted); background: var(--surface-muted); font-size: 0.65rem; font-weight: 700; }
+  .section-detail h2 { margin: 0; font-family: Inter, "Helvetica Neue", Arial, sans-serif; font-size: clamp(1.25rem, 3vw, 1.65rem); font-weight: 800; letter-spacing: -0.03em; }
+  .section-detail > header > span { padding: 0.3rem 0.55rem; border: 1px solid var(--noir); color: var(--bleu); background: var(--papier); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
   .heures-scroll { display: grid; width: 100%; min-width: 0; max-width: 100%; grid-template-columns: repeat(auto-fit, minmax(5.4rem, 1fr)); gap: 0.5rem; }
-  .heures-scroll article { display: grid; min-width: 0; justify-items: center; gap: 0.3rem; padding: 0.75rem 0.45rem; border: 1px solid var(--border); border-radius: 0.75rem; }
-  .heures-scroll article.maintenant-carte { color: #fff; background: var(--navy); }
-  .heures-scroll time, .heures-scroll span, .heures-scroll small { font-size: 0.67rem; }
-  .heures-scroll b { font-family: "Segoe UI Symbol", sans-serif; font-size: 1.7rem; font-weight: 400; }
+  .heures-scroll article { display: grid; min-width: 0; justify-items: center; gap: 0.3rem; padding: 0.75rem 0.45rem; border: 1px solid var(--noir); }
+  .heures-scroll article.maintenant-carte { color: #fff; background: var(--bleu); }
+  .heures-scroll time, .heures-scroll span, .heures-scroll small { font-size: 0.67rem; color: var(--gris); }
+  .heures-scroll article.maintenant-carte time, .heures-scroll article.maintenant-carte span, .heures-scroll article.maintenant-carte small { color: rgba(255, 255, 255, 0.85); }
+  .heures-scroll b { font-family: "Segoe UI Symbol", sans-serif; font-size: 1.7rem; font-weight: 400; color: var(--noir); }
+  .heures-scroll article.maintenant-carte b { color: #fff; }
+  .heures-scroll strong { font-weight: 800; font-size: 1.05rem; }
   .jours-liste { display: grid; gap: 0.5rem; }
-  .jours-liste article { display: grid; min-width: 0; grid-template-columns: minmax(0, 1.2fr) auto minmax(0, 1.5fr) auto; align-items: center; gap: 1rem; padding: 0.85rem; border: 1px solid var(--border); border-radius: 0.75rem; }
+  .jours-liste article { display: grid; min-width: 0; grid-template-columns: minmax(0, 1.2fr) auto minmax(0, 1.5fr) auto; align-items: center; gap: 1rem; padding: 0.85rem; border: 1px solid var(--noir); }
   .jours-liste article.transition-modele { border-style: dashed; }
   .jours-liste article > div:first-child { display: grid; gap: 0.2rem; text-transform: capitalize; }
-  .jours-liste small { color: var(--muted); font-size: 0.67rem; }
-  .jours-liste article > div:first-child small { color: var(--accent); }
-  .symbole-jour { font-family: "Segoe UI Symbol", sans-serif; font-size: 2rem; }
+  .jours-liste small { color: var(--bleu); font-size: 0.67rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  .symbole-jour { font-family: "Segoe UI Symbol", sans-serif; font-size: 2rem; color: var(--noir); }
   .condition-jour { display: grid; gap: 0.2rem; }
-  .temperatures-jour { display: flex; gap: 0.55rem; font-size: 1.1rem; }
-  .temperatures-jour span { color: var(--muted); }
+  .condition-jour span { color: var(--noir); font-weight: 700; }
+  .condition-jour small { color: var(--gris); font-size: 0.67rem; text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .temperatures-jour { display: flex; gap: 0.55rem; font-size: 1.1rem; font-weight: 800; }
+  .temperatures-jour span { color: var(--gris); }
   .grille-indicateurs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
-  .grille-indicateurs article { display: grid; gap: 0.35rem; padding: 1rem; border-radius: 0.8rem; background: var(--surface-muted); }
-  .grille-indicateurs span, .grille-indicateurs small { color: var(--muted); font-size: 0.7rem; }
-  .grille-indicateurs strong { font-size: 1.35rem; }
-  .danger { color: var(--color-alerte); }
-  .badge-officiel { color: #812e1f !important; background: #f5d8d1 !important; }
-  .vigilance-officielle { max-width: 42rem; padding: 1rem; border: 1px solid var(--border); border-radius: 0.75rem; background: var(--surface-muted); }
-  .vigilance-officielle p { margin: 0.35rem 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
-  .lien-action { display: inline-block; margin-top: 0.75rem; font-size: 0.82rem; }
-  .badge-air.bon { color: #285d45 !important; background: #dff1e7 !important; }
-  .badge-air.moyen { color: #71591d !important; background: #f3e8bd !important; }
-  .badge-air.mauvais { color: #812e1f !important; background: #f5d8d1 !important; }
+  .grille-indicateurs article { display: grid; gap: 0.35rem; padding: 1rem; border-top: 2px solid var(--noir); background: var(--papier); }
+  .grille-indicateurs span, .grille-indicateurs small { color: var(--gris); font-size: 0.7rem; }
+  .grille-indicateurs strong { font-size: 1.35rem; font-weight: 800; }
+  .danger { color: #e63946 !important; }
+  .badge-officiel { color: #fff !important; background: #e63946 !important; border-color: #e63946 !important; }
+  .vigilance-indisponible { padding: 1rem; border: 1px solid var(--noir); }
+  .vigilance-indisponible p { margin: 0.35rem 0 0; color: var(--gris); font-size: 0.8rem; line-height: 1.5; }
+  .vigilance-donnees { display: grid; gap: 0.8rem; }
+  .vigilance-entete { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .vigilance-global { padding: 0.4rem 0.7rem; border: 1px solid var(--noir); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  .vigilance-global.vigilance-vert { color: #fff; background: #06a77d; border-color: #06a77d; }
+  .vigilance-global.vigilance-jaune { color: #1a1a1a; background: #FFD600; border-color: #c7a500; }
+  .vigilance-global.vigilance-orange { color: #fff; background: #F77F00; border-color: #c76400; }
+  .vigilance-global.vigilance-rouge { color: #fff; background: #e63946; border-color: #b82d38; }
+  .vigilance-entete small { color: var(--gris); font-size: 0.72rem; }
+  .vigilance-periode { padding: 0.75rem; border: 1px solid var(--filet); }
+  .vigilance-periode h3 { margin: 0 0 0.5rem; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gris); }
+  .vigilance-calme { margin: 0; color: var(--gris); font-size: 0.78rem; }
+  .vigilance-phenomenes { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+  .vigilance-phenomene { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.55rem 0.7rem; border: 1px solid var(--noir); }
+  .vigilance-nom { font-weight: 700; font-size: 0.82rem; }
+  .vigilance-badge { padding: 0.25rem 0.55rem; border: 1px solid var(--noir); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+  .vigilance-badge.vigilance-vert { color: #fff; background: #06a77d; border-color: #06a77d; }
+  .vigilance-badge.vigilance-jaune { color: #1a1a1a; background: #FFD600; border-color: #c7a500; }
+  .vigilance-badge.vigilance-orange { color: #fff; background: #F77F00; border-color: #c76400; }
+  .vigilance-badge.vigilance-rouge { color: #fff; background: #e63946; border-color: #b82d38; }
+  .lien-action { display: inline-block; margin-top: 0.75rem; color: var(--bleu); font-size: 0.82rem; font-weight: 800; }
+  .badge-air { color: #fff !important; }
+  .badge-air.bon { background: #06a77d !important; }
+  .badge-air.moyen { background: #f77f00 !important; }
+  .badge-air.mauvais { background: #e63946 !important; }
   .air-contenu { display: grid; min-width: 0; grid-template-columns: auto minmax(0, 1fr); gap: 1.5rem; align-items: center; }
-  .aqi { display: grid; justify-items: center; min-width: 8rem; padding: 1rem; border-radius: 0.8rem; background: var(--surface-muted); }
-  .aqi span { color: var(--muted); font-size: 0.7rem; }
-  .aqi strong { font-size: 2.8rem; }
+  .aqi { display: grid; justify-items: center; min-width: 8rem; padding: 1rem; border-top: 3px solid var(--bleu); }
+  .aqi span { color: var(--gris); font-size: 0.7rem; }
+  .aqi strong { font-size: 2.8rem; font-weight: 800; }
   .air-contenu dl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin: 0; }
-  .air-contenu dl div { padding: 0.75rem; border-left: 1px solid var(--border); }
-  .air-contenu dt { color: var(--muted); font-size: 0.68rem; }
-  .air-contenu dd { margin: 0.2rem 0 0; font-weight: 700; }
-  .note-source { margin: 0.8rem 0 0; color: var(--muted); font-size: 0.72rem; line-height: 1.45; }
+  .air-contenu dl div { padding: 0.75rem; border-left: 1px solid var(--filet); }
+  .air-contenu dt { color: var(--gris); font-size: 0.68rem; }
+  .air-contenu dd { margin: 0.2rem 0 0; font-weight: 800; }
+  .note-source { margin: 0.8rem 0 0; color: var(--gris); font-size: 0.72rem; line-height: 1.45; }
   .precision-cards { display: grid; gap: 0.6rem; }
-  .precision-cards article { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; padding: 0.8rem; border: 1px solid var(--border); border-radius: 0.75rem; }
-  .precision-cards p { margin: 0.2rem 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.45; }
-  .numero { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; color: #fff; background: var(--navy); font-size: 0.72rem; }
-  .avertissement-relief { margin-top: 0.8rem; padding: 0.9rem; border-left: 4px solid #d49b69; background: var(--surface-muted); }
-  .avertissement-relief p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+  .precision-cards article { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; padding: 0.8rem; border: 1px solid var(--noir); }
+  .precision-cards p { margin: 0.2rem 0 0; color: var(--gris); font-size: 0.78rem; line-height: 1.45; }
+  .numero { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; background: var(--bleu); color: #fff; font-size: 0.72rem; font-weight: 800; }
+  .observation-station { margin-top: 1rem; padding: 1rem; border: 1px solid var(--noir); }
+  .observation-station h3 { margin: 0.2rem 0 0.3rem; font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; }
+  .obs-meta { margin: 0 0 0.8rem; color: var(--gris); font-size: 0.74rem; }
+  .obs-mesures { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; margin: 0; }
+  .obs-mesures div { padding: 0.6rem 0; border-top: 2px solid var(--bleu); }
+  .obs-mesures dt { color: var(--gris); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+  .obs-mesures dd { margin: 0.2rem 0 0; font-weight: 800; font-size: 1.05rem; }
+  .avertissement-relief { margin-top: 0.8rem; padding: 0.9rem; border-left: 4px solid var(--bleu); background: rgba(0, 71, 171, 0.05); }
+  .avertissement-relief p { margin: 0.25rem 0 0; color: var(--gris); font-size: 0.78rem; line-height: 1.5; }
   details.section-detail { padding: 0; }
-  details.section-detail > summary { display: flex; min-width: 0; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; cursor: pointer; list-style: none; }
+  details.section-detail > summary { display: flex; min-width: 0; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; cursor: pointer; list-style: none; border-bottom: 0; }
   details.section-detail > summary::-webkit-details-marker { display: none; }
   details.section-detail > summary span { display: grid; gap: 0.2rem; }
-  details.section-detail > summary small { color: var(--accent); font-size: 0.68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-  details.section-detail > summary strong { font-family: var(--font-display); font-size: 1.2rem; }
-  details.section-detail > summary b { color: var(--muted); font-size: 0.75rem; }
-  .ecmwf-contenu, .carte-contenu { padding: 0 1.25rem 1.25rem; border-top: 1px solid var(--border); }
-  .jour-ecmwf { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; padding: 0.85rem 0; border-bottom: 1px solid var(--border); }
+  details.section-detail > summary small { color: var(--bleu); font-size: 0.68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  details.section-detail > summary strong { font-family: Inter, "Helvetica Neue", Arial, sans-serif; font-size: 1.2rem; font-weight: 800; }
+  details.section-detail > summary b { color: var(--gris); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  .ecmwf-contenu, .carte-contenu { padding: 0 1.25rem 1.25rem; border-top: 1px solid var(--noir); }
+  .jour-ecmwf { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; padding: 0.85rem 0; border-bottom: 1px solid var(--filet); }
   .jour-ecmwf > div:first-child { display: grid; gap: 0.2rem; }
-  .jour-ecmwf > div:first-child span { color: var(--muted); font-size: 0.7rem; }
-  .dispersion { align-self: start; padding: 0.2rem 0.45rem; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: 0.62rem; }
-  .dispersion.forte { border-color: var(--color-alerte); color: var(--color-alerte); }
+  .jour-ecmwf > div:first-child span { color: var(--gris); font-size: 0.7rem; }
+  .dispersion { align-self: start; padding: 0.2rem 0.45rem; border: 1px solid var(--noir); color: var(--gris); font-size: 0.62rem; font-weight: 700; text-transform: uppercase; }
+  .dispersion.forte { border-color: #e63946; color: #e63946; }
   .jour-ecmwf dl { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin: 0; }
   .jour-ecmwf dl div { display: grid; gap: 0.2rem; }
-  .jour-ecmwf dt { color: var(--muted); font-size: 0.67rem; }
-  .jour-ecmwf dd { margin: 0; font-weight: 700; }
-  .signaux { grid-column: 1 / -1; margin: 0; color: var(--color-alerte); font-size: 0.7rem; }
+  .jour-ecmwf dt { color: var(--gris); font-size: 0.67rem; }
+  .jour-ecmwf dd { margin: 0; font-weight: 800; }
+  .signaux { grid-column: 1 / -1; margin: 0; color: #e63946; font-size: 0.7rem; font-weight: 700; }
   .coordonnees { display: flex; align-items: end; gap: 0.6rem; margin: 1rem 0; }
-  .coordonnees label { display: grid; flex: 1; gap: 0.25rem; color: var(--muted); font-size: 0.7rem; }
-  .coordonnees input { width: 100%; padding: 0.65rem; border: 1px solid var(--border); border-radius: 0.55rem; background: var(--surface); color: var(--text); }
-  .coordonnees button { padding: 0.7rem 0.9rem; border: 0; border-radius: 0.55rem; color: #fff; background: var(--navy); cursor: pointer; }
-  .carte-point { height: 24rem; min-height: 18rem; border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; }
-  .carte-contenu > p { color: var(--muted); font-size: 0.72rem; }
+  .coordonnees label { display: grid; flex: 1; gap: 0.25rem; color: var(--gris); font-size: 0.7rem; }
+  .coordonnees input { width: 100%; padding: 0.65rem; border: 1px solid var(--noir); background: var(--papier); color: var(--noir); font: inherit; }
+  .coordonnees button { padding: 0.7rem 0.9rem; border: 2px solid var(--bleu); background: var(--bleu); color: #fff; cursor: pointer; font: inherit; font-weight: 800; }
+  .coordonnees button:hover, .coordonnees button:focus-visible { background: var(--noir); border-color: var(--noir); outline: 0; }
+  .carte-point { height: 24rem; min-height: 18rem; border: 1px solid var(--noir); overflow: hidden; }
+  .carte-contenu > p { color: var(--gris); font-size: 0.72rem; }
 
-  @media (max-width: 760px) {
-    .meteo-app { margin-right: 0; margin-left: 0; }
-    .meteo-hero { min-height: calc(100svh - 3.5rem); padding: 1.1rem; border-radius: 0; box-shadow: none; }
+  .radar-badge { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.75rem; margin-top: 1rem; padding: 0.8rem; border: 1px solid var(--noir); border-left: 6px solid var(--bleu); background: var(--papier); }
+  .radar-badge.radar-badge-moderee { border-left-color: #f77f00; }
+  .radar-badge.radar-badge-forte { border-left-color: #e63946; }
+  .radar-pastille { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border: 1px solid var(--noir); color: var(--noir); font-family: "Segoe UI Symbol", sans-serif; }
+  .radar-badge strong { font-size: 0.9rem; font-weight: 800; }
+  .radar-badge p { margin: 0.12rem 0 0; color: var(--gris); font-size: 0.72rem; line-height: 1.4; }
+  .radar-badge a { color: var(--bleu); font-size: 0.75rem; font-weight: 800; white-space: nowrap; }
+  .radar-contenu { padding: 0 1.25rem 1.25rem; border-top: 1px solid var(--noir); }
+  .radar-intro { margin: 1rem 0; color: var(--gris); font-size: 0.78rem; line-height: 1.5; }
+  .radar-carte { height: 22rem; min-height: 16rem; border: 1px solid var(--noir); overflow: hidden; }
+  .radar-legende { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.6rem 1rem; margin-top: 0.6rem; }
+  .radar-heure { font-size: 0.72rem; font-weight: 800; color: var(--noir); }
+  .radar-attribution { color: var(--gris); font-size: 0.68rem; }
+
+  .contrepoints { display: flex; gap: 0.3rem; justify-content: flex-end; width: 100%; max-width: 72rem; margin: 0 auto; padding: 0 1rem 2rem; }
+  .contrepoints span { width: 0.42rem; height: 0.42rem; }
+  .contrepoints span:nth-child(1) { background: #ffd600; }
+  .contrepoints span:nth-child(2) { background: #e63946; }
+  .contrepoints span:nth-child(3) { background: #f77f00; }
+  .contrepoints span:nth-child(4) { background: #06a77d; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  @media (max-width: 620px) {
+    .meteo-hero { min-height: calc(100svh - 3.5rem); padding: 1.1rem; border-radius: 0; }
     .hero-top { align-items: center; }
     .bouton-gps span { display: none; }
-    .bouton-gps { width: 2.75rem; padding: 0; }
-    .precision { align-items: flex-start; border-radius: 0.65rem; }
+    .bouton-gps { width: 2.75rem; padding: 0; justify-content: center; }
     .temperature > strong { font-size: clamp(5.5rem, 26vw, 7rem); }
     .symbole-grand { font-size: 4rem; }
-    .essentiels, .essentiels.essentiels-restreints { grid-template-columns: repeat(2, 1fr); gap: 0 0.8rem; }
+    .essentiels { grid-template-columns: repeat(2, 1fr); gap: 0 0.8rem; }
     .signal { grid-template-columns: auto 1fr; }
     .signal a { grid-column: 2; }
-    .navigation-details { top: 0; margin: 0; border-right: 0; border-left: 0; border-radius: 0; }
-    .navigation-details a { font-size: 0.58rem; }
+    .radar-badge { grid-template-columns: auto 1fr; }
+    .radar-badge a { grid-column: 2; }
+    .navigation-details { top: 0; margin: 0; }
     .contenu-details { padding: 0.8rem; }
-    .section-detail { border-radius: 0.85rem; }
     .heures-scroll { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .jours-liste article { grid-template-columns: 1fr auto auto; gap: 0.65rem; }
     .condition-jour { grid-row: 2; grid-column: 1 / -1; }
@@ -742,18 +1051,18 @@
     .grille-indicateurs { grid-template-columns: repeat(2, 1fr); }
     .air-contenu { grid-template-columns: 1fr; }
     .air-contenu dl { grid-template-columns: repeat(2, 1fr); }
+    .obs-mesures { grid-template-columns: repeat(2, 1fr); }
     .jour-ecmwf dl { grid-template-columns: 1fr; }
     .coordonnees { flex-wrap: wrap; }
     .coordonnees label { min-width: 8rem; }
     .coordonnees button { width: 100%; }
   }
 
-  @media (max-width: 390px) {
+  @media (max-width: 350px) {
     .meteo-hero { padding: 0.9rem; }
     .lieu-courant h1 { font-size: 1.4rem; }
     .adresse-complete { font-size: 0.72rem; }
     .maintenant { margin-top: 1.2rem; }
     .mini-heures div { padding-top: 0.65rem; }
-    .navigation-details a:nth-child(3) { line-height: 1.05; text-align: center; }
   }
 </style>

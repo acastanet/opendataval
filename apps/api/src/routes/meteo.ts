@@ -1,7 +1,19 @@
 import type { FastifyInstance } from "fastify";
 import type pg from "pg";
+import { PNG } from "pngjs";
 import { STATIONS_METEO, STATIONS_PAR_ID, TERRITOIRE, stationsMeteoFrance } from "@opendata-vda/shared";
 import { distanceKm, resumerEnsemble, validerCoordonnees } from "../lib/meteoPoint.js";
+import {
+  cheminFrameValide,
+  construireFramesRadar,
+  derniereFramePassee,
+  hoteRadar,
+  intensiteVoisinage,
+  tuilePourPoint,
+  urlTuileCarte,
+  urlTuileEchantillon,
+  type IntensiteRadar,
+} from "../lib/radar.js";
 
 const NUM_POSTE = TERRITOIRE.stationMeteo.numPoste;
 
@@ -15,9 +27,40 @@ const URL_PREVISIONS =
 const TTL_PREVISIONS_MS = 30 * 60 * 1000;
 let cachePrevisions: { expiresAt: number; data: unknown } | null = null;
 
-const TTL_POINT_MS = 20 * 60 * 1000;
+const TTL_POINT_MS = 10 * 60 * 1000;
 const MAX_CACHE_POINTS = 80;
 const cachePoints = new Map<string, { expiresAt: number; data: ReponseMeteoPoint }>();
+
+const URL_VIGILANCE = "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours";
+const TTL_VIGILANCE_MS = 30 * 60 * 1000;
+let cacheVigilance: { expiresAt: number; data: unknown } | null = null;
+
+const URL_RADAR_MAPS = "https://api.rainviewer.com/public/weather-maps.json";
+const TTL_RADAR_MAPS_MS = 2 * 60 * 1000;
+const TTL_RADAR_POINT_MS = 2 * 60 * 1000;
+const ZOOM_ECHANTILLON_RADAR = 9;
+const MAX_CACHE_RADAR_POINTS = 200;
+let cacheRadarMaps: { expiresAt: number; data: unknown } | null = null;
+const cacheRadarPoint = new Map<string, { expiresAt: number; data: IntensiteRadar }>();
+
+const COULEUR_VIGILANCE: Record<number, VigilanceGard["couleurMax"]> = {
+  1: "vert",
+  2: "jaune",
+  3: "orange",
+  4: "rouge",
+};
+
+const PHENOMENE_VIGILANCE: Record<string, string> = {
+  "1": "Vent violent",
+  "2": "Pluie-inondation",
+  "3": "Orages",
+  "4": "Crues",
+  "5": "Neige-verglas",
+  "6": "Canicule",
+  "7": "Grand froid",
+  "8": "Avalanches",
+  "9": "Vagues-submersion",
+};
 
 interface ReponseMeteoPoint {
   localisation: {
@@ -29,7 +72,7 @@ interface ReponseMeteoPoint {
   courtTerme: SourceModele | null;
   moyenTerme: (SourceModele & { ensemble: ReturnType<typeof resumerEnsemble> }) | null;
   qualiteAir: SourceQualiteAir | null;
-  vigilance: { departement: string; code: string; url: string } | null;
+  vigilance: VigilanceGard;
   liens: { ecmwf: string; meteoFrance: string | null };
   sourcesIndisponibles: string[];
   perime: boolean;
@@ -80,6 +123,31 @@ interface ObservationPoint {
     licence: string;
   };
   mesure: Record<string, unknown> | null;
+  perime: boolean;
+}
+
+interface PhenomeneVigilance {
+  id: string;
+  nom: string;
+  couleur: VigilanceGard["couleurMax"];
+}
+
+interface PeriodeVigilance {
+  echeance: "J" | "J1";
+  debut: string | null;
+  fin: string | null;
+  couleurMax: VigilanceGard["couleurMax"];
+  phenomenes: PhenomeneVigilance[];
+}
+
+interface VigilanceGard {
+  departement: string;
+  code: string;
+  url: string;
+  miseAJour: string | null;
+  couleurMax: "vert" | "jaune" | "orange" | "rouge";
+  periodes: PeriodeVigilance[];
+  indisponible: boolean;
   perime: boolean;
 }
 
@@ -276,6 +344,214 @@ async function recupererPrevisions(): Promise<{ data: unknown; perime: boolean }
   }
 }
 
+const ORDRE_COULEUR: Record<VigilanceGard["couleurMax"], number> = { vert: 1, jaune: 2, orange: 3, rouge: 4 };
+
+function couleurDepuisId(id: number): VigilanceGard["couleurMax"] {
+  return COULEUR_VIGILANCE[id] ?? "vert";
+}
+
+function slugDepartement(nom: string): string {
+  return nom
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function urlVigilanceDept(nom: string): string {
+  const slug = slugDepartement(nom);
+  return slug ? `https://vigilance.meteofrance.fr/fr/${slug}` : "https://vigilance.meteofrance.fr/fr";
+}
+
+function vigilanceIndisponible(code: string, nom: string, perime = false): VigilanceGard {
+  return {
+    departement: nom,
+    code,
+    url: urlVigilanceDept(nom),
+    miseAJour: null,
+    couleurMax: "vert",
+    periodes: [],
+    indisponible: true,
+    perime,
+  };
+}
+
+// Parse la réponse nationale DPVigilance pour un département donné (domain_id = code INSEE du département).
+function parserVigilancePourDept(data: unknown, code: string, nom: string): VigilanceGard {
+  const racine = typeof data === "object" && data !== null && !Array.isArray(data) ? (data as Record<string, unknown>) : null;
+  const produit = racine?.product;
+  if (typeof produit !== "object" || produit === null || Array.isArray(produit)) return vigilanceIndisponible(code, nom);
+
+  const periodes = (() => {
+    const brutes = Array.isArray((produit as Record<string, unknown>).periods) ? (produit as Record<string, unknown>).periods as unknown[] : [];
+    return brutes.map((p): PeriodeVigilance | null => {
+      if (typeof p !== "object" || p === null || Array.isArray(p)) return null;
+      const periode = p as Record<string, unknown>;
+      const echeance = typeof periode.echeance === "string" ? (periode.echeance as "J" | "J1") : null;
+      if (echeance !== "J" && echeance !== "J1") return null;
+
+      const debut = typeof periode.begin_validity_time === "string" ? (periode.begin_validity_time as string) : null;
+      const fin = typeof periode.end_validity_time === "string" ? (periode.end_validity_time as string) : null;
+
+      const timelaps = typeof periode.timelaps === "object" && periode.timelaps !== null && !Array.isArray(periode.timelaps)
+        ? (periode.timelaps as Record<string, unknown>)
+        : null;
+      const domaines = timelaps && Array.isArray(timelaps.domain_ids) ? timelaps.domain_ids as unknown[] : [];
+      const dep = domaines.find((d) => typeof d === "object" && d !== null && !Array.isArray(d) && (d as Record<string, unknown>).domain_id === code);
+      if (!dep) return null;
+      const depObj = dep as Record<string, unknown>;
+      const couleurMax = couleurDepuisId(typeof depObj.max_color_id === "number" ? depObj.max_color_id : 1);
+
+      const phenoms: PhenomeneVigilance[] = [];
+      const phenItems = Array.isArray(depObj.phenomenon_items) ? (depObj.phenomenon_items as unknown[]) : [];
+      for (const pi of phenItems) {
+        if (typeof pi !== "object" || pi === null || Array.isArray(pi)) continue;
+        const pItem = pi as Record<string, unknown>;
+        const pId = typeof pItem.phenomenon_id === "string" ? pItem.phenomenon_id : String(pItem.phenomenon_id ?? "");
+        if (!pId) continue;
+        const pMaxColorId = typeof pItem.phenomenon_max_color_id === "number" ? pItem.phenomenon_max_color_id : 1;
+        if (pMaxColorId < 2) continue;
+        const nomPheno = PHENOMENE_VIGILANCE[pId] ?? `Phénomène ${pId}`;
+        phenoms.push({ id: pId, nom: nomPheno, couleur: couleurDepuisId(pMaxColorId) });
+      }
+      phenoms.sort((a, b) => (ORDRE_COULEUR[b.couleur] ?? 0) - (ORDRE_COULEUR[a.couleur] ?? 0));
+
+      return { echeance, debut, fin, couleurMax, phenomenes: phenoms };
+    }).filter((p): p is PeriodeVigilance => p !== null);
+  })();
+
+  const couleurMax: VigilanceGard["couleurMax"] = periodes.length > 0
+    ? [...periodes.map((p) => p.couleurMax)].sort((a, b) => (ORDRE_COULEUR[b] ?? 0) - (ORDRE_COULEUR[a] ?? 0))[0] ?? "vert"
+    : "vert";
+
+  const produitObj = produit as Record<string, unknown>;
+  return {
+    departement: nom,
+    code,
+    url: urlVigilanceDept(nom),
+    miseAJour: typeof produitObj.update_time === "string" ? (produitObj.update_time as string) : null,
+    couleurMax,
+    periodes,
+    indisponible: false,
+    perime: false,
+  };
+}
+
+// Récupère (et met en cache 30 min) la carte de vigilance nationale brute. null si pas de token ou échec sans cache.
+async function recupererVigilanceBrute(): Promise<{ data: unknown; perime: boolean } | null> {
+  const maintenant = Date.now();
+  if (cacheVigilance && cacheVigilance.expiresAt > maintenant) {
+    return { data: cacheVigilance.data, perime: false };
+  }
+  const token = process.env.METEOFRANCE_API_TOKEN_VIGILANCE ?? process.env.METEOFRANCE_API_TOKEN;
+  if (!token) return null;
+  try {
+    const res = await fetch(URL_VIGILANCE, {
+      headers: { apikey: token, "User-Agent": "opendata-vda-api/1.0" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) throw new Error(`DPVigilance -> HTTP ${res.status}`);
+    const data = await res.json();
+    cacheVigilance = { expiresAt: maintenant + TTL_VIGILANCE_MS, data };
+    return { data, perime: false };
+  } catch {
+    if (cacheVigilance) return { data: cacheVigilance.data, perime: true };
+    return null;
+  }
+}
+
+// Département depuis un code INSEE commune (2 chiffres, sauf Corse 2A/2B et DOM 97x/98x).
+function codeDepartementDepuisInsee(insee: string): string | null {
+  const p2 = insee.slice(0, 2).toUpperCase();
+  if (p2 === "2A" || p2 === "2B") return p2;
+  if (p2 === "97" || p2 === "98") return insee.slice(0, 3);
+  if (/^\d{2}$/.test(p2)) return p2;
+  return null;
+}
+
+// Le géocodage inverse BAN/IGN renvoie un `context` "30, Gard, Occitanie" → code + nom du département.
+function extraireDepartement(data: unknown): { code: string; nom: string } | null {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
+  const features = (data as Record<string, unknown>).features;
+  if (!Array.isArray(features) || features.length === 0) return null;
+  const premier = features[0];
+  if (typeof premier !== "object" || premier === null || Array.isArray(premier)) return null;
+  const props = (premier as Record<string, unknown>).properties;
+  if (typeof props !== "object" || props === null || Array.isArray(props)) return null;
+  const p = props as Record<string, unknown>;
+  const context = typeof p.context === "string" ? p.context : null;
+  if (context) {
+    const [code, nom] = context.split(",").map((m) => m.trim());
+    if (code && nom) return { code, nom };
+  }
+  const citycode = typeof p.citycode === "string" ? p.citycode : null;
+  if (citycode) {
+    const code = codeDepartementDepuisInsee(citycode);
+    if (code) return { code, nom: code };
+  }
+  return null;
+}
+
+async function departementPourPoint(lat: number, lon: number): Promise<{ code: string; nom: string } | null> {
+  try {
+    const url = new URL("https://data.geopf.fr/geocodage/reverse");
+    url.searchParams.set("lat", String(lat));
+    url.searchParams.set("lon", String(lon));
+    url.searchParams.set("limit", "1");
+    return extraireDepartement(await fetchJson(url.toString()));
+  } catch {
+    return null;
+  }
+}
+
+// Vigilance du département contenant le point. Chemin rapide pour le territoire (Gard), sinon géocodage inverse.
+// Renvoie toujours un objet (jamais null) : le bandeau doit rester affiché ; repli sur le Gard si le
+// département du point ne peut être résolu (portail territorial Val-d'Aigoual).
+const DEPT_DEFAUT = { code: "30", nom: "Gard" };
+
+async function recupererVigilancePoint(lat: number, lon: number, dansTerritoire: boolean): Promise<VigilanceGard> {
+  const dept = dansTerritoire ? DEPT_DEFAUT : (await departementPourPoint(lat, lon)) ?? DEPT_DEFAUT;
+  const brute = await recupererVigilanceBrute();
+  if (!brute) return vigilanceIndisponible(dept.code, dept.nom);
+  return { ...parserVigilancePourDept(brute.data, dept.code, dept.nom), perime: brute.perime };
+}
+
+async function recupererRadarMaps(): Promise<unknown> {
+  const maintenant = Date.now();
+  if (cacheRadarMaps && cacheRadarMaps.expiresAt > maintenant) return cacheRadarMaps.data;
+  const res = await fetch(URL_RADAR_MAPS, {
+    headers: { "User-Agent": "opendata-vda-api/1.0" },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!res.ok) throw new Error(`RainViewer -> HTTP ${res.status}`);
+  const data = await res.json();
+  cacheRadarMaps = { expiresAt: maintenant + TTL_RADAR_MAPS_MS, data };
+  return data;
+}
+
+async function echantillonnerRadar(data: unknown, lat: number, lon: number): Promise<{ intensite: IntensiteRadar; frameTime: number } | null> {
+  const frame = derniereFramePassee(data);
+  if (!frame) return null;
+  const { z, x, y, px, py } = tuilePourPoint(lat, lon, ZOOM_ECHANTILLON_RADAR);
+  const cle = `${z}/${x}/${y}/${frame.time}`;
+  const enCache = cacheRadarPoint.get(cle);
+  if (enCache && enCache.expiresAt > Date.now()) return { intensite: enCache.data, frameTime: frame.time };
+
+  const url = urlTuileEchantillon(hoteRadar(data), frame.path, z, x, y);
+  const res = await fetch(url, { headers: { "User-Agent": "opendata-vda-api/1.0" }, signal: AbortSignal.timeout(8_000) });
+  if (!res.ok) throw new Error(`RainViewer tuile -> HTTP ${res.status}`);
+  const png = PNG.sync.read(Buffer.from(await res.arrayBuffer()));
+  const intensite = intensiteVoisinage(png.data, png.width, png.height, px, py);
+
+  cacheRadarPoint.set(cle, { expiresAt: Date.now() + TTL_RADAR_POINT_MS, data: intensite });
+  if (cacheRadarPoint.size > MAX_CACHE_RADAR_POINTS) {
+    const plusAncienne = cacheRadarPoint.keys().next().value as string | undefined;
+    if (plusAncienne) cacheRadarPoint.delete(plusAncienne);
+  }
+  return { intensite, frameTime: frame.time };
+}
+
 export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
   app.get("/api/meteo/stations", async (_req, reply) => {
     const ids = STATIONS_METEO.map((s) => s.id);
@@ -438,8 +714,8 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
 
     const urlCourtTerme = urlModele("https://api.open-meteo.com/v1/meteofrance", lat, lon, {
       forecast_days: "4",
-      current: "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure",
-      hourly: "temperature_2m,apparent_temperature,relative_humidity_2m,surface_pressure,precipitation,snowfall,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code",
+      current: "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,is_day",
+      hourly: "temperature_2m,apparent_temperature,relative_humidity_2m,surface_pressure,precipitation,snowfall,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code,is_day",
       daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,wind_gusts_10m_max",
     });
     const urlEcmwf = urlModele("https://api.open-meteo.com/v1/ecmwf", lat, lon, {
@@ -458,6 +734,9 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
       current: "european_aqi,pm10,pm2_5,nitrogen_dioxide,ozone",
       hourly: "european_aqi",
     });
+
+    // Vigilance lancée en parallèle du batch météo (peut nécessiter un géocodage inverse hors territoire).
+    const vigilancePromise = recupererVigilancePoint(lat, lon, estDansTerritoire(lat, lon));
 
     const [observationResultat, courtTermeResultat, ecmwfResultat, ensembleResultat, qualiteAirResultat] = await Promise.allSettled([
       observationLaPlusProche(pool, lat, lon),
@@ -501,13 +780,7 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
       courtTerme: courtTermeData ? sourceCourtTerme(courtTermeData) : null,
       moyenTerme: ecmwfData || ensembleData ? sourceMoyenTerme(ecmwfData, ensembleData) : null,
       qualiteAir: qualiteAirData ? sourceQualiteAir(qualiteAirData) : null,
-      vigilance: dansTerritoire
-        ? {
-            departement: "Gard",
-            code: "30",
-            url: "https://vigilance.meteofrance.fr/fr/gard",
-          }
-        : null,
+      vigilance: await vigilancePromise,
       liens: {
         ecmwf: meteogramme.toString(),
         meteoFrance: dansTerritoire
@@ -522,6 +795,65 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
     reply.header("cache-control", "public, max-age=300");
     return data;
   });
+
+  app.get<{ Querystring: { lat?: string; lon?: string } }>("/api/meteo/radar", async (req, reply) => {
+    const coordonnees = validerCoordonnees(req.query.lat, req.query.lon);
+    if (!coordonnees) {
+      reply.code(400);
+      return { error: "coordonnées lat/lon invalides" };
+    }
+
+    const { lat, lon } = coordonnees;
+    try {
+      const data = await recupererRadarMaps();
+      const { frames } = construireFramesRadar(data);
+      let point: { intensite: IntensiteRadar; frameTime: number } | null = null;
+      try {
+        point = await echantillonnerRadar(data, lat, lon);
+      } catch (err) {
+        app.log.warn({ err, lat, lon }, "radar : échantillon au point indisponible");
+      }
+      reply.header("cache-control", "public, max-age=120");
+      return { attribution: "RainViewer", frames, point };
+    } catch (err) {
+      app.log.warn({ err }, "radar : RainViewer indisponible");
+      reply.header("cache-control", "public, max-age=30");
+      return { attribution: "RainViewer", frames: [], point: null };
+    }
+  });
+
+  // Proxy des tuiles radar : les sert en même origine (RainViewer n'envoie pas de CORS, requis par MapLibre).
+  app.get<{ Params: { z: string; x: string; y: string }; Querystring: { path?: string } }>(
+    "/api/meteo/radar/tuile/:z/:x/:y",
+    async (req, reply) => {
+      const z = Number(req.params.z);
+      const x = Number(req.params.x);
+      const y = Number(req.params.y);
+      const chemin = req.query.path ?? "";
+      const entiersValides = [z, x, y].every((v) => Number.isInteger(v) && v >= 0) && z <= 15;
+      if (!entiersValides || !cheminFrameValide(chemin)) {
+        reply.code(400);
+        return { error: "paramètres de tuile radar invalides" };
+      }
+      try {
+        const res = await fetch(urlTuileCarte(chemin, z, x, y), {
+          headers: { "User-Agent": "opendata-vda-api/1.0" },
+          signal: AbortSignal.timeout(8_000),
+        });
+        if (!res.ok) {
+          reply.code(502);
+          return { error: "tuile radar indisponible" };
+        }
+        reply.header("content-type", "image/png");
+        reply.header("cache-control", "public, max-age=600");
+        return Buffer.from(await res.arrayBuffer());
+      } catch (err) {
+        app.log.warn({ err, chemin }, "radar : proxy de tuile en échec");
+        reply.code(502);
+        return { error: "tuile radar indisponible" };
+      }
+    },
+  );
 
   app.get<{ Querystring: { debut?: string; fin?: string } }>("/api/meteo/climat/normales", async (req, reply) => {
     const debut = Number(req.query.debut ?? 1991);

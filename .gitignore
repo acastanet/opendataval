@@ -7,6 +7,7 @@ dist/
 playwright-report/
 test-results/
 .claude/
+.kilo/
 
 # Extraits de relief 3D — volumineux (~2 Go) et régénérables via go-pmtiles (cf. CLAUDE.md)
 apps/web/public/relief/*.pmtiles

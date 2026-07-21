@@ -81,6 +81,31 @@ const prevision = {
     departement: "Gard",
     code: "30",
     url: "https://vigilance.meteofrance.fr/fr/gard",
+    miseAJour: "2026-07-20T14:00:35.000Z",
+    couleurMax: "orange",
+    periodes: [
+      {
+        echeance: "J",
+        debut: "2026-07-20T14:00:00.000Z",
+        fin: "2026-07-20T22:00:00.000Z",
+        couleurMax: "orange",
+        phenomenes: [
+          { id: "6", nom: "Canicule", couleur: "orange" },
+        ],
+      },
+      {
+        echeance: "J1",
+        debut: "2026-07-20T22:00:00.000Z",
+        fin: "2026-07-21T22:00:00.000Z",
+        couleurMax: "orange",
+        phenomenes: [
+          { id: "6", nom: "Canicule", couleur: "orange" },
+          { id: "3", nom: "Orages", couleur: "jaune" },
+        ],
+      },
+    ],
+    indisponible: false,
+    perime: false,
   },
   liens: { ecmwf: "https://charts.ecmwf.int/", meteoFrance: "https://meteofrance.com/" },
   sourcesIndisponibles: [],
@@ -137,6 +162,11 @@ test("hiérarchise les informations météo d'un point", async ({ page }) => {
   await expect(bloc.getByRole("heading", { name: "Les 4 prochains jours" })).toBeVisible();
   await expect(bloc.getByRole("heading", { name: "Qualité de l’air" })).toBeVisible();
   await expect(bloc.getByText("Relais progressif ARPEGE")).toBeVisible();
+  await expect(bloc.getByText("Niveau global : Orange")).toBeVisible();
+  await expect(bloc.getByText("Aujourd'hui")).toBeVisible();
+  await expect(bloc.getByText("Canicule").first()).toBeVisible();
+  await expect(bloc.getByText("Demain")).toBeVisible();
+  await expect(bloc.getByText("Orages")).toBeVisible();
   await expect(bloc.locator(".meteo-hero")).toHaveScreenshot("meteo-accueil.png", {
     animations: "disabled",
     maxDiffPixelRatio: 0.01,
@@ -168,6 +198,14 @@ test("affiche la météo essentielle sans navigation du site", async ({ page }) 
   await expect(bloc.getByText("Mairie de Val-d’Aigoual · Rue de la Mairie, Valleraugue")).toBeVisible();
   await expect(bloc.locator(".date-heure")).toHaveText("DIM. 19 JUIL. · 10:05");
   await expect(bloc.getByRole("button", { name: "Utiliser ma position" })).toBeVisible();
+  const vigilance = bloc.locator(".vigilance-essentiel");
+  await expect(vigilance).toBeVisible();
+  await expect(vigilance.getByText("Vigilance Gard · 30")).toBeVisible();
+  await expect(vigilance.getByText("Vigilance Orange")).toBeVisible();
+  await expect(vigilance.getByText("Aujourd’hui")).toBeVisible();
+  await expect(vigilance.getByText("Canicule").first()).toBeVisible();
+  await expect(vigilance.getByText("Orages")).toBeVisible();
+  await expect(vigilance.getByText("Jaune")).toBeVisible();
   await expect(bloc.getByTestId("temperature-actuelle")).toHaveText("18°C");
   await expect(bloc.getByTestId("temperature-plus-trois")).toHaveText("20°C");
   await expect(bloc.getByRole("heading", { name: "Les 3 jours à venir" })).toBeVisible();
