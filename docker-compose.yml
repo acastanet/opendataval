@@ -47,12 +47,37 @@ services:
       METEOFRANCE_API_TOKEN: ${METEOFRANCE_API_TOKEN:-}
       INFOCLIMAT_API_TOKEN: ${INFOCLIMAT_API_TOKEN:-}
       NASA_FIRMS_MAP_KEY: ${NASA_FIRMS_MAP_KEY:-}
+      COPERNICUS_CDS_URL: ${COPERNICUS_CDS_URL:-https://cds.climate.copernicus.eu/api}
+      COPERNICUS_CDS_KEY: ${COPERNICUS_CDS_KEY:-}
       FIRE_RISK_GARD_FALLBACK_DIR: /app/data/incendies
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./data/incendies:/app/data/incendies:ro
+
+  copernicus:
+    profiles: ["copernicus"]
+    build:
+      context: .
+      dockerfile: apps/copernicus/Dockerfile
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-opendata}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD doit etre defini dans .env}
+      POSTGRES_DB: ${POSTGRES_DB:-opendata_vda}
+      COPERNICUS_CDS_URL: ${COPERNICUS_CDS_URL:-https://cds.climate.copernicus.eu/api}
+      COPERNICUS_CDS_KEY: ${COPERNICUS_CDS_KEY:-}
+      COPERNICUS_PRODUCT_TYPE: ${COPERNICUS_PRODUCT_TYPE:-intermediate_dataset}
+      COPERNICUS_DOWNLOAD_DIR: /app/data/downloads
+      RUN_ONCE: ${COPERNICUS_RUN_ONCE:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./data/downloads:/app/data/downloads
 
   caddy:
     build:

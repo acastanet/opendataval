@@ -1,0 +1,15 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import BilanThermique from "../../islands/BilanThermique.svelte";
+---
+
+<Layout
+  title="Bilan thermique mensuel — Val-d’Aigoual"
+  description="Bilan du stress thermique UTCI et des nuits tropicales du dernier mois complet, calculé avec Copernicus ERA5-HEAT."
+>
+  <BilanThermique client:only="svelte" />
+</Layout>
+
+<style>
+  :global(body) { background: #fcfcfa; }
+</style>

@@ -1,0 +1,15 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import MeteoInformations from "../../islands/MeteoInformations.svelte";
+---
+
+<Layout
+  title="Comprendre la météo — Val-d’Aigoual"
+  description="Informations d’usage, limites et sources de la météo essentielle."
+>
+  <MeteoInformations client:only="svelte" />
+</Layout>
+
+<style>
+  :global(body) { background: #fcfcfa; }
+</style>

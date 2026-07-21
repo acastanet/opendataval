@@ -3,6 +3,11 @@ dist/
 .astro/
 *.log
 .env
+.cdsapirc
+*.grib
+*.grib2
+*.nc
+data/downloads/
 .pnpm-store/
 playwright-report/
 test-results/

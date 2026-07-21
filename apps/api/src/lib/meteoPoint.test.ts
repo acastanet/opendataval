@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {
+  POINTS_METEO_PRECONFIGURES,
+  normaliserCoordonneesMeteo,
+  resoudreLocalisationMeteo,
+} from "@opendata-vda/shared";
 import { distanceKm, quantile, resumerEnsemble, validerCoordonnees } from "./meteoPoint.js";
 
 test("validerCoordonnees accepte des coordonnées WGS84 et refuse les valeurs hors domaine", () => {
@@ -20,6 +25,34 @@ test("distanceKm donne une distance locale cohérente", () => {
     { lat: 44.121333, lon: 3.5815 },
   );
   assert.ok(distance > 9 && distance < 12);
+});
+
+test("les trois points météo partagés conservent leurs coordonnées contractuelles", () => {
+  assert.deepEqual(
+    POINTS_METEO_PRECONFIGURES.map(({ slug, lat, lon }) => ({ slug, lat, lon })),
+    [
+      { slug: "val-aigoual", lat: 44.081192, lon: 3.641467 },
+      { slug: "paris", lat: 48.8566, lon: 2.3522 },
+      { slug: "marseille", lat: 43.2965, lon: 5.3698 },
+    ],
+  );
+});
+
+test("resoudreLocalisationMeteo distingue une correspondance exacte d'un point précis", () => {
+  const paris = resoudreLocalisationMeteo(48.8566, 2.3522);
+  assert.equal(paris.type, "preconfiguree");
+  assert.equal(paris.pointPreconfigure?.slug, "paris");
+  assert.equal(paris.cleCache, "preconfiguree:paris");
+
+  const procheParis = resoudreLocalisationMeteo(48.85661, 2.3522);
+  assert.equal(procheParis.type, "precise");
+  assert.equal(procheParis.pointPreconfigure, null);
+  assert.equal(procheParis.cleCache, "precise:48.8566,2.3522");
+});
+
+test("normaliserCoordonneesMeteo produit une clé géographique stable sans zéro négatif", () => {
+  assert.deepEqual(normaliserCoordonneesMeteo(44.064579, 3.683019), { lat: 44.0646, lon: 3.683 });
+  assert.deepEqual(normaliserCoordonneesMeteo(-0.00001, -0.00001), { lat: 0, lon: 0 });
 });
 
 test("resumerEnsemble calcule médiane, probabilités et dispersion sur les membres", () => {

@@ -1,68 +1,111 @@
 ---
-// Chevron « retour accueil » partagé, identique sur tout le portail.
-// - variante "flottant" : position fixe en haut à gauche, pour les pages immersives.
-// - variante "inline"   : en flux normal, pour être placé dans le bandeau SiteHeader.
+// Languette « retour accueil » partagée, identique sur tout le portail.
+// Quasi invisible au repos (fin trait centré en haut) ; se révèle au survol du haut de l'écran,
+// au focus clavier (focus-within), et reste tapable sur écrans tactiles (sans :hover).
+// Translucide + backdrop-filter pour rester lisible sur fond clair comme sur carte sombre.
 interface Props {
   variante?: "flottant" | "inline";
 }
 const { variante = "flottant" } = Astro.props;
 ---
-<a class:list={["bouton-accueil", variante]} href="/" aria-label="Retour à l'accueil">
-  <svg viewBox="0 0 20 20" aria-hidden="true">
-    <path d="M12.5 4 7 10l5.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-  </svg>
-</a>
+{variante === "inline" ? (
+  <a class="bouton-inline" href="/" aria-label="Retour à l'accueil">
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M12.5 4 7 10l5.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </a>
+) : (
+  <nav class="languette-accueil" aria-label="Retour à l'accueil">
+    <a class="languette" href="/" aria-label="Retour à l'accueil">
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 9.5 10 3.5l7 6M5 8.5V16h10V8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span>Accueil</span>
+    </a>
+  </nav>
+)}
 
 <style>
-  .bouton-accueil {
+  .languette-accueil {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    /* Zone d'accroche généreuse : on capte le survol bien avant que la languette ne descende. */
+    padding: 0 3rem 1.6rem;
+  }
+
+  .languette {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
-    transition: background 150ms ease;
+    gap: 0.4rem;
+    padding: 0.32rem 0.9rem;
+    /* Coins bas arrondis : la languette « pend » du bord haut. */
+    border-radius: 0 0 12px 12px;
+    color: #fff;
+    background: rgba(20, 24, 27, 0.62);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    white-space: nowrap;
+    /* Au repos : masquée vers le haut, ne laisse dépasser qu'un fin liseré (la « poignée »). */
+    transform: translateY(calc(-100% + 4px));
+    transition: transform 200ms ease, opacity 200ms ease;
   }
 
-  .bouton-accueil svg {
-    width: 1rem;
-    height: 1rem;
+  .languette svg {
+    width: 0.95rem;
+    height: 0.95rem;
   }
 
-  .bouton-accueil:focus-visible {
-    outline: 2px solid currentColor;
+  /* Révélation : survol de la zone d'accroche ou focus clavier sur le lien. */
+  .languette-accueil:hover .languette,
+  .languette-accueil:focus-within .languette {
+    transform: translateY(0);
+  }
+
+  .languette:focus-visible {
+    outline: 2px solid #fff;
     outline-offset: 2px;
   }
 
-  /* Variante flottante : lisible sur fond clair comme sur carte sombre. */
-  .bouton-accueil.flottant {
-    position: fixed;
-    top: 0.7rem;
-    left: 0.7rem;
-    z-index: 1000;
-    color: #fff;
-    background: rgba(20, 24, 27, 0.55);
-    backdrop-filter: blur(3px);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-  }
-
-  .bouton-accueil.flottant:hover {
-    background: rgba(20, 24, 27, 0.72);
-  }
-
-  .bouton-accueil.flottant:focus-visible {
-    outline-color: #fff;
-  }
-
-  /* Variante intégrée au bandeau : s'accorde au header clair. */
-  .bouton-accueil.inline {
+  .bouton-inline {
+    display: inline-flex;
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
     align-self: center;
+    border-radius: 50%;
     color: var(--fg);
     background: rgba(154, 155, 147, 0.18);
+    transition: background 150ms ease;
   }
 
-  .bouton-accueil.inline:hover {
-    background: rgba(154, 155, 147, 0.32);
+  .bouton-inline:hover { background: rgba(154, 155, 147, 0.32); }
+  .bouton-inline:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  .bouton-inline svg { width: 1rem; height: 1rem; }
+
+  /* Écrans tactiles (pas de :hover) : garder la languette repérable et tapable. */
+  @media (hover: none) {
+    .languette {
+      transform: translateY(calc(-100% + 1.35rem));
+      opacity: 0.9;
+    }
+    .languette-accueil:focus-within .languette {
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .languette,
+    .bouton-inline { transition: none; }
   }
 </style>

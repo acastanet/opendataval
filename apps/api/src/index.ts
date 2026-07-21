@@ -5,6 +5,7 @@ import { registerCouchesRoutes } from "./routes/couches.js";
 import { registerPiezoRoutes } from "./routes/piezo.js";
 import { registerOutilsRoutes } from "./routes/outils.js";
 import { registerMeteoRoutes } from "./routes/meteo.js";
+import { registerMeteoClimateRoutes } from "./routes/meteoClimate.js";
 import { registerIndicateursRoutes } from "./routes/indicateurs.js";
 import { registerIncendiesRoutes } from "./routes/incendies.js";
 
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
   registerPiezoRoutes(app, pool);
   registerOutilsRoutes(app, pool);
   registerMeteoRoutes(app, pool);
+  registerMeteoClimateRoutes(app, pool);
   registerIndicateursRoutes(app, pool);
   registerIncendiesRoutes(app, pool);
 

@@ -1,7 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import type pg from "pg";
 import { PNG } from "pngjs";
-import { STATIONS_METEO, STATIONS_PAR_ID, TERRITOIRE, stationsMeteoFrance } from "@opendata-vda/shared";
+import {
+  STATIONS_METEO,
+  STATIONS_PAR_ID,
+  TERRITOIRE,
+  resoudreLocalisationMeteo,
+  stationsMeteoFrance,
+  type CoordonneesMeteo,
+  type LocalisationMeteoResolue,
+} from "@opendata-vda/shared";
 import { distanceKm, resumerEnsemble, validerCoordonnees } from "../lib/meteoPoint.js";
 import {
   cheminFrameValide,
@@ -64,7 +72,10 @@ const PHENOMENE_VIGILANCE: Record<string, string> = {
 
 interface ReponseMeteoPoint {
   localisation: {
+    type: LocalisationMeteoResolue["type"];
     demandee: { lat: number; lon: number };
+    normalisee: { lat: number; lon: number };
+    pointPreconfigure: { slug: string; nom: string } | null;
     dansTerritoire: boolean;
   };
   genereLe: string;
@@ -316,15 +327,36 @@ function estDansTerritoire(lat: number, lon: number): boolean {
   return lon >= ouest && lon <= est && lat >= sud && lat <= nord;
 }
 
-function clePoint(lat: number, lon: number): string {
-  return `${lat.toFixed(3)},${lon.toFixed(3)}`;
-}
-
 function memoriserPoint(cle: string, data: ReponseMeteoPoint): void {
   cachePoints.set(cle, { expiresAt: Date.now() + TTL_POINT_MS, data });
   if (cachePoints.size <= MAX_CACHE_POINTS) return;
   const plusAncienne = cachePoints.keys().next().value as string | undefined;
   if (plusAncienne) cachePoints.delete(plusAncienne);
+}
+
+function localisationPourReponse(
+  localisation: LocalisationMeteoResolue,
+  dansTerritoire: boolean,
+): ReponseMeteoPoint["localisation"] {
+  return {
+    type: localisation.type,
+    demandee: localisation.demandee,
+    normalisee: localisation.normalisee,
+    pointPreconfigure: localisation.pointPreconfigure
+      ? { slug: localisation.pointPreconfigure.slug, nom: localisation.pointPreconfigure.nom }
+      : null,
+    dansTerritoire,
+  };
+}
+
+function avecCoordonneesDemandees(
+  data: ReponseMeteoPoint,
+  demandee: CoordonneesMeteo,
+): ReponseMeteoPoint {
+  return {
+    ...data,
+    localisation: { ...data.localisation, demandee },
+  };
 }
 
 async function recupererPrevisions(): Promise<{ data: unknown; perime: boolean }> {
@@ -704,12 +736,13 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
       return { error: "coordonnées lat/lon invalides" };
     }
 
-    const { lat, lon } = coordonnees;
-    const cle = clePoint(lat, lon);
+    const localisation = resoudreLocalisationMeteo(coordonnees.lat, coordonnees.lon);
+    const { lat, lon } = localisation.normalisee;
+    const cle = localisation.cleCache;
     const precedent = cachePoints.get(cle);
     if (precedent && precedent.expiresAt > Date.now()) {
       reply.header("cache-control", "public, max-age=300");
-      return precedent.data;
+      return avecCoordonneesDemandees(precedent.data, localisation.demandee);
     }
 
     const urlCourtTerme = urlModele("https://api.open-meteo.com/v1/meteofrance", lat, lon, {
@@ -763,7 +796,10 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
 
     if (!courtTermeData && !ecmwfData && !ensembleData && precedent) {
       reply.header("cache-control", "public, max-age=60");
-      return { ...precedent.data, perime: true, sourcesIndisponibles };
+      return avecCoordonneesDemandees(
+        { ...precedent.data, perime: true, sourcesIndisponibles },
+        localisation.demandee,
+      );
     }
 
     const dansTerritoire = estDansTerritoire(lat, lon);
@@ -774,7 +810,7 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
     meteogramme.searchParams.set("station_name", `Point ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
 
     const data: ReponseMeteoPoint = {
-      localisation: { demandee: { lat, lon }, dansTerritoire },
+      localisation: localisationPourReponse(localisation, dansTerritoire),
       genereLe: new Date().toISOString(),
       observation: observationResultat.status === "fulfilled" ? observationResultat.value : null,
       courtTerme: courtTermeData ? sourceCourtTerme(courtTermeData) : null,
@@ -933,4 +969,5 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
       annee_plus_arrosee: anneeArrosee.rows[0] ?? null,
     };
   });
+
 }

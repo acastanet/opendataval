@@ -4,7 +4,13 @@ const heures = Array.from({ length: 24 }, (_, index) => `2026-07-19T${String(ind
 const jours = Array.from({ length: 10 }, (_, index) => `2026-07-${String(19 + index).padStart(2, "0")}`);
 
 const prevision = {
-  localisation: { demandee: { lat: 44.064579, lon: 3.683019 }, dansTerritoire: true },
+  localisation: {
+    type: "precise",
+    demandee: { lat: 44.064579, lon: 3.683019 },
+    normalisee: { lat: 44.0646, lon: 3.683 },
+    pointPreconfigure: null,
+    dansTerritoire: true,
+  },
   genereLe: "2026-07-19T10:00:00.000Z",
   observation: {
     station: { id: "30100001", nom: "Mont Aigoual", altitudeM: 1567, distanceKm: 4.8, reseau: "meteofrance" },
@@ -112,6 +118,41 @@ const prevision = {
   perime: false,
 };
 
+const contexteClimatique = {
+  disponible: true,
+  point: { type: "preconfiguree", slug: "val-aigoual", nom: "Mairie de Val-d’Aigoual, Valleraugue" },
+  reference: {
+    debut: 1991,
+    fin: 2020,
+    fenetreJours: 15,
+    produit: "ERA5-Land",
+    version: "1.0.0",
+    nbValeurs: 450,
+    completudePct: 100,
+    calculeLe: "2026-07-19T07:00:00.000Z",
+  },
+  temperatureMax: { mediane: 19, p10: 14, p90: 23 },
+  temperatureMin: { mediane: 11, p10: 7, p90: 15 },
+  altitudeMailleM: 386,
+  limite: "Estimation climatique maillée, moins précise en zone de relief et lorsque l’altitude réelle diffère de celle de la maille.",
+};
+
+const bilanThermique = {
+  disponible: true,
+  point: { type: "preconfiguree", slug: "val-aigoual", nom: "Mairie de Val-d’Aigoual, Valleraugue" },
+  periode: { annee: 2026, mois: 6, debut: "2026-06-01", fin: "2026-06-30" },
+  utci: { maximumC: 39.4, categorie: "stress thermique très fort" },
+  jours: { stressFort: 15, stressTresFort: 3, stressExtreme: 0, nuitsTropicales: 4 },
+  dates: {
+    stressFort: ["2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-06", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-18", "2026-06-19", "2026-06-20", "2026-06-21", "2026-06-22", "2026-06-23"],
+    stressTresFort: ["2026-06-20", "2026-06-21", "2026-06-22"],
+    stressExtreme: [],
+  },
+  reference: { debut: 1991, fin: 2020, joursStressFort: 3.5, anomalieJoursStress: 11.5 },
+  source: { produit: "ERA5-HEAT / UTCI", version: "1.1", calculeLe: "2026-07-08T07:10:00.000Z", completudePct: 100 },
+  limite: "Estimation ERA5-HEAT sur une maille d’environ 0,25°, qui ne représente pas les microclimats ni toutes les différences d’altitude.",
+};
+
 let requetesPoint = 0;
 
 async function installerMocks(page: Page) {
@@ -132,6 +173,12 @@ async function installerMocks(page: Page) {
         contentType: "application/json",
         body: JSON.stringify({ lieux: [{ label: "Valleraugue 30570 Val-d’Aigoual", nom: "Valleraugue", type: "locality", lat: 44.082639, lon: 3.640504 }] }),
       });
+    }
+    if (chemin === "/api/meteo/contexte-climatique") {
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify(contexteClimatique) });
+    }
+    if (chemin === "/api/meteo/bilan-thermique") {
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify(bilanThermique) });
     }
     return route.fulfill({ contentType: "application/json", body: "{}" });
   });
@@ -196,7 +243,11 @@ test("affiche la météo essentielle sans navigation du site", async ({ page }) 
   await expect(page.locator(".entete-site")).toHaveCount(0);
   await expect(page.locator(".pied-site")).toHaveCount(0);
   await expect(bloc.getByText("Mairie de Val-d’Aigoual · Rue de la Mairie, Valleraugue")).toBeVisible();
-  await expect(bloc.locator(".date-heure")).toHaveText("DIM. 19 JUIL. · 10:05");
+  await expect(bloc.getByRole("button", { name: "Afficher la météo de Val-d’Aigoual" })).toHaveAttribute("aria-pressed", "true");
+  await expect(bloc.getByRole("button", { name: "Afficher la météo de Paris" })).toBeVisible();
+  await expect(bloc.getByRole("button", { name: "Afficher la météo de Marseille" })).toBeVisible();
+  await expect(bloc.locator(".date-heure")).toHaveText("DIM. 19 JUIL. · Consulté à 10:05");
+  await expect(bloc.getByText(/Prévision mise à jour à 19 juil\., 12:00/)).toBeVisible();
   await expect(bloc.getByRole("button", { name: "Utiliser ma position" })).toBeVisible();
   const vigilance = bloc.locator(".vigilance-essentiel");
   await expect(vigilance).toBeVisible();
@@ -206,24 +257,155 @@ test("affiche la météo essentielle sans navigation du site", async ({ page }) 
   await expect(vigilance.getByText("Canicule").first()).toBeVisible();
   await expect(vigilance.getByText("Orages")).toBeVisible();
   await expect(vigilance.getByText("Jaune")).toBeVisible();
+  await expect(vigilance.getByText(/Vigilance mise à jour à/)).toBeVisible();
   await expect(bloc.getByTestId("temperature-actuelle")).toHaveText("18°C");
+  await expect(bloc.getByText("Ressenti estimé : 17 °C")).toBeVisible();
+  await expect(bloc.getByText("Altitude du point modèle : 1 210 m")).toBeVisible();
   await expect(bloc.getByTestId("temperature-plus-trois")).toHaveText("20°C");
+  await expect(bloc.locator(".graphique-heures li")).toHaveCount(4);
+  await expect(bloc.locator(".graphique-heures circle")).toHaveCount(0);
+  await expect(bloc.locator(".graphique-heures .graduation")).toHaveCount(3);
+  await expect(bloc.locator(".graphique-heures .barre")).toHaveCount(4);
+  await expect(bloc.locator(".graphique-heures .barre").first()).toHaveCSS("fill", "rgb(215, 38, 30)");
+  await expect(bloc.getByText(/Hausse de 1,6 °C dans les trois prochaines heures/)).toBeVisible();
+  await expect(bloc.locator(".contrepoints")).toHaveCount(0);
   await expect(bloc.getByRole("heading", { name: "Les 3 jours à venir" })).toBeVisible();
   await expect(bloc.getByRole("heading", { name: "Demain" })).toBeVisible();
   await expect(bloc.getByRole("heading", { name: "Heure par heure" })).toHaveCount(0);
   await expect(bloc.getByRole("heading", { name: "Qualité de l’air" })).toHaveCount(0);
   await expect(bloc.getByText("Tendance probabiliste ECMWF")).toHaveCount(0);
   await expect(bloc.getByText("Précision réelle et sources")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "24 °C prévus" })).toBeVisible();
+  await expect(page.getByText("Environ +5 °C par rapport à la référence 1991–2020")).toBeVisible();
+  await expect(page.getByText("Plus chaud que 90 % des journées comparables")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "15 jours de fort stress thermique" })).toBeVisible();
+  await expect(bloc.getByRole("link", { name: "Consulter le bilan thermique" })).toBeVisible();
+  await expect(bloc.getByRole("link", { name: "À propos de cette météo et sources des données" })).toHaveAttribute("href", "/meteo/informations/?lieu=val-aigoual");
+  await expect(page.getByRole("link", { name: "Voir le bilan thermique" })).toBeVisible();
 
   await expect(bloc).toHaveScreenshot("meteo-essentiel.png", {
     animations: "disabled",
     maxDiffPixelRatio: 0.01,
   });
 
+  const requeteParis = page.waitForRequest((requete) => {
+    const url = new URL(requete.url());
+    return url.pathname === "/api/meteo/point"
+      && url.searchParams.get("lat") === "48.8566"
+      && url.searchParams.get("lon") === "2.3522";
+  });
+  await bloc.getByRole("button", { name: "Afficher la météo de Paris" }).click();
+  await requeteParis;
+  await expect(bloc.getByText("Paris · Hôtel de Ville")).toBeVisible();
+  await expect(bloc.getByRole("button", { name: "Afficher la météo de Paris" })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  const requeteMarseille = page.waitForRequest((requete) => {
+    const url = new URL(requete.url());
+    return url.pathname === "/api/meteo/point"
+      && url.searchParams.get("lat") === "43.2965"
+      && url.searchParams.get("lon") === "5.3698";
+  });
+  await bloc.getByRole("button", { name: "Afficher la météo de Marseille" }).click();
+  await requeteMarseille;
+  await expect(bloc.getByText("Marseille · Hôtel de Ville")).toBeVisible();
+  await expect(bloc.getByRole("button", { name: "Afficher la météo de Marseille" })).toHaveAttribute("aria-pressed", "true");
+
   await page.context().grantPermissions(["geolocation"]);
-  await page.context().setGeolocation({ latitude: 44.064757, longitude: 3.682706 });
+  await page.context().setGeolocation({ latitude: 44.064757, longitude: 3.682706, accuracy: 24 });
   await bloc.getByRole("button", { name: "Utiliser ma position" }).click();
   await expect(bloc.getByText("La Borie du Ponteil (Valleraugue) 30570 Val-d’Aigoual")).toBeVisible();
+  await expect(bloc.getByText("Position GPS · précision ± 24 m")).toBeVisible();
+  await expect(bloc.locator('.points-rapides button[aria-pressed="true"]')).toHaveCount(0);
+});
+
+test("présente le dernier bilan thermique complet", async ({ page }) => {
+  const requeteBilan = page.waitForRequest((requete) => new URL(requete.url()).pathname === "/api/meteo/bilan-thermique");
+  await page.goto("/meteo/bilan-thermique/");
+  expect(new URL((await requeteBilan).url()).searchParams.get("v")).toBe("2");
+
+  const bilan = page.getByTestId("bilan-thermique");
+  const lienMeteo = bilan.getByRole("link", { name: "Retour à la météo essentielle" });
+  await expect(bilan.locator(".barre-meteo time")).toBeVisible();
+  expect(await bilan.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(720);
+  await expect(lienMeteo).toHaveAttribute("href", "/meteo/essentiel/?lieu=val-aigoual");
+  await expect(bilan.getByRole("heading", { name: "Bilan thermique du mois dernier" })).toBeVisible();
+  await expect(bilan.getByRole("heading", { name: "juin 2026" })).toBeVisible();
+  await expect(bilan.getByText("39,4")).toBeVisible();
+  await expect(bilan.getByText("stress thermique très fort")).toBeVisible();
+  await expect(bilan.getByText("4", { exact: true })).toBeVisible();
+  await expect(bilan.getByRole("heading", { name: "11,5 jours de plus" })).toBeVisible();
+  await expect(bilan.getByText("Complétude : 100 %")).toBeVisible();
+
+  const valeurStressFort = bilan.getByRole("button", { name: /15.*afficher les dates exactes/i });
+  await valeurStressFort.hover();
+  await expect(bilan.getByRole("tooltip").filter({ hasText: "Stress fort ou plus" })).toContainText("2 juin 2026");
+  await expect(bilan.getByRole("tooltip").filter({ hasText: "Stress fort ou plus" })).toContainText("23 juin 2026");
+
+  const valeurStressTresFort = bilan.getByRole("button", { name: /3.*afficher les dates exactes/i });
+  await valeurStressTresFort.focus();
+  await expect(bilan.getByRole("tooltip").filter({ hasText: "Stress très fort" })).toContainText("20 juin 2026");
+
+  const valeurStressExtreme = bilan.getByRole("button", { name: /0.*afficher les dates exactes/i });
+  await valeurStressExtreme.focus();
+  await expect(bilan.getByRole("tooltip").filter({ hasText: "Aucune date de stress extrême" })).toBeVisible();
+
+  await bilan.getByRole("button", { name: "Paris" }).click();
+  await expect(bilan.getByText("Paris · Hôtel de Ville")).toBeVisible();
+  await expect(bilan.getByRole("button", { name: "Paris" })).toHaveAttribute("aria-pressed", "true");
+  await expect(lienMeteo).toHaveAttribute("href", "/meteo/essentiel/?lieu=paris");
+
+  await lienMeteo.click();
+  await expect(page).toHaveURL(/\/meteo\/essentiel\/\?lieu=paris$/);
+  await expect(page.getByTestId("meteo-point").getByRole("button", { name: "Afficher la météo de Paris" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("conserve le lieu précédent quand un changement de point échoue", async ({ page }) => {
+  await page.goto("/meteo/essentiel/");
+  const bloc = page.getByTestId("meteo-point");
+  await expect(bloc.getByText("Mairie de Val-d’Aigoual · Rue de la Mairie, Valleraugue")).toBeVisible();
+
+  await page.route(/\/api\/meteo\/point/, (route) => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.get("lat") === "48.8566") {
+      return route.fulfill({ status: 502, contentType: "application/json", body: JSON.stringify({ error: "indisponible" }) });
+    }
+    return route.fallback();
+  });
+
+  await bloc.getByRole("button", { name: "Afficher la météo de Paris" }).click();
+  await expect(bloc.getByRole("alert")).toContainText("La dernière météo reste affichée");
+  await expect(bloc.getByText("Mairie de Val-d’Aigoual · Rue de la Mairie, Valleraugue")).toBeVisible();
+  await expect(bloc.getByRole("button", { name: "Afficher la météo de Val-d’Aigoual" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("présente les informations météo dans une page à deux onglets", async ({ page }) => {
+  await page.goto("/meteo/informations/?lieu=paris");
+  const informations = page.getByTestId("meteo-informations");
+  await expect(informations.getByRole("heading", { name: "Comprendre cette météo" })).toBeVisible();
+  expect(await informations.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(720);
+  await expect(informations.getByRole("link", { name: "Météo" })).toHaveAttribute("href", "/meteo/essentiel/?lieu=paris");
+  await expect(informations.getByText("Où est mesurée cette météo ?")).toBeVisible();
+
+  const usage = informations.getByRole("tab", { name: "Ce que fait la page" });
+  await usage.focus();
+  await usage.press("ArrowRight");
+  const sources = informations.getByRole("tab", { name: "Sources des données" });
+  await expect(sources).toHaveAttribute("aria-selected", "true");
+  await expect(sources).toBeFocused();
+  await expect(informations.getByText("Détail des sources utilisées")).toBeVisible();
+});
+
+test("reste utilisable à 320 px avec les animations réduites", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/meteo/essentiel/");
+
+  await expect(page.getByTestId("meteo-point")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= 320)).toBe(true);
+  await expect(page.getByRole("button", { name: "Afficher la météo de Marseille" })).toBeVisible();
+  await expect(page.getByText("Ressenti estimé : 17 °C")).toBeVisible();
+  await expect(page.locator(".graphique-heures li")).toHaveCount(4);
 });
 
 test("n'affiche jamais un niveau vert quand la vigilance est indisponible", async ({ page }) => {

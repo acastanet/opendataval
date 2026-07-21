@@ -49,134 +49,60 @@ const themes = SECTIONS.filter((s) => s.slug !== "sources");
 </script>
 
 <style>
-  .entete-site {
-    border-bottom: 1px solid var(--border);
-  }
+  .entete-site { border-bottom: 1px solid var(--border); }
 
   .entete-interieur {
+    display: flex;
     padding-top: 1rem;
     padding-bottom: 1rem;
-    display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
     flex-wrap: wrap;
   }
 
-  .marque {
-    display: flex;
-    align-items: baseline;
-    gap: 0.6rem;
-    text-decoration: none;
-    color: var(--fg);
-  }
+  .marque { display: flex; align-items: baseline; gap: 0.6rem; color: var(--fg); text-decoration: none; }
+  .nom { font-family: var(--font-display); font-size: 1.1rem; letter-spacing: 0.01em; }
+  .soustitre { color: var(--border); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
 
-  .nom {
-    font-family: var(--font-display);
-    font-size: 1.1rem;
-    letter-spacing: 0.01em;
-  }
-
-  .soustitre {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--border);
-  }
-
-  nav {
-    display: flex;
-    align-items: baseline;
-    gap: 1.4rem;
-    font-size: 0.85rem;
-  }
-
-  nav > a {
-    color: var(--fg);
-    text-decoration: none;
-    padding-bottom: 0.2rem;
-    border-bottom: 1px solid transparent;
-  }
-
+  nav { display: flex; align-items: baseline; gap: 1.4rem; font-size: 0.85rem; }
+  nav > a { padding-bottom: 0.2rem; border-bottom: 1px solid transparent; color: var(--fg); text-decoration: none; }
   nav > a:hover,
-  nav > a:focus-visible {
-    border-bottom-color: var(--accent);
-  }
+  nav > a:focus-visible,
+  nav > a[aria-current="page"] { border-bottom-color: var(--accent); }
 
-  nav > a[aria-current="page"] {
-    border-bottom-color: var(--accent);
-  }
-
-  .menu-themes {
-    position: relative;
-  }
-
-  .menu-themes summary {
-    color: var(--fg);
-    cursor: pointer;
-    list-style: none;
-    padding-bottom: 0.2rem;
-    border-bottom: 1px solid transparent;
-  }
-
-  .menu-themes summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .menu-themes summary::after {
-    content: "▾";
-    margin-left: 0.3rem;
-    font-size: 0.7em;
-  }
-
+  .menu-themes { position: relative; }
+  .menu-themes summary { padding-bottom: 0.2rem; border-bottom: 1px solid transparent; color: var(--fg); cursor: pointer; list-style: none; }
+  .menu-themes summary::-webkit-details-marker { display: none; }
+  .menu-themes summary::after { content: "▾"; margin-left: 0.3rem; font-size: 0.7em; }
   .menu-themes[open] summary,
   .menu-themes summary:hover,
-  .menu-themes summary:focus-visible {
-    border-bottom-color: var(--accent);
-  }
+  .menu-themes summary:focus-visible { border-bottom-color: var(--accent); }
 
   .menu-themes ul {
     position: absolute;
     top: calc(100% + 0.6rem);
     left: 0;
     z-index: 10;
-    margin: 0;
-    padding: 0.5rem;
-    list-style: none;
     display: grid;
     grid-template-columns: repeat(2, minmax(11rem, 1fr));
     gap: 0.1rem 0.6rem;
-    background: var(--panel-bg);
+    margin: 0;
+    padding: 0.5rem;
     border: 1px solid var(--border);
     border-radius: var(--radius);
+    background: var(--panel-bg);
     box-shadow: var(--shadow);
     backdrop-filter: blur(2px);
+    list-style: none;
   }
 
-  .menu-themes li a {
-    display: block;
-    padding: 0.4rem 0.5rem;
-    color: var(--fg);
-    text-decoration: none;
-    font-size: 0.82rem;
-    white-space: nowrap;
-    border-radius: var(--radius);
-  }
-
+  .menu-themes li a { display: block; padding: 0.4rem 0.5rem; border-radius: var(--radius); color: var(--fg); font-size: 0.82rem; text-decoration: none; white-space: nowrap; }
   .menu-themes li a:hover,
-  .menu-themes li a:focus-visible {
-    background: rgba(154, 155, 147, 0.18);
-  }
-
-  .menu-themes li a[aria-current="page"] {
-    color: var(--accent);
-  }
+  .menu-themes li a:focus-visible { background: rgba(154, 155, 147, 0.18); }
+  .menu-themes li a[aria-current="page"] { color: var(--accent); }
 
   @media (max-width: 640px) {
-    .menu-themes ul {
-      grid-template-columns: 1fr;
-      right: 0;
-      left: auto;
-    }
+    .menu-themes ul { right: 0; left: auto; grid-template-columns: 1fr; }
   }
 </style>
