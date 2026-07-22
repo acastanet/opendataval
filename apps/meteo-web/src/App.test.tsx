@@ -70,6 +70,8 @@ describe("essential weather screen", () => {
     expect(
       screen.getByRole("heading", { name: "Infoclimat StatIC — Réseau StatIC" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Observation effectuée")).toBeInTheDocument();
+    expect(screen.getAllByText("Récupérée par OpenDataVal").length).toBeGreaterThan(0);
     expect(
       screen.getByRole("heading", { name: "Sélection automatique · politique 1" }),
     ).toBeInTheDocument();
