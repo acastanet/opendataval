@@ -4,283 +4,225 @@
  */
 
 export interface paths {
-    "/api/v1/meteo/locations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Liste les lieux rapides proposés par l’application */
-        get: operations["listWeatherLocations"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/meteo/location": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Résout la commune, le département et l’altitude d’un point
-         * @description La réponse reste exploitable lorsque l’IGN est indisponible : les informations non résolues sont alors null et les sources concernées sont listées dans unavailableSources.
-         */
-        get: operations["resolveWeatherLocation"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/meteo/essential": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Retourne les données nécessaires à la lecture météo essentielle */
-        get: operations["getEssentialWeather"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+  "/api/v1/meteo/locations": {
+    parameters: { query?: never; header?: never; path?: never; cookie?: never };
+    get: operations["listWeatherLocations"];
+    put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never;
+  };
+  "/api/v1/meteo/location": {
+    parameters: { query?: never; header?: never; path?: never; cookie?: never };
+    get: operations["resolveWeatherLocation"];
+    put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never;
+  };
+  "/api/v1/meteo/essential": {
+    parameters: { query?: never; header?: never; path?: never; cookie?: never };
+    get: operations["getEssentialWeather"];
+    put?: never; post?: never; delete?: never; options?: never; head?: never; patch?: never; trace?: never;
+  };
 }
+
 export type webhooks = Record<string, never>;
+
 export interface components {
-    schemas: {
-        LocationSummary: {
-            id: string;
-            label: string;
-            shortLabel: string;
-            latitude: number;
-            longitude: number;
-        };
-        LocationsResponse: {
-            locations: components["schemas"]["LocationSummary"][];
-        };
-        /** @enum {string} */
-        AlertLevel: "green" | "yellow" | "orange" | "red";
-        /** @enum {string} */
-        StationNetwork: "meteofrance" | "infoclimat";
-        Coordinates: {
-            latitude: number;
-            longitude: number;
-        };
-        Municipality: {
-            name: string;
-            inseeCode: string;
-        };
-        Department: {
-            name: string;
-            code: string;
-        };
-        LocationResolution: {
-            /** @enum {string} */
-            administrative: "ign" | "unavailable";
-            /** @enum {string} */
-            altitude: "ign" | "unavailable";
-        };
-        ResolvedLocation: {
-            coordinates: components["schemas"]["Coordinates"];
-            label: string;
-            municipality: components["schemas"]["Municipality"] | null;
-            department: components["schemas"]["Department"] | null;
-            altitudeM: number | null;
-            resolution: components["schemas"]["LocationResolution"];
-            unavailableSources: string[];
-            /** Format: date-time */
-            generatedAt: string;
-        };
-        Location: {
-            id: string | null;
-            label: string;
-            latitude: number;
-            longitude: number;
-            municipality: components["schemas"]["Municipality"] | null;
-            department: components["schemas"]["Department"] | null;
-            altitudeM: number | null;
-            accuracyM: number | null;
-            /** @enum {string} */
-            source: "preset" | "gps";
-        };
-        CurrentWeather: {
-            temperatureC: number;
-            apparentTemperatureC: number;
-            weatherLabel: string;
-            /** Format: date-time */
-            observedAt: string;
-            /** @enum {string} */
-            nature: "observation" | "model";
-            sourceLabel: string;
-            stale: boolean;
-            /** @description Station retenue pour la température, ou null lorsque la valeur actuelle provient du modèle. */
-            station: components["schemas"]["WeatherStation"] | null;
-        };
-        WeatherStation: {
-            id: string;
-            name: string;
-            network: components["schemas"]["StationNetwork"];
-            altitudeM: number;
-            distanceKm: number;
-            /** @description Null lorsque l’altitude du point n’a pas été résolue. */
-            altitudeDifferenceM: number | null;
-            ageMinutes: number;
-            /** @description Score interne de représentativité ; une valeur basse est préférable. Il combine distance, altitude et fraîcheur. */
-            selectionScore: number;
-        };
-        DayRange: {
-            minimumC: number;
-            maximumC: number;
-        };
-        NextChange: {
-            /** @enum {string} */
-            type: "rain" | "wind" | "temperature" | "stable";
-            /** Format: date-time */
-            startsAt: string | null;
-            summary: string;
-            probabilityPercent: number | null;
-        };
-        HourForecast: {
-            /** Format: date-time */
-            at: string;
-            temperatureC: number;
-            rainProbabilityPercent: number;
-            windGustKmh: number;
-        };
-        WeatherAlert: {
-            level: components["schemas"]["AlertLevel"];
-            title: string;
-            phenomena: string[];
-            /** Format: date-time */
-            validUntil: string;
-            /** Format: uri */
-            sourceUrl: string;
-            /** @description Département réellement utilisé pour interroger la vigilance. */
-            departmentCode: string | null;
-            /** @description true si la vigilance officielle n’a pas pu être établie. */
-            indisponible: boolean;
-        };
-        EssentialWeather: {
-            location: components["schemas"]["Location"];
-            current: components["schemas"]["CurrentWeather"];
-            today: components["schemas"]["DayRange"];
-            nextChange: components["schemas"]["NextChange"];
-            nextHours: components["schemas"]["HourForecast"][];
-            alert: components["schemas"]["WeatherAlert"];
-            unavailableSources: string[];
-            /** Format: date-time */
-            generatedAt: string;
-        };
+  schemas: {
+    LocationSummary: {
+      id: string;
+      label: string;
+      shortLabel: string;
+      latitude: number;
+      longitude: number;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    LocationsResponse: { locations: components["schemas"]["LocationSummary"][] };
+    AlertLevel: "green" | "yellow" | "orange" | "red";
+    StationNetwork: "meteofrance" | "infoclimat";
+    Coordinates: { latitude: number; longitude: number };
+    Municipality: { name: string; inseeCode: string };
+    Department: { name: string; code: string };
+    LocationResolution: {
+      administrative: "ign" | "unavailable";
+      altitude: "ign" | "unavailable";
+    };
+    ResolvedLocation: {
+      coordinates: components["schemas"]["Coordinates"];
+      label: string;
+      municipality: components["schemas"]["Municipality"] | null;
+      department: components["schemas"]["Department"] | null;
+      altitudeM: number | null;
+      resolution: components["schemas"]["LocationResolution"];
+      unavailableSources: string[];
+      generatedAt: string;
+    };
+    Location: {
+      id: string | null;
+      label: string;
+      latitude: number;
+      longitude: number;
+      municipality: components["schemas"]["Municipality"] | null;
+      department: components["schemas"]["Department"] | null;
+      altitudeM: number | null;
+      accuracyM: number | null;
+      source: "preset" | "gps";
+    };
+    CurrentWeather: {
+      temperatureC: number;
+      apparentTemperatureC: number;
+      weatherLabel: string;
+      observedAt: string;
+      nature: "observation" | "model";
+      sourceLabel: string;
+      stale: boolean;
+      station: components["schemas"]["WeatherStation"] | null;
+    };
+    WeatherStation: {
+      id: string;
+      name: string;
+      network: components["schemas"]["StationNetwork"];
+      altitudeM: number;
+      distanceKm: number;
+      altitudeDifferenceM: number | null;
+      ageMinutes: number;
+      selectionScore: number;
+    };
+    DayRange: { minimumC: number; maximumC: number };
+    NextChange: {
+      type: "rain" | "wind" | "temperature" | "stable";
+      startsAt: string | null;
+      summary: string;
+      probabilityPercent: number | null;
+    };
+    HourForecast: {
+      at: string;
+      temperatureC: number;
+      rainProbabilityPercent: number;
+      windGustKmh: number;
+    };
+    WeatherAlert: {
+      level: components["schemas"]["AlertLevel"];
+      title: string;
+      phenomena: string[];
+      validUntil: string;
+      sourceUrl: string;
+      departmentCode: string | null;
+      indisponible: boolean;
+    };
+    ProvenanceSource: {
+      id: string;
+      name: string;
+      provider: string | null;
+      product: string | null;
+      model: string | null;
+      url: string | null;
+      license: string | null;
+    };
+    ProvenanceTime: {
+      observedAt: string | null;
+      validAt: string | null;
+      generatedAt: string | null;
+      retrievedAt: string | null;
+    };
+    ProvenanceModelPoint: {
+      latitude: number | null;
+      longitude: number | null;
+      altitudeM: number | null;
+    };
+    ProvenanceQuality: {
+      stale: boolean;
+      ageMinutes: number | null;
+      spatialResolution: string | null;
+      modelPoint: components["schemas"]["ProvenanceModelPoint"] | null;
+    };
+    ProvenanceStation: {
+      id: string;
+      name: string;
+      network: components["schemas"]["StationNetwork"];
+      altitudeM: number;
+      distanceKm: number;
+      altitudeDifferenceM: number | null;
+      ageMinutes: number;
+      selectionScore: number;
+      license: string | null;
+    };
+    ProvenanceValue: {
+      status: "available" | "partial" | "unavailable";
+      nature: "observation" | "model" | "official" | "geographic" | "derived" | "fallback" | "unavailable";
+      label: string;
+      source: components["schemas"]["ProvenanceSource"] | null;
+      time: components["schemas"]["ProvenanceTime"];
+      quality: components["schemas"]["ProvenanceQuality"];
+      station: components["schemas"]["ProvenanceStation"] | null;
+      derivedFrom: ("municipality" | "department" | "altitude" | "currentTemperature" | "apparentTemperature" | "weatherCondition" | "todayRange" | "nextChange" | "nextHours" | "alert")[];
+      notes: string[];
+    };
+    StationSelection: {
+      policyVersion: "1";
+      status: "selected" | "no_measurements" | "no_eligible_station" | "provider_unavailable" | "not_evaluated";
+      reasonCode: "BEST_ELIGIBLE_STATION" | "NO_VALID_MEASUREMENTS" | "NO_ELIGIBLE_STATION" | "STATION_DATA_UNAVAILABLE" | "SELECTION_NOT_RUN";
+      evaluatedCandidates: number | null;
+      eligibleCandidates: number | null;
+      selectedStationId: string | null;
+    };
+    WeatherProvenance: {
+      schemaVersion: "1.0";
+      weatherMode: "model" | "observation" | "hybrid" | "unavailable";
+      summary: string;
+      values: {
+        municipality: components["schemas"]["ProvenanceValue"];
+        department: components["schemas"]["ProvenanceValue"];
+        altitude: components["schemas"]["ProvenanceValue"];
+        currentTemperature: components["schemas"]["ProvenanceValue"];
+        apparentTemperature: components["schemas"]["ProvenanceValue"];
+        weatherCondition: components["schemas"]["ProvenanceValue"];
+        todayRange: components["schemas"]["ProvenanceValue"];
+        nextChange: components["schemas"]["ProvenanceValue"];
+        nextHours: components["schemas"]["ProvenanceValue"];
+        alert: components["schemas"]["ProvenanceValue"];
+      };
+      stationSelection: components["schemas"]["StationSelection"];
+    };
+    EssentialWeather: {
+      location: components["schemas"]["Location"];
+      current: components["schemas"]["CurrentWeather"];
+      today: components["schemas"]["DayRange"];
+      nextChange: components["schemas"]["NextChange"];
+      nextHours: components["schemas"]["HourForecast"][];
+      alert: components["schemas"]["WeatherAlert"];
+      provenance: components["schemas"]["WeatherProvenance"];
+      unavailableSources: string[];
+      generatedAt: string;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
+
 export type $defs = Record<string, never>;
+
 export interface operations {
-    listWeatherLocations: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Lieux disponibles */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LocationsResponse"];
-                };
-            };
-        };
+  listWeatherLocations: {
+    parameters: { query?: never; header?: never; path?: never; cookie?: never };
+    requestBody?: never;
+    responses: {
+      200: { headers: { [name: string]: unknown }; content: { "application/json": components["schemas"]["LocationsResponse"] } };
     };
-    resolveWeatherLocation: {
-        parameters: {
-            query: {
-                lat: number;
-                lon: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Localisation géographique normalisée */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResolvedLocation"];
-                };
-            };
-            /** @description Coordonnées invalides */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+  };
+  resolveWeatherLocation: {
+    parameters: { query: { lat: number; lon: number }; header?: never; path?: never; cookie?: never };
+    requestBody?: never;
+    responses: {
+      200: { headers: { [name: string]: unknown }; content: { "application/json": components["schemas"]["ResolvedLocation"] } };
+      400: { headers: { [name: string]: unknown }; content?: never };
     };
-    getEssentialWeather: {
-        parameters: {
-            query: {
-                lat: number;
-                lon: number;
-                /** @description Précision fournie par le navigateur pour une position GPS. */
-                accuracyM?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Lecture météo normalisée */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EssentialWeather"];
-                };
-            };
-            /** @description Coordonnées invalides */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Aucune donnée météo exploitable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+  };
+  getEssentialWeather: {
+    parameters: { query: { lat: number; lon: number; accuracyM?: number }; header?: never; path?: never; cookie?: never };
+    requestBody?: never;
+    responses: {
+      200: { headers: { [name: string]: unknown }; content: { "application/json": components["schemas"]["EssentialWeather"] } };
+      400: { headers: { [name: string]: unknown }; content?: never };
+      503: { headers: { [name: string]: unknown }; content?: never };
     };
+  };
 }
