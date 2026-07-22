@@ -44,7 +44,7 @@ test("agregerRevisions compare les runs J-1 et J par journée", () => {
   });
 });
 
-test("resumerRevisions calcule des écarts absolus sans les présenter comme des erreurs", () => {
+test("resumerRevisions conserve le sens des ajustements dans les écarts moyens", () => {
   const comparaisons = agregerRevisions({
     hourly: {
       time: ["2026-07-20T00:00", "2026-07-21T00:00"],
@@ -59,8 +59,8 @@ test("resumerRevisions calcule des écarts absolus sans les présenter comme des
   const resume = resumerRevisions(comparaisons);
 
   assert.equal(resume.joursComparables, 2);
-  assert.equal(resume.ecartMoyenTemperatureMinC, 2);
-  assert.equal(resume.ecartMoyenTemperatureMaxC, 2);
-  assert.equal(resume.ecartMoyenPrecipitationMm, 2.5);
+  assert.equal(resume.ecartMoyenTemperatureMinC, 0);
+  assert.equal(resume.ecartMoyenTemperatureMaxC, 0);
+  assert.equal(resume.ecartMoyenPrecipitationMm, 0.5);
   assert.equal(resume.joursScenarioRevise, 1);
 });

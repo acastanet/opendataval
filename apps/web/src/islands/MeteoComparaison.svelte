@@ -28,7 +28,7 @@
     const n = nombre(valeur);
     if (n === null) return "–";
     const absolue = Math.abs(n).toLocaleString("fr-FR", { maximumFractionDigits: decimales });
-    if (n === 0) return `0${unite}`;
+    if (n === 0) return `±0${unite}`;
     return `${n > 0 ? "+" : "−"}${absolue}${unite}`;
   }
 
@@ -176,21 +176,22 @@
       <dl class="indicateurs">
         <div>
           <dt>Écart moyen des maximales</dt>
-          <dd>{formaterValeur(resume.ecartMoyenTemperatureMaxC, " °C")}</dd>
+          <dd>{formaterEcart(resume.ecartMoyenTemperatureMaxC, " °C")}</dd>
         </div>
         <div>
           <dt>Écart moyen des minimales</dt>
-          <dd>{formaterValeur(resume.ecartMoyenTemperatureMinC, " °C")}</dd>
+          <dd>{formaterEcart(resume.ecartMoyenTemperatureMinC, " °C")}</dd>
         </div>
         <div>
           <dt>Écart moyen de pluie</dt>
-          <dd>{formaterValeur(resume.ecartMoyenPrecipitationMm, " mm")}</dd>
+          <dd>{formaterEcart(resume.ecartMoyenPrecipitationMm, " mm")}</dd>
         </div>
         <div>
           <dt>Jours avec scénario révisé</dt>
           <dd>{resume.joursScenarioRevise}<span> / {resume.joursComparables}</span></dd>
         </div>
       </dl>
+      <p class="sens-ecart"><strong>+</strong> révision à la hausse · <strong>−</strong> révision à la baisse · calcul&nbsp;: J − J−1</p>
       <div class="repartition" aria-label="Répartition de l’ampleur des révisions">
         <span class="faible">{resume.repartition.faible} faibles</span>
         <span class="moderee">{resume.repartition.moderee} modérées</span>
@@ -309,6 +310,8 @@
   .indicateurs dt { min-height: 2.5em; color: var(--gris); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
   .indicateurs dd { margin: 0.45rem 0 0; color: var(--bleu); font-size: clamp(1.8rem, 7vw, 3rem); font-weight: 850; line-height: 1; }
   .indicateurs dd span { color: var(--gris); font-size: 0.45em; }
+  .sens-ecart { margin: 0.75rem 0 0; color: var(--gris); font-size: 0.76rem; line-height: 1.45; }
+  .sens-ecart strong { color: var(--bleu); }
   .repartition { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.8rem; }
   .repartition span, .niveau { padding: 0.35rem 0.55rem; border: 1px solid currentColor; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
   .faible, .niveau-faible { color: #14764d; background: #ecf8f1; }

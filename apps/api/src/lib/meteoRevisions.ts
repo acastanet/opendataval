@@ -237,10 +237,10 @@ export function agregerRevisions(donnees: unknown): ComparaisonRevisionJour[] {
   ));
 }
 
-function moyenneAbsolue(valeurs: readonly (number | null)[]): number | null {
+function moyenneSignee(valeurs: readonly (number | null)[]): number | null {
   const disponibles = valeurs.filter((valeur): valeur is number => valeur !== null);
   if (!disponibles.length) return null;
-  return arrondir(disponibles.reduce((total, valeur) => total + Math.abs(valeur), 0) / disponibles.length);
+  return arrondir(disponibles.reduce((total, valeur) => total + valeur, 0) / disponibles.length);
 }
 
 export function resumerRevisions(comparaisons: readonly ComparaisonRevisionJour[]): ResumeRevisions {
@@ -248,9 +248,9 @@ export function resumerRevisions(comparaisons: readonly ComparaisonRevisionJour[
   for (const comparaison of comparaisons) repartition[comparaison.niveauRevision]++;
   return {
     joursComparables: comparaisons.length,
-    ecartMoyenTemperatureMinC: moyenneAbsolue(comparaisons.map((jour) => jour.ecarts.temperatureMinC)),
-    ecartMoyenTemperatureMaxC: moyenneAbsolue(comparaisons.map((jour) => jour.ecarts.temperatureMaxC)),
-    ecartMoyenPrecipitationMm: moyenneAbsolue(comparaisons.map((jour) => jour.ecarts.precipitationMm)),
+    ecartMoyenTemperatureMinC: moyenneSignee(comparaisons.map((jour) => jour.ecarts.temperatureMinC)),
+    ecartMoyenTemperatureMaxC: moyenneSignee(comparaisons.map((jour) => jour.ecarts.temperatureMaxC)),
+    ecartMoyenPrecipitationMm: moyenneSignee(comparaisons.map((jour) => jour.ecarts.precipitationMm)),
     joursScenarioRevise: comparaisons.filter((jour) => jour.ecarts.heuresScenarioModifiees > 0).length,
     repartition,
   };
