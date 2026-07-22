@@ -216,7 +216,12 @@ async function recupererVigilance(codeDep: string): Promise<VigilanceResult> {
   }
 }
 
-/** Parse la réponse brute de la carte de vigilance pour un département donné. */
+/** Parse la réponse brute de la carte de vigilance pour un département donné.
+ * Format V6 : product.periods[].timelaps.domain_ids[]
+ *   domain_id: string (code département, e.g. "30")
+ *   max_color_id: string ("1".."4")
+ *   phenomenon_ids: [{phenomenon_id: number, color_id: number}]
+ */
 function parserVigilancePourDept(data: unknown, codeDep: string): VigilanceResult {
   if (typeof data !== "object" || data === null) {
     return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
@@ -229,41 +234,76 @@ function parserVigilancePourDept(data: unknown, codeDep: string): VigilanceResul
     return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
   }
   const p = product as Record<string, unknown>;
-  const domainArrInput = p.domain_arr ?? p.timelist ?? null;
-  const domainArr: unknown[] = Array.isArray(domainArrInput) ? domainArrInput : [];
 
-  for (const d of domainArr) {
-    if (typeof d !== "object" || d === null) continue;
-    const domain = d as Record<string, unknown>;
-    const codeDept =
-      String(domain.code ?? domain.domain_code ?? domain.domain ?? "");
-    if (codeDept !== codeDep) continue;
+  const updateTime = String(p.update_time ?? p.timestamp ?? "");
+  const miseAJour = updateTime ? new Date(updateTime) : null;
 
-    const couleurMax = Number(domain.couleur_max ?? domain.color_max ?? domain.max_color ?? 1);
-    const niveau = COULEUR_VIGILANCE[couleurMax] ?? "green";
+  // Chercher dans les periodes (format V6)
+  const periods: unknown[] = Array.isArray(p.periods) ? p.periods : [];
 
-    const updateTime = String(domain.update_time ?? domain.date_update ?? domain.timestamp ?? "");
-    const miseAJour = updateTime ? new Date(updateTime) : null;
+  let meilleurNiveau: number = 1; // 1 = green (min)
+  const phenomenesTrouves = new Set<string>();
 
-    const phenomena: string[] = [];
-    const phenInput = domain.phenomenon_arr ?? domain.phenomenon ?? domain.phenomena ?? null;
-    const rawPhenomena: unknown[] = Array.isArray(phenInput) ? phenInput : [];
-    for (const p of rawPhenomena) {
-      if (typeof p !== "object" || p === null) continue;
-      const pid = String(
-        (p as Record<string, unknown>).id ??
-        (p as Record<string, unknown>).phenomenon_id ??
-        (p as Record<string, unknown>).code ??
-        "",
-      );
-      if (PHENOMENE_NOMS[pid]) phenomena.push(PHENOMENE_NOMS[pid]);
+  for (const period of periods) {
+    if (typeof period !== "object" || period === null) continue;
+    const timelaps = (period as Record<string, unknown>).timelaps;
+    if (typeof timelaps !== "object" || timelaps === null) continue;
+    const domainIds: unknown[] = Array.isArray((timelaps as Record<string, unknown>).domain_ids)
+      ? ((timelaps as Record<string, unknown>).domain_ids as unknown[])
+      : [];
+
+    for (const di of domainIds) {
+      if (typeof di !== "object" || di === null) continue;
+      const entry = di as Record<string, unknown>;
+      const did = String(entry.domain_id ?? entry.domain ?? "");
+      if (did !== codeDep) continue;
+
+      const maxColor = Number(entry.max_color_id ?? entry.max_color ?? entry.color_id ?? 1);
+      if (maxColor > meilleurNiveau) meilleurNiveau = maxColor;
+
+      // Phénomènes
+      const phenInput2 = entry.phenomenon_ids ?? entry.phenomena ?? null;
+      const phenIds: unknown[] = Array.isArray(phenInput2) ? phenInput2 : [];
+      for (const ph of phenIds) {
+        if (typeof ph !== "object" || ph === null) continue;
+        const pid = String(
+          (ph as Record<string, unknown>).phenomenon_id ??
+          (ph as Record<string, unknown>).id ??
+          (ph as Record<string, unknown>).code ??
+          "",
+        );
+        if (PHENOMENE_NOMS[pid]) phenomenesTrouves.add(PHENOMENE_NOMS[pid]);
+      }
     }
-
-    return { niveau, phenomenes: phenomena, miseAJour, indisponible: false };
   }
 
-  // Département non trouvé dans la réponse vigilance
-  return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
+  // Fallback : chercher dans product.timelaps.domain_ids (structure alternative)
+  if (meilleurNiveau === 1) {
+    const globalTimelaps = p.timelaps;
+    if (typeof globalTimelaps === "object" && globalTimelaps !== null) {
+      const globalIds: unknown[] = Array.isArray((globalTimelaps as Record<string, unknown>).domain_ids)
+        ? ((globalTimelaps as Record<string, unknown>).domain_ids as unknown[])
+        : [];
+      for (const di of globalIds) {
+        if (typeof di !== "object" || di === null) continue;
+        const entry = di as Record<string, unknown>;
+        const did = String(entry.domain_id ?? entry.domain ?? "");
+        if (did !== codeDep) continue;
+        const maxColor = Number(entry.max_color_id ?? entry.max_color ?? 1);
+        if (maxColor > meilleurNiveau) meilleurNiveau = maxColor;
+      }
+    }
+  }
+
+  const niveau = COULEUR_VIGILANCE[meilleurNiveau] ?? "green";
+  const trouve = meilleurNiveau > 1 || miseAJour !== null;
+
+  return {
+    niveau,
+    phenomenes: [...phenomenesTrouves],
+    miseAJour,
+    indisponible: !trouve,
+  };
 }
 
 /* ────────── normalisation essentielle ────────── */
