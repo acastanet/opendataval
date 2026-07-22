@@ -15,13 +15,21 @@ export function HourlyStrip({ hours }: HourlyStripProps) {
         </div>
         <a href="#analysis">Voir l’analyse</a>
       </div>
-      <ol className="hourly-list">
+      <p className="hourly-scroll-hint" id="hourly-scroll-help">
+        Faites défiler horizontalement pour consulter toutes les heures.
+      </p>
+      <ol
+        className="hourly-list"
+        aria-label="Prévisions heure par heure"
+        aria-describedby="hourly-scroll-help"
+        tabIndex={0}
+      >
         {hours.map((hour, index) => (
           <li key={hour.at}>
             <time dateTime={hour.at}>{index === 0 ? "Maintenant" : formatTime(hour.at)}</time>
             <strong>{temperature(hour.temperatureC)}°</strong>
-            <span>{hour.rainProbabilityPercent}% pluie</span>
-            <span>Raf. {Math.round(hour.windGustKmh)} km/h</span>
+            <span>{hour.rainProbabilityPercent}% de pluie</span>
+            <span>Rafales {Math.round(hour.windGustKmh)} km/h</span>
           </li>
         ))}
       </ol>

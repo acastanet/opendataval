@@ -50,7 +50,7 @@ export interface paths {
         };
         /**
          * Retourne les données nécessaires à la lecture météo essentielle
-         * @description Le contrat 1.3.0 ajoute une provenance structurée par valeur tout en conservant les champs 1.2.0 de compatibilité.
+         * @description Le contrat 1.4.0 ajoute les critères et diagnostics de sélection des stations dans la provenance 1.1, tout en conservant les champs 1.3.0.
          */
         get: operations["getEssentialWeather"];
         put?: never;
@@ -234,6 +234,38 @@ export interface components {
         } | null;
         /** @enum {string} */
         valueKey: "municipality" | "department" | "altitude" | "currentTemperature" | "apparentTemperature" | "weatherCondition" | "todayRange" | "nextChange" | "nextHours" | "alert";
+        /** @enum {string} */
+        stationRejectionReason: "INVALID_TEMPERATURE" | "INVALID_TIMESTAMP" | "FUTURE_TIMESTAMP" | "TOO_OLD" | "TOO_FAR" | "ALTITUDE_UNKNOWN_TOO_FAR" | "ALTITUDE_MISMATCH" | "SCORE_TOO_HIGH" | "ELIGIBLE_NOT_SELECTED";
+        stationSelectionCriteria: {
+            maximumDistanceKm: number;
+            maximumDistanceWithoutAltitudeKm: number;
+            maximumAltitudeDifferenceM: number;
+            maximumObservationAgeMinutes: number;
+            staleAfterMinutes: number;
+            futureToleranceMinutes: number;
+            maximumSelectionScore: number;
+        };
+        stationCandidate: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            network: "meteofrance" | "infoclimat";
+            altitudeM: number;
+            distanceKm: number;
+            altitudeDifferenceM: number | null;
+            /** Format: date-time */
+            observedAt: string | null;
+            ageMinutes: number | null;
+            selectionScore: number | null;
+            measurementValid: boolean;
+            eligible: boolean;
+            selected: boolean;
+            rejectionReasons: components["schemas"]["stationRejectionReason"][];
+        } | null;
+        stationRejectionCount: {
+            reason: components["schemas"]["stationRejectionReason"];
+            count: number;
+        };
         valueProvenance: {
             /** @enum {string} */
             status: "available" | "partial" | "unavailable";
@@ -254,17 +286,22 @@ export interface components {
             status: "selected" | "no_measurements" | "no_eligible_station" | "provider_unavailable" | "not_evaluated";
             /** @enum {string} */
             reasonCode: "BEST_ELIGIBLE_STATION" | "NO_VALID_MEASUREMENTS" | "NO_ELIGIBLE_STATION" | "STATION_DATA_UNAVAILABLE" | "SELECTION_NOT_RUN";
+            message: string;
+            receivedMeasurements: number | null;
             evaluatedCandidates: number | null;
             eligibleCandidates: number | null;
             selectedStationId: string | null;
+            criteria: components["schemas"]["stationSelectionCriteria"];
+            nearestCandidate: components["schemas"]["stationCandidate"];
+            rejectionSummary: components["schemas"]["stationRejectionCount"][];
         } & (unknown & unknown & unknown & unknown & unknown);
         /**
-         * OpenDataVal — provenance météo essentielle 1.0
+         * OpenDataVal — provenance météo essentielle 1.1
          * @description Sous-contrat public de provenance prévu pour GET /api/v1/meteo/essential.
          */
         "provenance.schema": {
             /** @constant */
-            schemaVersion: "1.0";
+            schemaVersion: "1.1";
             /** @enum {string} */
             weatherMode: "model" | "observation" | "hybrid" | "unavailable";
             summary: string;
@@ -340,6 +377,38 @@ export interface components {
                     derivedFrom: components["schemas"]["valueKey"][];
                     notes: string[];
                 } & (unknown & unknown & unknown);
+                /** @enum {string} */
+                stationRejectionReason: "INVALID_TEMPERATURE" | "INVALID_TIMESTAMP" | "FUTURE_TIMESTAMP" | "TOO_OLD" | "TOO_FAR" | "ALTITUDE_UNKNOWN_TOO_FAR" | "ALTITUDE_MISMATCH" | "SCORE_TOO_HIGH" | "ELIGIBLE_NOT_SELECTED";
+                stationSelectionCriteria: {
+                    maximumDistanceKm: number;
+                    maximumDistanceWithoutAltitudeKm: number;
+                    maximumAltitudeDifferenceM: number;
+                    maximumObservationAgeMinutes: number;
+                    staleAfterMinutes: number;
+                    futureToleranceMinutes: number;
+                    maximumSelectionScore: number;
+                };
+                stationCandidate: {
+                    id: string;
+                    name: string;
+                    /** @enum {string} */
+                    network: "meteofrance" | "infoclimat";
+                    altitudeM: number;
+                    distanceKm: number;
+                    altitudeDifferenceM: number | null;
+                    /** Format: date-time */
+                    observedAt: string | null;
+                    ageMinutes: number | null;
+                    selectionScore: number | null;
+                    measurementValid: boolean;
+                    eligible: boolean;
+                    selected: boolean;
+                    rejectionReasons: components["schemas"]["stationRejectionReason"][];
+                } | null;
+                stationRejectionCount: {
+                    reason: components["schemas"]["stationRejectionReason"];
+                    count: number;
+                };
                 stationSelection: {
                     /** @constant */
                     policyVersion: "1";
@@ -347,9 +416,14 @@ export interface components {
                     status: "selected" | "no_measurements" | "no_eligible_station" | "provider_unavailable" | "not_evaluated";
                     /** @enum {string} */
                     reasonCode: "BEST_ELIGIBLE_STATION" | "NO_VALID_MEASUREMENTS" | "NO_ELIGIBLE_STATION" | "STATION_DATA_UNAVAILABLE" | "SELECTION_NOT_RUN";
+                    message: string;
+                    receivedMeasurements: number | null;
                     evaluatedCandidates: number | null;
                     eligibleCandidates: number | null;
                     selectedStationId: string | null;
+                    criteria: components["schemas"]["stationSelectionCriteria"];
+                    nearestCandidate: components["schemas"]["stationCandidate"];
+                    rejectionSummary: components["schemas"]["stationRejectionCount"][];
                 } & (unknown & unknown & unknown & unknown & unknown);
             };
         };

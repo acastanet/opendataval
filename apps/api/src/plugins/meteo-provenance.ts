@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { ResolvedGeography } from "../lib/geography.js";
 import { buildEssentialProvenance } from "../lib/meteo-provenance.js";
+import { addStationSelectionDiagnostics } from "../lib/meteo-station-selection-provenance.js";
 import {
   currentStationObservationContext,
   runWithStationObservationContext,
@@ -104,7 +105,7 @@ export function enrichEssentialWeatherWithProvenance(
   const hasSelectedObservation = stationDecision?.selected !== null
     && stationDecision?.selected !== undefined;
 
-  const provenance = buildEssentialProvenance({
+  const baseProvenance = buildEssentialProvenance({
     retrievedAt: payload.generatedAt,
     geography: geographyFromPayload(payload),
     observationProviderUnavailable,
@@ -133,6 +134,14 @@ export function enrichEssentialWeatherWithProvenance(
       validAt: null,
     },
   });
+  const provenance = {
+    ...baseProvenance,
+    schemaVersion: "1.1" as const,
+    stationSelection: addStationSelectionDiagnostics(
+      baseProvenance.stationSelection,
+      stationDecision,
+    ),
+  };
 
   return { ...payload, provenance };
 }

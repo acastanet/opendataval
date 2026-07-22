@@ -5,13 +5,19 @@
 }
 
 .provenance-summary {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.7rem;
+  padding: 0.68rem 0.75rem;
   border: 1px solid var(--line);
+  border-left: 0.28rem solid var(--blue);
   background: var(--white);
+}
+
+.provenance-summary--observation,
+.provenance-summary--hybrid {
+  border-left-color: var(--green);
+}
+
+.provenance-summary--unavailable {
+  border-left-color: var(--muted);
 }
 
 .provenance-summary p {
@@ -19,30 +25,7 @@
   color: var(--muted);
   font-size: 0.7rem;
   font-weight: 680;
-  line-height: 1.4;
-}
-
-.provenance-badge {
-  display: inline-flex;
-  min-height: 1.9rem;
-  align-items: center;
-  padding: 0.35rem 0.55rem;
-  color: var(--white);
-  background: var(--blue);
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  line-height: 1.15;
-  text-transform: uppercase;
-}
-
-.provenance-summary--observation .provenance-badge,
-.provenance-summary--hybrid .provenance-badge {
-  background: var(--green);
-}
-
-.provenance-summary--unavailable .provenance-badge {
-  background: var(--muted);
+  line-height: 1.45;
 }
 
 .provenance-details {
@@ -101,6 +84,8 @@
 }
 
 .provenance-grid h2,
+.provenance-grid h3,
+.provenance-grid h4,
 .provenance-grid p {
   margin: 0;
 }
@@ -109,6 +94,16 @@
   font-size: 0.82rem;
   letter-spacing: -0.01em;
   line-height: 1.3;
+}
+
+.provenance-grid h3 {
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.provenance-grid h4 {
+  font-size: 0.68rem;
+  line-height: 1.35;
 }
 
 .provenance-grid p:not(.eyebrow) {
@@ -143,13 +138,130 @@
   font-weight: 800;
 }
 
+.provenance-grid .provenance-times {
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line);
+}
+
+.provenance-times div {
+  grid-template-columns: minmax(8.5rem, 0.9fr) minmax(0, 1.1fr);
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.provenance-times dd {
+  text-align: right;
+}
+
+.station-selection-section {
+  gap: 0.7rem !important;
+}
+
+.provenance-grid .selection-counts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 0.15rem;
+  border: 1px solid var(--line);
+}
+
+.selection-counts div {
+  padding: 0.55rem;
+  border-left: 1px solid var(--line);
+}
+
+.selection-counts div:first-child {
+  border-left: 0;
+}
+
+.selection-counts dd {
+  color: var(--blue-dark);
+  font-size: 0.9rem;
+}
+
+.station-candidate {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border-left: 0.28rem solid var(--blue);
+  background: var(--paper);
+}
+
+.station-candidate__label {
+  color: var(--blue) !important;
+  font-size: 0.58rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.station-candidate__accepted {
+  color: var(--green) !important;
+}
+
+.station-rejections {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line);
+}
+
+.station-rejections h4 {
+  color: var(--red);
+}
+
+.station-rejections ul,
+.rejection-summary ul {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--ink);
+  font-size: 0.66rem;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
+.rejection-summary {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+}
+
+.selection-criteria {
+  display: grid;
+  gap: 0.3rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--line);
+}
+
 @media (max-width: 480px) {
-  .provenance-summary {
+  .provenance-times div {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .provenance-times dd {
+    text-align: left;
+  }
+
+  .provenance-grid .selection-counts {
     grid-template-columns: 1fr;
   }
 
-  .provenance-badge {
-    width: max-content;
+  .selection-counts div {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .selection-counts div:first-child {
+    border-top: 0;
   }
 }
 
@@ -165,5 +277,10 @@
 
   .provenance-grid section:nth-child(4) {
     border-left: 1px solid var(--line);
+  }
+
+  .provenance-grid .station-selection-section {
+    grid-column: 1 / -1;
+    border-left: 0;
   }
 }

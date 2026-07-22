@@ -6,8 +6,15 @@ interface NextChangeCardProps {
 }
 
 export function NextChangeCard({ change }: NextChangeCardProps) {
+  const quiet = change.type === "stable";
+  const className = [
+    "next-change",
+    `next-change--${change.type}`,
+    quiet ? "next-change--quiet" : null,
+  ].filter(Boolean).join(" ");
+
   return (
-    <section className={`next-change next-change--${change.type}`} aria-labelledby="next-change-title">
+    <section className={className} aria-labelledby="next-change-title">
       <div>
         <p className="eyebrow">Prochain changement</p>
         <h2 id="next-change-title">

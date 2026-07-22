@@ -5,22 +5,76 @@ interface DataProvenancePanelProps {
   provenance: WeatherProvenance;
 }
 
-function valueTime(value: WeatherProvenance["values"][keyof WeatherProvenance["values"]]): string | null {
-  return value.time.observedAt
-    ?? value.time.validAt
-    ?? value.time.generatedAt
-    ?? value.time.retrievedAt;
+type StationSelection = WeatherProvenance["stationSelection"];
+type StationCandidate = NonNullable<StationSelection["nearestCandidate"]>;
+
+const number = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
+
+type ProvenanceValue = WeatherProvenance["values"][keyof WeatherProvenance["values"]];
+
+interface TimeFact {
+  label: string;
+  iso: string;
 }
 
-function timeDescription(
-  value: WeatherProvenance["values"][keyof WeatherProvenance["values"]],
-): string | null {
-  const iso = valueTime(value);
-  if (!iso) return null;
-  if (value.time.observedAt) return `Observée ${formatDateTime(iso)}`;
-  if (value.time.validAt) return `Valable ${formatDateTime(iso)}`;
-  if (value.time.generatedAt) return `Produite ${formatDateTime(iso)}`;
-  return `Récupérée ${formatDateTime(iso)}`;
+function validTimeLabel(value: ProvenanceValue): string {
+  switch (value.nature) {
+    case "official":
+      return "Valable jusqu’au";
+    case "model":
+    case "fallback":
+      return "Prévision valable pour";
+    case "derived":
+      return "Calcul valable pour";
+    default:
+      return "Valeur valable pour";
+  }
+}
+
+function generatedTimeLabel(value: ProvenanceValue): string {
+  switch (value.nature) {
+    case "official":
+      return "Bulletin produit";
+    case "model":
+      return "Modèle produit";
+    case "derived":
+      return "Calcul produit";
+    default:
+      return "Donnée produite";
+  }
+}
+
+function timeFacts(value: ProvenanceValue): TimeFact[] {
+  const facts: TimeFact[] = [];
+  if (value.time.observedAt) {
+    facts.push({ label: "Observation effectuée", iso: value.time.observedAt });
+  }
+  if (value.time.validAt) {
+    facts.push({ label: validTimeLabel(value), iso: value.time.validAt });
+  }
+  if (value.time.generatedAt) {
+    facts.push({ label: generatedTimeLabel(value), iso: value.time.generatedAt });
+  }
+  if (value.time.retrievedAt) {
+    facts.push({ label: "Récupérée par OpenDataVal", iso: value.time.retrievedAt });
+  }
+  return facts;
+}
+
+function ProvenanceTimes({ value, label }: { value: ProvenanceValue; label: string }) {
+  const facts = timeFacts(value);
+  if (facts.length === 0) return null;
+
+  return (
+    <dl className="provenance-times" aria-label={`Horodatage — ${label}`}>
+      {facts.map((fact) => (
+        <div key={`${fact.label}-${fact.iso}`}>
+          <dt>{fact.label}</dt>
+          <dd>{formatDateTime(fact.iso)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 function sourceDescription(
@@ -31,7 +85,10 @@ function sourceDescription(
   return details ? `${value.source.name} — ${details}` : value.source.name;
 }
 
-function selectionDescription(selection: WeatherProvenance["stationSelection"]): string {
+function selectionDescription(selection: StationSelection): string {
+  const publicMessage = (selection as { message?: unknown }).message;
+  if (typeof publicMessage === "string" && publicMessage.length > 0) return publicMessage;
+
   switch (selection.status) {
     case "selected":
       return selection.eligibleCandidates && selection.eligibleCandidates > 1
@@ -50,16 +107,179 @@ function selectionDescription(selection: WeatherProvenance["stationSelection"]):
   }
 }
 
+function summaryDescription(provenance: WeatherProvenance): string {
+  const selection = provenance.stationSelection;
+
+  if (provenance.weatherMode === "hybrid") {
+    return "La température provient d’une station locale ; le ressenti et les prévisions restent modélisés.";
+  }
+  if (provenance.weatherMode === "observation") {
+    return "Les conditions actuelles proviennent d’une station locale.";
+  }
+  if (provenance.weatherMode === "unavailable") {
+    return provenance.summary;
+  }
+
+  switch (selection.status) {
+    case "no_eligible_station":
+      return "Aucune station suffisamment représentative. La température affichée provient donc du modèle.";
+    case "no_measurements":
+      return "Aucune observation locale valide n’est disponible. La température affichée provient du modèle.";
+    case "provider_unavailable":
+      return "Les observations locales sont momentanément indisponibles. La température affichée provient du modèle.";
+    case "not_evaluated":
+      return "La température affichée provient du modèle ; la sélection d’une station locale n’a pas été exécutée.";
+    case "selected":
+      return provenance.summary;
+  }
+}
+
+function networkLabel(network: StationCandidate["network"]): string {
+  return network === "meteofrance" ? "Météo-France" : "Infoclimat";
+}
+
+function ageLabel(ageMinutes: number | null): string {
+  if (ageMinutes === null) return "Non déterminée";
+  const rounded = Math.max(0, Math.round(ageMinutes));
+  if (rounded < 60) return `${rounded} min`;
+  const hours = Math.floor(rounded / 60);
+  const minutes = rounded % 60;
+  return minutes === 0 ? `${hours} h` : `${hours} h ${String(minutes).padStart(2, "0")}`;
+}
+
+function rejectionLabel(reason: string): string {
+  switch (reason) {
+    case "INVALID_TEMPERATURE":
+      return "Température absente ou invalide";
+    case "INVALID_TIMESTAMP":
+      return "Heure d’observation absente ou invalide";
+    case "FUTURE_TIMESTAMP":
+      return "Observation datée anormalement dans le futur";
+    case "TOO_OLD":
+      return "Observation trop ancienne";
+    case "TOO_FAR":
+      return "Station trop éloignée";
+    case "ALTITUDE_UNKNOWN_TOO_FAR":
+      return "Altitude du lieu inconnue et station trop éloignée";
+    case "ALTITUDE_MISMATCH":
+      return "Écart d’altitude trop important";
+    case "SCORE_TOO_HIGH":
+      return "Représentativité globale insuffisante";
+    case "ELIGIBLE_NOT_SELECTED":
+      return "Une autre station a obtenu un meilleur classement";
+    default:
+      return "Critère de représentativité non satisfait";
+  }
+}
+
+function SelectionCounts({ selection }: { selection: StationSelection }) {
+  const received = (selection as { receivedMeasurements?: number | null }).receivedMeasurements;
+  if (received == null && selection.evaluatedCandidates == null && selection.eligibleCandidates == null) {
+    return null;
+  }
+
+  return (
+    <dl className="selection-counts" aria-label="Bilan de la sélection des stations">
+      <div>
+        <dt>Mesures reçues</dt>
+        <dd>{received ?? "—"}</dd>
+      </div>
+      <div>
+        <dt>Stations évaluées</dt>
+        <dd>{selection.evaluatedCandidates ?? "—"}</dd>
+      </div>
+      <div>
+        <dt>Stations admissibles</dt>
+        <dd>{selection.eligibleCandidates ?? "—"}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function CandidateCard({ candidate }: { candidate: StationCandidate }) {
+  return (
+    <div className="station-candidate">
+      <p className="station-candidate__label">
+        {candidate.selected ? "Station retenue" : "Station la plus proche examinée"}
+      </p>
+      <h3>{candidate.name}</h3>
+      <p>{networkLabel(candidate.network)} · identifiant {candidate.id}</p>
+
+      <dl>
+        <div>
+          <dt>Distance</dt>
+          <dd>{number.format(candidate.distanceKm)} km</dd>
+        </div>
+        <div>
+          <dt>Altitude</dt>
+          <dd>{Math.round(candidate.altitudeM)} m</dd>
+        </div>
+        <div>
+          <dt>Écart d’altitude</dt>
+          <dd>
+            {candidate.altitudeDifferenceM === null
+              ? "Non calculé"
+              : `${Math.round(candidate.altitudeDifferenceM)} m`}
+          </dd>
+        </div>
+        <div>
+          <dt>Ancienneté</dt>
+          <dd>{ageLabel(candidate.ageMinutes)}</dd>
+        </div>
+      </dl>
+
+      {candidate.observedAt ? <p>Dernière observation : {formatDateTime(candidate.observedAt)}.</p> : null}
+
+      {candidate.rejectionReasons.length > 0 ? (
+        <div className="station-rejections">
+          <h4>Pourquoi cette station n’a pas été retenue</h4>
+          <ul>
+            {candidate.rejectionReasons.map((reason) => (
+              <li key={reason}>{rejectionLabel(reason)}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="station-candidate__accepted">Cette station satisfait les critères appliqués.</p>
+      )}
+    </div>
+  );
+}
+
+function SelectionCriteria({ selection }: { selection: StationSelection }) {
+  const criteria = (selection as Partial<StationSelection>).criteria;
+  if (!criteria || selection.status === "provider_unavailable" || selection.status === "not_evaluated") {
+    return null;
+  }
+
+  return (
+    <div className="selection-criteria">
+      <h3>Critères appliqués</h3>
+      <p>
+        Distance maximale {number.format(criteria.maximumDistanceKm)} km · écart d’altitude maximal{" "}
+        {Math.round(criteria.maximumAltitudeDifferenceM)} m · observation âgée de moins de{" "}
+        {Math.round(criteria.maximumObservationAgeMinutes)} min.
+      </p>
+      <p>
+        Lorsque l’altitude du lieu n’est pas connue, la station doit se trouver à moins de{" "}
+        {number.format(criteria.maximumDistanceWithoutAltitudeKm)} km.
+      </p>
+    </div>
+  );
+}
+
 export function DataProvenancePanel({ provenance }: DataProvenancePanelProps) {
   const temperature = provenance.values.currentTemperature;
   const forecast = provenance.values.nextHours;
   const alert = provenance.values.alert;
+  const selection = provenance.stationSelection;
+  const candidate = (selection as Partial<StationSelection>).nearestCandidate;
+  const rejectionSummary = (selection as Partial<StationSelection>).rejectionSummary;
 
   return (
     <div className="provenance-block">
       <div className={`provenance-summary provenance-summary--${provenance.weatherMode}`}>
-        <span className="provenance-badge">{temperature.label}</span>
-        <p>{provenance.summary}</p>
+        <p>{summaryDescription(provenance)}</p>
       </div>
 
       <details className="provenance-details">
@@ -68,7 +288,7 @@ export function DataProvenancePanel({ provenance }: DataProvenancePanelProps) {
           <section>
             <p className="eyebrow">Température</p>
             <h2>{sourceDescription(temperature)}</h2>
-            {timeDescription(temperature) ? <p>{timeDescription(temperature)}</p> : null}
+            <ProvenanceTimes value={temperature} label="température" />
             {temperature.station ? (
               <dl>
                 <div>
@@ -98,7 +318,7 @@ export function DataProvenancePanel({ provenance }: DataProvenancePanelProps) {
           <section>
             <p className="eyebrow">Prévisions</p>
             <h2>{sourceDescription(forecast)}</h2>
-            {timeDescription(forecast) ? <p>{timeDescription(forecast)}</p> : null}
+            <ProvenanceTimes value={forecast} label="prévisions" />
             {forecast.quality.spatialResolution ? (
               <p>Résolution annoncée : {forecast.quality.spatialResolution}.</p>
             ) : null}
@@ -107,14 +327,32 @@ export function DataProvenancePanel({ provenance }: DataProvenancePanelProps) {
           <section>
             <p className="eyebrow">Vigilance</p>
             <h2>{sourceDescription(alert)}</h2>
-            {timeDescription(alert) ? <p>{timeDescription(alert)}</p> : null}
+            <ProvenanceTimes value={alert} label="vigilance" />
             {alert.notes.map((note) => <p key={note}>{note}</p>)}
           </section>
 
-          <section>
+          <section className="station-selection-section">
             <p className="eyebrow">Observation locale</p>
-            <h2>Sélection automatique · politique {provenance.stationSelection.policyVersion}</h2>
-            <p>{selectionDescription(provenance.stationSelection)}</p>
+            <h2>Sélection automatique · politique {selection.policyVersion}</h2>
+            <p>{selectionDescription(selection)}</p>
+            <SelectionCounts selection={selection} />
+
+            {selection.status !== "selected" && candidate ? <CandidateCard candidate={candidate} /> : null}
+
+            {rejectionSummary && rejectionSummary.length > 1 ? (
+              <div className="rejection-summary">
+                <h3>Motifs relevés sur l’ensemble des stations</h3>
+                <ul>
+                  {rejectionSummary.map(({ reason, count }) => (
+                    <li key={reason}>
+                      {rejectionLabel(reason)} : {count}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <SelectionCriteria selection={selection} />
           </section>
         </div>
       </details>

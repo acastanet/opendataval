@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import "./styles.css";
 import "./provenance.css";
+import "./accessibility.css";
 
 async function enableMocking() {
   if (import.meta.env.VITE_USE_MOCKS !== "true") return;

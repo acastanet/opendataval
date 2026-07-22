@@ -42,9 +42,12 @@ export function LocationSelector({
           <span className="target-mark" aria-hidden="true" />
           {locating ? "Localisation…" : "Me localiser"}
         </button>
+        <span className="sr-only" role="status" aria-live="polite">
+          {locating ? "Recherche de votre position en cours." : ""}
+        </span>
       </div>
 
-      <div className="quick-locations" aria-label="Lieux rapides">
+      <div className="quick-locations" role="group" aria-label="Lieux rapides">
         {locations.map((location) => {
           const active = isSelected(location, selected);
           return (

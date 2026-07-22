@@ -99,6 +99,16 @@ const geographicSource = {
   license: null,
 };
 
+const stationSelectionCriteria = {
+  maximumDistanceKm: 50,
+  maximumDistanceWithoutAltitudeKm: 5,
+  maximumAltitudeDifferenceM: 500,
+  maximumObservationAgeMinutes: 90,
+  staleAfterMinutes: 60,
+  futureToleranceMinutes: 15,
+  maximumSelectionScore: 60,
+} as const;
+
 function closestLocation(coordinates: WeatherCoordinates): LocationSummary {
   return locations.reduce((closest, candidate) => {
     const distance = Math.hypot(
@@ -188,7 +198,7 @@ function weatherProvenance(
     : modelValue("Prévision modélisée");
 
   return {
-    schemaVersion: "1.0",
+    schemaVersion: "1.1",
     weatherMode: usesLocalObservation ? "hybrid" : "model",
     summary: usesLocalObservation
       ? "Température mesurée localement ; ressenti, état du ciel et prévisions modélisés."
@@ -254,17 +264,41 @@ function weatherProvenance(
         policyVersion: "1",
         status: "selected",
         reasonCode: "BEST_ELIGIBLE_STATION",
+        message: "Une station suffisamment représentative a été retenue.",
+        receivedMeasurements: 2,
         evaluatedCandidates: 2,
         eligibleCandidates: 1,
         selectedStationId: "000UB",
+        criteria: stationSelectionCriteria,
+        nearestCandidate: {
+          id: "000UB",
+          name: "Valleraugue",
+          network: "infoclimat",
+          altitudeM: 400,
+          distanceKm: 1.6,
+          altitudeDifferenceM: Math.abs(profile.altitudeM - 400),
+          observedAt: retrievedAt,
+          ageMinutes: 12,
+          selectionScore: 11.4,
+          measurementValid: true,
+          eligible: true,
+          selected: true,
+          rejectionReasons: [],
+        },
+        rejectionSummary: [],
       }
       : {
         policyVersion: "1",
         status: "no_measurements",
         reasonCode: "NO_VALID_MEASUREMENTS",
+        message: "Aucune observation locale valide n’a été reçue.",
+        receivedMeasurements: 0,
         evaluatedCandidates: 0,
         eligibleCandidates: 0,
         selectedStationId: null,
+        criteria: stationSelectionCriteria,
+        nearestCandidate: null,
+        rejectionSummary: [],
       },
   };
 }
