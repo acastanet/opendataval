@@ -46,17 +46,21 @@ function renderApp() {
 }
 
 function position(latitude: number, longitude: number, accuracy = 20): GeolocationPosition {
+  const coords: GeolocationCoordinates = {
+    latitude,
+    longitude,
+    accuracy,
+    altitude: null,
+    altitudeAccuracy: null,
+    heading: null,
+    speed: null,
+    toJSON: () => ({ latitude, longitude, accuracy }),
+  };
+
   return {
-    coords: {
-      latitude,
-      longitude,
-      accuracy,
-      altitude: null,
-      altitudeAccuracy: null,
-      heading: null,
-      speed: null,
-    },
+    coords,
     timestamp: Date.now(),
+    toJSON: () => ({ coords, timestamp: Date.now() }),
   };
 }
 
