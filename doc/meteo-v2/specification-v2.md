@@ -75,7 +75,39 @@ et les codes `2A`, `2B` et ultramarins sont conservés. En cas d’échec :
 Les coordonnées précises ne sont ni persistées en base ni inscrites dans les
 journaux. Les réponses associées à une position sont mises en cache privé.
 
-## 6. Migration
+## 6. Sélection des observations locales
+
+La température mesurée n’est utilisée que si une station est représentative du
+point demandé. L’API examine la dernière mesure disponible de toutes les
+stations du catalogue local, puis calcule un score explicite dans lequel une
+valeur basse est préférable :
+
+- distance géographique : 50 % du score ;
+- écart d’altitude : 30 % ;
+- âge de la mesure : 20 % ;
+- légère pénalité pour une station amateur Infoclimat, sans l’exclure lorsqu’elle
+  est nettement plus locale.
+
+Les garde-fous sont cumulatifs : moins de 50 km, moins de 90 minutes et, lorsque
+l’altitude IGN est connue, moins de 500 m d’écart. Une station dont le score
+dépasse 60 est également écartée. Au-delà de ces limites, l’API préfère
+l’estimation AROME à une mesure locale trompeuse. Si l’altitude IGN est
+indisponible, la distance maximale est ramenée à 5 km : la proximité seule ne
+doit pas permettre à une station de sommet de représenter une vallée.
+
+Cette règle est particulièrement importante à Val-d’Aigoual : le Mont Aigoual
+peut être proche à vol d’oiseau tout en se trouvant plus de 1 000 m au-dessus de
+Valleraugue. La station réellement retenue, sa distance, son altitude, l’âge de
+la mesure et son score sont exposés dans `current.station`. Le reste du bloc
+(ressenti et condition météorologique) demeure estimé par AROME et le libellé de
+source le précise.
+
+L’absence de station représentative n’est pas une panne : `current.station`
+vaut `null`, `current.nature` vaut `model` et la source d’observation n’est pas
+ajoutée à `unavailableSources`. Une erreur de lecture de la base est, elle,
+signalée comme `Observations locales` indisponibles.
+
+## 7. Migration
 
 1. Valider le premier écran sur données simulées.
 2. Implémenter les adaptateurs Fastify conformes à OpenAPI.
@@ -84,7 +116,7 @@ journaux. Les réponses associées à une position sont mises en cache privé.
 5. Résoudre dynamiquement commune, département et altitude, puis utiliser le bon
    département pour la vigilance.
 6. Sélectionner dynamiquement les stations d’observation selon la distance, la
-   fraîcheur et l’écart d’altitude.
+   fraîcheur et l’écart d’altitude. **Réalisé dans le contrat 1.2.0.**
 7. Migrer ensuite comparaison, bilan thermique et informations.
 8. Basculer les anciennes URL uniquement après validation mobile, accessibilité et
    comparaison fonctionnelle avec la production.

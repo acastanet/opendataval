@@ -123,6 +123,7 @@ export function essentialWeatherFixture(
   const now = new Date();
   now.setMinutes(0, 0, 0);
   const isGps = coordinates.accuracyM !== undefined;
+  const usesLocalObservation = preset.id === "val-daigoual";
 
   return {
     location: {
@@ -141,9 +142,23 @@ export function essentialWeatherFixture(
       apparentTemperatureC: profile.apparentTemperatureC,
       weatherLabel: profile.weatherLabel,
       observedAt: now.toISOString(),
-      nature: "model",
-      sourceLabel: "AROME HD via Open-Meteo",
+      nature: usesLocalObservation ? "observation" : "model",
+      sourceLabel: usesLocalObservation
+        ? "Température mesurée — station Infoclimat Valleraugue (1,6 km) ; reste estimé par AROME"
+        : "AROME HD via Open-Meteo",
       stale: false,
+      station: usesLocalObservation
+        ? {
+          id: "000UB",
+          name: "Valleraugue",
+          network: "infoclimat",
+          altitudeM: 400,
+          distanceKm: 1.6,
+          altitudeDifferenceM: Math.abs(profile.altitudeM - 400),
+          ageMinutes: 12,
+          selectionScore: 11.4,
+        }
+        : null,
     },
     today: {
       minimumC: profile.minimumC,

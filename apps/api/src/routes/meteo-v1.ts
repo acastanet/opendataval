@@ -10,6 +10,11 @@ import {
   unavailableGeography,
   type ResolvedGeography,
 } from "../lib/geography.js";
+import {
+  loadLatestStationMeasurements,
+  selectStationObservation,
+  type StationMeasurement,
+} from "../lib/station-observations.js";
 
 const ALERT_LEVELS = ["green", "yellow", "orange", "red"] as const;
 type AlertLevel = (typeof ALERT_LEVELS)[number];
@@ -34,6 +39,16 @@ interface EssentialWeather {
     nature: "observation" | "model";
     sourceLabel: string;
     stale: boolean;
+    station: {
+      id: string;
+      name: string;
+      network: "meteofrance" | "infoclimat";
+      altitudeM: number;
+      distanceKm: number;
+      altitudeDifferenceM: number | null;
+      ageMinutes: number;
+      selectionScore: number;
+    } | null;
   };
   today: {
     minimumC: number;
@@ -79,16 +94,12 @@ interface VigilanceResult {
   indisponible: boolean;
 }
 
-interface ObservationResult {
-  temperatureC: number | null;
-  observedAt: string | null;
-  unavailable: boolean;
-}
-
 export interface MeteoV1Dependencies {
   resolveGeography?: (latitude: number, longitude: number) => Promise<ResolvedGeography>;
   fetchWeatherJson?: (url: string) => Promise<unknown>;
   fetchVigilance?: (departmentCode: string) => Promise<VigilanceResult>;
+  loadStationMeasurements?: (pool: pg.Pool) => Promise<StationMeasurement[]>;
+  now?: () => Date;
 }
 
 const DEFAULT_GEOGRAPHY_RESOLVER = createGeographyResolver();
@@ -336,24 +347,6 @@ function determinerNextChange(
   };
 }
 
-async function lireObservationAigoual(pool: pg.Pool): Promise<ObservationResult> {
-  try {
-    const { rows } = await pool.query(
-      `select distinct on (num_poste) num_poste, t, heure_utc
-       from series.meteo_horaire
-       where num_poste = $1
-       order by num_poste, heure_utc desc limit 1`,
-      ["07630"],
-    );
-    const row = rows[0] as { t?: number; heure_utc?: string } | undefined;
-    return typeof row?.t === "number" && typeof row.heure_utc === "string"
-      ? { temperatureC: row.t, observedAt: row.heure_utc, unavailable: false }
-      : { temperatureC: null, observedAt: null, unavailable: true };
-  } catch {
-    return { temperatureC: null, observedAt: null, unavailable: true };
-  }
-}
-
 async function resoudreGeographieSure(
   resolver: (latitude: number, longitude: number) => Promise<ResolvedGeography>,
   latitude: number,
@@ -373,7 +366,7 @@ async function normaliserEssential(
   pool: pg.Pool,
   dependencies: Required<MeteoV1Dependencies>,
 ): Promise<EssentialWeather> {
-  const now = new Date();
+  const now = dependencies.now();
   const generatedAt = now.toISOString();
   const localisation = resoudreLocalisationMeteo(lat, lon);
   const { lat: normalizedLat, lon: normalizedLon } = localisation.normalisee;
@@ -387,22 +380,28 @@ async function normaliserEssential(
   const weatherPromise = dependencies.fetchWeatherJson(
     meteoFranceUrl(normalizedLat, normalizedLon),
   ).catch(() => null);
-  const observationPromise = localisation.pointPreconfigure?.slug === "val-aigoual"
-    ? lireObservationAigoual(pool)
-    : Promise.resolve<ObservationResult>({
-      temperatureC: null,
-      observedAt: null,
-      unavailable: false,
-    });
+  const observationsPromise = dependencies.loadStationMeasurements(pool)
+    .then((measurements) => ({ measurements, unavailable: false }))
+    .catch(() => ({ measurements: [] as StationMeasurement[], unavailable: true }));
 
-  const [geography, weatherData, observation] = await Promise.all([
+  const [geography, weatherData, observations] = await Promise.all([
     geographyPromise,
     weatherPromise,
-    observationPromise,
+    observationsPromise,
   ]);
   unavailableSources.push(...geography.unavailableSources);
   if (weatherData === null) unavailableSources.push("Modèles Météo-France (AROME/ARPEGE)");
-  if (observation.unavailable) unavailableSources.push("Observations Météo-France");
+  if (observations.unavailable) unavailableSources.push("Observations locales");
+
+  const observation = selectStationObservation(
+    {
+      latitude: normalizedLat,
+      longitude: normalizedLon,
+      altitudeM: geography.altitudeM,
+    },
+    observations.measurements,
+    now,
+  );
 
   const location: EssentialWeather["location"] = {
     id: localisation.pointPreconfigure?.slug ?? null,
@@ -433,17 +432,12 @@ async function normaliserEssential(
   const weatherCodes = getNumberArray(hourlyData, "weather_code");
   const modelTemperature = getNumber(currentData, "temperature_2m") ?? hourlyTemperatures[0] ?? null;
 
-  if (observation.temperatureC === null && modelTemperature === null) {
+  if (observation === null && modelTemperature === null) {
     throw new Error("Aucune température exploitable");
   }
 
-  const observationMinutes = observation.observedAt
-    ? (now.getTime() - new Date(observation.observedAt).getTime()) / 60_000
-    : Number.POSITIVE_INFINITY;
-  const usesObservation = observation.temperatureC !== null && observationMinutes < 60;
-  const currentTemperature = usesObservation
-    ? observation.temperatureC as number
-    : modelTemperature as number;
+  const usesObservation = observation !== null;
+  const currentTemperature = observation?.temperatureC ?? modelTemperature as number;
   const apparentTemperature = getNumber(currentData, "apparent_temperature") ?? currentTemperature;
   const currentWeatherCode = getNumber(currentData, "weather_code") ?? weatherCodes[0] ?? null;
   const currentTimestamp = getNumber(currentData, "time");
@@ -455,12 +449,24 @@ async function normaliserEssential(
     temperatureC: Math.round(currentTemperature * 10) / 10,
     apparentTemperatureC: Math.round(apparentTemperature * 10) / 10,
     weatherLabel: weatherCodeLabel(currentWeatherCode),
-    observedAt: usesObservation ? observation.observedAt as string : modelObservedAt,
+    observedAt: observation?.observedAt ?? modelObservedAt,
     nature: usesObservation ? "observation" : "model",
-    sourceLabel: usesObservation
-      ? "Station Météo-France Mont Aigoual"
+    sourceLabel: observation
+      ? `Température mesurée — station ${observation.station.reseau === "meteofrance" ? "Météo-France" : "Infoclimat"} ${observation.station.nom} (${String(observation.distanceKm).replace(".", ",")} km) ; reste estimé par AROME`
       : "AROME HD via Open-Meteo",
-    stale: usesObservation && observationMinutes > 120,
+    stale: observation?.stale ?? false,
+    station: observation
+      ? {
+        id: observation.station.id,
+        name: observation.station.nom,
+        network: observation.station.reseau,
+        altitudeM: observation.station.altitudeM,
+        distanceKm: observation.distanceKm,
+        altitudeDifferenceM: observation.altitudeDifferenceM,
+        ageMinutes: observation.ageMinutes,
+        selectionScore: observation.selectionScore,
+      }
+      : null,
   };
 
   const dailyMaximums = getNumberArray(dailyData, "temperature_2m_max");
@@ -540,6 +546,8 @@ export function registerMeteoV1Routes(
       ?? ((latitude, longitude) => DEFAULT_GEOGRAPHY_RESOLVER.resolve(latitude, longitude)),
     fetchWeatherJson: overrides.fetchWeatherJson ?? fetchJson,
     fetchVigilance: overrides.fetchVigilance ?? recupererVigilance,
+    loadStationMeasurements: overrides.loadStationMeasurements ?? loadLatestStationMeasurements,
+    now: overrides.now ?? (() => new Date()),
   };
 
   app.get("/api/v1/meteo/locations", async (_request: FastifyRequest, reply: FastifyReply) => {

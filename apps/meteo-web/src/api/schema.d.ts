@@ -74,6 +74,8 @@ export interface components {
         };
         /** @enum {string} */
         AlertLevel: "green" | "yellow" | "orange" | "red";
+        /** @enum {string} */
+        StationNetwork: "meteofrance" | "infoclimat";
         Coordinates: {
             latitude: number;
             longitude: number;
@@ -125,6 +127,20 @@ export interface components {
             nature: "observation" | "model";
             sourceLabel: string;
             stale: boolean;
+            /** @description Station retenue pour la température, ou null lorsque la valeur actuelle provient du modèle. */
+            station: components["schemas"]["WeatherStation"] | null;
+        };
+        WeatherStation: {
+            id: string;
+            name: string;
+            network: components["schemas"]["StationNetwork"];
+            altitudeM: number;
+            distanceKm: number;
+            /** @description Null lorsque l’altitude du point n’a pas été résolue. */
+            altitudeDifferenceM: number | null;
+            ageMinutes: number;
+            /** @description Score interne de représentativité ; une valeur basse est préférable. Il combine distance, altitude et fraîcheur. */
+            selectionScore: number;
         };
         DayRange: {
             minimumC: number;

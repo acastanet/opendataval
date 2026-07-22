@@ -55,6 +55,8 @@ describe("essential weather screen", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByTestId("current-temperature")).toHaveTextContent("27°");
+    expect(screen.getByText("Mesure locale")).toBeInTheDocument();
+    expect(screen.getByText(/station Infoclimat Valleraugue/)).toBeInTheDocument();
     expect(
       screen.getByText("Val-d’Aigoual · Gard (30) · 351 m d’altitude"),
     ).toBeInTheDocument();
