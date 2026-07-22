@@ -4,6 +4,8 @@ import {
   type StationMeteo,
 } from "@opendata-vda/shared/stations-meteo";
 
+export const STATION_SELECTION_POLICY_VERSION = "1" as const;
+
 export const STATION_SELECTION_POLICY = {
   maxDistanceKm: 50,
   maxDistanceWithoutAltitudeKm: 5,
@@ -31,10 +33,58 @@ export interface SelectedStationObservation {
   stale: boolean;
 }
 
-interface SelectionTarget {
+export interface SelectionTarget {
   latitude: number;
   longitude: number;
   altitudeM: number | null;
+}
+
+export type StationSelectionStatus =
+  | "selected"
+  | "no_measurements"
+  | "no_eligible_station";
+
+export type StationSelectionReasonCode =
+  | "BEST_ELIGIBLE_STATION"
+  | "NO_VALID_MEASUREMENTS"
+  | "NO_ELIGIBLE_STATION";
+
+export type StationRejectionReason =
+  | "INVALID_TEMPERATURE"
+  | "INVALID_TIMESTAMP"
+  | "FUTURE_TIMESTAMP"
+  | "TOO_OLD"
+  | "TOO_FAR"
+  | "ALTITUDE_UNKNOWN_TOO_FAR"
+  | "ALTITUDE_MISMATCH"
+  | "SCORE_TOO_HIGH"
+  | "ELIGIBLE_NOT_SELECTED";
+
+export interface StationCandidateEvaluation {
+  station: StationMeteo;
+  temperatureC: number;
+  observedAt: string;
+  distanceKm: number;
+  altitudeDifferenceM: number | null;
+  ageMinutes: number | null;
+  selectionScore: number | null;
+  stale: boolean | null;
+  measurementValid: boolean;
+  eligible: boolean;
+  selected: boolean;
+  rejectionReasons: StationRejectionReason[];
+}
+
+export interface StationSelectionDecision {
+  policyVersion: typeof STATION_SELECTION_POLICY_VERSION;
+  status: StationSelectionStatus;
+  reasonCode: StationSelectionReasonCode;
+  receivedMeasurements: number;
+  evaluatedCandidates: number;
+  eligibleCandidates: number;
+  selectedStationId: string | null;
+  selected: SelectedStationObservation | null;
+  candidates: StationCandidateEvaluation[];
 }
 
 interface LatestObservationRow {
@@ -114,72 +164,169 @@ export async function loadLatestStationMeasurements(
   return measurements;
 }
 
+function evaluateCandidate(
+  target: SelectionTarget,
+  measurement: StationMeasurement,
+  now: Date,
+): StationCandidateEvaluation {
+  const rejectionReasons: StationRejectionReason[] = [];
+  const validTemperature = Number.isFinite(measurement.temperatureC)
+    && measurement.temperatureC >= -60
+    && measurement.temperatureC <= 60;
+  if (!validTemperature) rejectionReasons.push("INVALID_TEMPERATURE");
+
+  const observedAtMs = Date.parse(measurement.observedAt);
+  const validTimestamp = Number.isFinite(observedAtMs);
+  if (!validTimestamp) rejectionReasons.push("INVALID_TIMESTAMP");
+
+  const stationDistanceKm = distanceKm(target, measurement.station);
+  const roundedDistanceKm = round(stationDistanceKm);
+  if (stationDistanceKm > STATION_SELECTION_POLICY.maxDistanceKm) {
+    rejectionReasons.push("TOO_FAR");
+  }
+  if (
+    target.altitudeM === null
+    && stationDistanceKm > STATION_SELECTION_POLICY.maxDistanceWithoutAltitudeKm
+  ) {
+    rejectionReasons.push("ALTITUDE_UNKNOWN_TOO_FAR");
+  }
+
+  const altitudeDifferenceM = target.altitudeM === null
+    ? null
+    : Math.abs(target.altitudeM - measurement.station.altitudeM);
+  if (
+    altitudeDifferenceM !== null
+    && altitudeDifferenceM > STATION_SELECTION_POLICY.maxAltitudeDifferenceM
+  ) {
+    rejectionReasons.push("ALTITUDE_MISMATCH");
+  }
+
+  let ageMinutes: number | null = null;
+  let stale: boolean | null = null;
+  let selectionScore: number | null = null;
+
+  if (validTimestamp) {
+    const rawAgeMinutes = (now.getTime() - observedAtMs) / 60_000;
+    ageMinutes = round(Math.max(0, rawAgeMinutes));
+    stale = rawAgeMinutes > STATION_SELECTION_POLICY.staleAfterMinutes;
+    if (rawAgeMinutes < -STATION_SELECTION_POLICY.futureToleranceMinutes) {
+      rejectionReasons.push("FUTURE_TIMESTAMP");
+    }
+    if (rawAgeMinutes > STATION_SELECTION_POLICY.maxAgeMinutes) {
+      rejectionReasons.push("TOO_OLD");
+    }
+
+    if (validTemperature) {
+      const distancePenalty = (stationDistanceKm / STATION_SELECTION_POLICY.maxDistanceKm) * 50;
+      const altitudePenalty = altitudeDifferenceM === null
+        ? 8
+        : (altitudeDifferenceM / STATION_SELECTION_POLICY.maxAltitudeDifferenceM) * 30;
+      const freshnessPenalty = (Math.max(0, rawAgeMinutes) / STATION_SELECTION_POLICY.maxAgeMinutes) * 20;
+      const networkPenalty = measurement.station.reseau === "infoclimat" ? 5 : 0;
+      const rawScore = distancePenalty + altitudePenalty + freshnessPenalty + networkPenalty;
+      selectionScore = round(rawScore);
+      if (rawScore > STATION_SELECTION_POLICY.maxScore) {
+        rejectionReasons.push("SCORE_TOO_HIGH");
+      }
+    }
+  }
+
+  const measurementValid = validTemperature && validTimestamp;
+  return {
+    ...measurement,
+    distanceKm: roundedDistanceKm,
+    altitudeDifferenceM,
+    ageMinutes,
+    selectionScore,
+    stale,
+    measurementValid,
+    eligible: measurementValid && rejectionReasons.length === 0,
+    selected: false,
+    rejectionReasons,
+  };
+}
+
+function compareEligibleCandidates(
+  a: StationCandidateEvaluation,
+  b: StationCandidateEvaluation,
+): number {
+  return (a.selectionScore ?? Number.POSITIVE_INFINITY)
+    - (b.selectionScore ?? Number.POSITIVE_INFINITY)
+    || Number(a.station.reseau === "infoclimat") - Number(b.station.reseau === "infoclimat")
+    || a.distanceKm - b.distanceKm
+    || (a.ageMinutes ?? Number.POSITIVE_INFINITY) - (b.ageMinutes ?? Number.POSITIVE_INFINITY)
+    || a.station.id.localeCompare(b.station.id);
+}
+
 /**
- * Classe les observations selon leur représentativité pour le point demandé.
- * Le score (plus bas = meilleur) pondère la distance à 50 %, l'écart
- * d'altitude à 30 % et la fraîcheur à 20 %. Une station amateur reçoit une
- * pénalité légère, mais peut être retenue lorsqu'elle est nettement plus locale.
+ * Évalue toutes les mesures et conserve la décision complète. Les motifs de
+ * rejet sont destinés aux tests, aux logs et au futur contrat de provenance ;
+ * aucune donnée de diagnostic n'est encore exposée par l'API publique.
+ */
+export function evaluateStationObservations(
+  target: SelectionTarget,
+  measurements: readonly StationMeasurement[],
+  now = new Date(),
+): StationSelectionDecision {
+  const candidates = measurements.map((measurement) => evaluateCandidate(target, measurement, now));
+  const evaluatedCandidates = candidates.filter((candidate) => candidate.measurementValid).length;
+  const eligible = candidates.filter((candidate) => candidate.eligible).sort(compareEligibleCandidates);
+  const selectedCandidate = eligible[0] ?? null;
+
+  for (const candidate of candidates) {
+    if (candidate === selectedCandidate) {
+      candidate.selected = true;
+    } else if (candidate.eligible) {
+      candidate.rejectionReasons.push("ELIGIBLE_NOT_SELECTED");
+    }
+  }
+
+  const selected: SelectedStationObservation | null = selectedCandidate
+    ? {
+      station: selectedCandidate.station,
+      temperatureC: selectedCandidate.temperatureC,
+      observedAt: selectedCandidate.observedAt,
+      distanceKm: selectedCandidate.distanceKm,
+      altitudeDifferenceM: selectedCandidate.altitudeDifferenceM,
+      ageMinutes: selectedCandidate.ageMinutes as number,
+      selectionScore: selectedCandidate.selectionScore as number,
+      stale: selectedCandidate.stale as boolean,
+    }
+    : null;
+
+  const status: StationSelectionStatus = selected
+    ? "selected"
+    : evaluatedCandidates === 0
+      ? "no_measurements"
+      : "no_eligible_station";
+  const reasonCode: StationSelectionReasonCode = selected
+    ? "BEST_ELIGIBLE_STATION"
+    : evaluatedCandidates === 0
+      ? "NO_VALID_MEASUREMENTS"
+      : "NO_ELIGIBLE_STATION";
+
+  return {
+    policyVersion: STATION_SELECTION_POLICY_VERSION,
+    status,
+    reasonCode,
+    receivedMeasurements: measurements.length,
+    evaluatedCandidates,
+    eligibleCandidates: eligible.length,
+    selectedStationId: selected?.station.id ?? null,
+    selected,
+    candidates,
+  };
+}
+
+/**
+ * Vue de compatibilité utilisée par le contrat 1.2.0. Toute la sélection passe
+ * désormais par evaluateStationObservations afin de conserver un diagnostic
+ * structuré sans modifier la réponse publique actuelle.
  */
 export function selectStationObservation(
   target: SelectionTarget,
   measurements: readonly StationMeasurement[],
   now = new Date(),
 ): SelectedStationObservation | null {
-  const candidates: SelectedStationObservation[] = [];
-
-  for (const measurement of measurements) {
-    if (
-      !Number.isFinite(measurement.temperatureC)
-      || measurement.temperatureC < -60
-      || measurement.temperatureC > 60
-    ) continue;
-    const observedAtMs = Date.parse(measurement.observedAt);
-    if (!Number.isFinite(observedAtMs)) continue;
-    const rawAgeMinutes = (now.getTime() - observedAtMs) / 60_000;
-    if (rawAgeMinutes < -STATION_SELECTION_POLICY.futureToleranceMinutes) continue;
-    const ageMinutes = Math.max(0, rawAgeMinutes);
-    if (ageMinutes > STATION_SELECTION_POLICY.maxAgeMinutes) continue;
-
-    const stationDistanceKm = distanceKm(target, measurement.station);
-    if (stationDistanceKm > STATION_SELECTION_POLICY.maxDistanceKm) continue;
-    if (
-      target.altitudeM === null
-      && stationDistanceKm > STATION_SELECTION_POLICY.maxDistanceWithoutAltitudeKm
-    ) continue;
-
-    const altitudeDifferenceM = target.altitudeM === null
-      ? null
-      : Math.abs(target.altitudeM - measurement.station.altitudeM);
-    if (
-      altitudeDifferenceM !== null
-      && altitudeDifferenceM > STATION_SELECTION_POLICY.maxAltitudeDifferenceM
-    ) continue;
-
-    const distancePenalty = (stationDistanceKm / STATION_SELECTION_POLICY.maxDistanceKm) * 50;
-    const altitudePenalty = altitudeDifferenceM === null
-      ? 8
-      : (altitudeDifferenceM / STATION_SELECTION_POLICY.maxAltitudeDifferenceM) * 30;
-    const freshnessPenalty = (ageMinutes / STATION_SELECTION_POLICY.maxAgeMinutes) * 20;
-    const networkPenalty = measurement.station.reseau === "infoclimat" ? 5 : 0;
-    const selectionScore = distancePenalty + altitudePenalty + freshnessPenalty + networkPenalty;
-    if (selectionScore > STATION_SELECTION_POLICY.maxScore) continue;
-
-    candidates.push({
-      ...measurement,
-      distanceKm: round(stationDistanceKm),
-      altitudeDifferenceM,
-      ageMinutes: round(ageMinutes),
-      selectionScore: round(selectionScore),
-      stale: ageMinutes > STATION_SELECTION_POLICY.staleAfterMinutes,
-    });
-  }
-
-  candidates.sort((a, b) =>
-    a.selectionScore - b.selectionScore
-    || Number(a.station.reseau === "infoclimat") - Number(b.station.reseau === "infoclimat")
-    || a.distanceKm - b.distanceKm
-    || a.ageMinutes - b.ageMinutes
-    || a.station.id.localeCompare(b.station.id));
-
-  return candidates[0] ?? null;
+  return evaluateStationObservations(target, measurements, now).selected;
 }
