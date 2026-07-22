@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import type { LocationSummary, WeatherCoordinates } from "./api/contracts";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type {
+  EssentialWeather,
+  LocationSummary,
+  WeatherCoordinates,
+} from "./api/contracts";
 import { useEssentialWeather, useLocations } from "./api/queries";
 import { AlertBanner } from "./components/AlertBanner";
 import { HourlyStrip } from "./components/HourlyStrip";
@@ -12,6 +16,8 @@ export default function App() {
   const [coordinates, setCoordinates] = useState<WeatherCoordinates | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const operationRef = useRef(0);
+  const lastSuccessfulWeatherRef = useRef<EssentialWeather | null>(null);
 
   useEffect(() => {
     const firstLocation = locationsQuery.data?.locations[0];
@@ -29,7 +35,15 @@ export default function App() {
     [locationsQuery.data],
   );
 
+  useEffect(() => {
+    if (weatherQuery.data) {
+      lastSuccessfulWeatherRef.current = weatherQuery.data;
+    }
+  }, [weatherQuery.data]);
+
   function selectLocation(location: LocationSummary) {
+    operationRef.current += 1;
+    setLocating(false);
     setLocationError(null);
     setCoordinates({
       latitude: location.latitude,
@@ -44,9 +58,11 @@ export default function App() {
       return;
     }
 
+    const operation = ++operationRef.current;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
+        if (operation !== operationRef.current) return;
         setCoordinates({
           latitude: coords.latitude,
           longitude: coords.longitude,
@@ -55,20 +71,32 @@ export default function App() {
         setLocating(false);
       },
       (error) => {
+        if (operation !== operationRef.current) return;
         setLocating(false);
-        setLocationError(
-          error.code === error.PERMISSION_DENIED
-            ? "La localisation a été refusée. Vous pouvez choisir un lieu rapide."
-            : "Votre position n’a pas pu être déterminée. Réessayez ou choisissez un lieu rapide.",
-        );
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationError(
+            "La localisation est refusée pour ce site. Autorisez-la dans les réglages du navigateur puis réessayez.",
+          );
+        } else if (error.code === error.TIMEOUT) {
+          setLocationError(
+            "Le téléphone n’a pas obtenu votre position à temps. Vérifiez que la localisation est activée puis réessayez.",
+          );
+        } else {
+          setLocationError(
+            "Le téléphone n’a pas réussi à déterminer votre position. Vérifiez que la localisation est activée puis réessayez.",
+          );
+        }
       },
       { enableHighAccuracy: false, timeout: 20_000, maximumAge: 120_000 },
     );
   }
 
-  const weather = weatherQuery.data;
-  const loading = locationsQuery.isPending || (coordinates !== null && weatherQuery.isPending);
+  const weather = weatherQuery.data ?? lastSuccessfulWeatherRef.current;
+  const loading =
+    locationsQuery.isPending ||
+    (coordinates !== null && weatherQuery.isPending && weather === null);
   const loadingError = locationsQuery.error ?? weatherQuery.error;
+  const refreshError = weather !== null ? weatherQuery.error : null;
 
   return (
     <div className="app-shell">
@@ -103,13 +131,19 @@ export default function App() {
           </div>
         ) : null}
 
-        {loadingError ? (
+        {loadingError && weather === null ? (
           <section className="load-error" role="alert">
             <p className="eyebrow">Service indisponible</p>
             <h1>La météo n’a pas pu être chargée.</h1>
             <p>{loadingError.message}</p>
             <button type="button" onClick={() => void weatherQuery.refetch()}>Réessayer</button>
           </section>
+        ) : null}
+
+        {refreshError ? (
+          <p className="inline-error" role="alert">
+            La nouvelle position n’a pas pu être chargée. La dernière météo reste affichée.
+          </p>
         ) : null}
 
         {weather ? (
