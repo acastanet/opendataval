@@ -6,7 +6,7 @@ interface NextChangeCardProps {
 }
 
 export function NextChangeCard({ change }: NextChangeCardProps) {
-  const quiet = change.type === "stable" || change.startsAt === null;
+  const quiet = change.type === "stable";
   const className = [
     "next-change",
     `next-change--${change.type}`,
@@ -18,7 +18,7 @@ export function NextChangeCard({ change }: NextChangeCardProps) {
       <div>
         <p className="eyebrow">Prochain changement</p>
         <h2 id="next-change-title">
-          {quiet ? "Pas de changement marqué" : `Vers ${formatTime(change.startsAt as string)}`}
+          {change.startsAt ? `Vers ${formatTime(change.startsAt)}` : "Pas de changement marqué"}
         </h2>
       </div>
       <p className="change-summary">{change.summary}</p>
