@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import "./styles.css";
+import "./provenance.css";
 
 async function enableMocking() {
   if (import.meta.env.VITE_USE_MOCKS !== "true") return;
