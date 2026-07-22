@@ -1,1 +1,105 @@
-{"openapi":"3.1.0","info":{"title":"OpenDataVal — API Météo V2","version":"1.3.0","description":"Contrat stable entre les collectes et calculs météo d’OpenDataVal et l’interface indépendante Météo V2."},"servers":[{"url":"/"}],"paths":{"/api/v1/meteo/locations":{"get":{"operationId":"listWeatherLocations","summary":"Liste les lieux rapides proposés par l’application","responses":{"200":{"description":"Lieux disponibles","content":{"application/json":{"schema":{"$ref":"#/components/schemas/LocationsResponse"}}}}}}},"/api/v1/meteo/location":{"get":{"operationId":"resolveWeatherLocation","summary":"Résout la commune, le département et l’altitude d’un point","description":"La réponse reste exploitable lorsque l’IGN est indisponible : les informations non résolues sont alors null et les sources concernées sont listées dans unavailableSources.","parameters":[{"name":"lat","in":"query","required":true,"schema":{"type":"number","minimum":-90,"maximum":90}},{"name":"lon","in":"query","required":true,"schema":{"type":"number","minimum":-180,"maximum":180}}],"responses":{"200":{"description":"Localisation géographique normalisée","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ResolvedLocation"}}}},"400":{"description":"Coordonnées invalides"}}}},"/api/v1/meteo/essential":{"get":{"operationId":"getEssentialWeather","summary":"Retourne les données nécessaires à la lecture météo essentielle","description":"Le contrat 1.3.0 ajoute une provenance structurée par valeur tout en conservant les champs 1.2.0 de compatibilité.","parameters":[{"name":"lat","in":"query","required":true,"schema":{"type":"number","minimum":-90,"maximum":90}},{"name":"lon","in":"query","required":true,"schema":{"type":"number","minimum":-180,"maximum":180}},{"name":"accuracyM","in":"query","required":false,"description":"Précision fournie par le navigateur pour une position GPS.","schema":{"type":"number","minimum":0}}],"responses":{"200":{"description":"Lecture météo normalisée avec provenance structurée","content":{"application/json":{"schema":{"$ref":"#/components/schemas/EssentialWeather"}}}},"400":{"description":"Coordonnées invalides"},"503":{"description":"Aucune donnée météo exploitable"}}}}},"components":{"schemas":{"LocationSummary":{"type":"object","additionalProperties":false,"required":["id","label","shortLabel","latitude","longitude"],"properties":{"id":{"type":"string"},"label":{"type":"string"},"shortLabel":{"type":"string"},"latitude":{"type":"number"},"longitude":{"type":"number"}}},"LocationsResponse":{"type":"object","additionalProperties":false,"required":["locations"],"properties":{"locations":{"type":"array","items":{"$ref":"#/components/schemas/LocationSummary"}}}},"AlertLevel":{"type":"string","enum":["green","yellow","orange","red"]},"StationNetwork":{"type":"string","enum":["meteofrance","infoclimat"]},"Coordinates":{"type":"object","additionalProperties":false,"required":["latitude","longitude"],"properties":{"latitude":{"type":"number"},"longitude":{"type":"number"}}},"Municipality":{"type":"object","additionalProperties":false,"required":["name","inseeCode"],"properties":{"name":{"type":"string"},"inseeCode":{"type":"string","pattern":"^(?:[0-9]{5}|2[AB][0-9]{3})$"}}},"Department":{"type":"object","additionalProperties":false,"required":["name","code"],"properties":{"name":{"type":"string"},"code":{"type":"string","pattern":"^(?:[0-9]{2,3}|2[AB])$"}}},"LocationResolution":{"type":"object","additionalProperties":false,"required":["administrative","altitude"],"properties":{"administrative":{"type":"string","enum":["ign","unavailable"]},"altitude":{"type":"string","enum":["ign","unavailable"]}}},"ResolvedLocation":{"type":"object","additionalProperties":false,"required":["coordinates","label","municipality","department","altitudeM","resolution","unavailableSources","generatedAt"],"properties":{"coordinates":{"$ref":"#/components/schemas/Coordinates"},"label":{"type":"string"},"municipality":{"oneOf":[{"$ref":"#/components/schemas/Municipality"},{"type":"null"}]},"department":{"oneOf":[{"$ref":"#/components/schemas/Department"},{"type":"null"}]},"altitudeM":{"type":["integer","null"]},"resolution":{"$ref":"#/components/schemas/LocationResolution"},"unavailableSources":{"type":"array","items":{"type":"string"}},"generatedAt":{"type":"string","format":"date-time"}}},"Location":{"type":"object","additionalProperties":false,"required":["id","label","latitude","longitude","municipality","department","altitudeM","accuracyM","source"],"properties":{"id":{"type":["string","null"]},"label":{"type":"string"},"latitude":{"type":"number"},"longitude":{"type":"number"},"municipality":{"oneOf":[{"$ref":"#/components/schemas/Municipality"},{"type":"null"}]},"department":{"oneOf":[{"$ref":"#/components/schemas/Department"},{"type":"null"}]},"altitudeM":{"type":["integer","null"]},"accuracyM":{"type":["number","null"]},"source":{"type":"string","enum":["preset","gps"]}}},"CurrentWeather":{"type":"object","additionalProperties":false,"required":["temperatureC","apparentTemperatureC","weatherLabel","observedAt","nature","sourceLabel","stale","station"],"properties":{"temperatureC":{"type":"number"},"apparentTemperatureC":{"type":"number"},"weatherLabel":{"type":"string"},"observedAt":{"type":"string","format":"date-time"},"nature":{"type":"string","enum":["observation","model"]},"sourceLabel":{"type":"string"},"stale":{"type":"boolean"},"station":{"description":"Station retenue pour la température, ou null lorsque la valeur actuelle provient du modèle.","oneOf":[{"$ref":"#/components/schemas/WeatherStation"},{"type":"null"}]}}},"WeatherStation":{"type":"object","additionalProperties":false,"required":["id","name","network","altitudeM","distanceKm","altitudeDifferenceM","ageMinutes","selectionScore"],"properties":{"id":{"type":"string"},"name":{"type":"string"},"network":{"$ref":"#/components/schemas/StationNetwork"},"altitudeM":{"type":"integer"},"distanceKm":{"type":"number","minimum":0},"altitudeDifferenceM":{"type":["number","null"],"minimum":0,"description":"Null lorsque l’altitude du point n’a pas été résolue."},"ageMinutes":{"type":"number","minimum":0},"selectionScore":{"type":"number","minimum":0,"description":"Score interne de représentativité ; une valeur basse est préférable. Il combine distance, altitude et fraîcheur."}}},"DayRange":{"type":"object","additionalProperties":false,"required":["minimumC","maximumC"],"properties":{"minimumC":{"type":"number"},"maximumC":{"type":"number"}}},"NextChange":{"type":"object","additionalProperties":false,"required":["type","startsAt","summary","probabilityPercent"],"properties":{"type":{"type":"string","enum":["rain","wind","temperature","stable"]},"startsAt":{"type":["string","null"],"format":"date-time"},"summary":{"type":"string"},"probabilityPercent":{"type":["integer","null"],"minimum":0,"maximum":100}}},"HourForecast":{"type":"object","additionalProperties":false,"required":["at","temperatureC","rainProbabilityPercent","windGustKmh"],"properties":{"at":{"type":"string","format":"date-time"},"temperatureC":{"type":"number"},"rainProbabilityPercent":{"type":"integer","minimum":0,"maximum":100},"windGustKmh":{"type":"number"}}},"WeatherAlert":{"type":"object","additionalProperties":false,"required":["level","title","phenomena","validUntil","sourceUrl","departmentCode","indisponible"],"properties":{"level":{"$ref":"#/components/schemas/AlertLevel"},"title":{"type":"string"},"phenomena":{"type":"array","items":{"type":"string"}},"validUntil":{"type":"string","format":"date-time"},"sourceUrl":{"type":"string","format":"uri"},"departmentCode":{"type":["string","null"],"description":"Département réellement utilisé pour interroger la vigilance."},"indisponible":{"type":"boolean","description":"true si la vigilance officielle n’a pas pu être établie."}}},"EssentialWeather":{"type":"object","additionalProperties":false,"required":["location","current","today","nextChange","nextHours","alert","provenance","unavailableSources","generatedAt"],"properties":{"location":{"$ref":"#/components/schemas/Location"},"current":{"$ref":"#/components/schemas/CurrentWeather"},"today":{"$ref":"#/components/schemas/DayRange"},"nextChange":{"$ref":"#/components/schemas/NextChange"},"nextHours":{"type":"array","minItems":1,"items":{"$ref":"#/components/schemas/HourForecast"}},"alert":{"$ref":"#/components/schemas/WeatherAlert"},"provenance":{"$ref":"./provenance.schema.json"},"unavailableSources":{"type":"array","items":{"type":"string"}},"generatedAt":{"type":"string","format":"date-time"}}}}}}
+openapi: 3.1.0
+info:
+  title: "OpenDataVal — API Météo V2"
+  version: "1.3.0"
+  description: "Contrat stable entre les collectes et calculs météo d’OpenDataVal et l’interface indépendante Météo V2."
+servers:
+  - url: /
+paths:
+  /api/v1/meteo/locations:
+    get:
+      operationId: listWeatherLocations
+      summary: Liste les lieux rapides proposés par l’application
+      responses:
+        '200':
+          description: Lieux disponibles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationsResponse'
+  /api/v1/meteo/location:
+    get:
+      operationId: resolveWeatherLocation
+      summary: Résout la commune, le département et l’altitude d’un point
+      description: 'La réponse reste exploitable lorsque l’IGN est indisponible : les informations non résolues sont alors null et les sources concernées sont listées dans unavailableSources.'
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+      responses:
+        '200':
+          description: Localisation géographique normalisée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolvedLocation'
+        '400':
+          description: Coordonnées invalides
+  /api/v1/meteo/essential:
+    get:
+      operationId: getEssentialWeather
+      summary: Retourne les données nécessaires à la lecture météo essentielle
+      description: Le contrat 1.3.0 ajoute une provenance structurée par valeur tout en conservant les champs 1.2.0 de compatibilité.
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+        - name: accuracyM
+          in: query
+          required: false
+          description: Précision fournie par le navigateur pour une position GPS.
+          schema:
+            type: number
+            minimum: 0
+      responses:
+        '200':
+          description: Lecture météo normalisée avec provenance structurée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EssentialWeather'
+        '400':
+          description: Coordonnées invalides
+        '503':
+          description: Aucune donnée météo exploitable
+components:
+  schemas:
+    LocationSummary: {"type":"object","additionalProperties":false,"required":["id","label","shortLabel","latitude","longitude"],"properties":{"id":{"type":"string"},"label":{"type":"string"},"shortLabel":{"type":"string"},"latitude":{"type":"number"},"longitude":{"type":"number"}}}
+    LocationsResponse: {"type":"object","additionalProperties":false,"required":["locations"],"properties":{"locations":{"type":"array","items":{"$ref":"#/components/schemas/LocationSummary"}}}}
+    AlertLevel: {"type":"string","enum":["green","yellow","orange","red"]}
+    StationNetwork: {"type":"string","enum":["meteofrance","infoclimat"]}
+    Coordinates: {"type":"object","additionalProperties":false,"required":["latitude","longitude"],"properties":{"latitude":{"type":"number"},"longitude":{"type":"number"}}}
+    Municipality: {"type":"object","additionalProperties":false,"required":["name","inseeCode"],"properties":{"name":{"type":"string"},"inseeCode":{"type":"string","pattern":"^(?:[0-9]{5}|2[AB][0-9]{3})$"}}}
+    Department: {"type":"object","additionalProperties":false,"required":["name","code"],"properties":{"name":{"type":"string"},"code":{"type":"string","pattern":"^(?:[0-9]{2,3}|2[AB])$"}}}
+    LocationResolution: {"type":"object","additionalProperties":false,"required":["administrative","altitude"],"properties":{"administrative":{"type":"string","enum":["ign","unavailable"]},"altitude":{"type":"string","enum":["ign","unavailable"]}}}
+    ResolvedLocation: {"type":"object","additionalProperties":false,"required":["coordinates","label","municipality","department","altitudeM","resolution","unavailableSources","generatedAt"],"properties":{"coordinates":{"$ref":"#/components/schemas/Coordinates"},"label":{"type":"string"},"municipality":{"oneOf":[{"$ref":"#/components/schemas/Municipality"},{"type":"null"}]},"department":{"oneOf":[{"$ref":"#/components/schemas/Department"},{"type":"null"}]},"altitudeM":{"type":["integer","null"]},"resolution":{"$ref":"#/components/schemas/LocationResolution"},"unavailableSources":{"type":"array","items":{"type":"string"}},"generatedAt":{"type":"string","format":"date-time"}}}
+    Location: {"type":"object","additionalProperties":false,"required":["id","label","latitude","longitude","municipality","department","altitudeM","accuracyM","source"],"properties":{"id":{"type":["string","null"]},"label":{"type":"string"},"latitude":{"type":"number"},"longitude":{"type":"number"},"municipality":{"oneOf":[{"$ref":"#/components/schemas/Municipality"},{"type":"null"}]},"department":{"oneOf":[{"$ref":"#/components/schemas/Department"},{"type":"null"}]},"altitudeM":{"type":["integer","null"]},"accuracyM":{"type":["number","null"]},"source":{"type":"string","enum":["preset","gps"]}}}
+    CurrentWeather: {"type":"object","additionalProperties":false,"required":["temperatureC","apparentTemperatureC","weatherLabel","observedAt","nature","sourceLabel","stale","station"],"properties":{"temperatureC":{"type":"number"},"apparentTemperatureC":{"type":"number"},"weatherLabel":{"type":"string"},"observedAt":{"type":"string","format":"date-time"},"nature":{"type":"string","enum":["observation","model"]},"sourceLabel":{"type":"string"},"stale":{"type":"boolean"},"station":{"description":"Station retenue pour la température, ou null lorsque la valeur actuelle provient du modèle.","oneOf":[{"$ref":"#/components/schemas/WeatherStation"},{"type":"null"}]}}}
+    WeatherStation: {"type":"object","additionalProperties":false,"required":["id","name","network","altitudeM","distanceKm","altitudeDifferenceM","ageMinutes","selectionScore"],"properties":{"id":{"type":"string"},"name":{"type":"string"},"network":{"$ref":"#/components/schemas/StationNetwork"},"altitudeM":{"type":"integer"},"distanceKm":{"type":"number","minimum":0},"altitudeDifferenceM":{"type":["number","null"],"minimum":0,"description":"Null lorsque l’altitude du point n’a pas été résolue."},"ageMinutes":{"type":"number","minimum":0},"selectionScore":{"type":"number","minimum":0,"description":"Score interne de représentativité ; une valeur basse est préférable. Il combine distance, altitude et fraîcheur."}}}
+    DayRange: {"type":"object","additionalProperties":false,"required":["minimumC","maximumC"],"properties":{"minimumC":{"type":"number"},"maximumC":{"type":"number"}}}
+    NextChange: {"type":"object","additionalProperties":false,"required":["type","startsAt","summary","probabilityPercent"],"properties":{"type":{"type":"string","enum":["rain","wind","temperature","stable"]},"startsAt":{"type":["string","null"],"format":"date-time"},"summary":{"type":"string"},"probabilityPercent":{"type":["integer","null"],"minimum":0,"maximum":100}}}
+    HourForecast: {"type":"object","additionalProperties":false,"required":["at","temperatureC","rainProbabilityPercent","windGustKmh"],"properties":{"at":{"type":"string","format":"date-time"},"temperatureC":{"type":"number"},"rainProbabilityPercent":{"type":"integer","minimum":0,"maximum":100},"windGustKmh":{"type":"number"}}}
+    WeatherAlert: {"type":"object","additionalProperties":false,"required":["level","title","phenomena","validUntil","sourceUrl","departmentCode","indisponible"],"properties":{"level":{"$ref":"#/components/schemas/AlertLevel"},"title":{"type":"string"},"phenomena":{"type":"array","items":{"type":"string"}},"validUntil":{"type":"string","format":"date-time"},"sourceUrl":{"type":"string","format":"uri"},"departmentCode":{"type":["string","null"],"description":"Département réellement utilisé pour interroger la vigilance."},"indisponible":{"type":"boolean","description":"true si la vigilance officielle n’a pas pu être établie."}}}
+    EssentialWeather: {"type":"object","additionalProperties":false,"required":["location","current","today","nextChange","nextHours","alert","provenance","unavailableSources","generatedAt"],"properties":{"location":{"$ref":"#/components/schemas/Location"},"current":{"$ref":"#/components/schemas/CurrentWeather"},"today":{"$ref":"#/components/schemas/DayRange"},"nextChange":{"$ref":"#/components/schemas/NextChange"},"nextHours":{"type":"array","minItems":1,"items":{"$ref":"#/components/schemas/HourForecast"}},"alert":{"$ref":"#/components/schemas/WeatherAlert"},"provenance":{"$ref":"./provenance.schema.json"},"unavailableSources":{"type":"array","items":{"type":"string"}},"generatedAt":{"type":"string","format":"date-time"}}}
