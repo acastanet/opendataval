@@ -20,45 +20,69 @@ concurrency:
   group: meteo-v2-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PNPM_VERSION: 11.10.0
+  NODE_VERSION: 22
+
 jobs:
-  validate:
-    name: API, contrat et interface
+  api:
+    name: API
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 12
     steps:
-      - name: Récupérer le dépôt
-        uses: actions/checkout@v4
-
-      - name: Activer pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
-          version: 11.10.0
+          version: ${{ env.PNPM_VERSION }}
           run_install: false
-
-      - name: Configurer Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-
-      - name: Installer les dépendances
-        run: pnpm install --frozen-lockfile
-
-      - name: Tester l’API
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Tests API
         run: pnpm --filter api test
-
-      - name: Vérifier les types de l’API
+      - name: Typage API
         run: pnpm --filter api exec tsc --noEmit
 
+  contract:
+    name: Contrat OpenAPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
       - name: Régénérer le client OpenAPI
         run: pnpm --filter meteo-web run generate:api
-
-      - name: Vérifier la synchronisation du client OpenAPI
+      - name: Afficher le diff éventuel
+        run: git diff -- apps/meteo-web/src/api/schema.d.ts
+      - name: Vérifier la synchronisation
         run: git diff --exit-code -- apps/meteo-web/src/api/schema.d.ts
 
-      - name: Tester l’interface Météo V2
+  frontend:
+    name: Interface Météo V2
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Tests frontend
         run: pnpm --filter meteo-web test
-
-      - name: Construire l’interface Météo V2
+      - name: Build frontend
         run: pnpm --filter meteo-web build
