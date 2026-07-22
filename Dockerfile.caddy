@@ -5,14 +5,20 @@ RUN npm install -g pnpm@11.10.0
 COPY pnpm-workspace.yaml package.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/package.json
 COPY apps/web/package.json apps/web/package.json
-RUN pnpm install --filter web...
+COPY apps/meteo-web/package.json apps/meteo-web/package.json
+RUN pnpm install --filter web... --filter meteo-web...
 
 COPY packages/shared packages/shared
 COPY apps/web apps/web
-RUN pnpm --filter web build
+COPY apps/meteo-web apps/meteo-web
+COPY doc/meteo-v2 doc/meteo-v2
+RUN pnpm --filter web build \
+ && pnpm --filter meteo-web run generate:api \
+ && pnpm --filter meteo-web build
 
 FROM caddy:2-alpine
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY --from=webbuild /app/apps/web/dist /srv
+COPY --from=webbuild /app/apps/meteo-web/dist /srv/meteo-v2
 # Les extraits de relief (/srv/relief/*.pmtiles, ~2 Go) ne sont pas buildés ici : ils sont
 # exclus du contexte (.dockerignore) et montés au runtime depuis l'hôte (docker-compose.yml).
