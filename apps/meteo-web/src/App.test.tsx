@@ -106,6 +106,6 @@ describe("essential weather screen", () => {
     });
     expect(screen.getByText("Soleil, mistral modéré")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Vigilance orange" })).toBeInTheDocument();
-    expect(screen.getAllByText("Prévision modélisée").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Prévision modélisée")).toHaveLength(1);
   });
 });

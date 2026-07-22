@@ -5,13 +5,19 @@
 }
 
 .provenance-summary {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.7rem;
+  padding: 0.68rem 0.75rem;
   border: 1px solid var(--line);
+  border-left: 0.28rem solid var(--blue);
   background: var(--white);
+}
+
+.provenance-summary--observation,
+.provenance-summary--hybrid {
+  border-left-color: var(--green);
+}
+
+.provenance-summary--unavailable {
+  border-left-color: var(--muted);
 }
 
 .provenance-summary p {
@@ -19,30 +25,7 @@
   color: var(--muted);
   font-size: 0.7rem;
   font-weight: 680;
-  line-height: 1.4;
-}
-
-.provenance-badge {
-  display: inline-flex;
-  min-height: 1.9rem;
-  align-items: center;
-  padding: 0.35rem 0.55rem;
-  color: var(--white);
-  background: var(--blue);
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  line-height: 1.15;
-  text-transform: uppercase;
-}
-
-.provenance-summary--observation .provenance-badge,
-.provenance-summary--hybrid .provenance-badge {
-  background: var(--green);
-}
-
-.provenance-summary--unavailable .provenance-badge {
-  background: var(--muted);
+  line-height: 1.45;
 }
 
 .provenance-details {
@@ -239,14 +222,6 @@
 }
 
 @media (max-width: 480px) {
-  .provenance-summary {
-    grid-template-columns: 1fr;
-  }
-
-  .provenance-badge {
-    width: max-content;
-  }
-
   .provenance-grid .selection-counts {
     grid-template-columns: 1fr;
   }
