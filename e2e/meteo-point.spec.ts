@@ -284,6 +284,14 @@ test("hiérarchise les informations météo d'un point", async ({ page }) => {
 });
 
 test("affiche la météo essentielle sans navigation du site", async ({ page }) => {
+  await page.addInitScript(() => {
+    const matchMediaOriginal = window.matchMedia.bind(window);
+    window.matchMedia = (requete) => {
+      const resultat = matchMediaOriginal(requete);
+      if (requete === "(hover: none)") Object.defineProperty(resultat, "matches", { value: true });
+      return resultat;
+    };
+  });
   await page.goto("/meteo/essentiel/");
 
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

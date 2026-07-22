@@ -19,8 +19,6 @@
   let horloge = Date.now();
   let timerHorloge;
   let timerRefresh;
-  let timerInfobulle;
-  let infobulleTactile = null;
   let requeteCourante = 0;
   let latCourante = POINT_MAIRIE.lat;
   let lonCourante = POINT_MAIRIE.lon;
@@ -170,10 +168,10 @@
 
     try {
       const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
-      const [reponseMeteo, lieu] = await Promise.all([
-        fetch(`/api/meteo/point?${params}`),
-        avecAdresse ? identifierLieu(lat, lon) : Promise.resolve(null),
-      ]);
+      // Le libellé d'adresse est facultatif : il ne doit pas retarder l'affichage
+      // de la météo une fois les coordonnées GPS obtenues.
+      const lieuPromise = avecAdresse ? identifierLieu(lat, lon) : Promise.resolve(null);
+      const reponseMeteo = await fetch(`/api/meteo/point?${params}`);
       if (!reponseMeteo.ok) throw new Error(`HTTP ${reponseMeteo.status}`);
       const resultat = await reponseMeteo.json();
       if (numeroRequete !== requeteCourante) return;
@@ -183,7 +181,7 @@
       lonCourante = lon;
       consulteLe = Date.now();
       if (avecAdresse) {
-        adresse = lieu?.label ?? `Position GPS · ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+        adresse = `Position GPS · ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
         positionGps = true;
         precisionGpsM = nombre(precisionM);
         pointPreconfigureActif = null;
@@ -195,6 +193,12 @@
       }
       etat = "ok";
       chargerDonneesClimatiques(lat, lon);
+
+      if (avecAdresse) {
+        const lieu = await lieuPromise;
+        if (numeroRequete !== requeteCourante || !lieu?.label) return;
+        adresse = lieu.label;
+      }
     } catch (cause) {
       console.error("météo essentielle indisponible", cause);
       if (numeroRequete !== requeteCourante) return;
@@ -208,15 +212,6 @@
   function choisirPointPreconfigure(point) {
     if (etat === "chargement" || etat === "localisation") return;
     chargerPoint(point.lat, point.lon, false, point);
-  }
-
-  function afficherInfobulleTactile(evenement, action) {
-    if (!window.matchMedia("(hover: none)").matches || infobulleTactile === action) return false;
-    evenement.preventDefault();
-    infobulleTactile = action;
-    clearTimeout(timerInfobulle);
-    timerInfobulle = window.setTimeout(() => { infobulleTactile = null; }, 3_000);
-    return true;
   }
 
   async function chargerDonneesClimatiques(lat, lon) {
@@ -249,20 +244,40 @@
   }
 
   function meLocaliser() {
+    if (!window.isSecureContext) {
+      erreur = "La localisation GPS est bloquée sur une page non sécurisée. Ouvrez ce site en HTTPS puis réessayez.";
+      return;
+    }
+
     if (!navigator.geolocation) {
       erreur = "La géolocalisation n’est pas disponible. La météo du lieu choisi reste affichée.";
       return;
     }
 
+    // Invalide notamment le chargement du point initial : sa réponse ne doit pas
+    // interrompre l'état « localisation » pendant que le téléphone cherche sa position.
+    const numeroLocalisation = ++requeteCourante;
     etat = "localisation";
     erreur = "";
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => chargerPoint(coords.latitude, coords.longitude, true, null, coords.accuracy),
-      () => {
-        etat = donnees ? "ok" : "erreur";
-        erreur = "Votre position n’a pas pu être obtenue. La météo du lieu choisi reste affichée.";
+      ({ coords }) => {
+        if (numeroLocalisation !== requeteCourante) return;
+        chargerPoint(coords.latitude, coords.longitude, true, null, coords.accuracy);
       },
-      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 120_000 },
+      (cause) => {
+        if (numeroLocalisation !== requeteCourante) return;
+        etat = donnees ? "ok" : "erreur";
+        if (cause.code === cause.PERMISSION_DENIED) {
+          erreur = "La localisation est refusée pour ce site. Autorisez-la dans les réglages du navigateur puis réessayez.";
+        } else if (cause.code === cause.TIMEOUT) {
+          erreur = "Le téléphone n’a pas obtenu votre position à temps. Vérifiez que la localisation est activée puis réessayez.";
+        } else {
+          erreur = "Le téléphone n’a pas réussi à déterminer votre position. Vérifiez que la localisation est activée puis réessayez.";
+        }
+      },
+      // La prévision est maillée à l'échelle kilométrique : demander d'emblée une
+      // précision GPS maximale ralentit ou fait expirer inutilement certains téléphones.
+      { enableHighAccuracy: false, timeout: 20_000, maximumAge: 120_000 },
     );
   }
 
@@ -277,7 +292,6 @@
   onDestroy(() => {
     clearInterval(timerHorloge);
     clearInterval(timerRefresh);
-    clearTimeout(timerInfobulle);
   });
 
   $: vigilance = donnees?.vigilance ?? null;
@@ -344,15 +358,12 @@
       type="button"
       class:active={positionGps}
       class="action-entete bouton-localisation"
-      on:click={(evenement) => {
-        if (!afficherInfobulleTactile(evenement, "localisation")) meLocaliser();
-      }}
+      on:click={meLocaliser}
       disabled={etat === "localisation"}
       aria-label="Utiliser ma position"
       aria-busy={etat === "localisation"}
       data-infobulle="Me localiser"
       title="Me localiser"
-      class:infobulle-visible={infobulleTactile === "localisation"}
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="3"></circle>
@@ -622,8 +633,7 @@
 
   .action-entete:hover .infobulle,
   .action-entete:focus-visible .infobulle,
-  .action-entete:active .infobulle,
-  .action-entete.infobulle-visible .infobulle {
+  .action-entete:active .infobulle {
     opacity: 1;
     transform: translateY(0);
     visibility: visible;
