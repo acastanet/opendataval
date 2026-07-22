@@ -9,6 +9,28 @@ interface WeatherHeroProps {
   weather: EssentialWeather;
 }
 
+function currentTimeDescription(weather: EssentialWeather): string | null {
+  const provenanceTime = weather.provenance.values.currentTemperature.time;
+
+  if (provenanceTime.observedAt) {
+    return `observation ${formatDateTime(provenanceTime.observedAt)}`;
+  }
+  if (provenanceTime.validAt) {
+    return `prévision valable ${formatDateTime(provenanceTime.validAt)}`;
+  }
+  if (provenanceTime.generatedAt) {
+    return `donnée produite ${formatDateTime(provenanceTime.generatedAt)}`;
+  }
+  if (provenanceTime.retrievedAt) {
+    return `donnée récupérée ${formatDateTime(provenanceTime.retrievedAt)}`;
+  }
+  if (!weather.current.observedAt) return null;
+
+  return weather.current.nature === "observation"
+    ? `observation ${formatDateTime(weather.current.observedAt)}`
+    : `prévision valable ${formatDateTime(weather.current.observedAt)}`;
+}
+
 export function WeatherHero({ weather }: WeatherHeroProps) {
   const administrativeLabel = weather.location.municipality
     ? weather.location.department
@@ -16,9 +38,7 @@ export function WeatherHero({ weather }: WeatherHeroProps) {
       : weather.location.municipality.name
     : "Commune non disponible";
   const temperatureProvenance = weather.provenance.values.currentTemperature;
-  const referenceTime = temperatureProvenance.time.observedAt
-    ?? temperatureProvenance.time.validAt
-    ?? weather.current.observedAt;
+  const timeDescription = currentTimeDescription(weather);
 
   return (
     <section className="weather-hero" aria-labelledby="current-weather-title">
@@ -67,7 +87,8 @@ export function WeatherHero({ weather }: WeatherHeroProps) {
       </div>
 
       <p className="source-line">
-        {weather.current.sourceLabel} · {formatDateTime(referenceTime)}
+        {weather.current.sourceLabel}
+        {timeDescription ? ` · ${timeDescription}` : ""}
       </p>
 
       <DataProvenancePanel provenance={weather.provenance} />
