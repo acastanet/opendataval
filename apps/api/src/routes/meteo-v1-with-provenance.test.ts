@@ -151,6 +151,7 @@ test("essential expose le caractère hybride et la station effectivement retenue
   assert.equal(payload.provenance.stationSelection.nearestCandidate.selected, true);
   assert.deepEqual(payload.provenance.stationSelection.rejectionSummary, [
     { reason: "ALTITUDE_MISMATCH", count: 1 },
+    { reason: "SCORE_TOO_HIGH", count: 1 },
   ]);
   await app.close();
 });
