@@ -8,7 +8,7 @@ import { registerMeteoRoutes } from "./routes/meteo.js";
 import { registerMeteoClimateRoutes } from "./routes/meteoClimate.js";
 import { registerIndicateursRoutes } from "./routes/indicateurs.js";
 import { registerIncendiesRoutes } from "./routes/incendies.js";
-import { registerMeteoV1Routes } from "./routes/meteo-v1.js";
+import { registerMeteoV1RoutesWithProvenance } from "./routes/meteo-v1-with-provenance.js";
 
 const MIGRATIONS_DIR = process.env.MIGRATIONS_DIR ?? "/app/db/migrations";
 
@@ -37,7 +37,7 @@ async function main(): Promise<void> {
   registerMeteoClimateRoutes(app, pool);
   registerIndicateursRoutes(app, pool);
   registerIncendiesRoutes(app, pool);
-  registerMeteoV1Routes(app, pool);
+  registerMeteoV1RoutesWithProvenance(app, pool);
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen({ port, host: "0.0.0.0" });
