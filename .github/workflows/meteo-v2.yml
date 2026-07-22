@@ -1,0 +1,64 @@
+name: Météo V2
+
+on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "apps/meteo-web/**"
+      - "doc/meteo-v2/**"
+      - "packages/shared/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/meteo-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meteo-v2-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: API, contrat et interface
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Activer pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+          run_install: false
+
+      - name: Configurer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Tester l’API
+        run: pnpm --filter api test
+
+      - name: Vérifier les types de l’API
+        run: pnpm --filter api exec tsc --noEmit
+
+      - name: Régénérer le client OpenAPI
+        run: pnpm --filter meteo-web run generate:api
+
+      - name: Vérifier la synchronisation du client OpenAPI
+        run: git diff --exit-code -- apps/meteo-web/src/api/schema.d.ts
+
+      - name: Tester l’interface Météo V2
+        run: pnpm --filter meteo-web test
+
+      - name: Construire l’interface Météo V2
+        run: pnpm --filter meteo-web build
