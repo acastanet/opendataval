@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenDataVal — API Météo V2
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     Contrat stable entre les collectes et calculs météo d’OpenDataVal et
     l’interface indépendante Météo V2.
@@ -19,6 +19,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LocationsResponse"
+  /api/v1/meteo/location:
+    get:
+      operationId: resolveWeatherLocation
+      summary: Résout la commune, le département et l’altitude d’un point
+      description: >-
+        La réponse reste exploitable lorsque l’IGN est indisponible : les
+        informations non résolues sont alors null et les sources concernées
+        sont listées dans unavailableSources.
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+      responses:
+        "200":
+          description: Localisation géographique normalisée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolvedLocation"
+        "400":
+          description: Coordonnées invalides
   /api/v1/meteo/essential:
     get:
       operationId: getEssentialWeather
@@ -85,10 +117,95 @@ components:
     AlertLevel:
       type: string
       enum: [green, yellow, orange, red]
+    Coordinates:
+      type: object
+      additionalProperties: false
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+    Municipality:
+      type: object
+      additionalProperties: false
+      required: [name, inseeCode]
+      properties:
+        name:
+          type: string
+        inseeCode:
+          type: string
+          pattern: "^(?:[0-9]{5}|2[AB][0-9]{3})$"
+    Department:
+      type: object
+      additionalProperties: false
+      required: [name, code]
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+          pattern: "^(?:[0-9]{2,3}|2[AB])$"
+    LocationResolution:
+      type: object
+      additionalProperties: false
+      required: [administrative, altitude]
+      properties:
+        administrative:
+          type: string
+          enum: [ign, unavailable]
+        altitude:
+          type: string
+          enum: [ign, unavailable]
+    ResolvedLocation:
+      type: object
+      additionalProperties: false
+      required:
+        - coordinates
+        - label
+        - municipality
+        - department
+        - altitudeM
+        - resolution
+        - unavailableSources
+        - generatedAt
+      properties:
+        coordinates:
+          $ref: "#/components/schemas/Coordinates"
+        label:
+          type: string
+        municipality:
+          oneOf:
+            - $ref: "#/components/schemas/Municipality"
+            - type: "null"
+        department:
+          oneOf:
+            - $ref: "#/components/schemas/Department"
+            - type: "null"
+        altitudeM:
+          type: [integer, "null"]
+        resolution:
+          $ref: "#/components/schemas/LocationResolution"
+        unavailableSources:
+          type: array
+          items:
+            type: string
+        generatedAt:
+          type: string
+          format: date-time
     Location:
       type: object
       additionalProperties: false
-      required: [id, label, latitude, longitude, altitudeM, accuracyM, source]
+      required:
+        - id
+        - label
+        - latitude
+        - longitude
+        - municipality
+        - department
+        - altitudeM
+        - accuracyM
+        - source
       properties:
         id:
           type: [string, "null"]
@@ -98,6 +215,14 @@ components:
           type: number
         longitude:
           type: number
+        municipality:
+          oneOf:
+            - $ref: "#/components/schemas/Municipality"
+            - type: "null"
+        department:
+          oneOf:
+            - $ref: "#/components/schemas/Department"
+            - type: "null"
         altitudeM:
           type: [integer, "null"]
         accuracyM:
@@ -178,7 +303,7 @@ components:
     WeatherAlert:
       type: object
       additionalProperties: false
-      required: [level, title, phenomena, validUntil, sourceUrl, indisponible]
+      required: [level, title, phenomena, validUntil, sourceUrl, departmentCode, indisponible]
       properties:
         level:
           $ref: "#/components/schemas/AlertLevel"
@@ -194,9 +319,12 @@ components:
         sourceUrl:
           type: string
           format: uri
+        departmentCode:
+          type: [string, "null"]
+          description: Département réellement utilisé pour interroger la vigilance.
         indisponible:
           type: boolean
-          description: true si la source Météo-France est indisponible (level est alors un repli)
+          description: true si la vigilance officielle n’a pas pu être établie.
     EssentialWeather:
       type: object
       additionalProperties: false

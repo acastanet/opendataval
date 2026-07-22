@@ -395,6 +395,7 @@ main {
 .alert-banner--yellow { --alert-color: var(--yellow); }
 .alert-banner--orange { --alert-color: var(--orange); }
 .alert-banner--red { --alert-color: var(--red); }
+.alert-banner--unknown { --alert-color: var(--muted); }
 
 .alert-status {
   width: 0.72rem;

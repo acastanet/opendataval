@@ -10,6 +10,12 @@ interface WeatherHeroProps {
 }
 
 export function WeatherHero({ weather }: WeatherHeroProps) {
+  const administrativeLabel = weather.location.municipality
+    ? weather.location.department
+      ? `${weather.location.municipality.name} · ${weather.location.department.name} (${weather.location.department.code})`
+      : weather.location.municipality.name
+    : "Commune non disponible";
+
   return (
     <section className="weather-hero" aria-labelledby="current-weather-title">
       <div className="place-line">
@@ -17,6 +23,8 @@ export function WeatherHero({ weather }: WeatherHeroProps) {
         <div>
           <h1 id="current-weather-title">{weather.location.label}</h1>
           <p>
+            {administrativeLabel}
+            {" · "}
             {weather.location.altitudeM !== null
               ? `${weather.location.altitudeM} m d’altitude`
               : "Altitude non disponible"}

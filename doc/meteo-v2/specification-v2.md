@@ -37,6 +37,7 @@ actuelles. Il comprend :
 
 - le choix des trois lieux rapides ;
 - la géolocalisation du navigateur et sa précision ;
+- la commune, le département et l’altitude résolus côté API par l’IGN ;
 - la température et sa nature — mesure ou estimation ;
 - le minimum et le maximum du jour ;
 - le prochain changement notable ;
@@ -50,16 +51,40 @@ actuelles. Il comprend :
 - pas de pictogrammes météorologiques ambigus : les conditions sont écrites ;
 - température lisible sans masquer le lieu, la source ou la qualité de la donnée ;
 - vigilance verte compacte, vigilance jaune à rouge nettement visible ;
+- aucune vigilance ne peut être présentée comme officielle sans département résolu ;
+- une source indisponible est affichée comme inconnue, jamais transformée en état vert ;
 - boutons tactiles d’au moins 44 px ;
 - animations supprimées si `prefers-reduced-motion` est actif ;
 - couleurs jamais utilisées comme unique moyen de transmettre une information.
 
-## 5. Migration
+## 5. Résolution géographique
+
+`GET /api/v1/meteo/location` normalise la position indépendamment de l’interface.
+Le géocodage inverse et l’altitude sont interrogés côté serveur auprès de la
+Géoplateforme IGN, avec timeout, validation des réponses et cache mémoire borné.
+
+La commune et le département proviennent du code INSEE. Les codes des
+arrondissements de Paris, Lyon et Marseille sont ramenés au code de la commune,
+et les codes `2A`, `2B` et ultramarins sont conservés. En cas d’échec :
+
+- les coordonnées restent utilisables pour la prévision locale ;
+- la commune, le département ou l’altitude concernés restent `null` ;
+- la vigilance est indisponible si aucun département n’a été résolu ;
+- aucun département de repli n’est inventé.
+
+Les coordonnées précises ne sont ni persistées en base ni inscrites dans les
+journaux. Les réponses associées à une position sont mises en cache privé.
+
+## 6. Migration
 
 1. Valider le premier écran sur données simulées.
 2. Implémenter les adaptateurs Fastify conformes à OpenAPI.
 3. Tester l’API avec les scénarios normal, partiel et indisponible.
 4. Connecter la V2 à l’API réelle sous `/meteo-v2/`.
-5. Migrer ensuite comparaison, bilan thermique et informations.
-6. Basculer les anciennes URL uniquement après validation mobile, accessibilité et
+5. Résoudre dynamiquement commune, département et altitude, puis utiliser le bon
+   département pour la vigilance.
+6. Sélectionner dynamiquement les stations d’observation selon la distance, la
+   fraîcheur et l’écart d’altitude.
+7. Migrer ensuite comparaison, bilan thermique et informations.
+8. Basculer les anciennes URL uniquement après validation mobile, accessibilité et
    comparaison fonctionnelle avec la production.

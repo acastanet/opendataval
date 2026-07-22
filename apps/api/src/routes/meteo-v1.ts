@@ -4,9 +4,12 @@ import {
   POINTS_METEO_PRECONFIGURES,
   resoudreLocalisationMeteo,
   type CoordonneesMeteo,
-} from "@opendata-vda/shared";
-
-/* ────────── types internes ────────── */
+} from "@opendata-vda/shared/localisations-meteo";
+import {
+  createGeographyResolver,
+  unavailableGeography,
+  type ResolvedGeography,
+} from "../lib/geography.js";
 
 const ALERT_LEVELS = ["green", "yellow", "orange", "red"] as const;
 type AlertLevel = (typeof ALERT_LEVELS)[number];
@@ -17,6 +20,8 @@ interface EssentialWeather {
     label: string;
     latitude: number;
     longitude: number;
+    municipality: ResolvedGeography["municipality"];
+    department: ResolvedGeography["department"];
     altitudeM: number | null;
     accuracyM: number | null;
     source: "preset" | "gps";
@@ -52,6 +57,7 @@ interface EssentialWeather {
     phenomena: string[];
     validUntil: string;
     sourceUrl: string;
+    departmentCode: string | null;
     indisponible: boolean;
   };
   unavailableSources: string[];
@@ -66,9 +72,26 @@ interface LocationSummary {
   longitude: number;
 }
 
-type ChangeType = "rain" | "wind" | "temperature" | "stable";
+interface VigilanceResult {
+  niveau: AlertLevel;
+  phenomenes: string[];
+  miseAJour: Date | null;
+  indisponible: boolean;
+}
 
-/* ────────── helpers ────────── */
+interface ObservationResult {
+  temperatureC: number | null;
+  observedAt: string | null;
+  unavailable: boolean;
+}
+
+export interface MeteoV1Dependencies {
+  resolveGeography?: (latitude: number, longitude: number) => Promise<ResolvedGeography>;
+  fetchWeatherJson?: (url: string) => Promise<unknown>;
+  fetchVigilance?: (departmentCode: string) => Promise<VigilanceResult>;
+}
+
+const DEFAULT_GEOGRAPHY_RESOLVER = createGeographyResolver();
 
 function validerCoordonnees(latStr?: string, lonStr?: string): CoordonneesMeteo | null {
   if (!latStr || !lonStr) return null;
@@ -79,25 +102,56 @@ function validerCoordonnees(latStr?: string, lonStr?: string): CoordonneesMeteo 
   return { lat, lon };
 }
 
+function validerPrecision(value?: string): number | undefined | null {
+  if (value === undefined) return undefined;
+  const accuracyM = Number(value);
+  return Number.isFinite(accuracyM) && accuracyM >= 0 ? accuracyM : null;
+}
+
 async function fetchJson(url: string): Promise<unknown> {
-  const res = await fetch(url, {
-    headers: { "User-Agent": "opendata-vda-api/1.0" },
+  const response = await fetch(url, {
+    headers: { Accept: "application/json", "User-Agent": "opendata-vda-api/1.0" },
     signal: AbortSignal.timeout(12_000),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  if (!response.ok) throw new Error(`Source météo HTTP ${response.status}`);
+  return response.json();
 }
 
-function getNumber(obj: unknown, key: string): number | null {
-  if (typeof obj !== "object" || obj === null) return null;
-  const v = (obj as Record<string, unknown>)[key];
-  return typeof v === "number" && Number.isFinite(v) ? v : null;
+function getNumber(object: unknown, key: string): number | null {
+  if (typeof object !== "object" || object === null) return null;
+  const value = (object as Record<string, unknown>)[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function getNumberArray(obj: unknown, key: string): number[] {
-  if (typeof obj !== "object" || obj === null) return [];
-  const v = (obj as Record<string, unknown>)[key];
-  return Array.isArray(v) ? v.filter((x): x is number => typeof x === "number" && Number.isFinite(x)) : [];
+function getNumberArray(object: unknown, key: string): number[] {
+  if (typeof object !== "object" || object === null) return [];
+  const value = (object as Record<string, unknown>)[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is number => typeof item === "number" && Number.isFinite(item))
+    : [];
+}
+
+function addHours(iso: string, hours: number): string {
+  return new Date(new Date(iso).getTime() + hours * 3_600_000).toISOString();
+}
+
+function meteoFranceUrl(latitude: number, longitude: number): string {
+  const url = new URL("https://api.open-meteo.com/v1/meteofrance");
+  url.searchParams.set("latitude", String(latitude));
+  url.searchParams.set("longitude", String(longitude));
+  url.searchParams.set("timezone", "Europe/Paris");
+  url.searchParams.set("timeformat", "unixtime");
+  url.searchParams.set("forecast_days", "3");
+  url.searchParams.set(
+    "current",
+    "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m",
+  );
+  url.searchParams.set(
+    "hourly",
+    "temperature_2m,precipitation_probability,wind_gusts_10m,weather_code",
+  );
+  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,weather_code");
+  return url.toString();
 }
 
 const WMO_DESCRIPTIONS: Record<number, string> = {
@@ -136,38 +190,6 @@ function weatherCodeLabel(code: unknown): string {
   return WMO_DESCRIPTIONS[code] ?? "Phénomène non référencé";
 }
 
-function isoNow(): string {
-  return new Date().toISOString();
-}
-
-function addHours(iso: string, hours: number): string {
-  return new Date(new Date(iso).getTime() + hours * 3_600_000).toISOString();
-}
-
-/** Construit l'Open-Meteo URL pour un point donné */
-function meteoFranceUrl(lat: number, lon: number): string {
-  const url = new URL("https://api.open-meteo.com/v1/meteofrance");
-  url.searchParams.set("latitude", String(lat));
-  url.searchParams.set("longitude", String(lon));
-  url.searchParams.set("timezone", "Europe/Paris");
-  url.searchParams.set("forecast_days", "3");
-  url.searchParams.set(
-    "current",
-    "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m",
-  );
-  url.searchParams.set(
-    "hourly",
-    "temperature_2m,precipitation_probability,wind_gusts_10m,weather_code",
-  );
-  url.searchParams.set(
-    "daily",
-    "temperature_2m_max,temperature_2m_min,weather_code",
-  );
-  return url.toString();
-}
-
-/* ────────── vigilance ────────── */
-
 const COULEUR_VIGILANCE: Record<number, AlertLevel> = {
   1: "green",
   2: "yellow",
@@ -187,41 +209,26 @@ const PHENOMENE_NOMS: Record<string, string> = {
   "9": "Vagues-submersion",
 };
 
-/** Résultat brut de la vigilance : soit réussite avec niveau réel, soit indisponible. */
-interface VigilanceResult {
-  niveau: AlertLevel;
-  phenomenes: string[];
-  miseAJour: Date | null;
-  /** true si la source Météo-France était injoignable (level = repli green) */
-  indisponible: boolean;
-}
-
-/** Interroge la carte de vigilance Météo-France. Retourne l'état pour le département demandé. */
 async function recupererVigilance(codeDep: string): Promise<VigilanceResult> {
   const token = process.env.METEOFRANCE_API_TOKEN_VIGILANCE ?? process.env.METEOFRANCE_API_TOKEN;
   if (!token) {
     return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
   }
   try {
-    const url = "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours";
-    const res = await fetch(url, {
-      headers: { apikey: token, "User-Agent": "opendata-vda-api/1.0" },
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!res.ok) throw new Error(`DPVigilance HTTP ${res.status}`);
-    const data: unknown = await res.json();
-    return parserVigilancePourDept(data, codeDep);
-  } catch (err) {
+    const response = await fetch(
+      "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours",
+      {
+        headers: { apikey: token, "User-Agent": "opendata-vda-api/1.0" },
+        signal: AbortSignal.timeout(12_000),
+      },
+    );
+    if (!response.ok) throw new Error(`DPVigilance HTTP ${response.status}`);
+    return parserVigilancePourDept(await response.json(), codeDep);
+  } catch {
     return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
   }
 }
 
-/** Parse la réponse brute de la carte de vigilance pour un département donné.
- * Format V6 : product.periods[].timelaps.domain_ids[]
- *   domain_id: string (code département, e.g. "30")
- *   max_color_id: string ("1".."4")
- *   phenomenon_ids: [{phenomenon_id: number, color_id: number}]
- */
 function parserVigilancePourDept(data: unknown, codeDep: string): VigilanceResult {
   if (typeof data !== "object" || data === null) {
     return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
@@ -233,111 +240,130 @@ function parserVigilancePourDept(data: unknown, codeDep: string): VigilanceResul
   if (typeof product !== "object" || product === null) {
     return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
   }
-  const p = product as Record<string, unknown>;
 
-  const updateTime = String(p.update_time ?? p.timestamp ?? "");
+  const payload = product as Record<string, unknown>;
+  const updateTime = String(payload.update_time ?? payload.timestamp ?? "");
   const miseAJour = updateTime ? new Date(updateTime) : null;
+  let meilleurNiveau = 1;
+  let departmentFound = false;
+  const phenomenes = new Set<string>();
 
-  // Chercher dans les periodes (format V6)
-  const periods: unknown[] = Array.isArray(p.periods) ? p.periods : [];
+  function readDomainIds(domainIds: unknown[]): void {
+    for (const item of domainIds) {
+      if (typeof item !== "object" || item === null) continue;
+      const entry = item as Record<string, unknown>;
+      if (String(entry.domain_id ?? entry.domain ?? "") !== codeDep) continue;
+      departmentFound = true;
+      const color = Number(entry.max_color_id ?? entry.max_color ?? entry.color_id ?? 1);
+      if (Number.isFinite(color) && color > meilleurNiveau) meilleurNiveau = color;
 
-  let meilleurNiveau: number = 1; // 1 = green (min)
-  const phenomenesTrouves = new Set<string>();
+      const rawPhenomena = entry.phenomenon_ids ?? entry.phenomena;
+      if (!Array.isArray(rawPhenomena)) continue;
+      for (const phenomenon of rawPhenomena) {
+        if (typeof phenomenon !== "object" || phenomenon === null) continue;
+        const properties = phenomenon as Record<string, unknown>;
+        const id = String(properties.phenomenon_id ?? properties.id ?? properties.code ?? "");
+        if (PHENOMENE_NOMS[id]) phenomenes.add(PHENOMENE_NOMS[id]);
+      }
+    }
+  }
 
+  const periods = Array.isArray(payload.periods) ? payload.periods : [];
   for (const period of periods) {
     if (typeof period !== "object" || period === null) continue;
     const timelaps = (period as Record<string, unknown>).timelaps;
     if (typeof timelaps !== "object" || timelaps === null) continue;
-    const domainIds: unknown[] = Array.isArray((timelaps as Record<string, unknown>).domain_ids)
-      ? ((timelaps as Record<string, unknown>).domain_ids as unknown[])
-      : [];
-
-    for (const di of domainIds) {
-      if (typeof di !== "object" || di === null) continue;
-      const entry = di as Record<string, unknown>;
-      const did = String(entry.domain_id ?? entry.domain ?? "");
-      if (did !== codeDep) continue;
-
-      const maxColor = Number(entry.max_color_id ?? entry.max_color ?? entry.color_id ?? 1);
-      if (maxColor > meilleurNiveau) meilleurNiveau = maxColor;
-
-      // Phénomènes
-      const phenInput2 = entry.phenomenon_ids ?? entry.phenomena ?? null;
-      const phenIds: unknown[] = Array.isArray(phenInput2) ? phenInput2 : [];
-      for (const ph of phenIds) {
-        if (typeof ph !== "object" || ph === null) continue;
-        const pid = String(
-          (ph as Record<string, unknown>).phenomenon_id ??
-          (ph as Record<string, unknown>).id ??
-          (ph as Record<string, unknown>).code ??
-          "",
-        );
-        if (PHENOMENE_NOMS[pid]) phenomenesTrouves.add(PHENOMENE_NOMS[pid]);
-      }
-    }
+    const domainIds = (timelaps as Record<string, unknown>).domain_ids;
+    if (Array.isArray(domainIds)) readDomainIds(domainIds);
   }
 
-  // Fallback : chercher dans product.timelaps.domain_ids (structure alternative)
-  if (meilleurNiveau === 1) {
-    const globalTimelaps = p.timelaps;
-    if (typeof globalTimelaps === "object" && globalTimelaps !== null) {
-      const globalIds: unknown[] = Array.isArray((globalTimelaps as Record<string, unknown>).domain_ids)
-        ? ((globalTimelaps as Record<string, unknown>).domain_ids as unknown[])
-        : [];
-      for (const di of globalIds) {
-        if (typeof di !== "object" || di === null) continue;
-        const entry = di as Record<string, unknown>;
-        const did = String(entry.domain_id ?? entry.domain ?? "");
-        if (did !== codeDep) continue;
-        const maxColor = Number(entry.max_color_id ?? entry.max_color ?? 1);
-        if (maxColor > meilleurNiveau) meilleurNiveau = maxColor;
-      }
-    }
+  if (!departmentFound && typeof payload.timelaps === "object" && payload.timelaps !== null) {
+    const domainIds = (payload.timelaps as Record<string, unknown>).domain_ids;
+    if (Array.isArray(domainIds)) readDomainIds(domainIds);
   }
-
-  const niveau = COULEUR_VIGILANCE[meilleurNiveau] ?? "green";
-  const trouve = meilleurNiveau > 1 || miseAJour !== null;
 
   return {
-    niveau,
-    phenomenes: [...phenomenesTrouves],
+    niveau: COULEUR_VIGILANCE[meilleurNiveau] ?? "green",
+    phenomenes: [...phenomenes],
     miseAJour,
-    indisponible: !trouve,
+    indisponible: !departmentFound,
   };
 }
 
-/* ────────── normalisation essentielle ────────── */
+const NIVEAUX_FR: Record<AlertLevel, string> = {
+  green: "verte",
+  yellow: "jaune",
+  orange: "orange",
+  red: "rouge",
+};
 
 function determinerNextChange(
   hourlyData: unknown,
+  now: Date,
 ): EssentialWeather["nextChange"] {
-  const hourly = (hourlyData as Record<string, unknown>) ?? {};
+  const hourly = typeof hourlyData === "object" && hourlyData !== null ? hourlyData : {};
+  const hourlyTimes = getNumberArray(hourly, "time");
   const weatherCodes = getNumberArray(hourly, "weather_code");
-  const precipitationProb = getNumberArray(hourly, "precipitation_probability");
-  const now = new Date();
-  const nowHour = now.getHours();
+  const precipitationProbability = getNumberArray(hourly, "precipitation_probability");
+  const nowSeconds = Math.floor(now.getTime() / 1_000);
+  const firstFutureIndex = hourlyTimes.findIndex((timestamp) => timestamp >= nowSeconds);
+  const startIndex = firstFutureIndex >= 0 ? firstFutureIndex : 0;
 
-  for (let i = 1; i < Math.min(precipitationProb.length, 24); i++) {
-    if (nowHour + i >= 24) break;
-    const prob = precipitationProb[i];
-    if (prob !== undefined && prob >= 30) {
-      const code = weatherCodes[i] ?? 0;
-      const desc = WMO_DESCRIPTIONS[code] ?? "Précipitations";
+  for (
+    let index = startIndex;
+    index < Math.min(precipitationProbability.length, startIndex + 24);
+    index += 1
+  ) {
+    const probability = precipitationProbability[index];
+    if (probability !== undefined && probability >= 30) {
+      const description = WMO_DESCRIPTIONS[weatherCodes[index] ?? 0] ?? "Précipitations";
       return {
-        type: "rain" as ChangeType,
-        startsAt: addHours(isoNow(), i),
-        summary: `${desc} probables.`,
-        probabilityPercent: prob !== undefined ? Math.min(100, Math.round(prob)) : null,
+        type: "rain",
+        startsAt: hourlyTimes[index]
+          ? new Date((hourlyTimes[index] as number) * 1_000).toISOString()
+          : addHours(now.toISOString(), index - startIndex),
+        summary: `${description} probables.`,
+        probabilityPercent: Math.min(100, Math.round(probability)),
       };
     }
   }
 
   return {
-    type: "stable" as ChangeType,
+    type: "stable",
     startsAt: null,
     summary: "Pas de changement significatif dans les prochaines heures.",
     probabilityPercent: null,
   };
+}
+
+async function lireObservationAigoual(pool: pg.Pool): Promise<ObservationResult> {
+  try {
+    const { rows } = await pool.query(
+      `select distinct on (num_poste) num_poste, t, heure_utc
+       from series.meteo_horaire
+       where num_poste = $1
+       order by num_poste, heure_utc desc limit 1`,
+      ["07630"],
+    );
+    const row = rows[0] as { t?: number; heure_utc?: string } | undefined;
+    return typeof row?.t === "number" && typeof row.heure_utc === "string"
+      ? { temperatureC: row.t, observedAt: row.heure_utc, unavailable: false }
+      : { temperatureC: null, observedAt: null, unavailable: true };
+  } catch {
+    return { temperatureC: null, observedAt: null, unavailable: true };
+  }
+}
+
+async function resoudreGeographieSure(
+  resolver: (latitude: number, longitude: number) => Promise<ResolvedGeography>,
+  latitude: number,
+  longitude: number,
+): Promise<ResolvedGeography> {
+  try {
+    return await resolver(latitude, longitude);
+  } catch {
+    return unavailableGeography(latitude, longitude);
+  }
 }
 
 async function normaliserEssential(
@@ -345,142 +371,138 @@ async function normaliserEssential(
   lon: number,
   accuracyM: number | undefined,
   pool: pg.Pool,
+  dependencies: Required<MeteoV1Dependencies>,
 ): Promise<EssentialWeather> {
   const now = new Date();
   const generatedAt = now.toISOString();
+  const localisation = resoudreLocalisationMeteo(lat, lon);
+  const { lat: normalizedLat, lon: normalizedLon } = localisation.normalisee;
   const unavailableSources: string[] = [];
 
-  // Résoudre la localisation
-  const localisation = resoudreLocalisationMeteo(lat, lon);
-  const { lat: latN, lon: lonN } = localisation.normalisee;
-  const isGps = accuracyM !== undefined;
+  const geographyPromise = resoudreGeographieSure(
+    dependencies.resolveGeography,
+    normalizedLat,
+    normalizedLon,
+  );
+  const weatherPromise = dependencies.fetchWeatherJson(
+    meteoFranceUrl(normalizedLat, normalizedLon),
+  ).catch(() => null);
+  const observationPromise = localisation.pointPreconfigure?.slug === "val-aigoual"
+    ? lireObservationAigoual(pool)
+    : Promise.resolve<ObservationResult>({
+      temperatureC: null,
+      observedAt: null,
+      unavailable: false,
+    });
+
+  const [geography, weatherData, observation] = await Promise.all([
+    geographyPromise,
+    weatherPromise,
+    observationPromise,
+  ]);
+  unavailableSources.push(...geography.unavailableSources);
+  if (weatherData === null) unavailableSources.push("Modèles Météo-France (AROME/ARPEGE)");
+  if (observation.unavailable) unavailableSources.push("Observations Météo-France");
 
   const location: EssentialWeather["location"] = {
-    id: isGps ? null : (localisation.pointPreconfigure?.slug ?? null),
-    label: isGps
-      ? localisation.pointPreconfigure
-        ? `Position GPS proche de ${localisation.pointPreconfigure.nom}`
-        : `Position GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`
-      : (localisation.pointPreconfigure?.label ?? `${lat.toFixed(4)}, ${lon.toFixed(4)}`),
+    id: localisation.pointPreconfigure?.slug ?? null,
+    label: localisation.pointPreconfigure?.label ?? geography.label,
     latitude: lat,
     longitude: lon,
-    altitudeM: localisation.pointPreconfigure !== null && localisation.pointPreconfigure.slug === "val-aigoual" ? 351 : null,
+    municipality: geography.municipality,
+    department: geography.department,
+    altitudeM: geography.altitudeM,
     accuracyM: accuracyM ?? null,
-    source: isGps ? "gps" : "preset",
+    source: localisation.type === "preconfiguree" ? "preset" : "gps",
   };
 
-  // Observation depuis la base (station Météo-France la plus proche)
-  let observationTemp: number | null = null;
-  let observationAt: string | null = null;
-  try {
-    const { rows } = await pool.query(
-      `select distinct on (num_poste) num_poste, t, humidite, heure_utc
-       from series.meteo_horaire
-       where num_poste = $1
-       order by num_poste, heure_utc desc limit 1`,
-      ["07630"],
-    );
-    const row = rows[0] as { t: number; heure_utc: string } | undefined;
-    if (row && row.t !== null) {
-      observationTemp = row.t;
-      observationAt = row.heure_utc;
-    } else {
-      unavailableSources.push("Observations Météo-France");
-    }
-  } catch {
-    unavailableSources.push("Observations Météo-France");
-  }
-  const observationMinutes = observationAt
-    ? (now.getTime() - new Date(observationAt).getTime()) / 60_000
-    : Infinity;
-  const stale = observationMinutes > 120;
+  const currentData = weatherData
+    ? (weatherData as Record<string, unknown>).current
+    : null;
+  const hourlyData = weatherData
+    ? (weatherData as Record<string, unknown>).hourly
+    : null;
+  const dailyData = weatherData
+    ? (weatherData as Record<string, unknown>).daily
+    : null;
 
-  // Prévisions Open-Meteo
-  let weatherData: unknown = null;
-  try {
-    weatherData = await fetchJson(meteoFranceUrl(latN, lonN));
-  } catch {
-    unavailableSources.push("Modèles Météo-France (AROME/ARPEGE)");
+  const hourlyTemperatures = getNumberArray(hourlyData, "temperature_2m");
+  const hourlyTimes = getNumberArray(hourlyData, "time");
+  const hourlyRain = getNumberArray(hourlyData, "precipitation_probability");
+  const hourlyWind = getNumberArray(hourlyData, "wind_gusts_10m");
+  const weatherCodes = getNumberArray(hourlyData, "weather_code");
+  const modelTemperature = getNumber(currentData, "temperature_2m") ?? hourlyTemperatures[0] ?? null;
+
+  if (observation.temperatureC === null && modelTemperature === null) {
+    throw new Error("Aucune température exploitable");
   }
 
-  const currentData = weatherData ? (weatherData as Record<string, unknown>).current : null;
-  const hourlyData = weatherData ? (weatherData as Record<string, unknown>).hourly : null;
-  const dailyData = weatherData ? (weatherData as Record<string, unknown>).daily : null;
-
-  const hourlyTempsArr = getNumberArray(hourlyData, "temperature_2m");
-  const hourlyRainArr = getNumberArray(hourlyData, "precipitation_probability");
-  const hourlyWindArr = getNumberArray(hourlyData, "wind_gusts_10m");
-  const weatherCodesArr = getNumberArray(hourlyData, "weather_code");
-
-  const currentTempC =
-    observationTemp ??
-    getNumber(currentData, "temperature_2m") ??
-    hourlyTempsArr[0] ??
-    0;
-  const currentApparentC =
-    observationTemp !== null
-      ? (observationTemp + (getNumber(currentData, "apparent_temperature") ?? observationTemp)) / 2
-      : (getNumber(currentData, "apparent_temperature") ?? currentTempC);
-  const currentWeatherCode = getNumber(currentData, "weather_code");
-  const weatherLabel = weatherCodeLabel(currentWeatherCode ?? weatherCodesArr[0] ?? null);
+  const observationMinutes = observation.observedAt
+    ? (now.getTime() - new Date(observation.observedAt).getTime()) / 60_000
+    : Number.POSITIVE_INFINITY;
+  const usesObservation = observation.temperatureC !== null && observationMinutes < 60;
+  const currentTemperature = usesObservation
+    ? observation.temperatureC as number
+    : modelTemperature as number;
+  const apparentTemperature = getNumber(currentData, "apparent_temperature") ?? currentTemperature;
+  const currentWeatherCode = getNumber(currentData, "weather_code") ?? weatherCodes[0] ?? null;
+  const currentTimestamp = getNumber(currentData, "time");
+  const modelObservedAt = currentTimestamp === null
+    ? generatedAt
+    : new Date(currentTimestamp * 1_000).toISOString();
 
   const current: EssentialWeather["current"] = {
-    temperatureC: Math.round(currentTempC * 10) / 10,
-    apparentTemperatureC: Math.round(currentApparentC * 10) / 10,
-    weatherLabel,
-    observedAt: observationAt ?? generatedAt,
-    nature: observationMinutes < 60 ? "observation" : "model",
-    sourceLabel: observationMinutes < 60
+    temperatureC: Math.round(currentTemperature * 10) / 10,
+    apparentTemperatureC: Math.round(apparentTemperature * 10) / 10,
+    weatherLabel: weatherCodeLabel(currentWeatherCode),
+    observedAt: usesObservation ? observation.observedAt as string : modelObservedAt,
+    nature: usesObservation ? "observation" : "model",
+    sourceLabel: usesObservation
       ? "Station Météo-France Mont Aigoual"
       : "AROME HD via Open-Meteo",
-    stale,
+    stale: usesObservation && observationMinutes > 120,
   };
 
-  // Min/Max du jour
-  const dailyMaxArr = getNumberArray(dailyData, "temperature_2m_max");
-  const dailyMinArr = getNumberArray(dailyData, "temperature_2m_min");
-  const maxC = getNumber(currentData, "temperature_2m") ?? dailyMaxArr[0] ?? currentTempC;
-  const minC = dailyMinArr[0] ?? currentTempC;
-
+  const dailyMaximums = getNumberArray(dailyData, "temperature_2m_max");
+  const dailyMinimums = getNumberArray(dailyData, "temperature_2m_min");
   const today: EssentialWeather["today"] = {
-    minimumC: Math.round(Math.min(currentTempC, minC as number) * 10) / 10,
-    maximumC: Math.round(Math.max(currentTempC, maxC as number) * 10) / 10,
+    minimumC: Math.round(Math.min(currentTemperature, dailyMinimums[0] ?? currentTemperature) * 10) / 10,
+    maximumC: Math.round(Math.max(currentTemperature, dailyMaximums[0] ?? currentTemperature) * 10) / 10,
   };
 
-  // Prochain changement
-  const nextChange = determinerNextChange(hourlyData);
-
-  // Prochaines heures
   const nextHours: EssentialWeather["nextHours"] = [];
-  for (let i = 0; i < Math.min(hourlyTempsArr.length, 6); i++) {
-    if (i === 0 && observationMinutes < 30) continue;
-    const idx = i === 0 && observationMinutes < 30 ? 1 : i;
-    if (idx >= hourlyTempsArr.length) break;
+  const firstFutureIndex = hourlyTimes.findIndex(
+    (timestamp) => timestamp >= Math.floor(now.getTime() / 1_000),
+  );
+  const startIndex = firstFutureIndex >= 0 ? firstFutureIndex : 0;
+  for (
+    let index = startIndex;
+    index < Math.min(hourlyTemperatures.length, startIndex + 6);
+    index += 1
+  ) {
     nextHours.push({
-      at: addHours(generatedAt, idx),
-      temperatureC: Math.round((hourlyTempsArr[idx] ?? currentTempC) * 10) / 10,
-      rainProbabilityPercent: Math.min(100, Math.max(0, Math.round(hourlyRainArr[idx] ?? 0))),
-      windGustKmh: Math.round((hourlyWindArr[idx] ?? 0) * 10) / 10,
+      at: hourlyTimes[index]
+        ? new Date((hourlyTimes[index] as number) * 1_000).toISOString()
+        : addHours(generatedAt, index - startIndex),
+      temperatureC: Math.round((hourlyTemperatures[index] ?? currentTemperature) * 10) / 10,
+      rainProbabilityPercent: Math.min(100, Math.max(0, Math.round(hourlyRain[index] ?? 0))),
+      windGustKmh: Math.round((hourlyWind[index] ?? 0) * 10) / 10,
     });
   }
   if (nextHours.length === 0) {
     nextHours.push({
       at: addHours(generatedAt, 1),
-      temperatureC: Math.round(currentTempC * 10) / 10,
+      temperatureC: Math.round(currentTemperature * 10) / 10,
       rainProbabilityPercent: 0,
       windGustKmh: 0,
     });
   }
 
-  // Vigilance — détermination du département
-  const codeDepartement = localisation.pointPreconfigure?.slug === "marseille" ? "13" : "30";
-  const vigilance = await recupererVigilance(codeDepartement);
-  const NIVEAUX_FR: Record<string, string> = {
-    green: "verte",
-    yellow: "jaune",
-    orange: "orange",
-    red: "rouge",
-  };
+  const departmentCode = geography.department?.code ?? null;
+  const vigilance = departmentCode
+    ? await dependencies.fetchVigilance(departmentCode)
+    : { niveau: "green" as const, phenomenes: [], miseAJour: null, indisponible: true };
+  if (vigilance.indisponible) unavailableSources.push("Vigilance Météo-France");
 
   const alert: EssentialWeather["alert"] = {
     level: vigilance.niveau,
@@ -488,10 +510,11 @@ async function normaliserEssential(
       ? "Vigilance Météo-France indisponible"
       : vigilance.niveau === "green"
         ? "Aucune vigilance particulière"
-        : `Vigilance ${NIVEAUX_FR[vigilance.niveau] ?? vigilance.niveau}`,
+        : `Vigilance ${NIVEAUX_FR[vigilance.niveau]}`,
     phenomena: vigilance.phenomenes,
     validUntil: addHours(generatedAt, 24),
     sourceUrl: "https://vigilance.meteofrance.fr/fr",
+    departmentCode,
     indisponible: vigilance.indisponible,
   };
 
@@ -499,57 +522,85 @@ async function normaliserEssential(
     location,
     current,
     today,
-    nextChange,
+    nextChange: determinerNextChange(hourlyData, now),
     nextHours,
     alert,
-    unavailableSources,
+    unavailableSources: [...new Set(unavailableSources)],
     generatedAt,
   };
 }
 
-/* ────────── routes ────────── */
+export function registerMeteoV1Routes(
+  app: FastifyInstance,
+  pool: pg.Pool,
+  overrides: MeteoV1Dependencies = {},
+): void {
+  const dependencies: Required<MeteoV1Dependencies> = {
+    resolveGeography: overrides.resolveGeography
+      ?? ((latitude, longitude) => DEFAULT_GEOGRAPHY_RESOLVER.resolve(latitude, longitude)),
+    fetchWeatherJson: overrides.fetchWeatherJson ?? fetchJson,
+    fetchVigilance: overrides.fetchVigilance ?? recupererVigilance,
+  };
 
-export function registerMeteoV1Routes(app: FastifyInstance, _pool: pg.Pool): void {
-  // Liste des lieux rapides
-  app.get("/api/v1/meteo/locations", async (_req: FastifyRequest, reply: FastifyReply) => {
-    const locations: LocationSummary[] = POINTS_METEO_PRECONFIGURES.map((p) => ({
-      id: p.slug,
-      label: p.label,
-      shortLabel: p.nom,
-      latitude: p.lat,
-      longitude: p.lon,
+  app.get("/api/v1/meteo/locations", async (_request: FastifyRequest, reply: FastifyReply) => {
+    const locations: LocationSummary[] = POINTS_METEO_PRECONFIGURES.map((point) => ({
+      id: point.slug,
+      label: point.label,
+      shortLabel: point.nom,
+      latitude: point.lat,
+      longitude: point.lon,
     }));
     reply.header("cache-control", "public, max-age=3600");
     return { locations };
   });
 
-  // Météo essentielle
-  app.get<{ Querystring: { lat?: string; lon?: string; accuracyM?: string } }>(
-    "/api/v1/meteo/essential",
-    async (req, reply) => {
-      const coordonnees = validerCoordonnees(req.query.lat, req.query.lon);
-      if (!coordonnees) {
+  app.get<{ Querystring: { lat?: string; lon?: string } }>(
+    "/api/v1/meteo/location",
+    async (request, reply) => {
+      const coordinates = validerCoordonnees(request.query.lat, request.query.lon);
+      if (!coordinates) {
         reply.code(400);
         return { error: "Coordonnées lat/lon invalides. Latitude -90..90, longitude -180..180." };
       }
 
-      const accuracyM = req.query.accuracyM !== undefined ? Number(req.query.accuracyM) : undefined;
+      const resolved = await resoudreGeographieSure(
+        dependencies.resolveGeography,
+        coordinates.lat,
+        coordinates.lon,
+      );
+      reply.header("cache-control", "private, max-age=3600");
+      return resolved;
+    },
+  );
+
+  app.get<{ Querystring: { lat?: string; lon?: string; accuracyM?: string } }>(
+    "/api/v1/meteo/essential",
+    async (request, reply) => {
+      const coordinates = validerCoordonnees(request.query.lat, request.query.lon);
+      const accuracyM = validerPrecision(request.query.accuracyM);
+      if (!coordinates || accuracyM === null) {
+        reply.code(400);
+        return {
+          error: "Coordonnées ou précision invalides. Latitude -90..90, longitude -180..180.",
+        };
+      }
 
       try {
         const essential = await normaliserEssential(
-          coordonnees.lat,
-          coordonnees.lon,
+          coordinates.lat,
+          coordinates.lon,
           accuracyM,
-          _pool,
+          pool,
+          dependencies,
         );
-        reply.header("cache-control", "public, max-age=300");
+        reply.header("cache-control", "private, max-age=300");
         return essential;
-      } catch (err) {
-        req.log.error({ err, lat: coordonnees.lat, lon: coordonnees.lon }, "Erreur météo essentielle");
+      } catch (error) {
+        request.log.error({ err: error }, "Erreur météo essentielle");
         reply.code(503);
         return {
           error: "Aucune donnée météo exploitable.",
-          unavailableSources: ["Toutes les sources"],
+          unavailableSources: ["Toutes les sources météo"],
           generatedAt: new Date().toISOString(),
         };
       }

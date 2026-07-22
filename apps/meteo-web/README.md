@@ -5,6 +5,10 @@ du code du worker, ni de PostgreSQL, ni du paquet `@opendata-vda/shared`. Son se
 point de contact avec le backend est le contrat HTTP versionné décrit dans
 `doc/meteo-v2/openapi.yaml`.
 
+La commune, le département et l’altitude sont résolus par l’API. L’interface ne
+contacte jamais directement l’IGN et n’invente aucun état de vigilance lorsque
+le département ou le bulletin officiel sont indisponibles.
+
 ## Développement visuel autonome
 
 ```bash

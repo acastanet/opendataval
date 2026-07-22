@@ -21,6 +21,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/meteo/location": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Résout la commune, le département et l’altitude d’un point
+         * @description La réponse reste exploitable lorsque l’IGN est indisponible : les informations non résolues sont alors null et les sources concernées sont listées dans unavailableSources.
+         */
+        get: operations["resolveWeatherLocation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/meteo/essential": {
         parameters: {
             query?: never;
@@ -54,11 +74,42 @@ export interface components {
         };
         /** @enum {string} */
         AlertLevel: "green" | "yellow" | "orange" | "red";
+        Coordinates: {
+            latitude: number;
+            longitude: number;
+        };
+        Municipality: {
+            name: string;
+            inseeCode: string;
+        };
+        Department: {
+            name: string;
+            code: string;
+        };
+        LocationResolution: {
+            /** @enum {string} */
+            administrative: "ign" | "unavailable";
+            /** @enum {string} */
+            altitude: "ign" | "unavailable";
+        };
+        ResolvedLocation: {
+            coordinates: components["schemas"]["Coordinates"];
+            label: string;
+            municipality: components["schemas"]["Municipality"] | null;
+            department: components["schemas"]["Department"] | null;
+            altitudeM: number | null;
+            resolution: components["schemas"]["LocationResolution"];
+            unavailableSources: string[];
+            /** Format: date-time */
+            generatedAt: string;
+        };
         Location: {
             id: string | null;
             label: string;
             latitude: number;
             longitude: number;
+            municipality: components["schemas"]["Municipality"] | null;
+            department: components["schemas"]["Department"] | null;
             altitudeM: number | null;
             accuracyM: number | null;
             /** @enum {string} */
@@ -102,7 +153,9 @@ export interface components {
             validUntil: string;
             /** Format: uri */
             sourceUrl: string;
-            /** @description true si la source Météo-France est indisponible (level est alors un repli) */
+            /** @description Département réellement utilisé pour interroger la vigilance. */
+            departmentCode: string | null;
+            /** @description true si la vigilance officielle n’a pas pu être établie. */
             indisponible: boolean;
         };
         EssentialWeather: {
@@ -142,6 +195,36 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LocationsResponse"];
                 };
+            };
+        };
+    };
+    resolveWeatherLocation: {
+        parameters: {
+            query: {
+                lat: number;
+                lon: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Localisation géographique normalisée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolvedLocation"];
+                };
+            };
+            /** @description Coordonnées invalides */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

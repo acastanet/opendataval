@@ -1,27 +1,28 @@
 import type {
   EssentialWeather,
   LocationSummary,
+  ResolvedLocation,
   WeatherCoordinates,
 } from "../api/contracts";
 
 export const locations: LocationSummary[] = [
   {
     id: "val-daigoual",
-    label: "Mairie de Val-d’Aigoual, Valleraugue",
+    label: "Mairie de Val-d’Aigoual · Rue de la Mairie, Valleraugue",
     shortLabel: "Val-d’Aigoual",
-    latitude: 44.0802,
-    longitude: 3.6413,
+    latitude: 44.081192,
+    longitude: 3.641467,
   },
   {
     id: "paris",
-    label: "Paris",
+    label: "Paris · Hôtel de Ville",
     shortLabel: "Paris",
     latitude: 48.8566,
     longitude: 2.3522,
   },
   {
     id: "marseille",
-    label: "Marseille",
+    label: "Marseille · Hôtel de Ville",
     shortLabel: "Marseille",
     latitude: 43.2965,
     longitude: 5.3698,
@@ -30,6 +31,8 @@ export const locations: LocationSummary[] = [
 
 const profiles = {
   "val-daigoual": {
+    municipality: { name: "Val-d’Aigoual", inseeCode: "30339" },
+    department: { name: "Gard", code: "30" },
     altitudeM: 351,
     temperatureC: 26.6,
     apparentTemperatureC: 27.8,
@@ -43,6 +46,8 @@ const profiles = {
     hourlyTemperatures: [26.6, 27.2, 26.4, 24.8, 23.5],
   },
   paris: {
+    municipality: { name: "Paris", inseeCode: "75056" },
+    department: { name: "Paris", code: "75" },
     altitudeM: 42,
     temperatureC: 30.4,
     apparentTemperatureC: 32.1,
@@ -56,6 +61,8 @@ const profiles = {
     hourlyTemperatures: [30.4, 31.2, 31.8, 30.9, 29.7],
   },
   marseille: {
+    municipality: { name: "Marseille", inseeCode: "13055" },
+    department: { name: "Bouches-du-Rhône", code: "13" },
     altitudeM: 12,
     temperatureC: 31.2,
     apparentTemperatureC: 34.5,
@@ -88,6 +95,26 @@ function addHours(date: Date, hours: number): string {
   return new Date(date.getTime() + hours * 60 * 60 * 1_000).toISOString();
 }
 
+export function resolvedLocationFixture(
+  coordinates: WeatherCoordinates,
+): ResolvedLocation {
+  const preset = closestLocation(coordinates);
+  const profile = profiles[preset.id as keyof typeof profiles] ?? profiles["val-daigoual"];
+  return {
+    coordinates: {
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+    },
+    label: profile.municipality.name,
+    municipality: profile.municipality,
+    department: profile.department,
+    altitudeM: profile.altitudeM,
+    resolution: { administrative: "ign", altitude: "ign" },
+    unavailableSources: [],
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 export function essentialWeatherFixture(
   coordinates: WeatherCoordinates,
 ): EssentialWeather {
@@ -103,6 +130,8 @@ export function essentialWeatherFixture(
       label: isGps ? `Position GPS proche de ${preset.shortLabel}` : preset.label,
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
+      municipality: profile.municipality,
+      department: profile.department,
       altitudeM: profile.altitudeM,
       accuracyM: coordinates.accuracyM ?? null,
       source: isGps ? "gps" : "preset",
@@ -134,10 +163,16 @@ export function essentialWeatherFixture(
     })),
     alert: {
       level: profile.alertLevel,
-      title: profile.alertLevel === "green" ? "Aucune vigilance particulière" : `Vigilance ${profile.alertLevel}`,
+      title: {
+        green: "Aucune vigilance particulière",
+        yellow: "Vigilance jaune",
+        orange: "Vigilance orange",
+        red: "Vigilance rouge",
+      }[profile.alertLevel],
       phenomena: profile.phenomena,
       validUntil: addHours(now, 24),
       sourceUrl: "https://vigilance.meteofrance.fr/fr",
+      departmentCode: profile.department.code,
       indisponible: false,
     },
     unavailableSources: [],
