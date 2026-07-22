@@ -1,9 +1,9 @@
 import type { EssentialWeather } from "../api/contracts";
 import {
   formatDateTime,
-  freshnessLabel,
   temperature,
 } from "../domain/presentation";
+import { DataProvenancePanel } from "./DataProvenancePanel";
 
 interface WeatherHeroProps {
   weather: EssentialWeather;
@@ -15,6 +15,10 @@ export function WeatherHero({ weather }: WeatherHeroProps) {
       ? `${weather.location.municipality.name} · ${weather.location.department.name} (${weather.location.department.code})`
       : weather.location.municipality.name
     : "Commune non disponible";
+  const temperatureProvenance = weather.provenance.values.currentTemperature;
+  const referenceTime = temperatureProvenance.time.observedAt
+    ?? temperatureProvenance.time.validAt
+    ?? weather.current.observedAt;
 
   return (
     <section className="weather-hero" aria-labelledby="current-weather-title">
@@ -37,7 +41,7 @@ export function WeatherHero({ weather }: WeatherHeroProps) {
 
       <div className="now-grid">
         <div className="temperature-block">
-          <p className="data-kind">{freshnessLabel(weather)}</p>
+          <p className="data-kind">{temperatureProvenance.label}</p>
           <p className="current-temperature" data-testid="current-temperature">
             {temperature(weather.current.temperatureC)}
             <span>°</span>
@@ -63,8 +67,10 @@ export function WeatherHero({ weather }: WeatherHeroProps) {
       </div>
 
       <p className="source-line">
-        {weather.current.sourceLabel} · {formatDateTime(weather.current.observedAt)}
+        {weather.current.sourceLabel} · {formatDateTime(referenceTime)}
       </p>
+
+      <DataProvenancePanel provenance={weather.provenance} />
     </section>
   );
 }
