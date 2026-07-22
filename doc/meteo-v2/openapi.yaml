@@ -1,0 +1,231 @@
+openapi: 3.1.0
+info:
+  title: OpenDataVal — API Météo V2
+  version: 1.0.0
+  description: >-
+    Contrat stable entre les collectes et calculs météo d’OpenDataVal et
+    l’interface indépendante Météo V2.
+servers:
+  - url: /
+paths:
+  /api/v1/meteo/locations:
+    get:
+      operationId: listWeatherLocations
+      summary: Liste les lieux rapides proposés par l’application
+      responses:
+        "200":
+          description: Lieux disponibles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationsResponse"
+  /api/v1/meteo/essential:
+    get:
+      operationId: getEssentialWeather
+      summary: Retourne les données nécessaires à la lecture météo essentielle
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+        - name: accuracyM
+          in: query
+          required: false
+          description: Précision fournie par le navigateur pour une position GPS.
+          schema:
+            type: number
+            minimum: 0
+      responses:
+        "200":
+          description: Lecture météo normalisée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EssentialWeather"
+        "400":
+          description: Coordonnées invalides
+        "503":
+          description: Aucune donnée météo exploitable
+components:
+  schemas:
+    LocationSummary:
+      type: object
+      additionalProperties: false
+      required: [id, label, shortLabel, latitude, longitude]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        shortLabel:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+    LocationsResponse:
+      type: object
+      additionalProperties: false
+      required: [locations]
+      properties:
+        locations:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocationSummary"
+    AlertLevel:
+      type: string
+      enum: [green, yellow, orange, red]
+    Location:
+      type: object
+      additionalProperties: false
+      required: [id, label, latitude, longitude, altitudeM, accuracyM, source]
+      properties:
+        id:
+          type: [string, "null"]
+        label:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        altitudeM:
+          type: [integer, "null"]
+        accuracyM:
+          type: [number, "null"]
+        source:
+          type: string
+          enum: [preset, gps]
+    CurrentWeather:
+      type: object
+      additionalProperties: false
+      required:
+        - temperatureC
+        - apparentTemperatureC
+        - weatherLabel
+        - observedAt
+        - nature
+        - sourceLabel
+        - stale
+      properties:
+        temperatureC:
+          type: number
+        apparentTemperatureC:
+          type: number
+        weatherLabel:
+          type: string
+        observedAt:
+          type: string
+          format: date-time
+        nature:
+          type: string
+          enum: [observation, model]
+        sourceLabel:
+          type: string
+        stale:
+          type: boolean
+    DayRange:
+      type: object
+      additionalProperties: false
+      required: [minimumC, maximumC]
+      properties:
+        minimumC:
+          type: number
+        maximumC:
+          type: number
+    NextChange:
+      type: object
+      additionalProperties: false
+      required: [type, startsAt, summary, probabilityPercent]
+      properties:
+        type:
+          type: string
+          enum: [rain, wind, temperature, stable]
+        startsAt:
+          type: [string, "null"]
+          format: date-time
+        summary:
+          type: string
+        probabilityPercent:
+          type: [integer, "null"]
+          minimum: 0
+          maximum: 100
+    HourForecast:
+      type: object
+      additionalProperties: false
+      required: [at, temperatureC, rainProbabilityPercent, windGustKmh]
+      properties:
+        at:
+          type: string
+          format: date-time
+        temperatureC:
+          type: number
+        rainProbabilityPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        windGustKmh:
+          type: number
+    WeatherAlert:
+      type: object
+      additionalProperties: false
+      required: [level, title, phenomena, validUntil, sourceUrl]
+      properties:
+        level:
+          $ref: "#/components/schemas/AlertLevel"
+        title:
+          type: string
+        phenomena:
+          type: array
+          items:
+            type: string
+        validUntil:
+          type: string
+          format: date-time
+        sourceUrl:
+          type: string
+          format: uri
+    EssentialWeather:
+      type: object
+      additionalProperties: false
+      required:
+        - location
+        - current
+        - today
+        - nextChange
+        - nextHours
+        - alert
+        - unavailableSources
+        - generatedAt
+      properties:
+        location:
+          $ref: "#/components/schemas/Location"
+        current:
+          $ref: "#/components/schemas/CurrentWeather"
+        today:
+          $ref: "#/components/schemas/DayRange"
+        nextChange:
+          $ref: "#/components/schemas/NextChange"
+        nextHours:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/HourForecast"
+        alert:
+          $ref: "#/components/schemas/WeatherAlert"
+        unavailableSources:
+          type: array
+          items:
+            type: string
+        generatedAt:
+          type: string
+          format: date-time
