@@ -62,6 +62,13 @@ jobs:
       - run: pnpm install --frozen-lockfile --reporter=silent
       - name: Régénérer le client OpenAPI
         run: pnpm --filter meteo-web run generate:api
+      - name: Publier le client généré
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meteo-openapi-client
+          path: apps/meteo-web/src/api/schema.d.ts
+          if-no-files-found: error
       - name: Afficher le diff éventuel
         run: git diff -- apps/meteo-web/src/api/schema.d.ts
       - name: Vérifier la synchronisation
