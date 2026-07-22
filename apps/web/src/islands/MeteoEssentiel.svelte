@@ -1,6 +1,7 @@
 <script>
   import { POINTS_METEO_PRECONFIGURES, POINT_METEO_PAR_DEFAUT } from "@opendata-vda/shared/localisations-meteo";
   import { onDestroy, onMount } from "svelte";
+  import EnteteMeteo from "./EnteteMeteo.svelte";
 
   const POINT_MAIRIE = POINT_METEO_PAR_DEFAUT;
   // Pendant la phase de test, les points simples et la position précise utilisent
@@ -62,11 +63,6 @@
     return Object.fromEntries(
       formateur.formatToParts(new Date(timestamp)).map(({ type, value }) => [type, value]),
     );
-  }
-
-  function dateHeureCondensee(timestamp = horloge) {
-    const p = partiesDate(timestamp);
-    return `${p.weekday.toUpperCase()} ${p.day} ${p.month.toUpperCase()} · Consulté à ${p.hour}:${p.minute}`;
   }
 
   function dateLocaleIso(timestamp = horloge) {
@@ -319,10 +315,13 @@
     && nombre(contexteClimatique?.temperatureMax?.p90) !== null
     && tMaxJour > contexteClimatique.temperatureMax.p90;
   $: afficherBilan = bilanThermique?.disponible === true;
-  $: lienBilan = bilanThermique?.point?.slug
-    ? `/meteo/bilan-thermique/?lieu=${encodeURIComponent(bilanThermique.point.slug)}`
-    : null;
-  $: lienInformations = `/meteo/informations/?lieu=${encodeURIComponent(pointPreconfigureActif ?? POINT_MAIRIE.slug)}`;
+  $: slugNavigation = pointPreconfigureActif ?? POINT_MAIRIE.slug;
+  $: lienEssentiel = `/meteo/essentiel/?lieu=${encodeURIComponent(slugNavigation)}`;
+  $: lienBilan = `/meteo/bilan-thermique/?lieu=${encodeURIComponent(bilanThermique?.point?.slug ?? slugNavigation)}`;
+  $: lienComparaison = pointPreconfigureActif
+    ? `/meteo/comparaison/?lieu=${encodeURIComponent(pointPreconfigureActif)}`
+    : `/meteo/comparaison/?lat=${encodeURIComponent(latCourante)}&lon=${encodeURIComponent(lonCourante)}`;
+  $: lienInformations = `/meteo/informations/?lieu=${encodeURIComponent(slugNavigation)}`;
 
   function formatEcartReference(valeur) {
     if (valeur === null) return "";
@@ -339,65 +338,30 @@
 <section class="meteo-essentiel" data-testid="meteo-point" aria-labelledby="titre-meteo-essentiel">
   <h1 id="titre-meteo-essentiel" class="sr-only">Météo essentielle</h1>
 
-  <header class="entete-essentiel">
-    <time class="date-heure" datetime={new Date(consulteLe ?? horloge).toISOString()}>{dateHeureCondensee(consulteLe ?? horloge)}</time>
-    <div class="actions-entete">
-      {#if lienBilan}
-        <a
-          class="action-entete bouton-bilan"
-          href={lienBilan}
-          aria-label="Consulter le bilan thermique"
-          data-infobulle="Bilan thermique"
-          title="Bilan thermique"
-          class:infobulle-visible={infobulleTactile === "bilan"}
-          on:click={(evenement) => afficherInfobulleTactile(evenement, "bilan")}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 19.5h16"></path>
-            <path d="M7 16v-4M12 16V7M17 16v-7"></path>
-          </svg>
-          <span class="infobulle" aria-hidden="true">Bilan thermique</span>
-        </a>
-      {/if}
-      <a
-        class="action-entete bouton-info"
-        aria-label="À propos de cette météo et sources des données"
-        href={lienInformations}
-        data-infobulle="Informations"
-        title="Informations"
-        class:infobulle-visible={infobulleTactile === "informations"}
-        on:click={(evenement) => afficherInfobulleTactile(evenement, "informations")}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="9"></circle>
-          <path d="M12 11v5.5"></path>
-          <circle cx="12" cy="7.7" r="0.9" fill="currentColor" stroke="none"></circle>
-        </svg>
-        <span class="infobulle" aria-hidden="true">Informations</span>
-      </a>
-      <button
-        type="button"
-        class:active={positionGps}
-        class="action-entete bouton-localisation"
-        on:click={(evenement) => {
-          if (!afficherInfobulleTactile(evenement, "localisation")) meLocaliser();
-        }}
-        disabled={etat === "localisation"}
-        aria-label="Utiliser ma position"
-        aria-busy={etat === "localisation"}
-        data-infobulle="Me localiser"
-        title="Me localiser"
-        class:infobulle-visible={infobulleTactile === "localisation"}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
-          <circle cx="12" cy="12" r="8"></circle>
-        </svg>
-        <span class="infobulle" aria-hidden="true">{etat === "localisation" ? "Localisation…" : "Me localiser"}</span>
-      </button>
-    </div>
-  </header>
+  <EnteteMeteo page="essentiel" horodatage={consulteLe ?? horloge} {lienEssentiel} {lienComparaison} {lienBilan} {lienInformations}>
+    <button
+      slot="extra"
+      type="button"
+      class:active={positionGps}
+      class="action-entete bouton-localisation"
+      on:click={(evenement) => {
+        if (!afficherInfobulleTactile(evenement, "localisation")) meLocaliser();
+      }}
+      disabled={etat === "localisation"}
+      aria-label="Utiliser ma position"
+      aria-busy={etat === "localisation"}
+      data-infobulle="Me localiser"
+      title="Me localiser"
+      class:infobulle-visible={infobulleTactile === "localisation"}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+        <circle cx="12" cy="12" r="8"></circle>
+      </svg>
+      <span class="infobulle" aria-hidden="true">{etat === "localisation" ? "Localisation…" : "Me localiser"}</span>
+    </button>
+  </EnteteMeteo>
 
   <div class="repere-lieu" aria-live="polite">
     <span class="point-lieu" aria-hidden="true"></span>
@@ -621,25 +585,6 @@
   }
 
   /* En-tête : date/heure + localisation */
-  .entete-essentiel {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding-bottom: 0.9rem;
-    border-bottom: 2px solid var(--noir);
-  }
-
-  .date-heure {
-    font-size: clamp(1.05rem, 3vw, 1.55rem);
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 1;
-    white-space: nowrap;
-  }
-
-  .actions-entete { display: flex; align-items: center; gap: 0.45rem; }
-
   .action-entete {
     position: relative;
     display: inline-flex;
@@ -684,39 +629,6 @@
     visibility: visible;
   }
 
-  .bouton-info {
-    border: 2px solid var(--filet);
-    border-radius: 0;
-    color: var(--gris);
-    background: var(--papier);
-    cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  }
-
-  .bouton-bilan {
-    border: 2px solid var(--noir);
-    color: var(--noir);
-    background: var(--papier);
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-decoration: none;
-    text-transform: uppercase;
-  }
-  .bouton-bilan:hover,
-  .bouton-bilan:focus-visible { color: #fff; background: var(--noir); outline: 0; }
-  .bouton-bilan:focus-visible { box-shadow: 0 0 0 3px var(--papier), 0 0 0 5px var(--noir); }
-
-  .bouton-info:hover,
-  .bouton-info:focus-visible {
-    color: var(--bleu);
-    border-color: var(--bleu);
-    outline: 0;
-  }
-
-  .bouton-info:focus-visible { box-shadow: 0 0 0 3px var(--papier), 0 0 0 5px var(--bleu); }
-  .bouton-info svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
-
   .bouton-localisation {
     border: 2px solid var(--bleu);
     border-radius: 0;
@@ -742,7 +654,6 @@
   .bouton-localisation:focus-visible { box-shadow: 0 0 0 3px var(--papier), 0 0 0 5px var(--bleu); }
   .bouton-localisation:disabled { opacity: 0.65; cursor: wait; }
   .bouton-localisation svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 1.8; }
-  .bouton-bilan svg { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 
   /* Ligne de lieu */
   .repere-lieu {
@@ -1008,8 +919,6 @@
 
   @media (max-width: 620px) {
     .meteo-essentiel { min-height: 100svh; padding: 1.1rem 1rem 0.85rem; }
-    .date-heure { min-width: 0; font-size: 0.92rem; line-height: 1.15; white-space: normal; }
-    .actions-entete { flex: 0 0 auto; gap: 0.4rem; }
     .points-rapides { align-items: flex-start; gap: 0.5rem; }
     .points-rapides-label { padding-top: 0.55rem; }
     .vigilance-periodes { flex-direction: column; gap: 0.55rem; }
@@ -1036,7 +945,6 @@
   }
 
   @media (max-width: 350px) {
-    .date-heure { font-size: 0.95rem; }
     .valeur-geante { font-size: 6rem; }
     .jours-grille article { padding: 0 0.45rem; }
   }
@@ -1044,8 +952,6 @@
   @media (prefers-reduced-motion: reduce) {
     .sq { animation: none; }
     .bouton-localisation,
-    .bouton-info,
-    .bouton-bilan,
     .bouton-bilan-bas { transition: none; }
   }
 </style>

@@ -1,6 +1,7 @@
 <script>
   import { POINTS_METEO_PRECONFIGURES, POINT_METEO_PAR_DEFAUT } from "@opendata-vda/shared/localisations-meteo";
   import { onMount } from "svelte";
+  import EnteteMeteo from "./EnteteMeteo.svelte";
 
   let pointActif = POINT_METEO_PAR_DEFAUT;
   let bilan = null;
@@ -8,8 +9,6 @@
   let erreur = "";
   let requeteCourante = 0;
   let horloge = Date.now();
-  let timerInfobulle;
-  let infobulleTactile = null;
 
   const nombre = (valeur) => {
     const resultat = Number(valeur);
@@ -36,28 +35,6 @@
     const valeurs = Array.isArray(dates) ? dates : [];
     if (!valeurs.length) return `Aucune date de ${libelle.toLowerCase()} pendant ce mois.`;
     return `${libelle} : ${valeurs.map(formatDate).join(", ")}.`;
-  }
-
-  function dateHeureCondensee(timestamp) {
-    const parties = Object.fromEntries(new Intl.DateTimeFormat("fr-FR", {
-      timeZone: "Europe/Paris",
-      weekday: "short",
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(new Date(timestamp)).map(({ type, value }) => [type, value]));
-    return `${parties.weekday.toUpperCase()} ${parties.day} ${parties.month.toUpperCase()} · ${parties.hour}:${parties.minute}`;
-  }
-
-  function afficherInfobulleTactile(evenement, action) {
-    if (!window.matchMedia("(hover: none)").matches || infobulleTactile === action) return false;
-    evenement.preventDefault();
-    infobulleTactile = action;
-    clearTimeout(timerInfobulle);
-    timerInfobulle = window.setTimeout(() => { infobulleTactile = null; }, 3_000);
-    return true;
   }
 
   async function charger(point) {
@@ -92,55 +69,18 @@
     const initial = POINTS_METEO_PRECONFIGURES.find((point) => point.slug === slug) ?? POINT_METEO_PAR_DEFAUT;
     charger(initial);
     const minuteur = window.setInterval(() => { horloge = Date.now(); }, 30_000);
-    return () => {
-      clearInterval(minuteur);
-      clearTimeout(timerInfobulle);
-    };
+    return () => clearInterval(minuteur);
   });
 
   $: anomalie = nombre(bilan?.reference?.anomalieJoursStress);
   $: lienMeteo = `/meteo/essentiel/?lieu=${encodeURIComponent(pointActif.slug)}`;
+  $: lienComparaison = `/meteo/comparaison/?lieu=${encodeURIComponent(pointActif.slug)}`;
   $: lienBilan = `/meteo/bilan-thermique/?lieu=${encodeURIComponent(pointActif.slug)}`;
   $: lienInformations = `/meteo/informations/?lieu=${encodeURIComponent(pointActif.slug)}`;
 </script>
 
 <main class="bilan-page" data-testid="bilan-thermique">
-  <header class="barre-meteo">
-    <time datetime={new Date(horloge).toISOString()}>{dateHeureCondensee(horloge)}</time>
-    <nav aria-label="Navigation météo">
-      <a
-        href={lienMeteo}
-        aria-label="Retour à la météo essentielle"
-        title="Météo essentielle"
-        class:infobulle-visible={infobulleTactile === "meteo"}
-        on:click={(evenement) => afficherInfobulleTactile(evenement, "meteo")}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17.5h12.5a3.5 3.5 0 0 0 .3-7 5.5 5.5 0 0 0-10.5 1.2A3 3 0 0 0 5 17.5Z"></path></svg>
-        <span class="infobulle" aria-hidden="true">Météo essentielle</span>
-      </a>
-      <a
-        href={lienBilan}
-        aria-label="Bilan thermique"
-        aria-current="page"
-        title="Bilan thermique"
-        class:infobulle-visible={infobulleTactile === "bilan"}
-        on:click={(evenement) => afficherInfobulleTactile(evenement, "bilan")}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5h16"></path><path d="M7 16v-4M12 16V7M17 16v-7"></path></svg>
-        <span class="infobulle" aria-hidden="true">Bilan thermique</span>
-      </a>
-      <a
-        href={lienInformations}
-        aria-label="À propos de cette météo et sources des données"
-        title="Informations"
-        class:infobulle-visible={infobulleTactile === "informations"}
-        on:click={(evenement) => afficherInfobulleTactile(evenement, "informations")}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5"></path><circle cx="12" cy="7.7" r="0.9" fill="currentColor" stroke="none"></circle></svg>
-        <span class="infobulle" aria-hidden="true">Informations</span>
-      </a>
-    </nav>
-  </header>
+  <EnteteMeteo page="bilan" horodatage={horloge} lienEssentiel={lienMeteo} {lienComparaison} {lienBilan} {lienInformations} />
 
   <header class="bilan-entete">
     <p class="surtitre">Copernicus · ERA5-HEAT</p>
@@ -263,26 +203,15 @@
     --noir: #1a1a1a;
     --gris: #686868;
     --papier: #fcfcfa;
-    --filet: rgba(26, 26, 26, 0.18);
-    width: min(100% - 2rem, 45rem);
+    --filet: rgba(26, 26, 26, 0.16);
+    box-sizing: border-box;
+    width: min(100%, 45rem);
     margin: 0 auto;
-    padding: clamp(1.25rem, 4vw, 3.5rem) 0 4rem;
+    padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1.15rem, 6vw, 4.5rem) 4rem;
     color: var(--noir);
+    background: var(--papier);
     font-family: Inter, "Helvetica Neue", Arial, sans-serif;
   }
-  .barre-meteo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 0.9rem; border-bottom: 2px solid var(--noir); }
-  .barre-meteo time { font-size: clamp(1.05rem, 3vw, 1.55rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1; white-space: nowrap; }
-  .barre-meteo nav { display: flex; gap: 0.45rem; }
-  .barre-meteo a { position: relative; display: inline-flex; width: 2.75rem; height: 2.75rem; min-width: 2.75rem; min-height: 2.75rem; flex: 0 0 2.75rem; align-items: center; justify-content: center; padding: 0; border: 2px solid var(--noir); color: var(--noir); text-decoration: none; }
-  .barre-meteo a:hover, .barre-meteo a:focus-visible { color: #fff; background: var(--noir); outline: 0; }
-  .barre-meteo a:focus-visible { box-shadow: 0 0 0 3px var(--papier), 0 0 0 5px var(--noir); }
-  .barre-meteo a[aria-current="page"] { color: #fff; background: var(--noir); }
-  .barre-meteo svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
-  .infobulle { position: absolute; top: calc(100% + 0.55rem); right: 0; z-index: 5; width: max-content; max-width: 10rem; padding: 0.4rem 0.55rem; color: #fff; background: var(--noir); font-size: 0.68rem; font-weight: 700; line-height: 1.2; text-align: center; opacity: 0; pointer-events: none; transform: translateY(-0.2rem); transition: opacity 0.15s ease, transform 0.15s ease; visibility: hidden; }
-  .barre-meteo a:hover .infobulle,
-  .barre-meteo a:focus-visible .infobulle,
-  .barre-meteo a:active .infobulle,
-  .barre-meteo a.infobulle-visible .infobulle { opacity: 1; transform: translateY(0); visibility: visible; }
   .bilan-entete { margin-top: clamp(2.2rem, 6vw, 4rem); }
   .surtitre { margin: 0; color: var(--bleu); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
   .bilan-entete { display: grid; gap: 0.8rem; padding-bottom: 2rem; border-bottom: 2px solid var(--noir); }
@@ -360,15 +289,14 @@
   .tracabilite { display: grid; gap: 0.35rem; padding-top: 1.25rem; border-top: 1px solid var(--filet); color: var(--gris); font-size: 0.76rem; line-height: 1.5; }
   .tracabilite p { margin: 0; }
   @media (max-width: 700px) {
-    .bilan-page { width: min(100% - 1.5rem, 64rem); }
     .indicateurs { grid-template-columns: repeat(2, 1fr); }
     .indicateurs .indicateur-principal { grid-column: 1 / -1; grid-row: auto; }
     .indicateurs > div:nth-child(2n) { border-left: 0; }
     .indicateurs > div:nth-child(3) .info-dates { right: 0; left: auto; }
     .indicateurs > div:nth-child(4) .info-dates { right: auto; left: 0; }
   }
-  @media (max-width: 500px) {
-    .barre-meteo time { min-width: 0; font-size: 0.92rem; line-height: 1.15; white-space: normal; }
+  @media (max-width: 620px) {
+    .bilan-page { padding-left: 1rem; padding-right: 1rem; }
   }
   @media (max-width: 360px) {
     .choix-points button { flex: 1 1 auto; padding-inline: 0.55rem; }

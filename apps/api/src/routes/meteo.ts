@@ -11,6 +11,7 @@ import {
   type LocalisationMeteoResolue,
 } from "@opendata-vda/shared";
 import { distanceKm, resumerEnsemble, validerCoordonnees } from "../lib/meteoPoint.js";
+import { agregerRevisions, resumerRevisions, type ComparaisonRevisionJour, type ResumeRevisions } from "../lib/meteoRevisions.js";
 import {
   cheminFrameValide,
   construireFramesRadar,
@@ -38,6 +39,10 @@ let cachePrevisions: { expiresAt: number; data: unknown } | null = null;
 const TTL_POINT_MS = 10 * 60 * 1000;
 const MAX_CACHE_POINTS = 80;
 const cachePoints = new Map<string, { expiresAt: number; data: ReponseMeteoPoint }>();
+
+const TTL_REVISIONS_MS = 6 * 60 * 60 * 1000;
+const MAX_CACHE_REVISIONS = 20;
+const cacheRevisions = new Map<string, { expiresAt: number; data: ReponseRevisions }>();
 
 const URL_VIGILANCE = "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours";
 const TTL_VIGILANCE_MS = 30 * 60 * 1000;
@@ -99,6 +104,18 @@ interface SourceModele {
   current?: unknown;
   hourly?: unknown;
   daily: unknown;
+}
+
+interface ReponseRevisions {
+  localisation: ReponseMeteoPoint["localisation"];
+  genereLe: string;
+  periode: { debut: string; fin: string; joursDemandes: number };
+  disponible: boolean;
+  derniere: ComparaisonRevisionJour | null;
+  historique: ComparaisonRevisionJour[];
+  resume: ResumeRevisions;
+  interpretation: string;
+  source: { nom: string; modele: string; url: string };
 }
 
 interface SourceQualiteAir {
@@ -175,6 +192,46 @@ async function fetchJson(url: string): Promise<unknown> {
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
+}
+
+async function fetchJsonLent(url: string): Promise<unknown> {
+  let derniereErreur: unknown;
+  for (let tentative = 0; tentative < 2; tentative++) {
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "opendata-vda-api/1.0" },
+        signal: AbortSignal.timeout(45_000),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    } catch (err) {
+      derniereErreur = err;
+      if (tentative === 0) await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+  }
+  throw derniereErreur;
+}
+
+function dateParis(timestamp: number): string {
+  return new Intl.DateTimeFormat("fr-CA", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+function decalerDateIso(dateIso: string, jours: number): string {
+  const date = new Date(`${dateIso}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + jours);
+  return date.toISOString().slice(0, 10);
+}
+
+function memoriserRevisions(cle: string, data: ReponseRevisions): void {
+  cacheRevisions.set(cle, { expiresAt: Date.now() + TTL_REVISIONS_MS, data });
+  if (cacheRevisions.size <= MAX_CACHE_REVISIONS) return;
+  const plusAncienne = cacheRevisions.keys().next().value as string | undefined;
+  if (plusAncienne) cacheRevisions.delete(plusAncienne);
 }
 
 function urlModele(base: string, lat: number, lon: number, parametres: Record<string, string>): string {
@@ -830,6 +887,68 @@ export function registerMeteoRoutes(app: FastifyInstance, pool: pg.Pool): void {
     memoriserPoint(cle, data);
     reply.header("cache-control", "public, max-age=300");
     return data;
+  });
+
+  app.get<{ Querystring: { lat?: string; lon?: string; jours?: string } }>("/api/meteo/revisions", async (req, reply) => {
+    const coordonnees = validerCoordonnees(req.query.lat, req.query.lon);
+    if (!coordonnees) {
+      reply.code(400);
+      return { error: "coordonnées lat/lon invalides" };
+    }
+
+    const joursBrut = Number(req.query.jours ?? 30);
+    const joursDemandes = Number.isFinite(joursBrut) ? Math.min(30, Math.max(7, Math.round(joursBrut))) : 30;
+    const localisation = resoudreLocalisationMeteo(coordonnees.lat, coordonnees.lon);
+    const { lat, lon } = localisation.normalisee;
+    const fin = decalerDateIso(dateParis(Date.now()), -1);
+    const debut = decalerDateIso(fin, -(joursDemandes - 1));
+    const cleCache = `${localisation.cleCache}:${debut}:${fin}`;
+    const enCache = cacheRevisions.get(cleCache);
+    if (enCache && enCache.expiresAt > Date.now()) {
+      reply.header("cache-control", "public, max-age=21600");
+      return enCache.data;
+    }
+
+    const url = urlModele("https://previous-runs-api.open-meteo.com/v1/forecast", lat, lon, {
+      start_date: debut,
+      end_date: fin,
+      models: "meteofrance_seamless",
+      hourly: [
+        "temperature_2m_previous_day0",
+        "temperature_2m_previous_day1",
+        "precipitation_previous_day0",
+        "precipitation_previous_day1",
+        "weather_code_previous_day0",
+        "weather_code_previous_day1",
+      ].join(","),
+    });
+
+    try {
+      const comparaisons = agregerRevisions(await fetchJsonLent(url));
+      const historique = [...comparaisons].sort((a, b) => b.date.localeCompare(a.date));
+      const data: ReponseRevisions = {
+        localisation: localisationPourReponse(localisation, estDansTerritoire(lat, lon)),
+        genereLe: new Date().toISOString(),
+        periode: { debut, fin, joursDemandes },
+        disponible: historique.length > 0,
+        derniere: historique[0] ?? null,
+        historique,
+        resume: resumerRevisions(comparaisons),
+        interpretation: "Ces écarts mesurent la révision du modèle entre J−1 et J, pas son erreur par rapport au temps réellement observé.",
+        source: {
+          nom: "Open-Meteo Previous Runs API",
+          modele: "Météo-France AROME / ARPEGE seamless",
+          url: "https://open-meteo.com/en/docs/previous-runs-api",
+        },
+      };
+      memoriserRevisions(cleCache, data);
+      reply.header("cache-control", "public, max-age=21600");
+      return data;
+    } catch (err) {
+      app.log.warn({ err, lat, lon, joursDemandes }, "météo révisions : archive indisponible");
+      reply.code(502);
+      return { error: "historique des prévisions momentanément indisponible" };
+    }
   });
 
   app.get<{ Querystring: { lat?: string; lon?: string } }>("/api/meteo/radar", async (req, reply) => {

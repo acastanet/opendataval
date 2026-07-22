@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "test": "tsx --test src/lib/incendies.test.ts src/lib/meteoClimate.test.ts src/lib/meteoPoint.test.ts src/lib/radar.test.ts"
+    "test": "tsx --test src/lib/incendies.test.ts src/lib/meteoClimate.test.ts src/lib/meteoPoint.test.ts src/lib/meteoRevisions.test.ts src/lib/radar.test.ts"
   },
   "dependencies": {
     "@opendata-vda/shared": "workspace:*",

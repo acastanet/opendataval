@@ -1,0 +1,17 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import BoutonAccueil from "../../components/BoutonAccueil.astro";
+import MeteoComparaison from "../../islands/MeteoComparaison.svelte";
+---
+
+<Layout
+  title="Révisions des prévisions météo — Val-d’Aigoual"
+  description="Comparaison des prévisions météo disponibles à J−1 avec leur version actualisée à J, sans les confondre avec des observations réelles."
+>
+  <BoutonAccueil />
+  <MeteoComparaison client:only="svelte" />
+</Layout>
+
+<style>
+  :global(body) { background: #fcfcfa; }
+</style>

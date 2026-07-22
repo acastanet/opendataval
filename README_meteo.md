@@ -133,7 +133,19 @@ La section « Précision réelle et sources » explique :
 
 Elle rappelle qu’une localisation très précise n’implique pas une prévision exacte « à la porte près ».
 
-## 12. Explorer la tendance à moyen terme
+## 12. Comparer les révisions J−1 / J
+
+La page `/meteo/comparaison/`, accessible depuis le menu commun des pages météo essentielles, compare pour une même journée :
+
+- la prévision disponible 24 heures avant (J−1) ;
+- sa version actualisée le jour concerné (J) ;
+- les écarts de températures minimale et maximale ;
+- l’écart de cumul de pluie ;
+- le nombre d’heures dont la famille de scénario météo a changé.
+
+Les périodes disponibles sont 7, 14 et 30 jours. Les valeurs proviennent des anciens runs du modèle Météo-France AROME / ARPEGE archivés par Open-Meteo. Elles mesurent la stabilité et l’ampleur des révisions du modèle, pas son erreur par rapport au temps réellement observé.
+
+## 13. Explorer la tendance à moyen terme
 
 La section repliée « Tendance probabiliste ECMWF » couvre J+3 à J+10. Pour chaque jour, elle donne :
 
@@ -146,7 +158,7 @@ La section repliée « Tendance probabiliste ECMWF » couvre J+3 à J+10. Pour c
 
 Elle s’appuie sur l’ensemble ECMWF de 51 scénarios. Les données servent à lire une tendance et une incertitude ; les horaires précis deviennent moins fiables avec l’échéance. Un lien conduit au météogramme officiel ECMWF.
 
-## 13. Ajuster manuellement le point de prévision
+## 14. Ajuster manuellement le point de prévision
 
 La section repliée « Choisir le point sur la carte » permet :
 
@@ -163,6 +175,7 @@ La carte est un réglage fin, non une étape obligatoire : recherche d’adresse
 | --- | --- |
 | Adresse, lieu-dit et géolocalisation inverse | Géoplateforme IGN / BAN |
 | Prévision de court terme | Météo-France AROME, puis ARPEGE, diffusés et adaptés par Open-Meteo |
+| Historique des versions J−1 / J | Open-Meteo Previous Runs API, modèle Météo-France seamless |
 | Observation de comparaison | Station Météo-France la plus proche lorsqu’elle est disponible |
 | Alertes | Vigilance Météo-France |
 | Tendance à moyen terme | ECMWF IFS et ensemble de 51 scénarios |

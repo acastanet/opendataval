@@ -1,23 +1,10 @@
 <script>
   import { onDestroy, onMount } from "svelte";
+  import EnteteMeteo from "./EnteteMeteo.svelte";
 
-  const FUSEAU = "Europe/Paris";
   let onglet = "usage";
   let horloge = Date.now();
   let minuteur;
-
-  function dateHeureCondensee(timestamp) {
-    const parties = Object.fromEntries(new Intl.DateTimeFormat("fr-FR", {
-      timeZone: FUSEAU,
-      weekday: "short",
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(new Date(timestamp)).map(({ type, value }) => [type, value]));
-    return `${parties.weekday.toUpperCase()} ${parties.day} ${parties.month.toUpperCase()} · ${parties.hour}:${parties.minute}`;
-  }
 
   function gererToucheOnglets(evenement) {
     const onglets = ["usage", "sources"];
@@ -41,17 +28,13 @@
 
   $: lieu = new URL(window.location.href).searchParams.get("lieu") ?? "val-aigoual";
   $: lienMeteo = `/meteo/essentiel/?lieu=${encodeURIComponent(lieu)}`;
+  $: lienComparaison = `/meteo/comparaison/?lieu=${encodeURIComponent(lieu)}`;
   $: lienBilan = `/meteo/bilan-thermique/?lieu=${encodeURIComponent(lieu)}`;
+  $: lienInformations = `/meteo/informations/?lieu=${encodeURIComponent(lieu)}`;
 </script>
 
 <main class="informations-page" data-testid="meteo-informations">
-  <header class="barre-meteo">
-    <time datetime={new Date(horloge).toISOString()}>{dateHeureCondensee(horloge)}</time>
-    <nav aria-label="Navigation météo">
-      <a href={lienMeteo}>Météo</a>
-      <a href={lienBilan}>Bilan</a>
-    </nav>
-  </header>
+  <EnteteMeteo page="informations" horodatage={horloge} lienEssentiel={lienMeteo} {lienComparaison} {lienBilan} {lienInformations} />
 
   <header class="page-entete">
     <p class="surtitre">Météo locale</p>
@@ -80,6 +63,8 @@
       <h2>Comment lire le bilan thermique ?</h2>
       <p>Le bilan thermique décrit le <strong>dernier mois complet</strong> disponible pour le lieu choisi. Il utilise l’indice <strong>UTCI</strong>, qui estime le stress ressenti par le corps en tenant compte de la température, du vent, de l’humidité et du rayonnement. Il indique le pic UTCI du mois, le nombre de jours de stress fort, très fort ou extrême, ainsi que les nuits tropicales.</p>
       <p>Ce bilan est une lecture climatique mensuelle issue de Copernicus ERA5-HEAT. Il ne doit pas être confondu avec le <strong>ressenti estimé</strong> affiché sur la météo du jour : les deux indicateurs n’ont ni la même période ni le même usage. Les données étant maillées, elles représentent une estimation et non une mesure prise précisément sur place.</p>
+      <h2>Que mesure la comparaison J−1 / J ?</h2>
+      <p>Elle montre comment une même prévision a été révisée entre la veille et le jour concerné. Elle renseigne sur la <strong>stabilité du modèle</strong>, mais pas sur sa justesse : sans observation indépendante, un scénario stable peut malgré tout être éloigné du temps réellement constaté.</p>
       <h2>À quel point peut-on s’y fier ?</h2>
       <p>Les chiffres proviennent de modèles météorologiques officiels et restent des <strong>estimations</strong>, pas une mesure prise exactement à l’endroit affiché. L’écart avec la réalité peut être plus grand en zone de relief. En cas de vigilance orange ou rouge, consultez toujours le bulletin officiel de Météo-France.</p>
     </div>
@@ -88,6 +73,7 @@
       <p class="introduction">Détail des sources utilisées, pour une lecture transparente et un usage professionnel.</p>
       <dl>
         <div><dt>Prévisions : température, tendance, 3 jours</dt><dd>Modèles officiels <strong>Météo-France AROME HD / AROME</strong>, puis <strong>ARPEGE</strong>, diffusés par <strong>Open-Meteo</strong>. <a href="https://open-meteo.com" target="_blank" rel="noopener">open-meteo.com</a> · <a href="https://meteofrance.com" target="_blank" rel="noopener">meteofrance.com</a></dd></div>
+        <div><dt>Révisions J−1 / J</dt><dd><strong>Open-Meteo Previous Runs API</strong>, modèle Météo-France seamless. Les séries comparent les valeurs prévues 24 heures avant avec leur version actualisée à J. <a href="https://open-meteo.com/en/docs/previous-runs-api" target="_blank" rel="noopener">Documentation des runs précédents</a></dd></div>
         <div><dt>Vigilance météo</dt><dd><strong>Météo-France</strong> — API DPVigilance, vigilance officielle par département. <a href="https://vigilance.meteofrance.fr" target="_blank" rel="noopener">vigilance.meteofrance.fr</a></dd></div>
         <div><dt>Contexte climatique 1991–2020</dt><dd>Réanalyse <strong>Copernicus ERA5-Land</strong> à 0,1°, agrégée côté serveur. Médiane et percentiles sur 1991–2020, dans une fenêtre mobile J−7/J+7. <a href="https://climate.copernicus.eu" target="_blank" rel="noopener">climate.copernicus.eu</a></dd></div>
         <div><dt>Bilan thermique mensuel</dt><dd><strong>ERA5-HEAT / UTCI Copernicus</strong>, calculé côté serveur pour le dernier mois complet. Le ressenti affiché sur la météo essentielle n’est pas une mesure UTCI.</dd></div>
@@ -98,13 +84,7 @@
 </main>
 
 <style>
-  .informations-page { --bleu: #0047ab; --noir: #1a1a1a; --gris: #686868; --papier: #fcfcfa; --filet: rgba(26, 26, 26, 0.18); width: min(calc(100% - 2rem), 45rem); margin: 0 auto; padding: clamp(1.25rem, 4vw, 3.5rem) 0 4rem; color: var(--noir); font-family: Inter, "Helvetica Neue", Arial, sans-serif; }
-  .barre-meteo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 0.9rem; border-bottom: 2px solid var(--noir); }
-  .barre-meteo time { font-size: clamp(1.05rem, 3vw, 1.55rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1; white-space: nowrap; }
-  .barre-meteo nav { display: flex; gap: 0.45rem; }
-  .barre-meteo a { display: inline-flex; min-height: 2.75rem; align-items: center; padding: 0 0.72rem; border: 2px solid var(--noir); color: var(--noir); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.04em; text-decoration: none; text-transform: uppercase; }
-  .barre-meteo a:hover, .barre-meteo a:focus-visible { color: #fff; background: var(--noir); outline: 0; }
-  .barre-meteo a:focus-visible { box-shadow: 0 0 0 3px var(--papier), 0 0 0 5px var(--noir); }
+  .informations-page { --bleu: #0047ab; --noir: #1a1a1a; --gris: #686868; --papier: #fcfcfa; --filet: rgba(26, 26, 26, 0.16); box-sizing: border-box; width: min(100%, 45rem); margin: 0 auto; padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1.15rem, 6vw, 4.5rem) 4rem; color: var(--noir); background: var(--papier); font-family: Inter, "Helvetica Neue", Arial, sans-serif; }
   .page-entete { display: grid; gap: 0.8rem; padding: clamp(2.2rem, 6vw, 4rem) 0 2rem; border-bottom: 1px solid var(--filet); }
   .surtitre { margin: 0; color: var(--bleu); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
   h1 { max-width: 12ch; margin: 0; font-size: clamp(2.5rem, 8vw, 5.5rem); letter-spacing: -0.06em; line-height: 0.9; }
@@ -124,6 +104,7 @@
   dt { margin-bottom: 0.35rem; color: var(--bleu); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
   dd { margin: 0; line-height: 1.6; }
   dd a { color: var(--bleu); font-weight: 700; }
-  @media (max-width: 500px) { .barre-meteo time { min-width: 0; font-size: 0.92rem; line-height: 1.15; white-space: normal; } .barre-meteo nav { gap: 0.35rem; } .barre-meteo a { min-height: 2.5rem; padding-inline: 0.55rem; } }
-  @media (prefers-reduced-motion: reduce) { .barre-meteo a { transition: none; } }
+  @media (max-width: 620px) {
+    .informations-page { padding-left: 1rem; padding-right: 1rem; }
+  }
 </style>

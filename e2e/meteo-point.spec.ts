@@ -153,6 +153,52 @@ const bilanThermique = {
   limite: "Estimation ERA5-HEAT sur une maille d’environ 0,25°, qui ne représente pas les microclimats ni toutes les différences d’altitude.",
 };
 
+const comparaisonRevisions = {
+  localisation: {
+    type: "preconfiguree",
+    demandee: { lat: 44.081192, lon: 3.641467 },
+    normalisee: { lat: 44.081192, lon: 3.641467 },
+    pointPreconfigure: { slug: "val-aigoual", nom: "Val-d’Aigoual" },
+    dansTerritoire: true,
+  },
+  genereLe: "2026-07-19T08:00:00.000Z",
+  periode: { debut: "2026-07-05", fin: "2026-07-18", joursDemandes: 14 },
+  disponible: true,
+  derniere: {
+    date: "2026-07-18",
+    jMoins1: { temperatureMinC: 12, temperatureMaxC: 22, precipitationMm: 1, codeMeteo: 3, condition: "Couvert" },
+    j: { temperatureMinC: 13, temperatureMaxC: 24, precipitationMm: 5, codeMeteo: 63, condition: "Pluie" },
+    ecarts: { temperatureMinC: 1, temperatureMaxC: 2, precipitationMm: 4, heuresScenarioComparees: 24, heuresScenarioModifiees: 8, tauxScenarioModifiePct: 33 },
+    niveauRevision: "moderee",
+  },
+  historique: [
+    {
+      date: "2026-07-18",
+      jMoins1: { temperatureMinC: 12, temperatureMaxC: 22, precipitationMm: 1, codeMeteo: 3, condition: "Couvert" },
+      j: { temperatureMinC: 13, temperatureMaxC: 24, precipitationMm: 5, codeMeteo: 63, condition: "Pluie" },
+      ecarts: { temperatureMinC: 1, temperatureMaxC: 2, precipitationMm: 4, heuresScenarioComparees: 24, heuresScenarioModifiees: 8, tauxScenarioModifiePct: 33 },
+      niveauRevision: "moderee",
+    },
+    {
+      date: "2026-07-17",
+      jMoins1: { temperatureMinC: 11, temperatureMaxC: 23, precipitationMm: 0, codeMeteo: 1, condition: "Peu nuageux" },
+      j: { temperatureMinC: 11.5, temperatureMaxC: 23.5, precipitationMm: 0, codeMeteo: 2, condition: "Partiellement nuageux" },
+      ecarts: { temperatureMinC: 0.5, temperatureMaxC: 0.5, precipitationMm: 0, heuresScenarioComparees: 24, heuresScenarioModifiees: 0, tauxScenarioModifiePct: 0 },
+      niveauRevision: "faible",
+    },
+  ],
+  resume: {
+    joursComparables: 2,
+    ecartMoyenTemperatureMinC: 0.8,
+    ecartMoyenTemperatureMaxC: 1.3,
+    ecartMoyenPrecipitationMm: 2,
+    joursScenarioRevise: 1,
+    repartition: { faible: 1, moderee: 1, marquee: 0 },
+  },
+  interpretation: "Ces écarts mesurent la révision du modèle entre J−1 et J, pas son erreur par rapport au temps réellement observé.",
+  source: { nom: "Open-Meteo Previous Runs API", modele: "Météo-France AROME / ARPEGE seamless", url: "https://open-meteo.com/en/docs/previous-runs-api" },
+};
+
 let requetesPoint = 0;
 
 async function installerMocks(page: Page) {
@@ -179,6 +225,9 @@ async function installerMocks(page: Page) {
     }
     if (chemin === "/api/meteo/bilan-thermique") {
       return route.fulfill({ contentType: "application/json", body: JSON.stringify(bilanThermique) });
+    }
+    if (chemin === "/api/meteo/revisions") {
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify(comparaisonRevisions) });
     }
     return route.fulfill({ contentType: "application/json", body: "{}" });
   });
@@ -246,7 +295,8 @@ test("affiche la météo essentielle sans navigation du site", async ({ page }) 
   await expect(bloc.getByRole("button", { name: "Afficher la météo de Val-d’Aigoual" })).toHaveAttribute("aria-pressed", "true");
   await expect(bloc.getByRole("button", { name: "Afficher la météo de Paris" })).toBeVisible();
   await expect(bloc.getByRole("button", { name: "Afficher la météo de Marseille" })).toBeVisible();
-  await expect(bloc.locator(".date-heure")).toHaveText("DIM. 19 JUIL. · Consulté à 10:05");
+  await expect(bloc.locator(".date-heure")).toContainText("DIM. 19 JUIL.");
+  await expect(bloc.locator(".date-heure")).toContainText("consulté à 10:05");
   await expect(bloc.getByText(/Prévision mise à jour à 19 juil\., 12:00/)).toBeVisible();
   await expect(bloc.getByRole("button", { name: "Utiliser ma position" })).toBeVisible();
   const vigilance = bloc.locator(".vigilance-essentiel");
@@ -279,7 +329,7 @@ test("affiche la météo essentielle sans navigation du site", async ({ page }) 
   await expect(page.getByText("Environ +5 °C par rapport à la référence 1991–2020")).toBeVisible();
   await expect(page.getByText("Plus chaud que 90 % des journées comparables")).toBeVisible();
   await expect(page.getByRole("heading", { name: "15 jours de fort stress thermique" })).toBeVisible();
-  await expect(bloc.getByRole("link", { name: "Consulter le bilan thermique" })).toBeVisible();
+  await expect(bloc.getByRole("link", { name: "Bilan thermique" })).toBeVisible();
   await expect(bloc.getByRole("link", { name: "À propos de cette météo et sources des données" })).toHaveAttribute("href", "/meteo/informations/?lieu=val-aigoual");
   await expect(page.getByRole("link", { name: "Voir le bilan thermique" })).toBeVisible();
 
@@ -326,7 +376,7 @@ test("présente le dernier bilan thermique complet", async ({ page }) => {
 
   const bilan = page.getByTestId("bilan-thermique");
   const lienMeteo = bilan.getByRole("link", { name: "Retour à la météo essentielle" });
-  await expect(bilan.locator(".barre-meteo time")).toBeVisible();
+  await expect(bilan.locator(".date-heure")).toBeVisible();
   expect(await bilan.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(720);
   await expect(lienMeteo).toHaveAttribute("href", "/meteo/essentiel/?lieu=val-aigoual");
   await expect(bilan.getByRole("heading", { name: "Bilan thermique du mois dernier" })).toBeVisible();
@@ -384,7 +434,7 @@ test("présente les informations météo dans une page à deux onglets", async (
   const informations = page.getByTestId("meteo-informations");
   await expect(informations.getByRole("heading", { name: "Comprendre cette météo" })).toBeVisible();
   expect(await informations.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(720);
-  await expect(informations.getByRole("link", { name: "Météo" })).toHaveAttribute("href", "/meteo/essentiel/?lieu=paris");
+  await expect(informations.getByRole("link", { name: "Retour à la météo essentielle" })).toHaveAttribute("href", "/meteo/essentiel/?lieu=paris");
   await expect(informations.getByText("Où est mesurée cette météo ?")).toBeVisible();
 
   const usage = informations.getByRole("tab", { name: "Ce que fait la page" });
@@ -394,6 +444,43 @@ test("présente les informations météo dans une page à deux onglets", async (
   await expect(sources).toHaveAttribute("aria-selected", "true");
   await expect(sources).toBeFocused();
   await expect(informations.getByText("Détail des sources utilisées")).toBeVisible();
+});
+
+test("compare les versions J−1 et J sans les présenter comme des observations", async ({ page }) => {
+  await page.goto("/meteo/comparaison/?lieu=val-aigoual");
+  const comparaison = page.getByTestId("meteo-comparaison");
+
+  await expect(comparaison.getByRole("heading", { name: "Ce qui a changé depuis la veille" })).toBeVisible();
+  await expect(comparaison.getByRole("heading", { name: "Une révision n’est pas une erreur de prévision" })).toBeVisible();
+  await expect(comparaison.getByRole("heading", { name: "2 journées comparées" })).toBeVisible();
+  await expect(comparaison.getByRole("heading", { name: "samedi 18 juillet 2026" })).toBeVisible();
+  await expect(comparaison.getByRole("cell", { name: "+2 °C" })).toBeVisible();
+  await expect(comparaison.getByText("8 h / 24")).toBeVisible();
+  await expect(comparaison.getByText(/pas son erreur par rapport au temps réellement observé/)).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await expect(comparaison).toHaveScreenshot("meteo-comparaison.png", {
+    animations: "disabled",
+    maxDiffPixelRatio: 0.01,
+  });
+});
+
+test("utilise le même menu sur les quatre pages de la météo essentielle", async ({ page }) => {
+  const pages = [
+    ["/meteo/essentiel/?lieu=val-aigoual", "Météo essentielle"],
+    ["/meteo/comparaison/?lieu=val-aigoual", "Révisions J−1 / J"],
+    ["/meteo/bilan-thermique/?lieu=val-aigoual", "Bilan thermique"],
+    ["/meteo/informations/?lieu=val-aigoual", "Informations"],
+  ];
+  const libelles = ["Retour à la météo essentielle", "Comparer les prévisions J−1 et J", "Bilan thermique", "À propos de cette météo et sources des données"];
+
+  for (const [url, titreCourant] of pages) {
+    await page.goto(url);
+    const menu = page.getByRole("navigation", { name: "Navigation météo" });
+    await expect(menu.getByRole("link")).toHaveCount(4);
+    await expect(menu.getByRole("link").allTextContents().then((textes) => textes.map((texte) => texte.trim()))).resolves.toEqual(["Météo essentielle", "Révisions J−1 / J", "Bilan thermique", "Informations"]);
+    for (const libelle of libelles) await expect(menu.getByRole("link", { name: libelle })).toBeVisible();
+    await expect(menu.getByRole("link", { name: titreCourant === "Météo essentielle" ? "Retour à la météo essentielle" : titreCourant === "Révisions J−1 / J" ? "Comparer les prévisions J−1 et J" : titreCourant === "Informations" ? "À propos de cette météo et sources des données" : titreCourant })).toHaveAttribute("aria-current", "page");
+  }
 });
 
 test("reste utilisable à 320 px avec les animations réduites", async ({ page }) => {
@@ -406,6 +493,10 @@ test("reste utilisable à 320 px avec les animations réduites", async ({ page }
   await expect(page.getByRole("button", { name: "Afficher la météo de Marseille" })).toBeVisible();
   await expect(page.getByText("Ressenti estimé : 17 °C")).toBeVisible();
   await expect(page.locator(".graphique-heures li")).toHaveCount(4);
+
+  await page.goto("/meteo/comparaison/");
+  await expect(page.getByTestId("meteo-comparaison")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= 320)).toBe(true);
 });
 
 test("n'affiche jamais un niveau vert quand la vigilance est indisponible", async ({ page }) => {
