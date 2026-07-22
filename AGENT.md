@@ -1,6 +1,6 @@
 # Guide de travail pour les agents
 
-Dernière vérification : 19 juillet 2026.
+Dernière vérification : 22 juillet 2026.
 
 Ce fichier donne le contexte opérationnel nécessaire pour travailler dans le dépôt
 `opendata-vda`. Il décrit l'état réel du code au moment de sa rédaction. Lire ce
@@ -18,7 +18,8 @@ Utiliser cet ordre de confiance :
    déploiement ;
 4. documentation spécialisée récente, notamment
    `doc/RAPPORT-INSTALLATION-INCENDIES.md`,
-   `doc/EXPLOITATION-INCENDIES.md`, `mini_app/README.md` et les ADR ;
+   `doc/EXPLOITATION-INCENDIES.md`, `doc/EXPLOITATION-COPERNICUS.md`,
+   `apps/copernicus/README.md`, `mini_app/README.md` et les ADR ;
 5. `README_agent.md` pour les précautions de déploiement, en vérifiant chaque
    commande contre les fichiers réellement présents ;
 6. feuilles de route et documents de vision dans `doc/` ;
@@ -36,7 +37,9 @@ Exemples d'écarts connus :
 - la base utilise plusieurs schémas (`territoire`, `couches`, `series`, `meta`,
   `incendies`) et non les tables génériques décrites dans l'ancien document ;
 - le projet utilise Svelte 4 et MapLibre GL 5 d'après les dépendances actuelles ;
-- le worker comprend désormais la météo, les indicateurs et les incendies.
+- le worker comprend désormais la météo, les indicateurs et les incendies ;
+- les calculs climatiques Copernicus sont assurés par une application Python dédiée,
+  distincte du worker TypeScript.
 
 ## 2. Finalité du projet
 
@@ -47,7 +50,7 @@ d'indicateurs, de pages thématiques et de mini-applications terrain.
 
 ### État actuel du produit
 
-Le travail opérationnel porte actuellement sur deux mini-applications :
+Le travail opérationnel porte notamment sur les applications suivantes :
 
 1. **Incendies / Feu** : déjà déployée et accessible publiquement à l'adresse
    `https://euporie.cloud/feu/`. Dans le code et dans la stack Docker locale, sa
@@ -55,9 +58,14 @@ Le travail opérationnel porte actuellement sur deux mini-applications :
    par le nginx de l'hôte, en dehors de ce dépôt. La page experte publique est
    `https://euporie.cloud/feu/temps-reel/` et la route interne correspondante est
    `/incendies/temps-reel/`.
-2. **Eau** : deuxième mini-app actuellement en cours de développement. Les routes
+2. **Eau** : mini-app actuellement en cours de développement. Les routes
    intégrées visées sont `/eau/` et `/eau/tableau-de-bord/`. Ne pas la présenter
    comme déployée ou finalisée sans nouvelle vérification de l'environnement public.
+3. **Météo** : application locale en développement, avec une vue complète
+   `/meteo/`, une vue simplifiée `/meteo/essentiel/`, une page d'informations
+   `/meteo/informations/` et un bilan climatique `/meteo/bilan-thermique/`. Les
+   agrégats Copernicus ont été ingérés une première fois le 21 juillet 2026,
+   mais ne pas en déduire que ces pages sont déployées publiquement.
 
 Le portail complet contenu dans le monorepo ne doit pas être considéré comme
 entièrement déployé simplement parce que la mini-app Feu l'est. Pour l'état précis
@@ -66,36 +74,39 @@ du déploiement Feu, consulter `doc/RAPPORT-INSTALLATION-INCENDIES.md`.
 Le flux principal est :
 
 ```text
-sources publiques
-      |
-      v
-worker TypeScript -----> PostgreSQL 16 + PostGIS 3.4
-                              |
-                              v
-                       API Fastify /api/*
-                              |
-                              v
-Astro statique + îlots Svelte + MapLibre, servis par Caddy
+sources publiques -----> worker TypeScript -----+
+                                                 |
+Copernicus CDS -------> service Python ----------+--> PostgreSQL 16 + PostGIS 3.4
+                                                        |
+                                                        v
+                                                 API Fastify /api/*
+                                                        |
+                                                        v
+                          Astro statique + îlots Svelte + MapLibre, servis par Caddy
 ```
 
-Le dépôt est un monorepo pnpm avec les workspaces `apps/*` et `packages/*`.
-Le gestionnaire attendu est pnpm 11.10.0, déclaré dans le `packageManager` racine.
-TypeScript est configuré en mode strict avec `noUncheckedIndexedAccess`.
+Le dépôt est principalement un monorepo pnpm avec les workspaces `apps/*` et
+`packages/*`, complété par l'application Python autonome `apps/copernicus`. Le
+gestionnaire JavaScript attendu est pnpm 11.10.0, déclaré dans le `packageManager`
+racine. TypeScript est configuré en mode strict avec `noUncheckedIndexedAccess`.
 
 ## 3. Arborescence utile
 
 ```text
 apps/
   api/                  API Fastify et routes HTTP
+  copernicus/           collectes climatiques Python ERA5-Land et ERA5-HEAT
   web/                  site Astro statique et îlots Svelte
   worker/               collectes, transformations et planification cron
 packages/
   shared/               territoire, catalogue, indicateurs, DB et migrations
 db/migrations/          migrations SQL appliquées automatiquement
 data/incendies/         fichiers locaux de secours du risque Gard
+data/downloads/         cache local ignoré des fichiers bruts Copernicus
 doc/                    documentation, ADR, exploitation et feuilles de route
+e2e/                    tests visuels et fonctionnels Playwright
 mini_app/               prototype historique autonome de la mini-app Eau
-docker-compose.yml      stack locale : db, api, worker, caddy
+docker-compose.yml      stack locale : db, api, worker, caddy + profil copernicus
 Caddyfile               reverse proxy local et serveur de fichiers statiques
 ```
 
@@ -106,10 +117,15 @@ Points d'entrée importants :
 - `packages/shared/src/catalogue.ts` : catalogue des sources et des couches ;
 - `packages/shared/src/sections.ts` : taxonomie des pages thématiques ;
 - `packages/shared/src/indicateurs.ts` : registre des indicateurs ;
+- `packages/shared/src/localisationsMeteo.ts` : points météo partagés et
+  normalisation des coordonnées ;
 - `packages/shared/src/db.ts` : accès PostgreSQL et fonctions d'upsert communes ;
 - `packages/shared/src/migrate.ts` : application automatique des migrations ;
 - `apps/worker/src/scheduler.ts` : registre et fréquence de tous les jobs ;
 - `apps/api/src/index.ts` : enregistrement des modules de routes ;
+- `apps/api/src/routes/meteoClimate.ts` : publication des agrégats climatiques ;
+- `apps/copernicus/src/copernicus/main.py` : collecte, calcul et planification
+  Copernicus ;
 - `apps/web/src/lib/carte.ts` : primitives MapLibre partagées ;
 - `apps/web/src/styles/global.css` : variables et styles globaux.
 
@@ -123,16 +139,20 @@ pnpm dev:web
 pnpm dev:api
 pnpm dev:worker
 pnpm build:web
+pnpm test:e2e
 pnpm test:incendies
 pnpm check:incendies
 ```
 
-`pnpm check:incendies` exécute les tests API et worker liés aux incendies, les
-vérifications TypeScript de ces deux apps, puis le build Astro. C'est le contrôle
-le plus complet déjà fourni par le dépôt.
+Malgré son nom historique, `pnpm test:incendies` exécute toute la suite déclarée
+par l'API, y compris les tests météo, puis les tests du worker actuellement centrés
+sur FIRMS. `pnpm check:incendies` ajoute les vérifications TypeScript de l'API et du
+worker, puis le build Astro. `pnpm test:e2e` lance les scénarios Playwright dans
+Chromium pour les formats bureau et mobile.
 
-Il n'existe actuellement ni commande `lint`, ni suite de tests globale. Ne pas
-annoncer qu'un contrôle inexistant a été exécuté. Pour un contrôle TypeScript ciblé :
+Il n'existe actuellement ni commande `lint`, ni commande unique couvrant TypeScript,
+Python, Playwright et le build. Ne pas annoncer qu'un contrôle inexistant a été
+exécuté. Pour un contrôle TypeScript ciblé :
 
 ```bash
 pnpm --filter api exec tsc --noEmit
@@ -148,6 +168,14 @@ docker compose up --build
 Le portail est alors exposé sur `http://localhost:8080` et l'API via
 `http://localhost:8080/api/*`. Le serveur Astro de développement proxifie `/api`
 vers `http://localhost:3000`.
+
+Le service Copernicus appartient à un profil Compose désactivé par défaut. Pour
+construire son image et exécuter ses tests unitaires :
+
+```bash
+docker compose --profile copernicus build copernicus
+docker compose --profile copernicus run --rm --no-deps copernicus python -m unittest discover -s /app/tests -v
+```
 
 Pour une collecte ponctuelle, préférer Docker lorsque l'environnement hôte est
 Windows :
@@ -172,19 +200,27 @@ Variables principales :
   `POSTGRES_DB` ;
 - `SITE_DOMAIN` ;
 - `METEOFRANCE_API_TOKEN` pour `meteo_obs` et `meteo_radome` ;
+- `METEOFRANCE_API_TOKEN_VIGILANCE` pour la vigilance du Gard exposée par
+  `/api/meteo/point` ;
 - `INFOCLIMAT_API_TOKEN` pour `meteo_infoclimat` ;
 - `NASA_FIRMS_MAP_KEY` pour `firms` ;
 - `INSEE_POPULATION_CSV_URL` pour `insee_population` ;
+- `COPERNICUS_CDS_URL` et `COPERNICUS_CDS_KEY` pour l'application Copernicus ;
+- `COPERNICUS_PRODUCT_TYPE`, `COPERNICUS_RUN_ONCE` et, lors d'une relance ciblée,
+  `COPERNICUS_TARGET_MONTH` ou `COPERNICUS_FORCE_DOWNLOAD` ;
 - `FIRE_RISK_GARD_FALLBACK_DIR`, défini à `/app/data/incendies` dans Compose.
 
-Les jobs dépendant d'une clé absente sont ignorés. Une clé serveur ne doit jamais
-être envoyée au navigateur, ajoutée à une URL client, journalisée ou incluse dans
-un ticket.
+Les jobs TypeScript dépendant d'une clé absente sont ignorés. Le profil Copernicus
+est inactif par défaut et une exécution explicite sans clé doit échouer proprement.
+Une clé serveur ne doit jamais être envoyée au navigateur, ajoutée à une URL
+client, journalisée ou incluse dans un ticket.
 
 Le dossier `.claude/` contient de la configuration locale d'outil et doit rester
 ignoré. Les fichiers `data/incendies/YYYYMMDD.json` sont des secours opérationnels
 temporaires : ne pas les committer sans demande explicite et contrôle de leur
 contenu. Seul `data/incendies/.gitkeep` est destiné à Git.
+Les fichiers bruts de `data/downloads/`, ainsi que les fichiers NetCDF et GRIB,
+sont des caches Copernicus ignorés et ne doivent pas être ajoutés au dépôt.
 
 ## 6. Base de données et migrations
 
@@ -197,13 +233,17 @@ Ne pas modifier une migration déjà déployée. Ajouter une nouvelle migration
 numérotée, de préférence additive et idempotente lorsque c'est possible. Toute
 migration destructive exige une sauvegarde vérifiée et un accord explicite.
 
-État du modèle après les migrations `001` à `008` :
+État du modèle après les migrations `001` à `010` :
 
 - `territoire.communes` : communes, population et géométries ;
 - `couches.objets` : stockage générique des objets géographiques par couche ;
 - `couches.lieux_recherche` : vue de recherche textuelle et spatiale ;
 - `series.piezo` : mesures piézométriques ;
 - `series.meteo_quotidien` et `series.meteo_horaire` : séries météo ;
+- `series.meteo_points_reference` et `series.meteo_climatologie_jour` : points
+  météo fixes et références quotidiennes ERA5-Land 1991–2020 ;
+- `series.thermal_monthly` : bilans UTCI mensuels ERA5-HEAT, nuits tropicales et
+  dates des seuils de stress thermique ;
 - `series.indicateurs` : séries d'indicateurs territoriaux ;
 - `meta.sources`, `meta.fetch_log`, `meta.migrations` : catalogue et exploitation ;
 - `incendies.zones`, `incendies.detections_firms`,
@@ -235,6 +275,11 @@ Jobs actuellement enregistrés :
   `meteo_climat` ;
 - incendies : `fire_zones`, `fire_risk_gard`, `firms`.
 
+L'application Python Copernicus ne fait pas partie de `JOBS`. Elle expose
+`meteo_climatologie_points` et `thermal_monthly`, lancés avec `RUN_ONLY`. En mode
+planifié, elle vérifie chaque jour à 03:20 si le bilan du mois précédent doit être
+calculé le 8 ou si la climatologie annuelle doit être renouvelée le 9 janvier.
+
 Principes à conserver :
 
 - filtrer les données sur les codes et l'emprise du territoire, pas seulement sur
@@ -259,6 +304,7 @@ Principales familles de routes :
 - `/api/piezo/chronique` ;
 - `/api/alti`, `/api/vigicrues/observations`, `/api/recherche` ;
 - `/api/meteo/*` ;
+- `/api/meteo/contexte-climatique` et `/api/meteo/bilan-thermique` ;
 - `/api/indicateurs/:slug` ;
 - `/api/incendies/*`.
 
@@ -278,7 +324,8 @@ sont des îlots Svelte. Les pages principales se trouvent dans `apps/web/src/pag
 
 `src/pages/index.astro` est la landing page commune « Feu, Eau, Terre ». Elle doit
 rester légère, sans dépendre de l'API, et orienter vers `/feu/`, `/eau/` et
-`/carte/`. La destination Terre est l'explorateur cartographique existant. Le
+`/carte/`, tout en conservant dans son plan du site l'accès à la Météo
+essentielle. La destination Terre est l'explorateur cartographique existant. Le
 préfixe public Feu reste réécrit par nginx en dehors du dépôt.
 
 Éléments structurants :
@@ -289,6 +336,8 @@ préfixe public Feu reste réécrit par nginx en dehors du dépôt.
   les expériences cartographiques spécialisées ;
 - `Meteo*.svelte`, `PiezoNappe.svelte` et les composants de graphes affichent les
   séries ;
+- `MeteoPoint.svelte` porte la vue météo complète, `MeteoEssentiel.svelte` la vue
+  simplifiée et `BilanThermique.svelte` les agrégats Copernicus ;
 - `FireDashboard.svelte` est l'écran incendies grand public ;
 - `FireExpertDashboard.svelte` est l'écran d'exploration des détections.
 
@@ -312,6 +361,13 @@ automatiquement synchronisées :
 
 Avant de modifier Eau, identifier explicitement la cible. Ne pas copier une
 modification d'une version vers l'autre sans vérifier leurs divergences.
+
+La partie Météo combine des données de prévision, d'observation, de vigilance et
+des agrégats climatiques. Les trois points préconfigurés Val-d'Aigoual, Paris et
+Marseille sont partagés dans `packages/shared/src/localisationsMeteo.ts`. Conserver
+la distinction entre une position GPS précise et ces points fixes : Copernicus ne
+publie actuellement ses références que pour les points préconfigurés ou les points
+précis déjà calculés et persistés.
 
 La cartographie utilise MapLibre, les fonds IGN et des archives PMTiles de relief.
 Réutiliser `apps/web/src/lib/carte.ts` pour les contrôles, fonds, clusters et relief.
@@ -362,12 +418,14 @@ Choisir les contrôles selon les fichiers touchés :
 | Zone modifiée | Contrôles minimaux |
 |---|---|
 | Astro, Svelte, CSS, carte | `pnpm build:web` |
+| Parcours Météo | `pnpm --filter api test`, `pnpm build:web` et scénario Playwright ciblé |
 | API incendies | `pnpm --filter api test` puis `tsc --noEmit` |
 | Worker FIRMS | `pnpm --filter worker test` puis `tsc --noEmit` |
 | Ensemble incendies | `pnpm check:incendies` |
 | Autre code API/worker | `tsc --noEmit` ciblé + contrôle fonctionnel pertinent |
 | Compose ou Caddy | `docker compose config` puis démarrage ciblé si autorisé |
 | Migration SQL | démarrage sur une base de test et inspection de `meta.migrations` |
+| Application Copernicus | build de l'image et tests `unittest` dans le conteneur |
 
 Le build peut signaler des avertissements d'accessibilité préexistants dans des
 composants non concernés. Les mentionner sans les attribuer à la modification.
