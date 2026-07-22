@@ -53,6 +53,13 @@ describe("DataProvenancePanel", () => {
   it("explique la station la plus proche et son motif de rejet", () => {
     render(<DataProvenancePanel provenance={rejectedStationProvenance()} />);
 
+    expect(
+      screen.getByText(
+        "Aucune station suffisamment représentative. La température affichée provient donc du modèle.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Prévision modélisée")).not.toBeInTheDocument();
+
     fireEvent.click(screen.getByText("D’où viennent ces données ?"));
 
     expect(screen.getByText("Station la plus proche examinée")).toBeInTheDocument();
