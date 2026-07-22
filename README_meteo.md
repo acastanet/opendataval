@@ -2,20 +2,28 @@
 
 Dernière mise à jour : 22 juillet 2026.
 
-Ce document est le point d’entrée de la documentation de l’application météo d’OpenDataVal. Il décrit le produit réellement présent dans le dépôt et oriente la conception de sa prochaine version.
+Ce document est le point d’entrée de la documentation de l’application météo d’OpenDataVal. Il décrit le produit réellement présent dans le dépôt, son déploiement public et les exigences qui doivent orienter sa prochaine version.
 
 La documentation reste volontairement classique : elle sépare l’état actuel, les données, l’architecture et les choix à prendre pour la future interface. Elle ne constitue pas une maquette graphique et ne remplace pas les tests ni le code.
 
 ## 1. État du produit
 
-L’application météo forme une suite cohérente de quatre pages :
+L’application météo forme une suite cohérente de quatre pages en production.
 
-| Page | Fonction principale |
-| --- | --- |
-| `/meteo/essentiel/` | Lire immédiatement la situation météo locale et son contexte |
-| `/meteo/comparaison/` | Comparer les révisions d’une prévision entre J−1 et J |
-| `/meteo/bilan-thermique/` | Consulter le bilan mensuel ERA5-HEAT / UTCI |
-| `/meteo/informations/` | Comprendre les sources, les méthodes et les limites |
+| Route interne | Route publique | Fonction principale |
+| --- | --- | --- |
+| `/meteo/essentiel/` | `/val-daigoual/meteo/essentiel/` | Lire immédiatement la situation météo locale et son contexte |
+| `/meteo/comparaison/` | `/val-daigoual/meteo/comparaison/` | Comparer les révisions d’une prévision entre J−1 et J |
+| `/meteo/bilan-thermique/` | `/val-daigoual/meteo/bilan-thermique/` | Consulter le bilan mensuel ERA5-HEAT / UTCI |
+| `/meteo/informations/` | `/val-daigoual/meteo/informations/` | Comprendre les sources, les méthodes et les limites |
+
+Point d’entrée public :
+
+```text
+https://euporie.cloud/val-daigoual/meteo/essentiel/
+```
+
+Le préfixe `/val-daigoual/` appartient au déploiement de production. Les routes du code restent `/meteo/...`. Toute évolution doit être vérifiée à la racine en local et sous ce préfixe en production ou préproduction.
 
 La page `/meteo/` reste l’application météo détaillée historique. Elle n’est pas la source de vérité fonctionnelle de la suite essentielle et ne doit pas servir de modèle implicite pour sa future refonte.
 
@@ -72,7 +80,7 @@ Documents techniques complémentaires :
 
 En cas de divergence, utiliser cet ordre :
 
-1. comportement observé et tests automatisés ;
+1. comportement observé en production et tests automatisés ;
 2. code des composants, routes API et traitements ;
 3. documentation de référence dans `doc/meteo/` ;
 4. documentation d’exploitation Copernicus ;
@@ -93,6 +101,7 @@ Principes invariants :
 - rendre visibles la fraîcheur, la source et les états d’indisponibilité ;
 - ne jamais déclencher de collecte Copernicus depuis une visite ;
 - préserver les contrats API ou documenter explicitement leur évolution ;
+- conserver les URL publiques sous `/val-daigoual/` ;
 - valider les changements en bureau et mobile avec Playwright.
 
 ## 7. Mise à jour de la documentation
