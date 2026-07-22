@@ -80,10 +80,16 @@ test("essential expose une provenance modélisée lorsque le réseau ne fournit 
 
   assert.equal(response.statusCode, 200);
   assert.equal(payload.current.nature, "model");
-  assert.equal(payload.provenance.schemaVersion, "1.0");
+  assert.equal(payload.provenance.schemaVersion, "1.1");
   assert.equal(payload.provenance.weatherMode, "model");
   assert.equal(payload.provenance.values.currentTemperature.nature, "model");
   assert.equal(payload.provenance.stationSelection.status, "no_measurements");
+  assert.equal(payload.provenance.stationSelection.receivedMeasurements, 0);
+  assert.equal(payload.provenance.stationSelection.nearestCandidate, null);
+  assert.equal(
+    payload.provenance.stationSelection.criteria.maximumObservationAgeMinutes,
+    90,
+  );
   await app.close();
 });
 
@@ -140,6 +146,12 @@ test("essential expose le caractère hybride et la station effectivement retenue
   assert.equal(payload.provenance.values.apparentTemperature.nature, "model");
   assert.equal(payload.provenance.stationSelection.status, "selected");
   assert.equal(payload.provenance.stationSelection.selectedStationId, "000UB");
+  assert.equal(payload.provenance.stationSelection.receivedMeasurements, 2);
+  assert.equal(payload.provenance.stationSelection.nearestCandidate.id, "000UB");
+  assert.equal(payload.provenance.stationSelection.nearestCandidate.selected, true);
+  assert.deepEqual(payload.provenance.stationSelection.rejectionSummary, [
+    { reason: "ALTITUDE_MISMATCH", count: 1 },
+  ]);
   await app.close();
 });
 
@@ -165,6 +177,9 @@ test("essential distingue l’indisponibilité technique du fournisseur d’obse
   assert.ok(payload.unavailableSources.includes("Observations locales"));
   assert.equal(payload.provenance.stationSelection.status, "provider_unavailable");
   assert.equal(payload.provenance.stationSelection.evaluatedCandidates, null);
+  assert.equal(payload.provenance.stationSelection.receivedMeasurements, null);
+  assert.equal(payload.provenance.stationSelection.nearestCandidate, null);
+  assert.match(payload.provenance.stationSelection.message, /indisponibles/);
   await app.close();
 });
 
