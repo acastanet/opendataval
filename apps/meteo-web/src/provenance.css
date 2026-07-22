@@ -138,6 +138,24 @@
   font-weight: 800;
 }
 
+.provenance-grid .provenance-times {
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line);
+}
+
+.provenance-times div {
+  grid-template-columns: minmax(8.5rem, 0.9fr) minmax(0, 1.1fr);
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.provenance-times dd {
+  text-align: right;
+}
+
 .station-selection-section {
   gap: 0.7rem !important;
 }
@@ -222,6 +240,15 @@
 }
 
 @media (max-width: 480px) {
+  .provenance-times div {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .provenance-times dd {
+    text-align: left;
+  }
+
   .provenance-grid .selection-counts {
     grid-template-columns: 1fr;
   }

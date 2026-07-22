@@ -10,22 +10,71 @@ type StationCandidate = NonNullable<StationSelection["nearestCandidate"]>;
 
 const number = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 
-function valueTime(value: WeatherProvenance["values"][keyof WeatherProvenance["values"]]): string | null {
-  return value.time.observedAt
-    ?? value.time.validAt
-    ?? value.time.generatedAt
-    ?? value.time.retrievedAt;
+type ProvenanceValue = WeatherProvenance["values"][keyof WeatherProvenance["values"]];
+
+interface TimeFact {
+  label: string;
+  iso: string;
 }
 
-function timeDescription(
-  value: WeatherProvenance["values"][keyof WeatherProvenance["values"]],
-): string | null {
-  const iso = valueTime(value);
-  if (!iso) return null;
-  if (value.time.observedAt) return `Observée ${formatDateTime(iso)}`;
-  if (value.time.validAt) return `Valable ${formatDateTime(iso)}`;
-  if (value.time.generatedAt) return `Produite ${formatDateTime(iso)}`;
-  return `Récupérée ${formatDateTime(iso)}`;
+function validTimeLabel(value: ProvenanceValue): string {
+  switch (value.nature) {
+    case "official":
+      return "Valable jusqu’au";
+    case "model":
+    case "fallback":
+      return "Prévision valable pour";
+    case "derived":
+      return "Calcul valable pour";
+    default:
+      return "Valeur valable pour";
+  }
+}
+
+function generatedTimeLabel(value: ProvenanceValue): string {
+  switch (value.nature) {
+    case "official":
+      return "Bulletin produit";
+    case "model":
+      return "Modèle produit";
+    case "derived":
+      return "Calcul produit";
+    default:
+      return "Donnée produite";
+  }
+}
+
+function timeFacts(value: ProvenanceValue): TimeFact[] {
+  const facts: TimeFact[] = [];
+  if (value.time.observedAt) {
+    facts.push({ label: "Observation effectuée", iso: value.time.observedAt });
+  }
+  if (value.time.validAt) {
+    facts.push({ label: validTimeLabel(value), iso: value.time.validAt });
+  }
+  if (value.time.generatedAt) {
+    facts.push({ label: generatedTimeLabel(value), iso: value.time.generatedAt });
+  }
+  if (value.time.retrievedAt) {
+    facts.push({ label: "Récupérée par OpenDataVal", iso: value.time.retrievedAt });
+  }
+  return facts;
+}
+
+function ProvenanceTimes({ value, label }: { value: ProvenanceValue; label: string }) {
+  const facts = timeFacts(value);
+  if (facts.length === 0) return null;
+
+  return (
+    <dl className="provenance-times" aria-label={`Horodatage — ${label}`}>
+      {facts.map((fact) => (
+        <div key={`${fact.label}-${fact.iso}`}>
+          <dt>{fact.label}</dt>
+          <dd>{formatDateTime(fact.iso)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 function sourceDescription(
@@ -239,7 +288,7 @@ export function DataProvenancePanel({ provenance }: DataProvenancePanelProps) {
           <section>
             <p className="eyebrow">Température</p>
             <h2>{sourceDescription(temperature)}</h2>
-            {timeDescription(temperature) ? <p>{timeDescription(temperature)}</p> : null}
+            <ProvenanceTimes value={temperature} label="température" />
             {temperature.station ? (
               <dl>
                 <div>
@@ -269,7 +318,7 @@ export function DataProvenancePanel({ provenance }: DataProvenancePanelProps) {
           <section>
             <p className="eyebrow">Prévisions</p>
             <h2>{sourceDescription(forecast)}</h2>
-            {timeDescription(forecast) ? <p>{timeDescription(forecast)}</p> : null}
+            <ProvenanceTimes value={forecast} label="prévisions" />
             {forecast.quality.spatialResolution ? (
               <p>Résolution annoncée : {forecast.quality.spatialResolution}.</p>
             ) : null}
@@ -278,7 +327,7 @@ export function DataProvenancePanel({ provenance }: DataProvenancePanelProps) {
           <section>
             <p className="eyebrow">Vigilance</p>
             <h2>{sourceDescription(alert)}</h2>
-            {timeDescription(alert) ? <p>{timeDescription(alert)}</p> : null}
+            <ProvenanceTimes value={alert} label="vigilance" />
             {alert.notes.map((note) => <p key={note}>{note}</p>)}
           </section>
 

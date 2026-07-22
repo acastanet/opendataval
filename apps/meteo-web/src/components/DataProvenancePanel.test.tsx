@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { WeatherProvenance } from "../api/contracts";
 import { essentialWeatherFixture } from "../mocks/fixtures";
@@ -70,6 +70,48 @@ describe("DataProvenancePanel", () => {
     expect(screen.getByText(/Distance maximale 50 km/)).toBeInTheDocument();
     expect(screen.queryByText("TOO_OLD")).not.toBeInTheDocument();
   });
+
+  it("distingue la validité, la production et la récupération", () => {
+  const provenance = rejectedStationProvenance();
+  provenance.values.currentTemperature = {
+    ...provenance.values.currentTemperature,
+    time: {
+      observedAt: null,
+      validAt: "2026-07-22T17:00:00.000Z",
+      generatedAt: "2026-07-22T15:00:00.000Z",
+      retrievedAt: "2026-07-22T17:15:00.000Z",
+    },
+  };
+  provenance.values.alert = {
+    ...provenance.values.alert,
+    time: {
+      observedAt: null,
+      validAt: "2026-07-23T04:00:00.000Z",
+      generatedAt: "2026-07-22T16:00:00.000Z",
+      retrievedAt: "2026-07-22T17:15:00.000Z",
+    },
+  };
+
+  render(<DataProvenancePanel provenance={provenance} />);
+  fireEvent.click(screen.getByText("D’où viennent ces données ?"));
+
+  const temperatureSection = screen.getByText("Température", { selector: ".eyebrow" }).closest("section");
+  expect(temperatureSection).not.toBeNull();
+  const temperatureTimes = within(temperatureSection as HTMLElement);
+  expect(temperatureTimes.getByText("Prévision valable pour")).toBeInTheDocument();
+  expect(temperatureTimes.getByText("Modèle produit")).toBeInTheDocument();
+  expect(temperatureTimes.getByText("Récupérée par OpenDataVal")).toBeInTheDocument();
+  expect(temperatureTimes.getByText("mer. 19 h 00")).toBeInTheDocument();
+  expect(temperatureTimes.getByText("mer. 17 h 00")).toBeInTheDocument();
+  expect(temperatureTimes.getByText("mer. 19 h 15")).toBeInTheDocument();
+
+  const alertSection = screen.getByText("Vigilance", { selector: ".eyebrow" }).closest("section");
+  expect(alertSection).not.toBeNull();
+  const alertTimes = within(alertSection as HTMLElement);
+  expect(alertTimes.getByText("Valable jusqu’au")).toBeInTheDocument();
+  expect(alertTimes.getByText("Bulletin produit")).toBeInTheDocument();
+  expect(alertTimes.getByText("Récupérée par OpenDataVal")).toBeInTheDocument();
+});
 
   it("reste lisible pendant une transition avec une réponse de provenance 1.0", () => {
     const base = essentialWeatherFixture({ latitude: 43.2965, longitude: 5.3698 }).provenance;
