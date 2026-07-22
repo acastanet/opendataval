@@ -5,8 +5,12 @@ on:
     paths:
       - "apps/api/**"
       - "apps/meteo-web/**"
+      - "apps/web/**"
       - "doc/meteo-v2/**"
       - "packages/shared/**"
+      - "Dockerfile.caddy"
+      - "Caddyfile"
+      - "docker-compose.yml"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -93,3 +97,20 @@ jobs:
         run: pnpm --filter meteo-web test
       - name: Build frontend
         run: pnpm --filter meteo-web build
+
+  containers:
+    name: Images de déploiement
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire l’image API
+        run: docker build --file apps/api/Dockerfile --tag opendataval-api:test .
+      - name: Construire l’image Caddy
+        run: docker build --file Dockerfile.caddy --tag opendataval-caddy:test .
+      - name: Vérifier l’embarquement de Météo V2
+        run: >-
+          docker run --rm opendataval-caddy:test sh -ec
+          'test -f /srv/meteo-v2/index.html;
+          test -d /srv/meteo-v2/assets;
+          grep -q "/meteo-v2/" /srv/meteo-v2/index.html'
