@@ -178,7 +178,7 @@ components:
     WeatherAlert:
       type: object
       additionalProperties: false
-      required: [level, title, phenomena, validUntil, sourceUrl]
+      required: [level, title, phenomena, validUntil, sourceUrl, indisponible]
       properties:
         level:
           $ref: "#/components/schemas/AlertLevel"
@@ -194,6 +194,9 @@ components:
         sourceUrl:
           type: string
           format: uri
+        indisponible:
+          type: boolean
+          description: true si la source Météo-France est indisponible (level est alors un repli)
     EssentialWeather:
       type: object
       additionalProperties: false

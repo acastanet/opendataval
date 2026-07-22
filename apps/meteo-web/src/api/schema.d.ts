@@ -102,6 +102,8 @@ export interface components {
             validUntil: string;
             /** Format: uri */
             sourceUrl: string;
+            /** @description true si la source Météo-France est indisponible (level est alors un repli) */
+            indisponible: boolean;
         };
         EssentialWeather: {
             location: components["schemas"]["Location"];

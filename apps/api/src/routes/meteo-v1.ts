@@ -52,6 +52,7 @@ interface EssentialWeather {
     phenomena: string[];
     validUntil: string;
     sourceUrl: string;
+    indisponible: boolean;
   };
   unavailableSources: string[];
   generatedAt: string;
@@ -93,43 +94,10 @@ function getNumber(obj: unknown, key: string): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
-function getString(obj: unknown, key: string): string | null {
-  if (typeof obj !== "object" || obj === null) return null;
-  const v = (obj as Record<string, unknown>)[key];
-  return typeof v === "string" ? v : null;
-}
-
 function getNumberArray(obj: unknown, key: string): number[] {
   if (typeof obj !== "object" || obj === null) return [];
   const v = (obj as Record<string, unknown>)[key];
   return Array.isArray(v) ? v.filter((x): x is number => typeof x === "number" && Number.isFinite(x)) : [];
-}
-
-function getInt(obj: unknown, key: string): number | null {
-  const v = getNumber(obj, key);
-  return v !== null ? Math.round(v) : null;
-}
-
-/** Construit l'Open-Meteo URL pour un point donné */
-function meteoFranceUrl(lat: number, lon: number): string {
-  const url = new URL("https://api.open-meteo.com/v1/meteofrance");
-  url.searchParams.set("latitude", String(lat));
-  url.searchParams.set("longitude", String(lon));
-  url.searchParams.set("timezone", "Europe/Paris");
-  url.searchParams.set("forecast_days", "3");
-  url.searchParams.set(
-    "current",
-    "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m",
-  );
-  url.searchParams.set(
-    "hourly",
-    "temperature_2m,precipitation_probability,wind_gusts_10m,weather_code",
-  );
-  url.searchParams.set(
-    "daily",
-    "temperature_2m_max,temperature_2m_min,weather_code",
-  );
-  return url.toString();
 }
 
 const WMO_DESCRIPTIONS: Record<number, string> = {
@@ -176,6 +144,28 @@ function addHours(iso: string, hours: number): string {
   return new Date(new Date(iso).getTime() + hours * 3_600_000).toISOString();
 }
 
+/** Construit l'Open-Meteo URL pour un point donné */
+function meteoFranceUrl(lat: number, lon: number): string {
+  const url = new URL("https://api.open-meteo.com/v1/meteofrance");
+  url.searchParams.set("latitude", String(lat));
+  url.searchParams.set("longitude", String(lon));
+  url.searchParams.set("timezone", "Europe/Paris");
+  url.searchParams.set("forecast_days", "3");
+  url.searchParams.set(
+    "current",
+    "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m",
+  );
+  url.searchParams.set(
+    "hourly",
+    "temperature_2m,precipitation_probability,wind_gusts_10m,weather_code",
+  );
+  url.searchParams.set(
+    "daily",
+    "temperature_2m_max,temperature_2m_min,weather_code",
+  );
+  return url.toString();
+}
+
 /* ────────── vigilance ────────── */
 
 const COULEUR_VIGILANCE: Record<number, AlertLevel> = {
@@ -197,53 +187,83 @@ const PHENOMENE_NOMS: Record<string, string> = {
   "9": "Vagues-submersion",
 };
 
-async function recupererVigilance(codeDep: string): Promise<{
+/** Résultat brut de la vigilance : soit réussite avec niveau réel, soit indisponible. */
+interface VigilanceResult {
   niveau: AlertLevel;
   phenomenes: string[];
   miseAJour: Date | null;
+  /** true si la source Météo-France était injoignable (level = repli green) */
   indisponible: boolean;
-}> {
-  const token = process.env.METEOFRANCE_API_TOKEN_VIGILANCE;
+}
+
+/** Interroge la carte de vigilance Météo-France. Retourne l'état pour le département demandé. */
+async function recupererVigilance(codeDep: string): Promise<VigilanceResult> {
+  const token = process.env.METEOFRANCE_API_TOKEN_VIGILANCE ?? process.env.METEOFRANCE_API_TOKEN;
   if (!token) {
     return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
   }
   try {
     const url = "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours";
-    const data = (await fetchJson(url)) as Record<string, unknown>;
-    const product = data?.product ?? data;
-    if (typeof product !== "object" || product === null) {
-      return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
-    }
-    // Cherche le département du Gard (30)
-    const domainArr = (product as Record<string, unknown>).domain_arr ?? [];
-    if (!Array.isArray(domainArr)) {
-      return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
-    }
-    for (const d of domainArr) {
-      const dp = (d as Record<string, unknown>).domain ?? (d as Record<string, unknown>).code;
-      if (String(dp) !== codeDep) continue;
-      const domain = d as Record<string, unknown>;
-      const couleurMax = (domain.couleur_max ?? domain.color_max ?? 1) as number;
-      const miseAJourStr = getString(domain, "update_time") ?? getString(domain, "date_update");
-      const phenomenonArr = Array.isArray(domain.phenomenon_arr ?? domain.phenomena ?? [])
-        ? (domain.phenomenon_arr ?? domain.phenomena ?? []) as unknown[]
-        : [];
-      const phenomenes: string[] = [];
-      for (const p of phenomenonArr) {
-        const pid = String((p as Record<string, unknown>).id ?? (p as Record<string, unknown>).phenomenon_id ?? "");
-        if (PHENOMENE_NOMS[pid]) phenomenes.push(PHENOMENE_NOMS[pid]);
-      }
-      return {
-        niveau: COULEUR_VIGILANCE[couleurMax] ?? "green",
-        phenomenes,
-        miseAJour: miseAJourStr ? new Date(miseAJourStr) : null,
-        indisponible: false,
-      };
-    }
-    return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
-  } catch {
+    const res = await fetch(url, {
+      headers: { apikey: token, "User-Agent": "opendata-vda-api/1.0" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) throw new Error(`DPVigilance HTTP ${res.status}`);
+    const data: unknown = await res.json();
+    return parserVigilancePourDept(data, codeDep);
+  } catch (err) {
     return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
   }
+}
+
+/** Parse la réponse brute de la carte de vigilance pour un département donné. */
+function parserVigilancePourDept(data: unknown, codeDep: string): VigilanceResult {
+  if (typeof data !== "object" || data === null) {
+    return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
+  }
+  const product =
+    (data as Record<string, unknown>).product ??
+    (data as Record<string, unknown>).data ??
+    data;
+  if (typeof product !== "object" || product === null) {
+    return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
+  }
+  const p = product as Record<string, unknown>;
+  const domainArrInput = p.domain_arr ?? p.timelist ?? null;
+  const domainArr: unknown[] = Array.isArray(domainArrInput) ? domainArrInput : [];
+
+  for (const d of domainArr) {
+    if (typeof d !== "object" || d === null) continue;
+    const domain = d as Record<string, unknown>;
+    const codeDept =
+      String(domain.code ?? domain.domain_code ?? domain.domain ?? "");
+    if (codeDept !== codeDep) continue;
+
+    const couleurMax = Number(domain.couleur_max ?? domain.color_max ?? domain.max_color ?? 1);
+    const niveau = COULEUR_VIGILANCE[couleurMax] ?? "green";
+
+    const updateTime = String(domain.update_time ?? domain.date_update ?? domain.timestamp ?? "");
+    const miseAJour = updateTime ? new Date(updateTime) : null;
+
+    const phenomena: string[] = [];
+    const phenInput = domain.phenomenon_arr ?? domain.phenomenon ?? domain.phenomena ?? null;
+    const rawPhenomena: unknown[] = Array.isArray(phenInput) ? phenInput : [];
+    for (const p of rawPhenomena) {
+      if (typeof p !== "object" || p === null) continue;
+      const pid = String(
+        (p as Record<string, unknown>).id ??
+        (p as Record<string, unknown>).phenomenon_id ??
+        (p as Record<string, unknown>).code ??
+        "",
+      );
+      if (PHENOMENE_NOMS[pid]) phenomena.push(PHENOMENE_NOMS[pid]);
+    }
+
+    return { niveau, phenomenes: phenomena, miseAJour, indisponible: false };
+  }
+
+  // Département non trouvé dans la réponse vigilance
+  return { niveau: "green", phenomenes: [], miseAJour: null, indisponible: true };
 }
 
 /* ────────── normalisation essentielle ────────── */
@@ -257,9 +277,7 @@ function determinerNextChange(
   const now = new Date();
   const nowHour = now.getHours();
 
-  // Chercher la première heure avec pluie probable (>30%)
   for (let i = 1; i < Math.min(precipitationProb.length, 24); i++) {
-    // Pas de proba de pluie avant l'heure courante
     if (nowHour + i >= 24) break;
     const prob = precipitationProb[i];
     if (prob !== undefined && prob >= 30) {
@@ -274,7 +292,6 @@ function determinerNextChange(
     }
   }
 
-  // Pas de pluie probable : stabilité
   return {
     type: "stable" as ChangeType,
     startsAt: null,
@@ -314,22 +331,18 @@ async function normaliserEssential(
 
   // Observation depuis la base (station Météo-France la plus proche)
   let observationTemp: number | null = null;
-  let observationApparent: number | null = null;
   let observationAt: string | null = null;
   try {
     const { rows } = await pool.query(
-      `select t, humidite, heure_utc
+      `select distinct on (num_poste) num_poste, t, humidite, heure_utc
        from series.meteo_horaire
        where num_poste = $1
-       order by heure_utc desc limit 1`,
-      ["07630"], // station du Mont Aigoual
+       order by num_poste, heure_utc desc limit 1`,
+      ["07630"],
     );
-    const row = rows[0] as { t: number; humidite?: number; heure_utc: string } | undefined;
+    const row = rows[0] as { t: number; heure_utc: string } | undefined;
     if (row && row.t !== null) {
       observationTemp = row.t;
-      observationApparent = row.humidite != null
-        ? row.t - 0.4 * (1 - row.humidite / 100) * row.t
-        : null;
       observationAt = row.heure_utc;
     } else {
       unavailableSources.push("Observations Météo-France");
@@ -350,7 +363,6 @@ async function normaliserEssential(
     unavailableSources.push("Modèles Météo-France (AROME/ARPEGE)");
   }
 
-  // Données actuelles
   const currentData = weatherData ? (weatherData as Record<string, unknown>).current : null;
   const hourlyData = weatherData ? (weatherData as Record<string, unknown>).hourly : null;
   const dailyData = weatherData ? (weatherData as Record<string, unknown>).daily : null;
@@ -366,9 +378,9 @@ async function normaliserEssential(
     hourlyTempsArr[0] ??
     0;
   const currentApparentC =
-    observationApparent ??
-    getNumber(currentData, "apparent_temperature") ??
-    currentTempC;
+    observationTemp !== null
+      ? (observationTemp + (getNumber(currentData, "apparent_temperature") ?? observationTemp)) / 2
+      : (getNumber(currentData, "apparent_temperature") ?? currentTempC);
   const currentWeatherCode = getNumber(currentData, "weather_code");
   const weatherLabel = weatherCodeLabel(currentWeatherCode ?? weatherCodesArr[0] ?? null);
 
@@ -376,7 +388,7 @@ async function normaliserEssential(
     temperatureC: Math.round(currentTempC * 10) / 10,
     apparentTemperatureC: Math.round(currentApparentC * 10) / 10,
     weatherLabel,
-    observedAt: observationAt ?? isoNow(),
+    observedAt: observationAt ?? generatedAt,
     nature: observationMinutes < 60 ? "observation" : "model",
     sourceLabel: observationMinutes < 60
       ? "Station Météo-France Mont Aigoual"
@@ -387,9 +399,7 @@ async function normaliserEssential(
   // Min/Max du jour
   const dailyMaxArr = getNumberArray(dailyData, "temperature_2m_max");
   const dailyMinArr = getNumberArray(dailyData, "temperature_2m_min");
-  const maxC = getNumber(currentData, "temperature_2m")
-    ?? dailyMaxArr[0]
-    ?? currentTempC;
+  const maxC = getNumber(currentData, "temperature_2m") ?? dailyMaxArr[0] ?? currentTempC;
   const minC = dailyMinArr[0] ?? currentTempC;
 
   const today: EssentialWeather["today"] = {
@@ -401,25 +411,18 @@ async function normaliserEssential(
   const nextChange = determinerNextChange(hourlyData);
 
   // Prochaines heures
-  const hourlyTemps = getNumberArray(hourlyData, "temperature_2m");
-  const hourlyRain = getNumberArray(hourlyData, "precipitation_probability");
-  const hourlyWind = getNumberArray(hourlyData, "wind_gusts_10m");
-  const weatherCodesArray = getNumberArray(hourlyData, "weather_code");
-
   const nextHours: EssentialWeather["nextHours"] = [];
-  for (let i = 0; i < Math.min(hourlyTemps.length, 6); i++) {
-    // Sauter les heures déjà passées (i=0 = heure courante)
+  for (let i = 0; i < Math.min(hourlyTempsArr.length, 6); i++) {
     if (i === 0 && observationMinutes < 30) continue;
     const idx = i === 0 && observationMinutes < 30 ? 1 : i;
-    if (idx >= hourlyTemps.length) break;
+    if (idx >= hourlyTempsArr.length) break;
     nextHours.push({
       at: addHours(generatedAt, idx),
-      temperatureC: Math.round((hourlyTemps[idx] ?? currentTempC) * 10) / 10,
-      rainProbabilityPercent: Math.min(100, Math.max(0, Math.round(hourlyRain[idx] ?? 0))),
-      windGustKmh: Math.round((hourlyWind[idx] ?? 0) * 10) / 10,
+      temperatureC: Math.round((hourlyTempsArr[idx] ?? currentTempC) * 10) / 10,
+      rainProbabilityPercent: Math.min(100, Math.max(0, Math.round(hourlyRainArr[idx] ?? 0))),
+      windGustKmh: Math.round((hourlyWindArr[idx] ?? 0) * 10) / 10,
     });
   }
-  // Fallback si aucune heure
   if (nextHours.length === 0) {
     nextHours.push({
       at: addHours(generatedAt, 1),
@@ -429,16 +432,20 @@ async function normaliserEssential(
     });
   }
 
-  // Vigilance — code département issu de la position
-  const vigilance = await recupererVigilance(localisation.pointPreconfigure?.slug === "marseille" ? "13" : "30");
+  // Vigilance — détermination du département
+  const codeDepartement = localisation.pointPreconfigure?.slug === "marseille" ? "13" : "30";
+  const vigilance = await recupererVigilance(codeDepartement);
   const alert: EssentialWeather["alert"] = {
     level: vigilance.niveau,
-    title: vigilance.niveau === "green"
-      ? "Aucune vigilance particulière"
-      : `Vigilance ${vigilance.niveau}`,
+    title: vigilance.indisponible
+      ? "Vigilance Météo-France indisponible"
+      : vigilance.niveau === "green"
+        ? "Aucune vigilance particulière"
+        : `Vigilance ${vigilance.niveau}`,
     phenomena: vigilance.phenomenes,
     validUntil: addHours(generatedAt, 24),
     sourceUrl: "https://vigilance.meteofrance.fr/fr",
+    indisponible: vigilance.indisponible,
   };
 
   return {
@@ -472,7 +479,7 @@ export function registerMeteoV1Routes(app: FastifyInstance, _pool: pg.Pool): voi
   // Météo essentielle
   app.get<{ Querystring: { lat?: string; lon?: string; accuracyM?: string } }>(
     "/api/v1/meteo/essential",
-    async (req: FastifyRequest<{ Querystring: { lat?: string; lon?: string; accuracyM?: string } }>, reply: FastifyReply) => {
+    async (req, reply) => {
       const coordonnees = validerCoordonnees(req.query.lat, req.query.lon);
       if (!coordonnees) {
         reply.code(400);
