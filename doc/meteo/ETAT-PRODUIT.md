@@ -2,26 +2,43 @@
 
 Dernière vérification : 22 juillet 2026.
 
-## 1. Objet du document
+## 1. Objet
 
-Ce document décrit le comportement fonctionnel actuellement présent dans le dépôt. Il sert de référence pour les corrections, les tests et la conception de la prochaine version.
+Ce document décrit le comportement fonctionnel actuellement présent dans le dépôt et déployé en production. Il sert de référence pour les corrections, les tests et la conception de la prochaine version.
 
-Il ne décrit pas une cible graphique et ne présume pas que les pages sont déployées publiquement. L’état d’un déploiement doit être vérifié séparément.
+Il ne décrit pas une cible graphique.
 
-## 2. Périmètre
+## 2. Déploiement
 
-La suite météo comprend quatre vues complémentaires.
+La suite météo est en production sous le préfixe public :
 
-| Route | Question traitée |
+```text
+https://euporie.cloud/val-daigoual/
+```
+
+| Fonction | Route interne | URL publique |
+| --- | --- | --- |
+| Vue essentielle | `/meteo/essentiel/` | `https://euporie.cloud/val-daigoual/meteo/essentiel/` |
+| Comparaison | `/meteo/comparaison/` | `https://euporie.cloud/val-daigoual/meteo/comparaison/` |
+| Bilan thermique | `/meteo/bilan-thermique/` | `https://euporie.cloud/val-daigoual/meteo/bilan-thermique/` |
+| Informations | `/meteo/informations/` | `https://euporie.cloud/val-daigoual/meteo/informations/` |
+
+Le préfixe `/val-daigoual/` relève du proxy de production. Les routes sources restent `/meteo/...`.
+
+## 3. Périmètre
+
+Les quatre vues répondent à des questions distinctes :
+
+| Vue | Question traitée |
 | --- | --- |
-| `/meteo/essentiel/` | Quel temps fait-il ici, quelle vigilance s’applique et quelle est la tendance immédiate ? |
-| `/meteo/comparaison/` | Dans quelle mesure la prévision publiée la veille a-t-elle été révisée ? |
-| `/meteo/bilan-thermique/` | Quel a été le niveau de stress thermique pendant le dernier mois complet ? |
-| `/meteo/informations/` | D’où viennent les données et comment faut-il les interpréter ? |
+| Essentiel | Quel temps fait-il ici, quelle vigilance s’applique et quelle est la tendance immédiate ? |
+| Comparaison | Dans quelle mesure la prévision publiée la veille a-t-elle été révisée ? |
+| Bilan thermique | Quel a été le niveau de stress thermique pendant le dernier mois complet ? |
+| Informations | D’où viennent les données et comment faut-il les interpréter ? |
 
 La vue détaillée `/meteo/` existe toujours. Elle rassemble davantage de variables, une prévision heure par heure, la qualité de l’air, une carte et la tendance probabiliste ECMWF. Elle constitue un produit voisin, mais pas le modèle fonctionnel obligatoire de la suite essentielle.
 
-## 3. Navigation commune
+## 4. Navigation commune
 
 Les quatre pages utilisent un en-tête commun qui permet de passer d’une vue à l’autre en conservant autant que possible le lieu sélectionné.
 
@@ -29,9 +46,9 @@ Pour un lieu préconfiguré, la navigation transporte son identifiant dans le pa
 
 Le retour vers l’accueil général est assuré par le composant partagé `BoutonAccueil`.
 
-## 4. Vue essentielle
+## 5. Vue essentielle
 
-### 4.1 Point initial et lieux rapides
+### 5.1 Lieux
 
 Le point initial est Val-d’Aigoual. Trois lieux préconfigurés sont disponibles :
 
@@ -39,27 +56,26 @@ Le point initial est Val-d’Aigoual. Trois lieux préconfigurés sont disponibl
 - Paris ;
 - Marseille.
 
-Le choix d’un lieu relance la chaîne météo complète pour les coordonnées correspondantes. Le bouton actif est signalé visuellement et par `aria-pressed`.
+Le choix d’un lieu relance la chaîne météo complète pour les coordonnées correspondantes.
 
-### 4.2 Géolocalisation
+### 5.2 Géolocalisation
 
 L’utilisateur peut demander sa position au navigateur. La géolocalisation :
 
 - exige un contexte HTTPS ;
-- utilise une précision raisonnable afin d’éviter les délais inutiles sur mobile ;
 - affiche la précision estimée fournie par l’appareil ;
-- géocode ensuite les coordonnées avec l’API de localisation ;
+- géocode les coordonnées avec l’API de localisation ;
 - conserve un libellé de coordonnées si le géocodage échoue.
 
 En cas de refus, d’expiration ou d’échec, le message doit être explicite et non culpabilisant. La dernière météo valide reste affichée lorsqu’elle existe.
 
-### 4.3 Fraîcheur
+### 5.3 Fraîcheur
 
 La page affiche l’heure de mise à jour de la prévision. Une donnée issue d’un repli est signalée comme « dernière valeur connue ».
 
 La météo essentielle est rafraîchie périodiquement sans effacer les données affichées lors d’un échec silencieux.
 
-### 4.4 Vigilance
+### 5.4 Vigilance
 
 La vigilance est affichée avant la température. Elle est déterminée pour le département du point sélectionné.
 
@@ -73,7 +89,7 @@ Le bloc présente :
 
 Règle de sécurité : lorsque la source Météo-France est indisponible, le niveau affiché est « Niveau inconnu ». La page précise que le niveau réel ne peut pas être confirmé. Elle ne doit jamais transformer une indisponibilité en vigilance verte.
 
-### 4.5 Situation actuelle
+### 5.5 Situation actuelle
 
 Le bloc principal affiche :
 
@@ -82,9 +98,9 @@ Le bloc principal affiche :
 - le maximum et le minimum du jour ;
 - l’altitude du point de modèle.
 
-La température provient d’une prévision de modèle. Le vocabulaire « estimation locale » doit être conservé. Une position GPS précise ne signifie pas que la valeur a été mesurée à l’adresse.
+Le vocabulaire « estimation locale » doit être conservé. Une position GPS précise ne signifie pas que la valeur a été mesurée à l’adresse.
 
-### 4.6 Tendance sur trois heures
+### 5.6 Tendance sur trois heures
 
 Les quatre premiers points horaires sont représentés dans un graphique compact. La page compare la température actuelle à celle de la quatrième échéance disponible.
 
@@ -94,19 +110,13 @@ La tendance est :
 - à la baisse s’il est inférieur à `−0,5 °C` ;
 - stable dans les autres cas.
 
-Le graphique est accompagné d’une phrase explicite afin que l’information ne dépende pas uniquement de sa forme.
+Le graphique est accompagné d’une phrase explicite.
 
-### 4.7 Trois jours suivants
+### 5.7 Trois jours suivants
 
-La page affiche les trois jours qui suivent la date locale courante, avec :
+La page affiche les trois jours qui suivent la date locale courante, avec le jour, le maximum et le minimum.
 
-- le jour ;
-- le maximum ;
-- le minimum.
-
-Cette synthèse ne prétend pas remplacer la prévision détaillée de `/meteo/`.
-
-### 4.8 Contexte climatique
+### 5.8 Contexte climatique
 
 Lorsque les agrégats sont disponibles, la température maximale prévue du jour est comparée à la climatologie ERA5-Land 1991–2020 du point.
 
@@ -118,9 +128,9 @@ La page peut afficher :
 - le nombre de valeurs comparables ;
 - une limite d’interprétation.
 
-Cette section compare la journée à des journées climatologiquement voisines. Elle ne transforme pas une prévision ponctuelle en conclusion générale sur le changement climatique.
+Cette section ne transforme pas une prévision ponctuelle en conclusion générale sur le changement climatique.
 
-### 4.9 Résumé du bilan thermique
+### 5.9 Résumé du bilan thermique
 
 Lorsque le dernier bilan complet est disponible, la vue essentielle indique :
 
@@ -129,9 +139,9 @@ Lorsque le dernier bilan complet est disponible, la vue essentielle indique :
 - l’écart à la référence 1991–2020 lorsqu’il est calculable ;
 - un lien vers le bilan détaillé.
 
-## 5. Comparaison des révisions J−1 / J
+## 6. Comparaison des révisions J−1 / J
 
-La page `/meteo/comparaison/` compare, pour une même journée, la prévision disponible environ vingt-quatre heures avant et sa version actualisée le jour concerné.
+La page compare, pour une même journée, la prévision disponible environ vingt-quatre heures avant et sa version actualisée le jour concerné.
 
 Elle mesure notamment :
 
@@ -143,11 +153,11 @@ Elle mesure notamment :
 
 Les périodes proposées sont 7, 14 et 30 jours.
 
-Cette page mesure la stabilité des prévisions. Elle ne mesure pas directement leur erreur par rapport à une observation réelle. Le vocabulaire doit toujours préserver cette distinction.
+Cette page mesure la stabilité des prévisions. Elle ne mesure pas directement leur erreur par rapport à une observation réelle.
 
-## 6. Bilan thermique mensuel
+## 7. Bilan thermique mensuel
 
-La page `/meteo/bilan-thermique/` publie uniquement un mois complet validé en base.
+La page publie uniquement un mois complet validé en base.
 
 Elle présente :
 
@@ -158,11 +168,11 @@ Elle présente :
 - les écarts à la référence 1991–2020 ;
 - les dates exactes des dépassements de seuil lorsque disponibles.
 
-Le bilan porte sur une maille ERA5-HEAT proche du lieu de référence. Il décrit un indicateur biométéorologique de réanalyse, pas le ressenti réel de chaque personne ni une mesure au domicile.
+Le bilan porte sur une maille ERA5-HEAT proche du lieu de référence. Il décrit un indicateur biométéorologique de réanalyse, pas le ressenti réel de chaque personne.
 
-## 7. Page d’informations
+## 8. Page d’informations
 
-La page `/meteo/informations/` doit rester lisible par un public non spécialiste. Elle explique :
+La page explique :
 
 - la différence entre mesure, prévision, vigilance, climatologie et réanalyse ;
 - les sources utilisées ;
@@ -172,9 +182,7 @@ La page `/meteo/informations/` doit rester lisible par un public non spécialist
 - les limites des comparaisons J−1 / J ;
 - la priorité des bulletins officiels pour les décisions de sécurité.
 
-## 8. États transversaux
-
-Les états suivants font partie du produit et doivent être testés :
+## 9. États transversaux
 
 | État | Comportement attendu |
 | --- | --- |
@@ -187,7 +195,7 @@ Les états suivants font partie du produit et doivent être testés :
 | Bilan incomplet | Ne pas publier de bilan partiel comme un mois complet |
 | Donnée périmée | Afficher la fraîcheur et la mention « dernière valeur connue » |
 
-## 9. Accessibilité actuelle à préserver
+## 10. Accessibilité à préserver
 
 - structure de titres réelle ;
 - boutons avec libellés accessibles ;
@@ -198,7 +206,7 @@ Les états suivants font partie du produit et doivent être testés :
 - valeurs numériques stables grâce aux chiffres tabulaires ;
 - tests sur formats mobile et bureau.
 
-## 10. Points à ne plus déduire de l’ancien brief
+## 11. Points à ne plus déduire de l’ancien brief
 
 Les affirmations suivantes ne sont plus valides :
 
@@ -208,4 +216,4 @@ Les affirmations suivantes ne sont plus valides :
 - la vigilance est limitée au Gard ;
 - une page doit tenir intégralement dans le premier écran mobile.
 
-La priorité mobile reste une exigence. Elle signifie que les informations de décision doivent apparaître tôt et dans un ordre clair, non que l’ensemble du produit doit être compressé dans une seule hauteur d’écran.
+La priorité mobile signifie que les informations de décision doivent apparaître tôt et dans un ordre clair, non que l’ensemble du produit doit être compressé dans une seule hauteur d’écran.
