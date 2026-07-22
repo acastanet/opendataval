@@ -138,6 +138,7 @@ export function essentialWeatherFixture(
       phenomena: profile.phenomena,
       validUntil: addHours(now, 24),
       sourceUrl: "https://vigilance.meteofrance.fr/fr",
+      indisponible: false,
     },
     unavailableSources: [],
     generatedAt: new Date().toISOString(),
