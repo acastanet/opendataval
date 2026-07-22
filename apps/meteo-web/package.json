@@ -1,0 +1,37 @@
+{
+  "name": "meteo-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "dev:mock": "vite --mode mock --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "generate:api": "openapi-typescript ../../doc/meteo-v2/openapi.yaml -o src/api/schema.d.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.101.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^29.1.1",
+    "msw": "^2.15.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.7.0",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}

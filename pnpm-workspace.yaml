@@ -1,6 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+overrides:
+  vite: 5.4.21
 allowBuilds:
   esbuild: true
+  msw: false
   sharp: true

@@ -1,0 +1,95 @@
+name: Météo V2
+
+on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "apps/meteo-web/**"
+      - "doc/meteo-v2/**"
+      - "packages/shared/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/meteo-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meteo-v2-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 11.10.0
+  NODE_VERSION: 22
+
+jobs:
+  api:
+    name: API
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Tests API
+        run: pnpm --filter api test
+      - name: Typage API
+        run: pnpm --filter api exec tsc --noEmit
+
+  contract:
+    name: Contrat OpenAPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Régénérer le client OpenAPI
+        run: pnpm --filter meteo-web run generate:api
+      - name: Publier le client généré
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meteo-openapi-client
+          path: apps/meteo-web/src/api/schema.d.ts
+          if-no-files-found: error
+      - name: Afficher le diff éventuel
+        run: git diff -- apps/meteo-web/src/api/schema.d.ts
+      - name: Vérifier la synchronisation
+        run: git diff --exit-code -- apps/meteo-web/src/api/schema.d.ts
+
+  frontend:
+    name: Interface Météo V2
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Tests frontend
+        run: pnpm --filter meteo-web test
+      - name: Build frontend
+        run: pnpm --filter meteo-web build
