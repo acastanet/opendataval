@@ -1,0 +1,178 @@
+name: Ajustement temporaire de la présentation météo
+
+on:
+  push:
+    branches:
+      - feat/meteo-station-diagnostics
+    paths:
+      - ".github/workflows/patch-meteo-presentation.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    name: Allège provenance et situation stable
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/meteo-station-diagnostics
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Mettre à jour les styles et le test d’intégration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          provenance_path = Path("apps/meteo-web/src/provenance.css")
+          provenance = provenance_path.read_text()
+          old_summary = '''.provenance-summary {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.7rem;
+            border: 1px solid var(--line);
+            background: var(--white);
+          }
+
+          .provenance-summary p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.7rem;
+            font-weight: 680;
+            line-height: 1.4;
+          }
+
+          .provenance-badge {
+            display: inline-flex;
+            min-height: 1.9rem;
+            align-items: center;
+            padding: 0.35rem 0.55rem;
+            color: var(--white);
+            background: var(--blue);
+            font-size: 0.62rem;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            line-height: 1.15;
+            text-transform: uppercase;
+          }
+
+          .provenance-summary--observation .provenance-badge,
+          .provenance-summary--hybrid .provenance-badge {
+            background: var(--green);
+          }
+
+          .provenance-summary--unavailable .provenance-badge {
+            background: var(--muted);
+          }
+          '''
+          new_summary = '''.provenance-summary {
+            padding: 0.68rem 0.75rem;
+            border: 1px solid var(--line);
+            border-left: 0.28rem solid var(--blue);
+            background: var(--white);
+          }
+
+          .provenance-summary--observation,
+          .provenance-summary--hybrid {
+            border-left-color: var(--green);
+          }
+
+          .provenance-summary--unavailable {
+            border-left-color: var(--muted);
+          }
+
+          .provenance-summary p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.7rem;
+            font-weight: 680;
+            line-height: 1.45;
+          }
+          '''
+          if old_summary not in provenance:
+            raise SystemExit("provenance summary block not found")
+          provenance = provenance.replace(old_summary, new_summary, 1)
+          old_mobile = '''  .provenance-summary {
+              grid-template-columns: 1fr;
+            }
+
+            .provenance-badge {
+              width: max-content;
+            }
+
+          '''
+          if old_mobile not in provenance:
+            raise SystemExit("provenance mobile block not found")
+          provenance_path.write_text(provenance.replace(old_mobile, "", 1))
+
+          styles_path = Path("apps/meteo-web/src/styles.css")
+          styles = styles_path.read_text()
+          marker = '''.change-probability span {
+            margin-top: 0.2rem;
+            color: #d9e6ff;
+            font-size: 0.58rem;
+            font-weight: 750;
+            white-space: nowrap;
+          }
+          '''
+          quiet_styles = marker + '''
+          .next-change--quiet {
+            grid-template-columns: minmax(8rem, 0.85fr) minmax(0, 1.4fr);
+            padding-top: 0.85rem;
+            padding-bottom: 0.85rem;
+            border-bottom: 1px solid var(--line);
+            color: var(--ink);
+            background: var(--white);
+            box-shadow: inset 0 0.2rem 0 var(--blue);
+          }
+
+          .next-change--quiet .eyebrow {
+            color: var(--blue);
+          }
+
+          .next-change--quiet .change-summary {
+            color: var(--muted);
+          }
+          '''
+          if marker not in styles:
+            raise SystemExit("next change style marker not found")
+          styles = styles.replace(marker, quiet_styles, 1)
+          desktop_marker = '''  .next-change { min-height: 7.5rem; }
+          '''
+          desktop_replacement = desktop_marker + '''  .next-change--quiet { min-height: 5.5rem; }
+          '''
+          if desktop_marker not in styles:
+            raise SystemExit("desktop next change marker not found")
+          styles_path.write_text(styles.replace(desktop_marker, desktop_replacement, 1))
+
+          test_path = Path("apps/meteo-web/src/App.test.tsx")
+          test = test_path.read_text()
+          old_assertion = 'expect(screen.getAllByText("Prévision modélisée").length).toBeGreaterThan(0);'
+          new_assertion = 'expect(screen.getAllByText("Prévision modélisée")).toHaveLength(1);'
+          if old_assertion not in test:
+            raise SystemExit("modeled forecast assertion not found")
+          test_path.write_text(test.replace(old_assertion, new_assertion, 1))
+          PY
+      - name: Valider l’interface
+        run: |
+          pnpm --filter meteo-web test
+          pnpm --filter meteo-web build
+      - name: Commit des ajustements
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/patch-meteo-presentation.yml
+          git add apps/meteo-web/src/provenance.css apps/meteo-web/src/styles.css apps/meteo-web/src/App.test.tsx
+          git commit -m "refactor(meteo-web): hiérarchise les états calmes"
+          git push origin HEAD:feat/meteo-station-diagnostics
