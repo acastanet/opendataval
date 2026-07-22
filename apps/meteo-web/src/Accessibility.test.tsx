@@ -23,10 +23,16 @@ describe("accessibilité et petits écrans", () => {
   });
 
   it("annonce le lieu actif et la recherche de position", () => {
+    const firstLocation = locations[0];
+    const secondLocation = locations[1];
+    if (!firstLocation || !secondLocation) {
+      throw new Error("Deux lieux rapides sont requis pour ce test.");
+    }
+
     const onSelect = vi.fn();
     const selected = {
-      latitude: locations[0].latitude,
-      longitude: locations[0].longitude,
+      latitude: firstLocation.latitude,
+      longitude: firstLocation.longitude,
     };
 
     const { rerender } = render(
@@ -40,12 +46,12 @@ describe("accessibilité et petits écrans", () => {
     );
 
     const group = screen.getByRole("group", { name: "Lieux rapides" });
-    const active = within(group).getByRole("button", { name: locations[0].shortLabel });
+    const active = within(group).getByRole("button", { name: firstLocation.shortLabel });
     expect(active).toHaveAttribute("aria-pressed", "true");
 
-    const second = within(group).getByRole("button", { name: locations[1].shortLabel });
+    const second = within(group).getByRole("button", { name: secondLocation.shortLabel });
     fireEvent.click(second);
-    expect(onSelect).toHaveBeenCalledWith(locations[1]);
+    expect(onSelect).toHaveBeenCalledWith(secondLocation);
 
     rerender(
       <LocationSelector
