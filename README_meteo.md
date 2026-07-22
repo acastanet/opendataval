@@ -1,184 +1,107 @@
-# Page météo — informations et fonctions disponibles
+# Application météo — documentation de référence
 
-Cette page décrit ce qu’un utilisateur peut voir et faire sur `/meteo/`, dans l’ordre de priorité de l’interface. Elle reflète la page telle qu’elle est aujourd’hui, pensée en priorité pour un écran mobile.
+Dernière mise à jour : 22 juillet 2026.
 
-## 1. Savoir immédiatement où porte la prévision
+Ce document est le point d’entrée de la documentation de l’application météo d’OpenDataVal. Il décrit le produit réellement présent dans le dépôt et oriente la conception de sa prochaine version.
 
-Informations affichées en tête de page :
+La documentation reste volontairement classique : elle sépare l’état actuel, les données, l’architecture et les choix à prendre pour la future interface. Elle ne constitue pas une maquette graphique et ne remplace pas les tests ni le code.
 
-- le nom du lieu actuellement sélectionné ;
-- l’adresse ou le contexte du lieu lorsque cette information est disponible ;
-- le niveau de précision de la position : GPS et précision estimée, adresse / lieu-dit géocodé, point sur la carte ou coordonnées saisies ;
-- un rappel clair : la prévision AROME s’applique à une maille d’environ 1,5 à 2,5 km, et non à l’adresse exacte.
+## 1. État du produit
 
-Fonctions disponibles :
+L’application météo forme une suite cohérente de quatre pages :
 
-- rechercher une adresse ou un lieu-dit dans Val-d’Aigoual ;
-- choisir une proposition de recherche et actualiser toute la prévision pour ce point ;
-- utiliser la position GPS du téléphone ou de l’ordinateur ;
-- enregistrer le lieu en favori sous le nom « Maison » ;
-- rouvrir rapidement le favori « Maison » lorsqu’un autre lieu est affiché.
-
-## 2. Comprendre la situation actuelle
-
-Le bloc principal affiche, sans nécessiter de défilement :
-
-- la température estimée au point choisi ;
-- la température ressentie ;
-- la condition météo en cours, avec pictogramme ;
-- l’heure d’actualisation du modèle ;
-- la pluie cumulée prévue sur les douze prochaines heures ;
-- le vent, sa direction et les rafales ;
-- l’humidité.
-
-## 3. Identifier le risque ou phénomène à anticiper
-
-Une carte de signal synthétique indique le phénomène le plus important des prochaines heures :
-
-- orage ;
-- fortes rafales ;
-- pluie marquée ;
-- chaleur ;
-- risque de gel ;
-- ou situation calme.
-
-Lorsqu’une Vigilance Météo-France est disponible, cette carte donne un accès direct à la section des alertes.
-
-## 4. Voir la tendance des prochaines heures
-
-Une bande courte présente les quatre premiers créneaux horaires :
-
-- horaire ;
-- pictogramme météo ;
-- température ;
-- pluie prévue.
-
-Elle sert de résumé rapide. Le détail complet est disponible plus bas dans la page.
-
-## 5. Accéder rapidement aux détails utiles
-
-Une navigation interne permet d’aller directement à :
-
-- la prévision heure par heure ;
-- les prochains jours ;
-- la pluie et le vent ;
-- les alertes ;
-- la précision et les sources.
-
-Si une partie des sources est indisponible ou si les données affichées sont anciennes, un message le signale explicitement sans masquer les informations encore disponibles.
-
-## 6. Consulter la prévision heure par heure
-
-La section « Heure par heure » présente les seize prochaines heures avec :
-
-- heure ;
-- condition météo ;
-- température ;
-- ressenti ;
-- précipitations prévues ;
-- rafales prévues.
-
-La source courte échéance affichée est AROME.
-
-## 7. Prévoir les quatre prochains jours
-
-La section « Les 4 prochains jours » indique, pour chaque journée :
-
-- jour et condition dominante ;
-- température maximale et minimale ;
-- cumul de pluie ;
-- rafale maximale.
-
-La transition progressive entre AROME et ARPEGE est indiquée à partir du troisième jour afin de rendre visible le changement de modèle.
-
-## 8. Approfondir pluie, vent et atmosphère
-
-Une grille de lecture locale récapitule :
-
-- cumul de pluie prévu sur douze heures ;
-- vent actuel estimé, direction et rafales ;
-- humidité ;
-- pression au niveau du point de modèle.
-
-Ces valeurs sont des estimations de modèle pour le point choisi, pas des mesures faites au domicile de l’utilisateur.
-
-## 9. Vérifier les alertes officielles
-
-La section « Vigilance et alertes » fournit :
-
-- le widget officiel de Vigilance Météo-France pour le Gard ;
-- un lien vers le bulletin officiel et les consignes Météo-France.
-
-Cette information est la référence pour les décisions de sécurité. Elle est volontairement séparée des prévisions de modèles.
-
-## 10. Consulter la qualité de l’air
-
-La section « Qualité de l’air » affiche :
-
-- l’indice européen de qualité de l’air ;
-- un niveau de lecture synthétique ;
-- les concentrations prévues de PM2,5, PM10, ozone et dioxyde d’azote.
-
-Les données sont une prévision régionale Copernicus CAMS, diffusée par Open-Meteo, sur une maille d’environ 11 km. Elles sont donc clairement décrites comme une estimation, et non comme une mesure à l’adresse.
-
-## 11. Comprendre la fiabilité réelle de la prévision
-
-La section « Précision réelle et sources » explique :
-
-- la position effectivement demandée ;
-- le modèle utilisé, sa résolution et l’altitude du point de calcul ;
-- la station Météo-France disponible pour comparaison, avec distance, altitude et heure de relevé ;
-- l’éventuelle ancienneté de la mesure ;
-- les limites liées au relief cévenol, aux vallées et à l’exposition.
-
-Elle rappelle qu’une localisation très précise n’implique pas une prévision exacte « à la porte près ».
-
-## 12. Comparer les révisions J−1 / J
-
-La page `/meteo/comparaison/`, accessible depuis le menu commun des pages météo essentielles, compare pour une même journée :
-
-- la prévision disponible 24 heures avant (J−1) ;
-- sa version actualisée le jour concerné (J) ;
-- les écarts de températures minimale et maximale ;
-- l’écart de cumul de pluie ;
-- le nombre d’heures dont la famille de scénario météo a changé.
-
-Les périodes disponibles sont 7, 14 et 30 jours. Les valeurs proviennent des anciens runs du modèle Météo-France AROME / ARPEGE archivés par Open-Meteo. Elles mesurent la stabilité et l’ampleur des révisions du modèle, pas son erreur par rapport au temps réellement observé.
-
-## 13. Explorer la tendance à moyen terme
-
-La section repliée « Tendance probabiliste ECMWF » couvre J+3 à J+10. Pour chaque jour, elle donne :
-
-- la condition dominante ;
-- la température médiane ;
-- la probabilité de pluie ;
-- la pluie médiane et le scénario humide P90 ;
-- le niveau de dispersion ;
-- les signaux de pluie forte et de forte rafale lorsqu’ils existent.
-
-Elle s’appuie sur l’ensemble ECMWF de 51 scénarios. Les données servent à lire une tendance et une incertitude ; les horaires précis deviennent moins fiables avec l’échéance. Un lien conduit au météogramme officiel ECMWF.
-
-## 14. Ajuster manuellement le point de prévision
-
-La section repliée « Choisir le point sur la carte » permet :
-
-- de saisir latitude et longitude ;
-- d’afficher la météo de ces coordonnées ;
-- de cliquer dans la carte pour déplacer le point ;
-- de visualiser le repère correspondant au point demandé.
-
-La carte est un réglage fin, non une étape obligatoire : recherche d’adresse, GPS et coordonnées restent des alternatives complètes.
-
-## Résumé des sources
-
-| Besoin | Source ou mode de calcul |
+| Page | Fonction principale |
 | --- | --- |
-| Adresse, lieu-dit et géolocalisation inverse | Géoplateforme IGN / BAN |
-| Prévision de court terme | Météo-France AROME, puis ARPEGE, diffusés et adaptés par Open-Meteo |
-| Historique des versions J−1 / J | Open-Meteo Previous Runs API, modèle Météo-France seamless |
-| Observation de comparaison | Station Météo-France la plus proche lorsqu’elle est disponible |
-| Alertes | Vigilance Météo-France |
-| Tendance à moyen terme | ECMWF IFS et ensemble de 51 scénarios |
-| Qualité de l’air | Copernicus CAMS European Ensemble, diffusé par Open-Meteo |
+| `/meteo/essentiel/` | Lire immédiatement la situation météo locale et son contexte |
+| `/meteo/comparaison/` | Comparer les révisions d’une prévision entre J−1 et J |
+| `/meteo/bilan-thermique/` | Consulter le bilan mensuel ERA5-HEAT / UTCI |
+| `/meteo/informations/` | Comprendre les sources, les méthodes et les limites |
 
-Pour le détail des choix de design et des contraintes d’implémentation, consulter [README_miniapp_meteo_uxui.md](README_miniapp_meteo_uxui.md).
+La page `/meteo/` reste l’application météo détaillée historique. Elle n’est pas la source de vérité fonctionnelle de la suite essentielle et ne doit pas servir de modèle implicite pour sa future refonte.
+
+## 2. Vue essentielle actuelle
+
+La page `/meteo/essentiel/` propose :
+
+- trois lieux rapides : Val-d’Aigoual, Paris et Marseille ;
+- la géolocalisation GPS, avec précision estimée et géocodage du lieu ;
+- la vigilance officielle du département du point sélectionné ;
+- la température actuelle estimée, le ressenti, le maximum et le minimum du jour ;
+- l’altitude du point de modèle ;
+- une tendance graphique sur trois heures ;
+- les trois jours suivants ;
+- un contexte climatique ERA5-Land 1991–2020 ;
+- un résumé du dernier bilan thermique complet.
+
+La vigilance est prioritaire dans la hiérarchie. Lorsque Météo-France est indisponible, l’interface affiche « Niveau inconnu », explique que le niveau réel ne peut pas être confirmé et renvoie vers le bulletin officiel. Une absence de donnée ne doit jamais produire une pastille verte rassurante.
+
+## 3. Sources principales
+
+| Besoin | Source ou traitement |
+| --- | --- |
+| Prévision immédiate | AROME ou AROME HD, puis ARPEGE, diffusés via Open-Meteo |
+| Vigilance | API officielle Météo-France, déterminée par département |
+| Localisation | Géoplateforme IGN et Base Adresse Nationale |
+| Référence climatique | ERA5-Land, médiane et percentiles 1991–2020 |
+| Bilan thermique | ERA5-HEAT / UTCI, calculé côté serveur |
+| Révisions J−1 / J | Open-Meteo Previous Runs API |
+| Tendance longue de `/meteo/` | ensemble ECMWF de 51 scénarios |
+
+Les données Copernicus sont téléchargées et agrégées par une application Python dédiée. Les résultats validés sont enregistrés dans PostgreSQL. Une consultation utilisateur ne déclenche jamais une requête vers le Climate Data Store.
+
+La première ingestion complète a réussi le 21 juillet 2026 pour Val-d’Aigoual, Paris et Marseille.
+
+## 4. Corpus documentaire
+
+La documentation détaillée se trouve dans `doc/meteo/` :
+
+- [`ETAT-PRODUIT.md`](doc/meteo/ETAT-PRODUIT.md) : périmètre, parcours et comportements actuels ;
+- [`DONNEES-METHODES-LIMITES.md`](doc/meteo/DONNEES-METHODES-LIMITES.md) : sources, calculs, vocabulaire et précautions d’interprétation ;
+- [`ARCHITECTURE.md`](doc/meteo/ARCHITECTURE.md) : composants, routes, stockage, tâches de fond et exploitation ;
+- [`SPECIFICATION-V2.md`](doc/meteo/SPECIFICATION-V2.md) : exigences fonctionnelles et principes de conception de la prochaine version ;
+- [`PLAN-V2.md`](doc/meteo/PLAN-V2.md) : séquencement proposé pour concevoir, développer et valider la refonte.
+
+Documents techniques complémentaires :
+
+- [`apps/copernicus/README.md`](apps/copernicus/README.md) ;
+- [`doc/EXPLOITATION-COPERNICUS.md`](doc/EXPLOITATION-COPERNICUS.md) ;
+- tests Playwright dans `e2e/` ;
+- implémentation des pages dans `apps/web/src/pages/meteo/` et des composants dans `apps/web/src/islands/`.
+
+## 5. Ordre de confiance
+
+En cas de divergence, utiliser cet ordre :
+
+1. comportement observé et tests automatisés ;
+2. code des composants, routes API et traitements ;
+3. documentation de référence dans `doc/meteo/` ;
+4. documentation d’exploitation Copernicus ;
+5. anciens briefs et documents de conception.
+
+`README_miniapp_meteo_uxui.md` est désormais un document historique. Il décrit une étape antérieure où la vue essentielle devait exclure la vigilance, les autres lieux et le contexte climatique. Ces restrictions ne correspondent plus au produit actuel et ne doivent pas être appliquées sans décision produit explicite.
+
+## 6. Règles pour la prochaine version
+
+La future version doit être conçue à partir des besoins et des contrats décrits dans `SPECIFICATION-V2.md`, et non par simple modification cosmétique de l’interface actuelle.
+
+Principes invariants :
+
+- commencer par le lieu et la sécurité ;
+- distinguer clairement observation, prévision, vigilance, climat et bilan thermique ;
+- présenter les données comme des estimations de modèles lorsque c’est le cas ;
+- conserver une expérience mobile-first accessible ;
+- rendre visibles la fraîcheur, la source et les états d’indisponibilité ;
+- ne jamais déclencher de collecte Copernicus depuis une visite ;
+- préserver les contrats API ou documenter explicitement leur évolution ;
+- valider les changements en bureau et mobile avec Playwright.
+
+## 7. Mise à jour de la documentation
+
+Toute évolution fonctionnelle doit mettre à jour au minimum :
+
+1. `doc/meteo/ETAT-PRODUIT.md` ;
+2. le document de données ou d’architecture concerné ;
+3. les tests associés ;
+4. `SPECIFICATION-V2.md` si l’évolution modifie le périmètre de la prochaine version.
+
+Une case de feuille de route ne doit être cochée que lorsque l’implémentation, le test et la documentation sont cohérents. Les intentions, prototypes et éléments déjà livrés doivent rester clairement distingués.
