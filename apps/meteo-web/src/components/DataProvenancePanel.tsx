@@ -58,6 +58,33 @@ function selectionDescription(selection: StationSelection): string {
   }
 }
 
+function summaryDescription(provenance: WeatherProvenance): string {
+  const selection = provenance.stationSelection;
+
+  if (provenance.weatherMode === "hybrid") {
+    return "La température provient d’une station locale ; le ressenti et les prévisions restent modélisés.";
+  }
+  if (provenance.weatherMode === "observation") {
+    return "Les conditions actuelles proviennent d’une station locale.";
+  }
+  if (provenance.weatherMode === "unavailable") {
+    return provenance.summary;
+  }
+
+  switch (selection.status) {
+    case "no_eligible_station":
+      return "Aucune station suffisamment représentative. La température affichée provient donc du modèle.";
+    case "no_measurements":
+      return "Aucune observation locale valide n’est disponible. La température affichée provient du modèle.";
+    case "provider_unavailable":
+      return "Les observations locales sont momentanément indisponibles. La température affichée provient du modèle.";
+    case "not_evaluated":
+      return "La température affichée provient du modèle ; la sélection d’une station locale n’a pas été exécutée.";
+    case "selected":
+      return provenance.summary;
+  }
+}
+
 function networkLabel(network: StationCandidate["network"]): string {
   return network === "meteofrance" ? "Météo-France" : "Infoclimat";
 }
@@ -203,8 +230,7 @@ export function DataProvenancePanel({ provenance }: DataProvenancePanelProps) {
   return (
     <div className="provenance-block">
       <div className={`provenance-summary provenance-summary--${provenance.weatherMode}`}>
-        <span className="provenance-badge">{temperature.label}</span>
-        <p>{provenance.summary}</p>
+        <p>{summaryDescription(provenance)}</p>
       </div>
 
       <details className="provenance-details">
