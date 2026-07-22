@@ -475,13 +475,20 @@ async function normaliserEssential(
   // Vigilance — détermination du département
   const codeDepartement = localisation.pointPreconfigure?.slug === "marseille" ? "13" : "30";
   const vigilance = await recupererVigilance(codeDepartement);
+  const NIVEAUX_FR: Record<string, string> = {
+    green: "verte",
+    yellow: "jaune",
+    orange: "orange",
+    red: "rouge",
+  };
+
   const alert: EssentialWeather["alert"] = {
     level: vigilance.niveau,
     title: vigilance.indisponible
       ? "Vigilance Météo-France indisponible"
       : vigilance.niveau === "green"
         ? "Aucune vigilance particulière"
-        : `Vigilance ${vigilance.niveau}`,
+        : `Vigilance ${NIVEAUX_FR[vigilance.niveau] ?? vigilance.niveau}`,
     phenomena: vigilance.phenomenes,
     validUntil: addHours(generatedAt, 24),
     sourceUrl: "https://vigilance.meteofrance.fr/fr",
