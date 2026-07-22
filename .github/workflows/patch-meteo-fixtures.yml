@@ -1,0 +1,139 @@
+name: Correction temporaire des fixtures Météo
+
+on:
+  push:
+    branches:
+      - feat/meteo-station-diagnostics
+    paths:
+      - ".github/workflows/patch-meteo-fixtures.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    name: Met à jour et valide les fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/meteo-station-diagnostics
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Mettre à jour la fixture de provenance
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("apps/meteo-web/src/mocks/fixtures.ts")
+          text = path.read_text()
+
+          source_marker = '''const geographicSource = {
+            id: "ign-geocodage",
+            name: "Géoplateforme IGN",
+            provider: "IGN",
+            product: "Géocodage inverse",
+            model: null,
+            url: "https://data.geopf.fr/",
+            license: null,
+          };
+          '''
+          criteria = source_marker + '''
+          const stationSelectionCriteria = {
+            maximumDistanceKm: 50,
+            maximumDistanceWithoutAltitudeKm: 5,
+            maximumAltitudeDifferenceM: 500,
+            maximumObservationAgeMinutes: 90,
+            staleAfterMinutes: 60,
+            futureToleranceMinutes: 15,
+            maximumSelectionScore: 60,
+          } as const;
+          '''
+          if source_marker not in text:
+            raise SystemExit("geographicSource marker not found")
+          text = text.replace(source_marker, criteria, 1)
+          text = text.replace('schemaVersion: "1.0",', 'schemaVersion: "1.1",', 1)
+
+          old = '''    stationSelection: usesLocalObservation
+                ? {
+                  policyVersion: "1",
+                  status: "selected",
+                  reasonCode: "BEST_ELIGIBLE_STATION",
+                  evaluatedCandidates: 2,
+                  eligibleCandidates: 1,
+                  selectedStationId: "000UB",
+                }
+                : {
+                  policyVersion: "1",
+                  status: "no_measurements",
+                  reasonCode: "NO_VALID_MEASUREMENTS",
+                  evaluatedCandidates: 0,
+                  eligibleCandidates: 0,
+                  selectedStationId: null,
+                },
+          '''
+          new = '''    stationSelection: usesLocalObservation
+                ? {
+                  policyVersion: "1",
+                  status: "selected",
+                  reasonCode: "BEST_ELIGIBLE_STATION",
+                  message: "Une station suffisamment représentative a été retenue.",
+                  receivedMeasurements: 2,
+                  evaluatedCandidates: 2,
+                  eligibleCandidates: 1,
+                  selectedStationId: "000UB",
+                  criteria: stationSelectionCriteria,
+                  nearestCandidate: {
+                    id: "000UB",
+                    name: "Valleraugue",
+                    network: "infoclimat",
+                    altitudeM: 400,
+                    distanceKm: 1.6,
+                    altitudeDifferenceM: Math.abs(profile.altitudeM - 400),
+                    observedAt: retrievedAt,
+                    ageMinutes: 12,
+                    selectionScore: 11.4,
+                    measurementValid: true,
+                    eligible: true,
+                    selected: true,
+                    rejectionReasons: [],
+                  },
+                  rejectionSummary: [],
+                }
+                : {
+                  policyVersion: "1",
+                  status: "no_measurements",
+                  reasonCode: "NO_VALID_MEASUREMENTS",
+                  message: "Aucune observation locale valide n’a été reçue.",
+                  receivedMeasurements: 0,
+                  evaluatedCandidates: 0,
+                  eligibleCandidates: 0,
+                  selectedStationId: null,
+                  criteria: stationSelectionCriteria,
+                  nearestCandidate: null,
+                  rejectionSummary: [],
+                },
+          '''
+          if old not in text:
+            raise SystemExit("stationSelection block not found")
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Valider le frontend
+        run: |
+          pnpm --filter meteo-web test
+          pnpm --filter meteo-web build
+      - name: Commit de la fixture
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/meteo-web/src/mocks/fixtures.ts
+          git commit -m "fix(meteo-web): aligne les fixtures sur la provenance 1.1"
+          git push origin HEAD:feat/meteo-station-diagnostics
