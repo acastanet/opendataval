@@ -1,8 +1,10 @@
 import type {
   EssentialWeather,
   LocationSummary,
+  ProvenanceValue,
   ResolvedLocation,
   WeatherCoordinates,
+  WeatherProvenance,
 } from "../api/contracts";
 
 export const locations: LocationSummary[] = [
@@ -77,6 +79,26 @@ const profiles = {
   },
 };
 
+const modelSource = {
+  id: "open-meteo-meteofrance",
+  name: "Open-Meteo",
+  provider: "Open-Meteo",
+  product: "Météo-France seamless",
+  model: "AROME / ARPEGE",
+  url: "https://open-meteo.com/",
+  license: null,
+};
+
+const geographicSource = {
+  id: "ign-geocodage",
+  name: "Géoplateforme IGN",
+  provider: "IGN",
+  product: "Géocodage inverse",
+  model: null,
+  url: "https://data.geopf.fr/",
+  license: null,
+};
+
 function closestLocation(coordinates: WeatherCoordinates): LocationSummary {
   return locations.reduce((closest, candidate) => {
     const distance = Math.hypot(
@@ -93,6 +115,158 @@ function closestLocation(coordinates: WeatherCoordinates): LocationSummary {
 
 function addHours(date: Date, hours: number): string {
   return new Date(date.getTime() + hours * 60 * 60 * 1_000).toISOString();
+}
+
+function provenanceValue(
+  value: Partial<ProvenanceValue> & Pick<ProvenanceValue, "nature" | "label">,
+  retrievedAt: string,
+): ProvenanceValue {
+  return {
+    status: "available",
+    source: null,
+    time: { observedAt: null, validAt: null, generatedAt: null, retrievedAt },
+    quality: { stale: false, ageMinutes: null, spatialResolution: null, modelPoint: null },
+    station: null,
+    derivedFrom: [],
+    notes: [],
+    ...value,
+  };
+}
+
+function weatherProvenance(
+  preset: LocationSummary,
+  profile: (typeof profiles)[keyof typeof profiles],
+  now: Date,
+  usesLocalObservation: boolean,
+): WeatherProvenance {
+  const retrievedAt = now.toISOString();
+  const modelPoint = {
+    latitude: preset.latitude,
+    longitude: preset.longitude,
+    altitudeM: profile.altitudeM,
+  };
+  const modelValue = (label: string, validAt = retrievedAt): ProvenanceValue => provenanceValue({
+    nature: "model",
+    label,
+    source: modelSource,
+    time: { observedAt: null, validAt, generatedAt: null, retrievedAt },
+    quality: {
+      stale: false,
+      ageMinutes: null,
+      spatialResolution: "1,5 à 2,5 km",
+      modelPoint,
+    },
+  }, retrievedAt);
+
+  const currentTemperature = usesLocalObservation
+    ? provenanceValue({
+      nature: "observation",
+      label: "Mesure locale",
+      source: {
+        id: "infoclimat-static",
+        name: "Infoclimat StatIC",
+        provider: "Infoclimat",
+        product: "Réseau StatIC",
+        model: null,
+        url: "https://www.infoclimat.fr/",
+        license: "CC BY-NC 4.0",
+      },
+      time: { observedAt: retrievedAt, validAt: null, generatedAt: null, retrievedAt },
+      quality: { stale: false, ageMinutes: 12, spatialResolution: null, modelPoint: null },
+      station: {
+        id: "000UB",
+        name: "Valleraugue",
+        network: "infoclimat",
+        altitudeM: 400,
+        distanceKm: 1.6,
+        altitudeDifferenceM: Math.abs(profile.altitudeM - 400),
+        ageMinutes: 12,
+        selectionScore: 11.4,
+        license: "CC BY-NC 4.0",
+      },
+    }, retrievedAt)
+    : modelValue("Prévision modélisée");
+
+  return {
+    schemaVersion: "1.0",
+    weatherMode: usesLocalObservation ? "hybrid" : "model",
+    summary: usesLocalObservation
+      ? "Température mesurée localement ; ressenti, état du ciel et prévisions modélisés."
+      : "Conditions et prévisions modélisées ; aucune mesure locale représentative n’est utilisée.",
+    values: {
+      municipality: provenanceValue({
+        nature: "geographic",
+        label: "Commune issue de l’IGN",
+        source: geographicSource,
+      }, retrievedAt),
+      department: provenanceValue({
+        nature: "geographic",
+        label: "Département issu de l’IGN",
+        source: geographicSource,
+      }, retrievedAt),
+      altitude: provenanceValue({
+        nature: "geographic",
+        label: "Altitude issue de l’IGN",
+        source: { ...geographicSource, id: "ign-altimetrie", product: "RGE ALTI" },
+      }, retrievedAt),
+      currentTemperature,
+      apparentTemperature: modelValue("Ressenti modélisé"),
+      weatherCondition: modelValue("Condition modélisée"),
+      todayRange: modelValue("Minimum et maximum modélisés"),
+      nextChange: provenanceValue({
+        nature: "derived",
+        label: "Changement calculé par OpenDataVal",
+        source: {
+          id: "opendataval-derived",
+          name: "OpenDataVal",
+          provider: "OpenDataVal",
+          product: "Calcul de présentation",
+          model: null,
+          url: null,
+          license: null,
+        },
+        time: { observedAt: null, validAt: addHours(now, 3), generatedAt: null, retrievedAt },
+        derivedFrom: ["nextHours"],
+      }, retrievedAt),
+      nextHours: modelValue("Prévisions horaires modélisées", addHours(now, 1)),
+      alert: provenanceValue({
+        nature: "official",
+        label: "Vigilance officielle Météo-France",
+        source: {
+          id: "meteofrance-vigilance",
+          name: "Vigilance Météo-France",
+          provider: "Météo-France",
+          product: "DPVigilance",
+          model: null,
+          url: "https://vigilance.meteofrance.fr/fr",
+          license: "Licence Ouverte 2.0",
+        },
+        time: {
+          observedAt: null,
+          validAt: addHours(now, 24),
+          generatedAt: retrievedAt,
+          retrievedAt,
+        },
+      }, retrievedAt),
+    },
+    stationSelection: usesLocalObservation
+      ? {
+        policyVersion: "1",
+        status: "selected",
+        reasonCode: "BEST_ELIGIBLE_STATION",
+        evaluatedCandidates: 2,
+        eligibleCandidates: 1,
+        selectedStationId: "000UB",
+      }
+      : {
+        policyVersion: "1",
+        status: "no_measurements",
+        reasonCode: "NO_VALID_MEASUREMENTS",
+        evaluatedCandidates: 0,
+        eligibleCandidates: 0,
+        selectedStationId: null,
+      },
+  };
 }
 
 export function resolvedLocationFixture(
@@ -190,6 +364,7 @@ export function essentialWeatherFixture(
       departmentCode: profile.department.code,
       indisponible: false,
     },
+    provenance: weatherProvenance(preset, profile, now, usesLocalObservation),
     unavailableSources: [],
     generatedAt: new Date().toISOString(),
   };
