@@ -48,7 +48,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Retourne les données nécessaires à la lecture météo essentielle */
+        /**
+         * Retourne les données nécessaires à la lecture météo essentielle
+         * @description Le contrat 1.3.0 ajoute une provenance structurée par valeur tout en conservant les champs 1.2.0 de compatibilité.
+         */
         get: operations["getEssentialWeather"];
         put?: never;
         post?: never;
@@ -181,9 +184,174 @@ export interface components {
             nextChange: components["schemas"]["NextChange"];
             nextHours: components["schemas"]["HourForecast"][];
             alert: components["schemas"]["WeatherAlert"];
+            provenance: components["schemas"]["provenance.schema"];
             unavailableSources: string[];
             /** Format: date-time */
             generatedAt: string;
+        };
+        modelPoint: {
+            latitude: number | null;
+            longitude: number | null;
+            altitudeM: number | null;
+        } | null;
+        source: {
+            id: string;
+            name: string;
+            provider: string | null;
+            product: string | null;
+            model: string | null;
+            /** Format: uri */
+            url: string | null;
+            license: string | null;
+        } | null;
+        time: {
+            /** Format: date-time */
+            observedAt: string | null;
+            /** Format: date-time */
+            validAt: string | null;
+            /** Format: date-time */
+            generatedAt: string | null;
+            /** Format: date-time */
+            retrievedAt: string | null;
+        };
+        quality: {
+            stale: boolean;
+            ageMinutes: number | null;
+            spatialResolution: string | null;
+            modelPoint: components["schemas"]["modelPoint"];
+        };
+        station: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            network: "meteofrance" | "infoclimat";
+            altitudeM: number;
+            distanceKm: number;
+            altitudeDifferenceM: number | null;
+            ageMinutes: number;
+            selectionScore: number;
+            license: string | null;
+        } | null;
+        /** @enum {string} */
+        valueKey: "municipality" | "department" | "altitude" | "currentTemperature" | "apparentTemperature" | "weatherCondition" | "todayRange" | "nextChange" | "nextHours" | "alert";
+        valueProvenance: {
+            /** @enum {string} */
+            status: "available" | "partial" | "unavailable";
+            /** @enum {string} */
+            nature: "observation" | "model" | "official" | "geographic" | "derived" | "fallback" | "unavailable";
+            label: string;
+            source: components["schemas"]["source"];
+            time: components["schemas"]["time"];
+            quality: components["schemas"]["quality"];
+            station: components["schemas"]["station"];
+            derivedFrom: components["schemas"]["valueKey"][];
+            notes: string[];
+        } & (unknown & unknown & unknown);
+        stationSelection: {
+            /** @constant */
+            policyVersion: "1";
+            /** @enum {string} */
+            status: "selected" | "no_measurements" | "no_eligible_station" | "provider_unavailable" | "not_evaluated";
+            /** @enum {string} */
+            reasonCode: "BEST_ELIGIBLE_STATION" | "NO_VALID_MEASUREMENTS" | "NO_ELIGIBLE_STATION" | "STATION_DATA_UNAVAILABLE" | "SELECTION_NOT_RUN";
+            evaluatedCandidates: number | null;
+            eligibleCandidates: number | null;
+            selectedStationId: string | null;
+        } & (unknown & unknown & unknown & unknown & unknown);
+        /**
+         * OpenDataVal — provenance météo essentielle 1.0
+         * @description Sous-contrat public de provenance prévu pour GET /api/v1/meteo/essential.
+         */
+        "provenance.schema": {
+            /** @constant */
+            schemaVersion: "1.0";
+            /** @enum {string} */
+            weatherMode: "model" | "observation" | "hybrid" | "unavailable";
+            summary: string;
+            values: {
+                municipality: components["schemas"]["valueProvenance"];
+                department: components["schemas"]["valueProvenance"];
+                altitude: components["schemas"]["valueProvenance"];
+                currentTemperature: components["schemas"]["valueProvenance"];
+                apparentTemperature: components["schemas"]["valueProvenance"];
+                weatherCondition: components["schemas"]["valueProvenance"];
+                todayRange: components["schemas"]["valueProvenance"];
+                nextChange: components["schemas"]["valueProvenance"];
+                nextHours: components["schemas"]["valueProvenance"];
+                alert: components["schemas"]["valueProvenance"];
+            };
+            stationSelection: components["schemas"]["stationSelection"];
+            $defs: {
+                source: {
+                    id: string;
+                    name: string;
+                    provider: string | null;
+                    product: string | null;
+                    model: string | null;
+                    /** Format: uri */
+                    url: string | null;
+                    license: string | null;
+                } | null;
+                time: {
+                    /** Format: date-time */
+                    observedAt: string | null;
+                    /** Format: date-time */
+                    validAt: string | null;
+                    /** Format: date-time */
+                    generatedAt: string | null;
+                    /** Format: date-time */
+                    retrievedAt: string | null;
+                };
+                modelPoint: {
+                    latitude: number | null;
+                    longitude: number | null;
+                    altitudeM: number | null;
+                } | null;
+                quality: {
+                    stale: boolean;
+                    ageMinutes: number | null;
+                    spatialResolution: string | null;
+                    modelPoint: components["schemas"]["modelPoint"];
+                };
+                station: {
+                    id: string;
+                    name: string;
+                    /** @enum {string} */
+                    network: "meteofrance" | "infoclimat";
+                    altitudeM: number;
+                    distanceKm: number;
+                    altitudeDifferenceM: number | null;
+                    ageMinutes: number;
+                    selectionScore: number;
+                    license: string | null;
+                } | null;
+                /** @enum {string} */
+                valueKey: "municipality" | "department" | "altitude" | "currentTemperature" | "apparentTemperature" | "weatherCondition" | "todayRange" | "nextChange" | "nextHours" | "alert";
+                valueProvenance: {
+                    /** @enum {string} */
+                    status: "available" | "partial" | "unavailable";
+                    /** @enum {string} */
+                    nature: "observation" | "model" | "official" | "geographic" | "derived" | "fallback" | "unavailable";
+                    label: string;
+                    source: components["schemas"]["source"];
+                    time: components["schemas"]["time"];
+                    quality: components["schemas"]["quality"];
+                    station: components["schemas"]["station"];
+                    derivedFrom: components["schemas"]["valueKey"][];
+                    notes: string[];
+                } & (unknown & unknown & unknown);
+                stationSelection: {
+                    /** @constant */
+                    policyVersion: "1";
+                    /** @enum {string} */
+                    status: "selected" | "no_measurements" | "no_eligible_station" | "provider_unavailable" | "not_evaluated";
+                    /** @enum {string} */
+                    reasonCode: "BEST_ELIGIBLE_STATION" | "NO_VALID_MEASUREMENTS" | "NO_ELIGIBLE_STATION" | "STATION_DATA_UNAVAILABLE" | "SELECTION_NOT_RUN";
+                    evaluatedCandidates: number | null;
+                    eligibleCandidates: number | null;
+                    selectedStationId: string | null;
+                } & (unknown & unknown & unknown & unknown & unknown);
+            };
         };
     };
     responses: never;
@@ -258,7 +426,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Lecture météo normalisée */
+            /** @description Lecture météo normalisée avec provenance structurée */
             200: {
                 headers: {
                     [name: string]: unknown;

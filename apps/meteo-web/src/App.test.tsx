@@ -55,7 +55,7 @@ describe("essential weather screen", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByTestId("current-temperature")).toHaveTextContent("27°");
-    expect(screen.getByText("Mesure locale")).toBeInTheDocument();
+    expect(screen.getAllByText("Mesure locale").length).toBeGreaterThan(0);
     expect(screen.getByText(/station Infoclimat Valleraugue/)).toBeInTheDocument();
     expect(
       screen.getByText("Val-d’Aigoual · Gard (30) · 351 m d’altitude"),
@@ -63,6 +63,14 @@ describe("essential weather screen", () => {
     expect(screen.getByText("Prochain changement")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Aucune vigilance particulière" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("D’où viennent ces données ?"));
+    expect(
+      screen.getByRole("heading", { name: "Infoclimat StatIC — Réseau StatIC" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Sélection automatique · politique 1" }),
     ).toBeInTheDocument();
   });
 
@@ -98,5 +106,6 @@ describe("essential weather screen", () => {
     });
     expect(screen.getByText("Soleil, mistral modéré")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Vigilance orange" })).toBeInTheDocument();
+    expect(screen.getAllByText("Prévision modélisée").length).toBeGreaterThan(0);
   });
 });
