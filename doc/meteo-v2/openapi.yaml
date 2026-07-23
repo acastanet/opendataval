@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: "OpenDataVal — API Météo V2"
-  version: "1.4.0"
+  version: "1.5.0"
   description: "Contrat stable entre les collectes et calculs météo d’OpenDataVal et l’interface indépendante Météo V2."
 servers:
   - url: /
@@ -84,6 +84,24 @@ paths:
           description: Coordonnées invalides
         '503':
           description: Aucune donnée météo exploitable
+  /api/v1/meteo/health:
+    get:
+      operationId: getWeatherHealth
+      summary: Vérifie la couverture, la fraîcheur et les dernières ingestions météo
+      description: Retourne uniquement des agrégats opérationnels et n’expose ni secret ni message d’erreur interne.
+      responses:
+        '200':
+          description: État opérationnel des observations météo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeteoObservationHealth'
+        '503':
+          description: Diagnostic indisponible car PostgreSQL ne répond pas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeteoHealthUnavailable'
 components:
   schemas:
     LocationSummary: {"type":"object","additionalProperties":false,"required":["id","label","shortLabel","latitude","longitude"],"properties":{"id":{"type":"string"},"label":{"type":"string"},"shortLabel":{"type":"string"},"latitude":{"type":"number"},"longitude":{"type":"number"}}}
@@ -103,3 +121,10 @@ components:
     HourForecast: {"type":"object","additionalProperties":false,"required":["at","temperatureC","rainProbabilityPercent","windGustKmh"],"properties":{"at":{"type":"string","format":"date-time"},"temperatureC":{"type":"number"},"rainProbabilityPercent":{"type":"integer","minimum":0,"maximum":100},"windGustKmh":{"type":"number"}}}
     WeatherAlert: {"type":"object","additionalProperties":false,"required":["level","title","phenomena","validUntil","sourceUrl","departmentCode","indisponible"],"properties":{"level":{"$ref":"#/components/schemas/AlertLevel"},"title":{"type":"string"},"phenomena":{"type":"array","items":{"type":"string"}},"validUntil":{"type":"string","format":"date-time"},"sourceUrl":{"type":"string","format":"uri"},"departmentCode":{"type":["string","null"],"description":"Département réellement utilisé pour interroger la vigilance."},"indisponible":{"type":"boolean","description":"true si la vigilance officielle n’a pas pu être établie."}}}
     EssentialWeather: {"type":"object","additionalProperties":false,"required":["location","current","today","nextChange","nextHours","alert","provenance","unavailableSources","generatedAt"],"properties":{"location":{"$ref":"#/components/schemas/Location"},"current":{"$ref":"#/components/schemas/CurrentWeather"},"today":{"$ref":"#/components/schemas/DayRange"},"nextChange":{"$ref":"#/components/schemas/NextChange"},"nextHours":{"type":"array","minItems":1,"items":{"$ref":"#/components/schemas/HourForecast"}},"alert":{"$ref":"#/components/schemas/WeatherAlert"},"provenance":{"$ref":"./provenance.schema.json"},"unavailableSources":{"type":"array","items":{"type":"string"}},"generatedAt":{"type":"string","format":"date-time"}}}
+    MeteoHealthJobName: {"type":"string","enum":["meteo_stations","meteo_obs_national","meteo_obs","meteo_radome","meteo_infoclimat"]}
+    MeteoHealthDegradedReason: {"type":"string","enum":["catalogue_empty","catalogue_incomplete","observations_empty","observations_stale","critical_ingestion_error","critical_ingestion_never_succeeded"]}
+    MeteoIngestionHealth: {"type":"object","additionalProperties":false,"required":["source","critical","lastAttemptAt","lastAttemptCompletedAt","lastAttemptStatus","lastAttemptRows","lastAttemptHadError","lastSuccessAt","lastSuccessRows"],"properties":{"source":{"$ref":"#/components/schemas/MeteoHealthJobName"},"critical":{"type":"boolean"},"lastAttemptAt":{"type":["string","null"],"format":"date-time"},"lastAttemptCompletedAt":{"type":["string","null"],"format":"date-time"},"lastAttemptStatus":{"oneOf":[{"type":"string","enum":["ok","partiel","erreur","running","unknown"]},{"type":"null"}]},"lastAttemptRows":{"type":["integer","null"],"minimum":0},"lastAttemptHadError":{"type":"boolean"},"lastSuccessAt":{"type":["string","null"],"format":"date-time"},"lastSuccessRows":{"type":["integer","null"],"minimum":0}}}
+    MeteoHealthCatalogue: {"type":"object","additionalProperties":false,"required":["stationCount","minimumExpectedStations","updatedAt","status"],"properties":{"stationCount":{"type":"integer","minimum":0},"minimumExpectedStations":{"type":"integer","minimum":1},"updatedAt":{"type":["string","null"],"format":"date-time"},"status":{"type":"string","enum":["ready","incomplete","empty"]}}}
+    MeteoHealthObservations: {"type":"object","additionalProperties":false,"required":["observedStationCount","freshStationCount","freshObservationCount","latestObservationAt","latestObservationAgeMinutes","maximumAgeMinutes","status"],"properties":{"observedStationCount":{"type":"integer","minimum":0},"freshStationCount":{"type":"integer","minimum":0},"freshObservationCount":{"type":"integer","minimum":0},"latestObservationAt":{"type":["string","null"],"format":"date-time"},"latestObservationAgeMinutes":{"type":["number","null"],"minimum":0},"maximumAgeMinutes":{"type":"integer","minimum":1},"status":{"type":"string","enum":["fresh","stale","empty"]}}}
+    MeteoObservationHealth: {"type":"object","additionalProperties":false,"required":["schemaVersion","status","degradedReasons","catalogue","observations","ingestion","generatedAt"],"properties":{"schemaVersion":{"type":"string","const":"1"},"status":{"type":"string","enum":["ok","degraded"]},"degradedReasons":{"type":"array","items":{"$ref":"#/components/schemas/MeteoHealthDegradedReason"}},"catalogue":{"$ref":"#/components/schemas/MeteoHealthCatalogue"},"observations":{"$ref":"#/components/schemas/MeteoHealthObservations"},"ingestion":{"type":"array","items":{"$ref":"#/components/schemas/MeteoIngestionHealth"}},"generatedAt":{"type":"string","format":"date-time"}}}
+    MeteoHealthUnavailable: {"type":"object","additionalProperties":false,"required":["schemaVersion","status","reason","generatedAt"],"properties":{"schemaVersion":{"type":"string","const":"1"},"status":{"type":"string","const":"unavailable"},"reason":{"type":"string","const":"database_unavailable"},"generatedAt":{"type":"string","format":"date-time"}}}
