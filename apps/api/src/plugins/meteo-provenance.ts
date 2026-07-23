@@ -4,9 +4,13 @@ import { buildEssentialProvenance } from "../lib/meteo-provenance.js";
 import { addStationSelectionDiagnostics } from "../lib/meteo-station-selection-provenance.js";
 import {
   currentStationObservationContext,
+  recordStationSearchTarget,
   runWithStationObservationContext,
 } from "../lib/station-observation-context.js";
-import { evaluateStationObservations } from "../lib/station-observations.js";
+import {
+  evaluateStationObservations,
+  type StationSearchTarget,
+} from "../lib/station-observations.js";
 
 interface EssentialWeatherPayload {
   location: {
@@ -56,6 +60,24 @@ function isEssentialWeatherPayload(payload: unknown): payload is EssentialWeathe
 
 function isEssentialRequest(rawUrl: string | undefined): boolean {
   return rawUrl?.split("?", 1)[0] === "/api/v1/meteo/essential";
+}
+
+function stationSearchTarget(rawUrl: string | undefined): StationSearchTarget | null {
+  if (!isEssentialRequest(rawUrl) || rawUrl === undefined) return null;
+  const url = new URL(rawUrl, "http://localhost");
+  const latitude = Number(url.searchParams.get("lat"));
+  const longitude = Number(url.searchParams.get("lon"));
+  if (
+    !Number.isFinite(latitude)
+    || !Number.isFinite(longitude)
+    || latitude < -90
+    || latitude > 90
+    || longitude < -180
+    || longitude > 180
+  ) {
+    return null;
+  }
+  return { latitude, longitude };
 }
 
 function geographyFromPayload(payload: EssentialWeatherPayload): ResolvedGeography {
@@ -147,8 +169,11 @@ export function enrichEssentialWeatherWithProvenance(
 }
 
 export function registerMeteoProvenanceHooks(app: FastifyInstance): void {
-  app.addHook("onRequest", (_request, _reply, done) => {
-    runWithStationObservationContext(done);
+  app.addHook("onRequest", (request, _reply, done) => {
+    runWithStationObservationContext(() => {
+      recordStationSearchTarget(stationSearchTarget(request.raw.url));
+      done();
+    });
   });
 
   app.addHook("preSerialization", async (request, reply, payload) => {
