@@ -7,7 +7,7 @@
     "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
     "start": "tsx src/index.ts",
     "once": "RUN_ONCE=true tsx --env-file-if-exists=../../.env src/index.ts",
-    "test": "tsx --test src/sources/firms.test.ts src/sources/meteo_stations.test.ts"
+    "test": "tsx --test src/sources/firms.test.ts src/sources/meteo_stations.test.ts src/sources/meteo_obs_national.test.ts"
   },
   "dependencies": {
     "@opendata-vda/shared": "workspace:*",
