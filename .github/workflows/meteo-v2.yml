@@ -71,7 +71,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --reporter=silent
       - name: Tests gateway
-        run: pnpm --filter gateway-service test
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter gateway-service test 2>&1 | tee gateway-test.log
+      - name: Publier la sortie des tests gateway
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-test-output
+          path: gateway-test.log
+          if-no-files-found: warn
       - name: Typage gateway
         run: pnpm --filter gateway-service typecheck
 
