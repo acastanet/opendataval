@@ -5,6 +5,7 @@ on:
     paths:
       - "apps/api/**"
       - "apps/gateway-service/**"
+      - "apps/geography-service/**"
       - "apps/meteo-web/**"
       - "apps/web/**"
       - "apps/worker/**"
@@ -90,6 +91,26 @@ jobs:
             gateway-typecheck.log
           if-no-files-found: warn
 
+  geography:
+    name: Geography Service
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Tests geography service
+        run: pnpm --filter geography-service test
+      - name: Typage geography service
+        run: pnpm --filter geography-service typecheck
+
   worker:
     name: Worker météo
     runs-on: ubuntu-latest
@@ -169,6 +190,8 @@ jobs:
         run: docker build --file apps/api/Dockerfile --tag opendataval-api:test .
       - name: Construire l’image gateway
         run: docker build --file apps/gateway-service/Dockerfile --tag opendataval-gateway:test .
+      - name: Construire l’image geography service
+        run: docker build --file apps/geography-service/Dockerfile --tag opendataval-geography:test .
       - name: Construire l’image worker
         run: docker build --file apps/worker/Dockerfile --tag opendataval-worker:test .
       - name: Construire l’image Caddy

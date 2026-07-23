@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { loadConfig, type GatewayConfig } from "./config.js";
 import { registerLegacyProxy, type FetchLike } from "./legacy-proxy.js";
+import { registerGeographyProxy } from "./geography-proxy.js";
 
 export interface BuildAppOptions {
   config?: GatewayConfig;
@@ -130,6 +131,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   );
 
   registerLegacyProxy(app, config, fetchImpl);
+  registerGeographyProxy(app, config, fetchImpl);
 
   app.setErrorHandler((error, request, reply) => {
     const normalized = normalizeError(error);

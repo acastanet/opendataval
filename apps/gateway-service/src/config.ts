@@ -3,6 +3,8 @@ export interface GatewayConfig {
   port: number;
   legacyApiUrl: string;
   upstreamTimeoutMs: number;
+  geographyServiceUrl: string;
+  geographyServiceTimeoutMs: number;
   version: string;
 }
 
@@ -35,6 +37,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       env.GATEWAY_UPSTREAM_TIMEOUT_MS,
       5_000,
       "GATEWAY_UPSTREAM_TIMEOUT_MS",
+    ),
+    geographyServiceUrl: normalizeHttpUrl(
+      env.GEOGRAPHY_SERVICE_URL?.trim() || "http://geography-service:3000",
+      "GEOGRAPHY_SERVICE_URL",
+    ),
+    geographyServiceTimeoutMs: positiveInteger(
+      env.GEOGRAPHY_SERVICE_TIMEOUT_MS,
+      3_000,
+      "GEOGRAPHY_SERVICE_TIMEOUT_MS",
     ),
     version: env.APP_VERSION?.trim() || env.GIT_SHA?.trim() || "dev",
   };

@@ -42,9 +42,36 @@ services:
       PORT: 3000
       LEGACY_API_URL: http://api:3000
       GATEWAY_UPSTREAM_TIMEOUT_MS: ${GATEWAY_UPSTREAM_TIMEOUT_MS:-5000}
+      GEOGRAPHY_SERVICE_URL: http://geography-service:3000
+      GEOGRAPHY_SERVICE_TIMEOUT_MS: ${GEOGRAPHY_SERVICE_TIMEOUT_MS:-3000}
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
       - api
+      - geography-service
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  geography-service:
+    build:
+      context: .
+      dockerfile: apps/geography-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      TERRITORY_UPSTREAM_URL: ${TERRITORY_UPSTREAM_URL:-https://geo.api.gouv.fr}
+      REVERSE_GEOCODING_UPSTREAM_URL: ${REVERSE_GEOCODING_UPSTREAM_URL:-https://data.geopf.fr/geocodage}
+      ELEVATION_UPSTREAM_URL: ${ELEVATION_UPSTREAM_URL:-https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json}
+      TERRITORY_TIMEOUT_MS: ${TERRITORY_TIMEOUT_MS:-2000}
+      REVERSE_GEOCODING_TIMEOUT_MS: ${REVERSE_GEOCODING_TIMEOUT_MS:-2000}
+      ELEVATION_TIMEOUT_MS: ${ELEVATION_TIMEOUT_MS:-2000}
+      GEOGRAPHY_GLOBAL_TIMEOUT_MS: ${GEOGRAPHY_GLOBAL_TIMEOUT_MS:-2500}
+      APP_VERSION: ${APP_VERSION:-dev}
     expose:
       - "3000"
     healthcheck:
