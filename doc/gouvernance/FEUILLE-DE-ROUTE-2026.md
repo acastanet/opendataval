@@ -1,6 +1,6 @@
 # Feuille de route 2026 — Portail Open Data Val-d'Aigoual
 
-> **Document de référence** : cette feuille de route remplace fonctionnellement `doc/ROADMAP.md` (v1 du 2026-07-10, désynchronisée du code) et l'ancien plan `doc/archive/plan-vision-globale-v4.md`.
+> **Document de référence** : cette feuille de route remplace fonctionnellement `doc/gouvernance/ROADMAP.md` (v1 du 2026-07-10, désynchronisée du code) et l'ancien plan `doc/archive/plan-vision-globale-v4.md`.
 > **Version** : 1.0 — **Date** : 2026-07-12
 > **Orientation validée par le commanditaire** : **socle modulaire d'abord** — l'ajout de nouvelles sources est gelé le temps du chantier A.
 
@@ -25,7 +25,7 @@
 
 Deux constats motivent ce document :
 
-1. **La documentation de pilotage a décroché du code.** `doc/ROADMAP.md` (10/07) annonce « 11/17 sources, 5/14 pages, brique météo bloquée » ; en réalité la brique météo est entièrement livrée et le projet compte 17 jobs planifiés. L'état des lieux ci-dessous rétablit les faits, vérifiés fichier par fichier.
+1. **La documentation de pilotage a décroché du code.** `doc/gouvernance/ROADMAP.md` (10/07) annonce « 11/17 sources, 5/14 pages, brique météo bloquée » ; en réalité la brique météo est entièrement livrée et le projet compte 17 jobs planifiés. L'état des lieux ci-dessous rétablit les faits, vérifiés fichier par fichier.
 
 2. **Un problème structurel identifié par le commanditaire** : *chaque nouvelle source open data rend le site plus complexe et moins lisible*. Le constat est confirmé dans le code (voir [Diagnostic](#diagnostic--le-coût-dajout-dune-source)). Continuer à empiler des sources sur l'architecture actuelle aggraverait le problème : la priorité passe donc à un **chantier socle** qui rend le coût marginal d'une source quasi nul côté front, puis seulement ensuite à la reprise des briques de données.
 

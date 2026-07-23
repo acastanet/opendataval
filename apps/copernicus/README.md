@@ -112,4 +112,4 @@ l'ajout des tableaux de dates ne masque pas les valeurs nouvellement calculées.
 | fichier vide ou incomplet | conserver le dernier agrégat valide et relancer |
 
 Pour la procédure d'exploitation générale, consulter
-[`doc/EXPLOITATION-COPERNICUS.md`](../../doc/EXPLOITATION-COPERNICUS.md).
+[`doc/microservice/copernicus/exploitation.md`](../../doc/microservice/copernicus/exploitation.md).

@@ -447,5 +447,5 @@ Le lot 1 est considéré comme réalisé car :
 - `apps/meteo-web/src/api/contracts.ts`
 - `apps/web/src/pages/meteo/essentiel.astro`
 - `apps/web/src/islands/MeteoEssentiel.svelte`
-- `doc/meteo-v2/openapi.yaml`
-- `doc/meteo-v2/specification-v2.md`
+- `doc/architecture/conception-v2/openapi.yaml`
+- `doc/architecture/conception-v2/specification-v2.md`

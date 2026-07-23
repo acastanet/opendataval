@@ -75,7 +75,7 @@ Les deux écrans ont des objectifs différents :
 - **`/incendies/` — Conseils officiels** : première page à consulter sur le terrain. Elle privilégie le niveau officiel, les règles applicables et le repérage simple des massifs.
 - **`/incendies/temps-reel/` — Temps réel & données** : espace destiné aux personnes qui souhaitent explorer les détections thermiques et les périmètres. Une détection FIRMS peut correspondre à un feu, mais aussi à une autre source de chaleur ; elle ne vaut pas confirmation opérationnelle.
 
-Les sources et le périmètre du MVP sont décrits dans [../doc/mini_app_incendie.md](../doc/mini_app_incendie.md). Le périmètre de veille combine l'EPCI, la ZNIEFF II et les tampons de 5 et 15 km. L'historique consolidé et EFFIS sont hors MVP.
+Les sources et le périmètre du MVP sont décrits dans [../doc/v1/incendies/mini-app-incendie.md](../doc/v1/incendies/mini-app-incendie.md). Le périmètre de veille combine l'EPCI, la ZNIEFF II et les tampons de 5 et 15 km. L'historique consolidé et EFFIS sont hors MVP.
 
 ## Lancer et vérifier les mini-apps
 
