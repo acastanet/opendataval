@@ -14,6 +14,7 @@ import * as signesQualite from "./sources/signesQualite.js";
 import * as metaSources from "./sources/metaSources.js";
 import * as inseePopulation from "./sources/insee_population.js";
 import * as meteoStations from "./sources/meteo_stations.js";
+import * as meteoObsNational from "./sources/meteo_obs_national.js";
 import * as meteoObs from "./sources/meteo_obs.js";
 import * as meteoRadome from "./sources/meteo_radome.js";
 import * as meteoInfoclimat from "./sources/meteo_infoclimat.js";
@@ -60,14 +61,20 @@ export const JOBS: SourceJob[] = [
     actif: () => Boolean(process.env.METEOFRANCE_API_TOKEN),
   },
   {
+    slug: "meteo_obs_national",
+    cron: "18 * * * *", // paquet de toutes les stations après publication horaire vers H+10
+    run: meteoObsNational.run,
+    actif: () => Boolean(process.env.METEOFRANCE_API_TOKEN),
+  },
+  {
     slug: "meteo_obs",
-    cron: "20 * * * *", // horaire (hh:20, après publication DPObs vers hh+5/+15)
+    cron: "20 * * * *", // repli ciblé historique pour les stations locales
     run: meteoObs.run,
     actif: () => Boolean(process.env.METEOFRANCE_API_TOKEN),
   },
   {
     slug: "meteo_radome",
-    cron: "*/6 * * * *", // toutes les 6 minutes, stations RADOME
+    cron: "*/6 * * * *", // toutes les 6 minutes, stations RADOME locales
     run: meteoRadome.run,
     actif: () => Boolean(process.env.METEOFRANCE_API_TOKEN),
   },
