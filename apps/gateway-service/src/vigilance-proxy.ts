@@ -49,7 +49,7 @@ export function registerVigilanceProxy(app: FastifyInstance, config: GatewayConf
       const url = new URL(`${config.geographyServiceUrl}/internal/v1/geography/resolve`);
       url.searchParams.set("lat", parsed.lat); url.searchParams.set("lon", parsed.lon);
       if (parsed.accuracy !== undefined) url.searchParams.set("horizontalAccuracyMeters", parsed.accuracy);
-      url.searchParams.set("positionSource", "manual");
+      url.searchParams.set("positionSource", parsed.accuracy === undefined ? "manual" : "browser-geolocation");
       try {
         const response = await fetchImpl(url, { headers: { accept: "application/json", "x-request-id": request.id }, signal: AbortSignal.timeout(config.geographyServiceTimeoutMs) });
         if (!response.ok) return reply.code(response.status === 404 ? 422 : response.status).send(await jsonResponse(response));
