@@ -9,6 +9,7 @@ on:
       - "apps/worker/**"
       - "doc/meteo-v2/**"
       - "packages/shared/**"
+      - "scripts/**"
       - "Dockerfile.caddy"
       - "Caddyfile"
       - "docker-compose.yml"
@@ -49,6 +50,8 @@ jobs:
         run: pnpm --filter api test
       - name: Typage API
         run: pnpm --filter api exec tsc --noEmit
+      - name: Syntaxe de la sonde nationale
+        run: node --check scripts/verify-meteo-national.mjs
 
   worker:
     name: Worker météo
