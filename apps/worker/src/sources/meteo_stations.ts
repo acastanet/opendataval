@@ -166,6 +166,7 @@ export async function run(
   const response = await fetch(url, {
     headers: {
       accept: "text/csv,*/*",
+      Authorization: `Bearer ${token}`,
       apikey: token,
       "User-Agent": "opendata-vda-worker/1.0",
     },
