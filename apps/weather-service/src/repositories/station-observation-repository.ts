@@ -1,0 +1,15 @@
+import type pg from "pg";
+import { STATIONS_METEO, type StationMeteo } from "@opendata-vda/shared/stations-meteo";
+import type { StationMeasurement } from "../policies/station-selection-policy.js";
+
+type StationRow = { external_id?: unknown; props?: unknown; latitude?: unknown; longitude?: unknown };
+type ObservationRow = { num_poste?: unknown; t?: unknown; heure_utc?: unknown };
+const num = (value: unknown) => { const parsed = typeof value === "string" || typeof value === "number" ? Number(value) : NaN; return Number.isFinite(parsed) ? parsed : null; };
+function props(value: unknown): Record<string, unknown> | null { if (typeof value === "object" && value !== null && !Array.isArray(value)) return value as Record<string, unknown>; if (typeof value !== "string") return null; try { const parsed: unknown = JSON.parse(value); return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null; } catch { return null; } }
+function station(row: StationRow): StationMeteo | null { const p = props(row.props), id = String(row.external_id ?? "").trim(), lat = num(row.latitude), lon = num(row.longitude), altitudeM = num(p?.altitude_m), reseau = p?.reseau; if (!p || !id || lat === null || lon === null || altitudeM === null || (reseau !== "meteofrance" && reseau !== "infoclimat")) return null; return { id, nom: typeof p.nom === "string" && p.nom.trim() ? p.nom.trim() : id, lat, lon, altitudeM, reseau, licence: typeof p.licence === "string" ? p.licence : "Licence non renseignée" }; }
+export async function loadNearbyStationMeasurements(pool: pg.Pool, latitude: number, longitude: number): Promise<StationMeasurement[]> {
+  const stationRows = await pool.query<StationRow>(`select external_id, props, ST_Y(geom) as latitude, ST_X(geom) as longitude from couches.objets where couche = 'station_meteo' and geom is not null and ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint($1,$2),4326)::geography, 50000) order by ST_Distance(geom::geography, ST_SetSRID(ST_MakePoint($1,$2),4326)::geography), external_id`, [longitude, latitude]);
+  const stations = stationRows.rows.map(station).filter((value): value is StationMeteo => value !== null); const candidates = stations.length > 0 ? stations : STATIONS_METEO.filter((value) => Math.abs(value.lat - latitude) < .5 && Math.abs(value.lon - longitude) < .7); if (!candidates.length) return [];
+  const observations = await pool.query<ObservationRow>(`select distinct on (num_poste) num_poste, t, heure_utc from series.meteo_horaire where num_poste = any($1::text[]) and t is not null order by num_poste, heure_utc desc`, [candidates.map((value) => value.id)]); const byId = new Map(candidates.map((value) => [value.id, value]));
+  return observations.rows.flatMap((row) => { const stationValue = byId.get(String(row.num_poste ?? "")), temperatureC = num(row.t), observedAt = new Date(String(row.heure_utc ?? "")); return stationValue && temperatureC !== null && Number.isFinite(observedAt.getTime()) ? [{ station: stationValue, temperatureC, observedAt: observedAt.toISOString() }] : []; });
+}

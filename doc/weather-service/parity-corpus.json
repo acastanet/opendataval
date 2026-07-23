@@ -1,0 +1,7 @@
+[
+  { "name": "Val-d'Aigoual mairie", "lat": 44.081, "lon": 3.641, "expected": "station_or_model" },
+  { "name": "Mont Aigoual", "lat": 44.121333, "lon": 3.5815, "expected": "station_or_model" },
+  { "name": "Paris", "lat": 48.8566, "lon": 2.3522, "expected": "model_or_local_station" },
+  { "name": "Marseille", "lat": 43.2965, "lon": 5.3698, "expected": "model_or_local_station" },
+  { "name": "Sans altitude", "lat": 44.081, "lon": 3.641, "expected": "only_station_within_5km_or_model" }
+]

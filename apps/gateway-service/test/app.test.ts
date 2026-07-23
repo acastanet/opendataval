@@ -10,6 +10,8 @@ const config: GatewayConfig = {
   upstreamTimeoutMs: 100,
   geographyServiceUrl: "http://geography-service:3000",
   geographyServiceTimeoutMs: 100,
+  weatherServiceUrl: "http://weather-service:3000",
+  weatherServiceTimeoutMs: 100,
   version: "test",
 };
 

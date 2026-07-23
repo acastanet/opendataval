@@ -12,7 +12,8 @@
     "./catalogue": "./src/catalogue.ts",
     "./indicateurs": "./src/indicateurs.ts",
     "./stations-meteo": "./src/stationsMeteo.ts",
-    "./localisations-meteo": "./src/localisationsMeteo.ts"
+    "./localisations-meteo": "./src/localisationsMeteo.ts",
+    "./weather-contracts": "./src/weather-contracts.ts"
   },
   "dependencies": {
     "pg": "^8.13.1"

@@ -44,10 +44,13 @@ services:
       GATEWAY_UPSTREAM_TIMEOUT_MS: ${GATEWAY_UPSTREAM_TIMEOUT_MS:-5000}
       GEOGRAPHY_SERVICE_URL: http://geography-service:3000
       GEOGRAPHY_SERVICE_TIMEOUT_MS: ${GEOGRAPHY_SERVICE_TIMEOUT_MS:-3000}
+      WEATHER_SERVICE_URL: http://weather-service:3000
+      WEATHER_SERVICE_TIMEOUT_MS: ${WEATHER_SERVICE_TIMEOUT_MS:-3000}
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
       - api
       - geography-service
+      - weather-service
     expose:
       - "3000"
     healthcheck:
@@ -72,6 +75,35 @@ services:
       ELEVATION_TIMEOUT_MS: ${ELEVATION_TIMEOUT_MS:-2000}
       GEOGRAPHY_GLOBAL_TIMEOUT_MS: ${GEOGRAPHY_GLOBAL_TIMEOUT_MS:-2500}
       APP_VERSION: ${APP_VERSION:-dev}
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  weather-service:
+    build:
+      context: .
+      dockerfile: apps/weather-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-opendata}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD doit etre defini dans .env}@db:5432/${POSTGRES_DB:-opendata_vda}
+      GEOGRAPHY_SERVICE_URL: http://geography-service:3000
+      WEATHER_MODEL_URL: ${WEATHER_MODEL_URL:-https://api.open-meteo.com/v1/meteofrance}
+      GEOGRAPHY_TIMEOUT_MS: ${GEOGRAPHY_TIMEOUT_MS:-1500}
+      DATABASE_TIMEOUT_MS: ${DATABASE_TIMEOUT_MS:-1000}
+      WEATHER_MODEL_TIMEOUT_MS: ${WEATHER_MODEL_TIMEOUT_MS:-2000}
+      WEATHER_GLOBAL_TIMEOUT_MS: ${WEATHER_GLOBAL_TIMEOUT_MS:-2500}
+      APP_VERSION: ${APP_VERSION:-dev}
+    depends_on:
+      db:
+        condition: service_healthy
+      geography-service:
+        condition: service_started
     expose:
       - "3000"
     healthcheck:
