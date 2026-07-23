@@ -5,6 +5,8 @@ import type { StationMeteo } from "@opendata-vda/shared/stations-meteo";
 import {
   evaluateStationObservations,
   loadLatestStationMeasurements,
+  loadNearbyStationMeasurements,
+  loadNearbyStations,
   selectStationObservation,
   type StationMeasurement,
 } from "./station-observations.js";
@@ -200,4 +202,116 @@ test("normalise les types PostgreSQL et ignore les lignes invalides", async () =
     temperatureC: 21.4,
     observedAt: "2026-07-22T13:30:00.000Z",
   }]);
+});
+
+test("présélectionne dans PostGIS les stations situées autour du point demandé", async () => {
+  const calls: Array<{ sql: string; values: unknown[] }> = [];
+  const pool = {
+    query: async (sql: string, values: unknown[]) => {
+      calls.push({ sql, values });
+      return {
+        rows: [{
+          external_id: "07156",
+          props: {
+            nom: "Paris-Montsouris",
+            altitude_m: "75",
+            reseau: "meteofrance",
+            pack: "RADOME",
+            licence: "Licence Ouverte 2.0",
+          },
+          latitude: "48.8217",
+          longitude: "2.3378",
+        }],
+      };
+    },
+  } as unknown as pg.Pool;
+
+  const stations = await loadNearbyStations(
+    pool,
+    { latitude: 48.8566, longitude: 2.3522 },
+  );
+
+  assert.equal(stations.length, 1);
+  assert.deepEqual(stations[0], {
+    id: "07156",
+    nom: "Paris-Montsouris",
+    altitudeM: 75,
+    lon: 2.3378,
+    lat: 48.8217,
+    reseau: "meteofrance",
+    pack: "RADOME",
+    licence: "Licence Ouverte 2.0",
+  });
+  assert.match(calls[0]?.sql ?? "", /ST_DWithin/);
+  assert.match(calls[0]?.sql ?? "", /couche = 'station_meteo'/);
+  assert.deepEqual(calls[0]?.values, [2.3522, 48.8566, 50_000]);
+});
+
+test("le repli historique reste local et ne propose aucune station cévenole à Paris", async () => {
+  const pool = {
+    query: async () => ({ rows: [] }),
+  } as unknown as pg.Pool;
+
+  const parisStations = await loadNearbyStations(
+    pool,
+    { latitude: 48.8566, longitude: 2.3522 },
+  );
+  const valAigoualStations = await loadNearbyStations(
+    pool,
+    { latitude: 44.081192, longitude: 3.641467 },
+  );
+
+  assert.deepEqual(parisStations, []);
+  assert.ok(valAigoualStations.some((candidate) => candidate.id === "000UB"));
+  assert.ok(valAigoualStations.every((candidate) => {
+    const decision = evaluateStationObservations(
+      { latitude: 44.081192, longitude: 3.641467, altitudeM: 354 },
+      [measurement(candidate, 5)],
+      now,
+    );
+    return !decision.candidates[0]?.rejectionReasons.includes("TOO_FAR");
+  }));
+});
+
+test("charge les observations uniquement pour les stations retenues spatialement", async () => {
+  const calls: string[] = [];
+  const pool = {
+    query: async (sql: string) => {
+      calls.push(sql);
+      if (sql.includes("from couches.objets")) {
+        return {
+          rows: [{
+            external_id: "07690",
+            props: {
+              nom: "Marseille-Marignane",
+              altitude_m: 9,
+              reseau: "meteofrance",
+              pack: "RADOME",
+              licence: "Licence Ouverte 2.0",
+            },
+            latitude: 43.4377,
+            longitude: 5.216,
+          }],
+        };
+      }
+      return {
+        rows: [{
+          num_poste: "07690",
+          t: "29.2",
+          heure_utc: "2026-07-22T13:30:00Z",
+        }],
+      };
+    },
+  } as unknown as pg.Pool;
+
+  const measurements = await loadNearbyStationMeasurements(
+    pool,
+    { latitude: 43.2965, longitude: 5.3698 },
+  );
+
+  assert.equal(calls.length, 2);
+  assert.equal(measurements.length, 1);
+  assert.equal(measurements[0]?.station.id, "07690");
+  assert.equal(measurements[0]?.temperatureC, 29.2);
+  assert.equal(measurements[0]?.observedAt, "2026-07-22T13:30:00.000Z");
 });
