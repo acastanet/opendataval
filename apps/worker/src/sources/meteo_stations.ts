@@ -2,7 +2,7 @@ import type pg from "pg";
 import type { StationMeteo } from "@opendata-vda/shared";
 import { upsertStationsObjets } from "./meteo_commun.js";
 
-const DEFAULT_STATIONS_URL = "https://public-api.meteofrance.fr/public/DPObs/liste-stations";
+const DEFAULT_STATIONS_URL = "https://public-api.meteofrance.fr/public/DPObs/v2/liste-stations";
 const LICENCE_OUVERTE = "Licence Ouverte 2.0 (ETALAB)";
 
 export interface ParsedStationCatalogue {
@@ -159,8 +159,8 @@ export function parseStationCatalogueCsv(csv: string): ParsedStationCatalogue {
 export async function run(
   pool: pg.Pool,
 ): Promise<number | { nbLignes: number; statut: "ok" | "partiel"; avertissement?: string }> {
-  const token = process.env.METEOFRANCE_API_TOKEN;
-  if (!token) throw new Error("meteo_stations : METEOFRANCE_API_TOKEN absent");
+  const token = process.env.METEOFRANCE_STATIONS_API_TOKEN;
+  if (!token) throw new Error("meteo_stations : METEOFRANCE_STATIONS_API_TOKEN absent");
 
   const url = process.env.METEOFRANCE_STATIONS_URL ?? DEFAULT_STATIONS_URL;
   const response = await fetch(url, {

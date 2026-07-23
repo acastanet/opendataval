@@ -58,13 +58,13 @@ export const JOBS: SourceJob[] = [
     slug: "meteo_stations",
     cron: "15 2 * * *", // quotidien ; la liste officielle est actualisée plus fréquemment
     run: meteoStations.run,
-    actif: () => Boolean(process.env.METEOFRANCE_API_TOKEN),
+    actif: () => Boolean(process.env.METEOFRANCE_STATIONS_API_TOKEN),
   },
   {
     slug: "meteo_obs_national",
     cron: "18 * * * *", // paquet de toutes les stations après publication horaire vers H+10
     run: meteoObsNational.run,
-    actif: () => Boolean(process.env.METEOFRANCE_API_TOKEN),
+    actif: () => Boolean(process.env.METEOFRANCE_OBS_NATIONAL_API_TOKEN),
   },
   {
     slug: "meteo_obs",

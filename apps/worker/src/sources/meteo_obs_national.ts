@@ -1,7 +1,7 @@
 import type pg from "pg";
 
 const DEFAULT_HOURLY_PACKET_URL =
-  "https://public-api.meteofrance.fr/public/DPPaquetObs/v1/paquet/stations/horaire";
+  "https://public-api.meteofrance.fr/public/DPPaquetObs/v2/paquet/stations/horaire";
 const DEFAULT_MINIMUM_OBSERVATIONS = 500;
 
 export interface NationalHourlyObservation {
@@ -217,8 +217,8 @@ export async function run(
   pool: pg.Pool,
   now = new Date(),
 ): Promise<number | { nbLignes: number; statut: "ok" | "partiel"; avertissement?: string }> {
-  const token = process.env.METEOFRANCE_API_TOKEN;
-  if (!token) throw new Error("meteo_obs_national : METEOFRANCE_API_TOKEN absent");
+  const token = process.env.METEOFRANCE_OBS_NATIONAL_API_TOKEN;
+  if (!token) throw new Error("meteo_obs_national : METEOFRANCE_OBS_NATIONAL_API_TOKEN absent");
 
   const requestedAt = latestPublishedHour(now);
   const url = new URL(

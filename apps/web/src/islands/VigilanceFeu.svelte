@@ -4,7 +4,16 @@
   import "maplibre-gl/dist/maplibre-gl.css";
   import { POINT_METEO_PAR_DEFAUT } from "@opendata-vda/shared/localisations-meteo";
   import { IGN_WMTS, ajouterControleFondIgn } from "../lib/carte";
-  import { COULEUR_NIVEAU, COULEUR_CARTE_NIVEAU, LIBELLES_NIVEAU, type NiveauVigilance } from "../lib/vigilanceCouleurs";
+  import {
+    COULEUR_PASTILLE_NIVEAU,
+    COULEUR_CARTE_NIVEAU,
+    OPACITE_CARTE_NIVEAU,
+    CONTOUR_CARTE_NIVEAU,
+    LARGEUR_CONTOUR_NIVEAU,
+    LIBELLES_NIVEAU,
+    LIBELLES_ACCES_NIVEAU,
+    type NiveauVigilance,
+  } from "../lib/vigilanceCouleurs";
 
   interface GeoJsonFeature {
     type: "Feature";
@@ -21,7 +30,7 @@
 
   const LIBELLE_SATELLITE: Record<string, string> = { N: "Suomi NPP", N20: "NOAA-20", N21: "NOAA-21" };
   const LIBELLE_CONFIANCE: Record<string, string> = { l: "faible", n: "nominale", h: "haute" };
-  const NIVEAUX_LEGENDE = ["vert", "jaune", "orange", "rouge"] as const;
+  const NIVEAUX_LEGENDE = ["blanc", "jaune", "orange", "rouge"] as const;
   const FENETRE_RECHERCHE_HEURES = 72; // borne max acceptée par /api/incendies/detections
   const SEUIL_RECENT_MS = 24 * 60 * 60 * 1000;
 
@@ -244,11 +253,19 @@
         type: "fill",
         source: "massifs",
         paint: {
-          "fill-color": ["match", ["get", "niveau"], "jaune", COULEUR_CARTE_NIVEAU.jaune, "orange", COULEUR_CARTE_NIVEAU.orange, "rouge", COULEUR_CARTE_NIVEAU.rouge, "vert", COULEUR_CARTE_NIVEAU.vert, COULEUR_CARTE_NIVEAU.inconnu],
-          "fill-opacity": 0.4,
+          "fill-color": ["match", ["get", "niveau"], "jaune", COULEUR_CARTE_NIVEAU.jaune, "orange", COULEUR_CARTE_NIVEAU.orange, "rouge", COULEUR_CARTE_NIVEAU.rouge, "blanc", COULEUR_CARTE_NIVEAU.blanc, COULEUR_CARTE_NIVEAU.inconnu],
+          "fill-opacity": ["match", ["get", "niveau"], "jaune", OPACITE_CARTE_NIVEAU.jaune, "orange", OPACITE_CARTE_NIVEAU.orange, "rouge", OPACITE_CARTE_NIVEAU.rouge, "blanc", OPACITE_CARTE_NIVEAU.blanc, OPACITE_CARTE_NIVEAU.inconnu],
         },
       });
-      map.addLayer({ id: "massifs-line", type: "line", source: "massifs", paint: { "line-color": "#596168", "line-width": 1 } });
+      map.addLayer({
+        id: "massifs-line",
+        type: "line",
+        source: "massifs",
+        paint: {
+          "line-color": CONTOUR_CARTE_NIVEAU,
+          "line-width": ["match", ["get", "niveau"], "blanc", LARGEUR_CONTOUR_NIVEAU.blanc, LARGEUR_CONTOUR_NIVEAU.inconnu],
+        },
+      });
 
       const detectionsRecentes: GeoJsonCollection = {
         type: "FeatureCollection",
@@ -354,10 +371,11 @@
 
     {#if erreurLocalisation}<p class="message-erreur" role="alert">{erreurLocalisation}</p>{/if}
 
-    <section class="bloc-niveau" style={massifDetecte ? `--couleur-niveau:${COULEUR_NIVEAU[massifDetecte.niveau]}` : ""} aria-live="polite">
+    <section class="bloc-niveau" class:rempli={!!massifDetecte} style={massifDetecte ? `--couleur-niveau:${COULEUR_PASTILLE_NIVEAU[massifDetecte.niveau]}` : ""} aria-live="polite">
       <p class="eyebrow">Risque incendie aujourd’hui</p>
       {#if massifDetecte}
         <strong class="valeur-geante">{LIBELLES_NIVEAU[massifDetecte.niveau]}</strong>
+        <p class="acces-niveau">{LIBELLES_ACCES_NIVEAU[massifDetecte.niveau]}</p>
         {#if risqueDuJour?.etat === "ancienne"}
           <p class="meta-niveau avertissement">Dernière publication valide : {risqueDuJour.date_validite}. La publication du jour n’est pas disponible.</p>
         {:else}
@@ -373,7 +391,7 @@
 
     <ul class="legende-niveaux">
       {#each NIVEAUX_LEGENDE as niveau}
-        <li><span class="pastille" style={`background:${COULEUR_NIVEAU[niveau]}`}></span>{LIBELLES_NIVEAU[niveau]}</li>
+        <li><span class="pastille" style={`background:${COULEUR_PASTILLE_NIVEAU[niveau]}`}></span>{LIBELLES_NIVEAU[niveau]} — {LIBELLES_ACCES_NIVEAU[niveau]}</li>
       {/each}
     </ul>
 
@@ -483,19 +501,24 @@
 
   .eyebrow { margin: 0; color: var(--gris); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 
-  .bloc-niveau { --couleur-niveau: #687076; padding: 1.4rem 0 1.6rem 1.2rem; border-left: 7px solid var(--couleur-niveau); }
-  .valeur-geante { display: block; margin: 0.35rem 0 0; color: var(--couleur-niveau); font-size: clamp(2.6rem, 10vw, 4.6rem); font-weight: 800; letter-spacing: -0.03em; line-height: 0.95; }
+  .bloc-niveau { --couleur-niveau: #808285; padding: 1.4rem 0 1.6rem 1.2rem; border-left: 7px solid var(--filet); }
+  .bloc-niveau.rempli { padding: 1.3rem 1.3rem 1.5rem; border: 2px solid #000; border-left: 7px solid #000; background: var(--couleur-niveau); }
+  .valeur-geante { display: block; margin: 0.35rem 0 0; color: var(--noir); font-size: clamp(2.6rem, 10vw, 4.6rem); font-weight: 800; letter-spacing: -0.03em; line-height: 0.95; }
   .valeur-geante.inconnu { color: var(--gris); }
   .valeur-geante.bleu { color: var(--bleu); font-size: clamp(2.4rem, 9vw, 3.8rem); }
   .valeur-geante span { margin-left: 0.15em; font-size: 0.4em; font-weight: 700; }
+  .acces-niveau { margin: 0.3rem 0 0; color: var(--noir); font-size: 1.05rem; font-weight: 800; }
   .meta-niveau { margin: 0.6rem 0 0; color: var(--gris); font-size: 0.85rem; font-weight: 600; }
   .meta-niveau.avertissement { color: #7f1d1d; }
+  .bloc-niveau.rempli .eyebrow,
+  .bloc-niveau.rempli .meta-niveau { color: rgba(26, 26, 26, 0.72); }
+  .bloc-niveau.rempli .meta-niveau.avertissement { color: #1a1a1a; font-style: italic; }
 
   .carte { height: 55vh; margin: 1.4rem 0; border: 1px solid var(--filet); }
 
   .legende-niveaux { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin: 0 0 1.8rem; padding: 0; list-style: none; color: var(--gris); font-size: 0.76rem; font-weight: 700; }
   .legende-niveaux li { display: flex; align-items: center; gap: 0.4rem; }
-  .pastille { width: 0.7rem; height: 0.7rem; flex: 0 0 auto; }
+  .pastille { width: 0.7rem; height: 0.7rem; flex: 0 0 auto; border: 1px solid #000; }
 
   .point-chaud { padding: 1.2rem 0; border-top: 1px solid var(--filet); }
   .note-ancienne { margin: 0.35rem 0 0; color: var(--gris); font-size: 0.8rem; font-weight: 700; font-style: italic; }

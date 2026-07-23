@@ -57,9 +57,9 @@ test("importe les stations dans la couche PostGIS et signale un catalogue partie
   } as unknown as pg.Pool;
 
   const initialFetch = globalThis.fetch;
-  const initialToken = process.env.METEOFRANCE_API_TOKEN;
+  const initialToken = process.env.METEOFRANCE_STATIONS_API_TOKEN;
   const initialUrl = process.env.METEOFRANCE_STATIONS_URL;
-  process.env.METEOFRANCE_API_TOKEN = "token-test";
+  process.env.METEOFRANCE_STATIONS_API_TOKEN = "token-test";
   process.env.METEOFRANCE_STATIONS_URL = "https://example.test/liste-stations";
   globalThis.fetch = async (input, init) => {
     assert.equal(String(input), "https://example.test/liste-stations");
@@ -82,8 +82,8 @@ test("importe les stations dans la couche PostGIS et signale un catalogue partie
     assert.deepEqual(queries[0]?.values?.[1], ["01234567", "13054001"]);
   } finally {
     globalThis.fetch = initialFetch;
-    if (initialToken === undefined) delete process.env.METEOFRANCE_API_TOKEN;
-    else process.env.METEOFRANCE_API_TOKEN = initialToken;
+    if (initialToken === undefined) delete process.env.METEOFRANCE_STATIONS_API_TOKEN;
+    else process.env.METEOFRANCE_STATIONS_API_TOKEN = initialToken;
     if (initialUrl === undefined) delete process.env.METEOFRANCE_STATIONS_URL;
     else process.env.METEOFRANCE_STATIONS_URL = initialUrl;
   }

@@ -105,7 +105,7 @@ function collecteLaPlusRecente(rows: RiskRow[]): string | null {
 }
 
 function resumeRisque(rows: RiskRow[], dateDemandee: string, repli: RiskRow[] = [], massifsAttendus: Set<string> = NOMS_MASSIFS_AIGOUAL) {
-  const ordre = ["inconnu", "vert", "jaune", "orange", "rouge"];
+  const ordre = ["inconnu", "blanc", "jaune", "orange", "rouge"];
   const lignesCompletes = (lignes: RiskRow[]) => (
     lignes.length === massifsAttendus.size && lignes.every((ligne) => massifsAttendus.has(ligne.zone_officielle))
   );

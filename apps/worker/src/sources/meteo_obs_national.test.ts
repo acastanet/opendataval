@@ -108,10 +108,10 @@ test("télécharge et insère le paquet national en une requête SQL", { concurr
   } as unknown as pg.Pool;
 
   const initialFetch = globalThis.fetch;
-  const initialToken = process.env.METEOFRANCE_API_TOKEN;
+  const initialToken = process.env.METEOFRANCE_OBS_NATIONAL_API_TOKEN;
   const initialUrl = process.env.METEOFRANCE_HOURLY_PACKET_URL;
   const initialMinimum = process.env.METEOFRANCE_MIN_HOURLY_OBSERVATIONS;
-  process.env.METEOFRANCE_API_TOKEN = "token-test";
+  process.env.METEOFRANCE_OBS_NATIONAL_API_TOKEN = "token-test";
   process.env.METEOFRANCE_HOURLY_PACKET_URL = "https://example.test/paquet/stations/horaire";
   process.env.METEOFRANCE_MIN_HOURLY_OBSERVATIONS = "2";
   globalThis.fetch = async (input, init) => {
@@ -142,8 +142,8 @@ test("télécharge et insère le paquet national en une requête SQL", { concurr
     ]);
   } finally {
     globalThis.fetch = initialFetch;
-    if (initialToken === undefined) delete process.env.METEOFRANCE_API_TOKEN;
-    else process.env.METEOFRANCE_API_TOKEN = initialToken;
+    if (initialToken === undefined) delete process.env.METEOFRANCE_OBS_NATIONAL_API_TOKEN;
+    else process.env.METEOFRANCE_OBS_NATIONAL_API_TOKEN = initialToken;
     if (initialUrl === undefined) delete process.env.METEOFRANCE_HOURLY_PACKET_URL;
     else process.env.METEOFRANCE_HOURLY_PACKET_URL = initialUrl;
     if (initialMinimum === undefined) delete process.env.METEOFRANCE_MIN_HOURLY_OBSERVATIONS;

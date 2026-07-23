@@ -5,6 +5,15 @@
   import { faCampground, faCircleInfo, faFireFlameCurved, faHammer, faRoad } from "@fortawesome/free-solid-svg-icons";
   import "maplibre-gl/dist/maplibre-gl.css";
   import { IGN_WMTS, ajouterControleIncendies } from "../lib/carte";
+  import {
+    LIBELLES_NIVEAU,
+    LIBELLES_ACCES_NIVEAU,
+    COULEUR_PASTILLE_NIVEAU,
+    CONTOUR_CARTE_NIVEAU,
+    OPACITE_CARTE_NIVEAU,
+    LARGEUR_CONTOUR_NIVEAU,
+    type NiveauVigilance,
+  } from "../lib/vigilanceCouleurs";
 
   const GARD_REFERENCE_URL = "https://www.risque-prevention-incendie.fr/gard/";
   const GARD_ARRETES_URL = "https://www.gard.gouv.fr/Actions-de-l-Etat/Securite-et-protection-de-la-population/Risques/Gestion-du-risque-feu-de-foret/Carte-de-vigilance";
@@ -55,23 +64,23 @@
   }
   interface GeoJsonCollection { type: "FeatureCollection"; features: GeoJsonFeature[]; }
 
-  const libellesNiveaux: Record<string, string> = {
-    vert: "Vigilance normale", jaune: "Vigilance renforcée", orange: "Danger élevé", rouge: "Danger très élevé", inconnu: "Information en attente",
+  // Couleur d'accent (bordures, texte de synthèse) : le blanc n'a pas de teinte propre
+  // sur la carte officielle (styleMassifs, aucun remplissage) — on reprend son contour noir.
+  const COULEUR_ACCENT_NIVEAU: Record<NiveauVigilance, string> = {
+    blanc: CONTOUR_CARTE_NIVEAU,
+    jaune: COULEUR_PASTILLE_NIVEAU.jaune,
+    orange: COULEUR_PASTILLE_NIVEAU.orange,
+    rouge: COULEUR_PASTILLE_NIVEAU.rouge,
+    inconnu: COULEUR_PASTILLE_NIVEAU.inconnu,
   };
-  const couleursNiveaux: Record<string, string> = {
-    vert: "#18794e", jaune: "#a56700", orange: "#bd4d11", rouge: "#ad2434", inconnu: "#687076",
-  };
-  const couleursCarte: Record<string, string> = {
-    vert: "#d7dcdf", jaune: "#f2c84b", orange: "#f28c00", rouge: "#c62828", inconnu: "#b8bec2",
-  };
-  const niveauxLegende = [
-    { niveau: "vert", titre: "Vigilance habituelle", resume: "Accès autorisé · travaux autorisés", classe: "trait" },
-    { niveau: "jaune", titre: "Vigilance renforcée", resume: "Précautions renforcées", classe: "jaune" },
-    { niveau: "orange", titre: "Danger élevé", resume: "Accès déconseillé · horaires limités", classe: "orange" },
-    { niveau: "rouge", titre: "Danger très élevé", resume: "Accès et travaux interdits", classe: "rouge" },
+  const niveauxLegende: Array<{ niveau: NiveauVigilance; titre: string; resume: string; classe: string }> = [
+    { niveau: "blanc", titre: LIBELLES_NIVEAU.blanc, resume: LIBELLES_ACCES_NIVEAU.blanc, classe: "trait" },
+    { niveau: "jaune", titre: LIBELLES_NIVEAU.jaune, resume: LIBELLES_ACCES_NIVEAU.jaune, classe: "jaune" },
+    { niveau: "orange", titre: LIBELLES_NIVEAU.orange, resume: `${LIBELLES_ACCES_NIVEAU.orange} · horaires limités`, classe: "orange" },
+    { niveau: "rouge", titre: LIBELLES_NIVEAU.rouge, resume: LIBELLES_ACCES_NIVEAU.rouge, classe: "rouge" },
   ];
   const reglesCompletes: Record<string, string[]> = {
-    vert: [
+    blanc: [
       "Toute utilisation de feu interdite (*)",
       "Travaux autorisés",
       "Camping et bivouac possibles en fonction des réglementations locales",
@@ -103,7 +112,7 @@
   };
   const iconesConsignes = { feu: faFireFlameCurved, acces: faRoad, travaux: faHammer, bivouac: faCampground, information: faCircleInfo };
   const consignes: Record<string, Array<{ titre: string; texte: string; icone: "feu" | "acces" | "travaux" | "bivouac" | "information" }>> = {
-    vert: [
+    blanc: [
       { titre: "Feu et barbecue", texte: "Interdits hors équipements autorisés.", icone: "feu" },
       { titre: "Accès", texte: "Autorisé : restez attentif aux consignes locales.", icone: "acces" },
       { titre: "Travaux", texte: "Autorisé avec les précautions nécessaires.", icone: "travaux" },
@@ -146,15 +155,24 @@
   let featureSurvolee: string | number | null = null;
   let risqueActif: RiskSummary | null = null;
   $: risqueActif = situation?.risque_gard[jour] ?? null;
-  $: niveauActif = risqueActif?.niveau_max ?? "inconnu";
+  $: niveauActif = (risqueActif?.niveau_max ?? "inconnu") as NiveauVigilance;
   $: consignesActives = consignes[niveauActif] ?? consignes.inconnu;
   $: risqueMassifSelectionne = massifSelectionne
     ? risqueActif?.zones.find((risque) => risque.zone_officielle === massifSelectionne) ?? null
     : null;
-  $: niveauMassifSelectionne = risqueMassifSelectionne?.niveau ?? "inconnu";
+  $: niveauMassifSelectionne = (risqueMassifSelectionne?.niveau ?? "inconnu") as NiveauVigilance;
   $: totalDetections = situation
     ? situation.detections_24h.coeur + situation.detections_24h.proche + situation.detections_24h.veille
     : 0;
+
+  // Svelte n'accepte pas les casts TypeScript (`as`) dans les expressions de template,
+  // d'où ces deux accesseurs pour les niveaux dont le type reste `string` côté API.
+  function accentNiveau(niveau: string): string {
+    return COULEUR_ACCENT_NIVEAU[niveau as NiveauVigilance] ?? COULEUR_ACCENT_NIVEAU.inconnu;
+  }
+  function accesNiveau(niveau: string): string {
+    return LIBELLES_ACCES_NIVEAU[niveau as NiveauVigilance] ?? LIBELLES_ACCES_NIVEAU.inconnu;
+  }
 
   function formaterJour(value: string): string {
     return new Intl.DateTimeFormat("fr-FR", { dateStyle: "full", timeZone: "Europe/Paris" }).format(new Date(`${value}T12:00:00Z`));
@@ -253,8 +271,12 @@
         type: "fill",
         source: "massifs-gard",
         paint: {
-          "fill-color": ["match", ["get", "niveau"], "jaune", couleursCarte.jaune, "orange", couleursCarte.orange, "rouge", couleursCarte.rouge, "vert", couleursCarte.vert, couleursCarte.inconnu],
-          "fill-opacity": ["case", ["boolean", ["feature-state", "survol"], false], 0.66, 0.38],
+          "fill-color": ["match", ["get", "niveau"], "jaune", COULEUR_PASTILLE_NIVEAU.jaune, "orange", COULEUR_PASTILLE_NIVEAU.orange, "rouge", COULEUR_PASTILLE_NIVEAU.rouge, "blanc", COULEUR_PASTILLE_NIVEAU.blanc, COULEUR_PASTILLE_NIVEAU.inconnu],
+          "fill-opacity": [
+            "+",
+            ["match", ["get", "niveau"], "jaune", OPACITE_CARTE_NIVEAU.jaune, "orange", OPACITE_CARTE_NIVEAU.orange, "rouge", OPACITE_CARTE_NIVEAU.rouge, "blanc", OPACITE_CARTE_NIVEAU.blanc, OPACITE_CARTE_NIVEAU.inconnu],
+            ["case", ["boolean", ["feature-state", "survol"], false], 0.28, 0],
+          ],
         },
       });
       map.addLayer({
@@ -262,8 +284,8 @@
         type: "line",
         source: "massifs-gard",
         paint: {
-          "line-color": ["match", ["get", "niveau"], "jaune", "#8a6500", "orange", "#a93f08", "rouge", "#8f1627", "vert", "#596168", "#596168"],
-          "line-width": ["case", ["boolean", ["feature-state", "survol"], false], 5, 2.5],
+          "line-color": CONTOUR_CARTE_NIVEAU,
+          "line-width": ["case", ["boolean", ["feature-state", "survol"], false], 5, ["match", ["get", "niveau"], "blanc", LARGEUR_CONTOUR_NIVEAU.blanc, LARGEUR_CONTOUR_NIVEAU.inconnu]],
           "line-opacity": 0.95,
         },
       });
@@ -383,9 +405,9 @@
       <p class="alerte-donnee secondaire" role="status">Cette publication provient d’un fichier de secours vérifié manuellement, utilisé en remplacement du flux automatique.</p>
     {/if}
     {#if risqueActif.etat !== "indisponible"}
-      <div class="niveau" style={`--couleur-niveau:${couleursNiveaux[niveauActif]};--fond-niveau:${couleursCarte[niveauActif]}`}>
+      <div class="niveau" style={`--couleur-niveau:${COULEUR_ACCENT_NIVEAU[niveauActif]};--fond-niveau:${COULEUR_PASTILLE_NIVEAU[niveauActif]}`}>
         <p class="eyebrow">Risque le plus élevé sur les trois massifs</p>
-        <h2 id="titre-situation">{niveauActif.toUpperCase()} <span>— {libellesNiveaux[niveauActif]}</span></h2>
+        <h2 id="titre-situation">{niveauActif.toUpperCase()} <span>— {LIBELLES_ACCES_NIVEAU[niveauActif]}</span></h2>
       </div>
       <p class="precision">Ce maximum est un repère prudent. Consultez ci-dessous le niveau propre au massif où vous vous rendez.</p>
       <div class="consignes" aria-label="Consignes principales">
@@ -412,7 +434,7 @@
                 on:click={() => ouvrirDetailMassif(risque.zone_officielle)}
               >
                 <span>{risque.zone_officielle}</span>
-                <strong style={`--couleur-massif:${couleursNiveaux[risque.niveau] ?? couleursNiveaux.inconnu}`}>{risque.niveau.toUpperCase()} · {libellesNiveaux[risque.niveau] ?? libellesNiveaux.inconnu}</strong>
+                <strong style={`--couleur-massif:${accentNiveau(risque.niveau)}`}>{risque.niveau.toUpperCase()} · {accesNiveau(risque.niveau)}</strong>
               </button>
             </li>
           {/each}
@@ -422,10 +444,10 @@
       {/if}
     </div>
     {#if massifSelectionne}
-      <section class="detail-inline" aria-labelledby="titre-detail" aria-live="polite" style={`--couleur-detail:${couleursCarte[niveauMassifSelectionne]}`}>
+      <section class="detail-inline" aria-labelledby="titre-detail" aria-live="polite" style={`--couleur-detail:${COULEUR_ACCENT_NIVEAU[niveauMassifSelectionne]}`}>
         <p class="eyebrow">Règles du massif sélectionné</p>
         <h3 id="titre-detail">{massifSelectionne} — {niveauMassifSelectionne.toUpperCase()}</h3>
-        <p>{libellesNiveaux[niveauMassifSelectionne] ?? "Information en attente"}</p>
+        <p>{LIBELLES_ACCES_NIVEAU[niveauMassifSelectionne] ?? "Information en attente"}</p>
         <ul>
           {#each reglesCompletes[niveauMassifSelectionne] ?? reglesCompletes.inconnu as regle}<li>{regle}</li>{/each}
         </ul>
@@ -489,7 +511,7 @@
         <summary>Consulter toutes les règles par niveau</summary>
         <div class="grille-regles">
           {#each niveauxLegende as item}
-            <article style={`--couleur-regle:${couleursCarte[item.niveau]}`}>
+            <article style={`--couleur-regle:${COULEUR_ACCENT_NIVEAU[item.niveau]}`}>
               <h4>{item.titre}</h4>
               <ul>{#each reglesCompletes[item.niveau] as regle}<li>{regle}</li>{/each}</ul>
             </article>
@@ -522,7 +544,7 @@
   .carte { height: clamp(330px, 58vw, 560px); margin-top: 1rem; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 5px; }
   .bloc-legende { margin-top: 1rem; padding: 1rem; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface-muted); } .entete-legende h3 { margin: 0.25rem 0 0; color: var(--fg); font-family: var(--font-display); font-size: 1.35rem; } .repere-commune { display: flex; align-items: center; gap: 0.5rem; margin: 0.9rem 0 0; color: var(--fg); font-size: 0.82rem; font-weight: 800; } .repere-commune span { display: inline-block; width: 2rem; border-top: 4px dashed #1463a4; box-shadow: 0 -1px 0 #ffffff, 0 1px 0 #ffffff; }
   .echelle-risque { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.55rem; margin: 1rem 0 0; padding: 0; list-style: none; } .echelle-risque li { display: grid; grid-template-columns: 1.35rem minmax(0, 1fr); gap: 0.55rem; align-items: start; padding: 0.7rem; border: 2px solid var(--couleur-legende, #596168); border-radius: 4px; background: var(--fond-legende, var(--surface)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45); } .echelle-risque li:nth-child(1) { --couleur-legende: #596168; --fond-legende: #edf0f1; } .echelle-risque li:nth-child(2) { --couleur-legende: #8a6500; --fond-legende: #fff2bb; } .echelle-risque li:nth-child(3) { --couleur-legende: #a93f08; --fond-legende: #ffe0b2; } .echelle-risque li:nth-child(4) { --couleur-legende: #8f1627; --fond-legende: #ffd3d6; } .echelle-risque strong, .echelle-risque small { display: block; } .echelle-risque strong { color: #17242c; font-size: 0.9rem; line-height: 1.25; } .echelle-risque small { margin-top: 0.25rem; color: #263841; font-size: 0.78rem; font-weight: 750; line-height: 1.35; }
-  .pastille-niveau { display: block; width: 1.15rem; height: 1.15rem; margin-top: 0.08rem; border: 3px solid #596168; border-radius: 3px; background: #d7dcdf; } .pastille-niveau.jaune { border-color: #8a6500; background: #f2c84b; } .pastille-niveau.orange { border-color: #a93f08; background: #f28c00; } .pastille-niveau.rouge { border-color: #8f1627; background: #c62828; }
+  .pastille-niveau { display: block; width: 1.15rem; height: 1.15rem; margin-top: 0.08rem; border: 2px solid #000000; border-radius: 3px; background: #ffffff; } .pastille-niveau.jaune { background: #ffff80; } .pastille-niveau.orange { background: #ff854a; } .pastille-niveau.rouge { background: #ff3e3e; }
   .regles-legende { margin-top: 0.9rem; border-top: 1px solid var(--line-strong); } .regles-legende summary { padding: 0.85rem 0 0.1rem; color: var(--navy); font-weight: 900; cursor: pointer; } .grille-regles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; margin-top: 0.85rem; } .grille-regles article { padding: 0.9rem; border: 1px solid var(--line-strong); border-top: 6px solid var(--couleur-regle); border-radius: 4px; background: var(--surface); } .grille-regles h4 { margin: 0; color: var(--fg); } .grille-regles ul { margin: 0.65rem 0 0; padding-left: 1.15rem; color: var(--muted); font-size: 0.82rem; font-weight: 600; line-height: 1.45; } .grille-regles li + li { margin-top: 0.25rem; } .note-reglementaire { margin: 0.85rem 0 0; color: var(--fg); font-size: 0.82rem; font-weight: 800; } .source-carte { margin: 0.55rem 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.4; } .source-carte a { color: var(--navy); font-weight: 850; }
   .urgence { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; padding: 1.1rem 1.2rem; border-left: 6px solid #d2483b; border-radius: 5px; background: var(--navy); color: #ffffff; } .urgence strong { font-size: 1.05rem; } .urgence span { font-size: 0.98rem; font-weight: 600; } .urgence a { color: #ffffff; font-size: 1.12rem; font-weight: 900; }
   @media (max-width: 760px) { .urgence { display: grid; gap: 0.35rem; } .titre-carte { align-items: flex-start; flex-direction: column; } .echelle-risque { grid-template-columns: repeat(2, minmax(0, 1fr)); } .entete-legende { align-items: flex-start; flex-direction: column; gap: 0.7rem; } .massifs-accessibles ul { grid-template-columns: 1fr; } } @media (max-width: 520px) { .grille-regles { grid-template-columns: 1fr; } .resume-detections { grid-template-columns: 1fr; } .resume-detections dl { grid-template-columns: 1fr; } } @media (max-width: 430px) { .situation, .orientation, .resume-detections { padding: 1rem; } .consignes { grid-template-columns: 1fr; } .carte { height: 390px; } .echelle-risque { grid-template-columns: 1fr; } }

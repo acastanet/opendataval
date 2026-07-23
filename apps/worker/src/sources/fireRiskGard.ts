@@ -52,8 +52,8 @@ function parisDate(offsetDays: number): string {
   return new Date(base + offsetDays * 86_400_000).toISOString().slice(0, 10);
 }
 
-function niveau(value: number): "vert" | "jaune" | "orange" | "rouge" | "inconnu" {
-  if (value === 1) return "vert";
+function niveau(value: number): "blanc" | "jaune" | "orange" | "rouge" | "inconnu" {
+  if (value === 1) return "blanc";
   if (value === 2) return "jaune";
   if (value === 3) return "orange";
   if (value === 4) return "rouge";

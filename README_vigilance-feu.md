@@ -21,13 +21,15 @@ Design éditorial brutaliste, repris à l'identique du système déjà établi p
 
 ### Lecture des niveaux
 
-| Niveau | Couleur | Signification |
+Couleurs et libellés repris à l'identique de la carte officielle du Gard (aucune couleur ni libellé inventé) : les pastilles de légende (`static/30/img/legende_*.png`) donnent le code couleur exact, les popups de massif (`massifs_prev.js`) donnent le libellé d'accès — le site officiel ne publie aucun nom de niveau en texte.
+
+| Niveau | Couleur (pastille officielle) | Accès (popup officielle) |
 | --- | --- | --- |
-| Vert | `#18794e` | Vigilance normale |
-| Jaune | `#a56700` | Vigilance renforcée |
-| Orange | `#bd4d11` | Danger élevé |
-| Rouge | `#ad2434` | Danger très élevé |
-| Inconnu | `#687076` | Information en attente ou position hors massif suivi |
+| Blanc | `#ffffff` | Accès autorisé |
+| Jaune | `#ffff80` | Accès autorisé |
+| Orange | `#ff854a` | Accès déconseillé |
+| Rouge | `#ff3e3e` | Accès interdit |
+| Inconnu | `#808285` | Information en attente ou position hors massif suivi |
 
 ### Limites à connaître
 
@@ -50,7 +52,7 @@ Design éditorial brutaliste, repris à l'identique du système déjà établi p
 | Point par défaut (mairie) | `packages/shared/src/localisationsMeteo.ts` (`POINT_METEO_PAR_DEFAUT`, déjà utilisé par `/meteo/essentiel`) |
 | Routes API (partagées avec `/incendies`) | `apps/api/src/routes/incendies.ts` |
 | Jobs worker (partagés avec `/incendies`) | `apps/worker/src/sources/fireZones.ts`, `fireRiskGard.ts`, `firms.ts` |
-| Schéma SQL | `db/migrations/006_incendies.sql` → `011_incendies_departement.sql` |
+| Schéma SQL | `db/migrations/006_incendies.sql` → `012_niveau_blanc.sql` |
 
 ### Flux de données
 
@@ -106,6 +108,10 @@ alter table incendies.detections_firms ... check (position in (..., 'departement
 
 `incendies.zones.slug = 'departement_30'` : contour du département reconstitué par **union des ~350 communes du Gard** (`ST_UnaryUnion` + `ST_CollectionExtract(..., 3)`), car `geo.api.gouv.fr/departements/{code}` **ne fournit pas de géométrie de contour** contrairement à `/communes` et `/epcis` (vérifié en direct pendant l'implémentation — `?geometry=contour&format=geojson` est silencieusement ignoré sur cette ressource). Même stratégie que la zone `coeur` déjà existante (union EPCI + ZNIEFF).
 
+### Schéma SQL (`012_niveau_blanc.sql`)
+
+Renomme la valeur `'vert'` en `'blanc'` dans `incendies.risques_officiels.niveau` : le niveau 1 du Gard est publié en **blanc** sur la carte officielle (`static/30/js/massifs_prev.js`, `styleMassifs` — aucun remplissage, contour noir épaissi), jamais en vert. Étend la contrainte CHECK `risques_officiels_niveau_check` existante plutôt que d'en créer une nouvelle, avec un `update` intermédiaire pour convertir les lignes déjà en base (ordre : drop → update → add, sinon le `add constraint` échoue sur les lignes `'vert'` existantes).
+
 ### Relancer un job manuellement
 
 ```bash
@@ -134,7 +140,7 @@ select zone_officielle, niveau, date_validite from incendies.risques_officiels
 ### Limites connues / suivi
 
 - **Pas de purge dédiée** pour `incendies.detections_firms` à l'échelle département : le volume ingéré est mécaniquement plus élevé qu'avec la zone de veille de 15 km. À surveiller ; ajouter une purge si le volume devient gênant.
-- **Couleurs dupliquées** : `apps/web/src/lib/vigilanceCouleurs.ts` est un premier pas de factorisation, mais `FireDashboard.svelte` et `MeteoEssentiel.svelte` gardent leurs propres tables de couleurs (valeurs proches mais non strictement identiques). Une unification complète reste à faire si les trois vues doivent un jour partager le même composant de badge.
+- **Couleurs dérivées d'assets tiers non versionnés** : les valeurs de `apps/web/src/lib/vigilanceCouleurs.ts` (pastilles, remplissage carte, opacités, épaisseur de contour) ont été extraites à la main des pastilles PNG (`static/30/img/legende_*.png`) et du script `static/30/js/massifs_prev.js` de risque-prevention-incendie.fr/gard/ — aucune couleur n'est documentée dans une API ou un fichier de config public. Si la préfecture refond sa carte (nouvelle palette, nouveau nombre de niveaux), ce fichier doit être revérifié manuellement, y compris la contrainte SQL `risques_officiels_niveau_check` (migration `012_niveau_blanc.sql`).
 - **Pas de test en navigateur réel** : la vérification a porté sur le typecheck (`tsc --noEmit`, `@astrojs/check` — 0 erreur introduite), le build Astro, et les appels API/DB via `curl`/`psql` sur la stack Docker locale. Le rendu MapLibre, la demande de permission GPS, le comportement de la géolocalisation silencieuse et l'affichage effectif des boutons/tooltips n'ont pas été vérifiés visuellement.
 - **Nom de massif comme clé de jointure** : `NOM_MASSIF` (FGB) et `zone_officielle` (DB) sont rapprochés par égalité de chaîne, sans identifiant numérique partagé côté DB. Un changement de libellé côté source officielle casserait silencieusement l'association niveau ↔ contour (la page afficherait alors « inconnu » pour ce massif, sans erreur bruyante).
 
@@ -146,7 +152,7 @@ Aucune nouvelle source externe n'a été introduite : le MVP réutilise et élar
 
 | Source | URL | Licence | Fréquence de collecte | Fichier worker | Table DB | Ce qu'elle apporte à `/vigilance-feu` |
 | --- | --- | --- | --- | --- | --- | --- |
-| Prévention incendie Gard | `risque-prevention-incendie.fr/static/30/import_data/{date}.json` | Information publique — Préfecture du Gard | Quotidienne (~18 h 10, `Europe/Paris`) | `apps/worker/src/sources/fireRiskGard.ts` | `incendies.risques_officiels` | Niveau de risque du jour (vert/jaune/orange/rouge) pour les 8 massifs officiels |
+| Prévention incendie Gard | `risque-prevention-incendie.fr/static/30/import_data/{date}.json` | Information publique — Préfecture du Gard | Quotidienne (~18 h 10, `Europe/Paris`) | `apps/worker/src/sources/fireRiskGard.ts` | `incendies.risques_officiels` | Niveau de risque du jour (blanc/jaune/orange/rouge) pour les 8 massifs officiels |
 | Contours des massifs (FlatGeobuf) | `risque-prevention-incendie.fr/static/30/massifs_30.fgb` | Information publique — Préfecture du Gard | Cache 6 h côté API (pas de job worker dédié : lu à la volée par la route) | `apps/api/src/routes/incendies.ts` (`chargerMassifsGardOfficiels`) | — (servi en GeoJSON, non persisté) | Géométries des 8 massifs + `NOM_MASSIF`, utilisées pour le point-in-polygon et le remplissage coloré de la carte |
 | NASA FIRMS (VIIRS SNPP / NOAA-20 / NOAA-21) | `firms.modaps.eosdis.nasa.gov/api/area/csv` | NASA Open Data / FIRMS Terms of Use | Toutes les 30 minutes | `apps/worker/src/sources/firms.ts` | `incendies.detections_firms` | Points d'anomalie thermique satellite affichés sur la carte départementale |
 | geo.api.gouv.fr — EPCI/communes | `geo.api.gouv.fr/epcis/{code}/communes`, `geo.api.gouv.fr/communes?codeDepartement=30` | Licence Ouverte 2.0 | Mensuelle | `apps/worker/src/sources/fireZones.ts` | `incendies.zones` (`coeur`, `departement_30`) | Contour EPCI (zone cœur) et union des ~350 communes du Gard (contour département, faute de contour direct sur `/departements/{code}`) |
