@@ -23,7 +23,7 @@ test("résout le département avant d'appeler la vigilance", async (t) => {
   }) }); t.after(() => app.close());
   const response = await app.inject({ method: "GET", url: "/api/v2/vigilance?lat=44.081&lon=3.641&accuracy=25" });
   assert.equal(response.statusCode, 200);
-  assert.equal(calls[0], "http://geography-service:3000/internal/v1/geography/resolve?lat=44.081&lon=3.641&horizontalAccuracyMeters=25&positionSource=manual");
+  assert.equal(calls[0], "http://geography-service:3000/internal/v1/geography/resolve?lat=44.081&lon=3.641&horizontalAccuracyMeters=25&positionSource=browser-geolocation");
   assert.equal(calls[1], "http://weather-vigilance-service:3000/v1/vigilance/departments/30");
   assert.equal(response.json().location.resolved_by, "location-service");
   assert.equal(response.json().location.input.accuracy_m, 25);
