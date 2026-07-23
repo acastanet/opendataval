@@ -2,13 +2,15 @@
 
 ## État
 
-Le code est fusionné dans `master`, mais la production n'a pas encore été basculée depuis ce chantier.
+Le code fonctionnel est fusionné, mais la production n'a pas encore été basculée depuis ce chantier.
 
-Commit de référence :
+Commit fonctionnel à déployer :
 
 ```text
 46888d7b192add720c982727fa34bef21a92db0d
 ```
+
+Le commit documentaire ultérieur `d68760f56e308cda8b356c86f7b3ddf5d01a741e` ne modifie ni l'API, ni le worker, ni les images applicatives. Il n'est pas requis pour la bascule.
 
 ## Exécution attendue
 
@@ -21,7 +23,7 @@ Suivre strictement :
 
 Le déploiement ne peut être déclaré réussi que si :
 
-- le worktree est détaché au commit exact ;
+- le worktree est détaché au commit fonctionnel exact ;
 - les tests API et worker ainsi que leurs typages réussissent ;
 - les images API et worker disposent de tags de retour arrière ;
 - seuls l'API et le worker sont reconstruits et recréés ;
