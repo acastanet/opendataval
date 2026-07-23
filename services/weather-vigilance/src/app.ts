@@ -37,7 +37,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   const readiness = async (_request: FastifyRequest, reply: FastifyReply) => {
     const freshness = manager.freshness();
-    const usable = Boolean(manager.state.snapshot) && freshness !== "expired";
+    const usable = Boolean(manager.state.snapshot) && (freshness === "fresh" || freshness === "stale");
     const body = { status: usable ? "ready" : "not_ready", data_status: freshness, last_successful_retrieval: manager.state.lastSuccessfulRetrieval };
     return usable ? body : reply.code(503).send(body);
   };
@@ -54,7 +54,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (!departmentCode) return reply.code(400).send(error("INVALID_DEPARTMENT_CODE", "Le code département est mal formé.", false, request.id));
       const freshness = manager.freshness();
       const snapshot = manager.state.snapshot;
-      if (!snapshot || freshness === "expired") {
+      if (!snapshot || freshness === "expired" || freshness === "unknown") {
+        metrics.increment("vigilance_cache_misses_total");
         return reply.code(503).send({
           ...error("UPSTREAM_UNAVAILABLE", "La Vigilance officielle n’a pas pu être actualisée.", true, request.id),
           freshness_status: freshness,
