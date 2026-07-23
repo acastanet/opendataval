@@ -13,6 +13,7 @@ import * as rpg from "./sources/rpg.js";
 import * as signesQualite from "./sources/signesQualite.js";
 import * as metaSources from "./sources/metaSources.js";
 import * as inseePopulation from "./sources/insee_population.js";
+import * as meteoStations from "./sources/meteo_stations.js";
 import * as meteoObs from "./sources/meteo_obs.js";
 import * as meteoRadome from "./sources/meteo_radome.js";
 import * as meteoInfoclimat from "./sources/meteo_infoclimat.js";
@@ -51,6 +52,12 @@ export const JOBS: SourceJob[] = [
     cron: "0 5 25 1 *", // annuel (25 janvier, après publication des populations légales)
     run: inseePopulation.run,
     actif: () => Boolean(process.env.INSEE_POPULATION_CSV_URL),
+  },
+  {
+    slug: "meteo_stations",
+    cron: "15 2 * * *", // quotidien ; la liste officielle est actualisée plus fréquemment
+    run: meteoStations.run,
+    actif: () => Boolean(process.env.METEOFRANCE_API_TOKEN),
   },
   {
     slug: "meteo_obs",
