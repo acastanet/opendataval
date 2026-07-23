@@ -8,7 +8,7 @@ const csv = [
   "44.10000,3.60000,2026-07-18,0600,NPP,VIIRS,n,4.2,D",
 ].join("\n");
 
-test("l'insertion FIRMS exige l'appartenance au polygone exact de veille", { concurrency: false }, async () => {
+test("l'insertion FIRMS exige l'appartenance au polygone exact du Gard", { concurrency: false }, async () => {
   const requetes: string[] = [];
   const pool = {
     query: async (sql: string) => {
@@ -28,7 +28,7 @@ test("l'insertion FIRMS exige l'appartenance au polygone exact de veille", { con
     assert.equal(insertions.length, 3);
     for (const insertion of insertions) {
       assert.match(insertion, /veille as \(/);
-      assert.match(insertion, /where ST_Covers\(veille\.geom, point\.geom\)/);
+      assert.match(insertion, /where ST_Covers\(departement\.geom, point\.geom\)/);
     }
   } finally {
     globalThis.fetch = fetchInitial;
