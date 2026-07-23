@@ -30,8 +30,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    expose:
-      - "3000"
+    expose: ["3000"]
 
   gateway:
     build:
@@ -46,13 +45,15 @@ services:
       GEOGRAPHY_SERVICE_TIMEOUT_MS: ${GEOGRAPHY_SERVICE_TIMEOUT_MS:-3000}
       WEATHER_SERVICE_URL: http://weather-service:3000
       WEATHER_SERVICE_TIMEOUT_MS: ${WEATHER_SERVICE_TIMEOUT_MS:-3000}
+      VIGILANCE_SERVICE_URL: http://weather-vigilance-service:3000
+      VIGILANCE_SERVICE_TIMEOUT_MS: ${VIGILANCE_SERVICE_TIMEOUT_MS:-4000}
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
       - api
       - geography-service
       - weather-service
-    expose:
-      - "3000"
+      - weather-vigilance-service
+    expose: ["3000"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 10s
@@ -75,8 +76,7 @@ services:
       ELEVATION_TIMEOUT_MS: ${ELEVATION_TIMEOUT_MS:-2000}
       GEOGRAPHY_GLOBAL_TIMEOUT_MS: ${GEOGRAPHY_GLOBAL_TIMEOUT_MS:-2500}
       APP_VERSION: ${APP_VERSION:-dev}
-    expose:
-      - "3000"
+    expose: ["3000"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 10s
@@ -100,18 +100,46 @@ services:
       WEATHER_GLOBAL_TIMEOUT_MS: ${WEATHER_GLOBAL_TIMEOUT_MS:-2500}
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
-      db:
-        condition: service_healthy
-      geography-service:
-        condition: service_started
-    expose:
-      - "3000"
+      db: { condition: service_healthy }
+      geography-service: { condition: service_started }
+    expose: ["3000"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 10s
+
+  weather-vigilance-service:
+    build:
+      context: .
+      dockerfile: services/weather-vigilance/Dockerfile
+    image: opendataval-vigilance:latest
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      METEOFRANCE_VIGILANCE_API_URL: ${METEOFRANCE_VIGILANCE_API_URL:-https://public-api.meteofrance.fr/public/DPVigilance/v1}
+      METEOFRANCE_VIGILANCE_API_TOKEN: ${METEOFRANCE_VIGILANCE_API_TOKEN:-}
+      METEOFRANCE_API_TOKEN_VIGILANCE: ${METEOFRANCE_API_TOKEN_VIGILANCE:-}
+      VIGILANCE_REFRESH_SECONDS: ${VIGILANCE_REFRESH_SECONDS:-300}
+      VIGILANCE_STALE_AFTER_SECONDS: ${VIGILANCE_STALE_AFTER_SECONDS:-900}
+      VIGILANCE_EXPIRE_AFTER_SECONDS: ${VIGILANCE_EXPIRE_AFTER_SECONDS:-21600}
+      VIGILANCE_CONNECT_TIMEOUT_MS: ${VIGILANCE_CONNECT_TIMEOUT_MS:-3000}
+      VIGILANCE_READ_TIMEOUT_MS: ${VIGILANCE_READ_TIMEOUT_MS:-10000}
+      VIGILANCE_MAX_RETRIES: ${VIGILANCE_MAX_RETRIES:-2}
+      VIGILANCE_SNAPSHOT_PATH: /app/data/vigilance-snapshot.json
+      APP_VERSION: ${APP_VERSION:-dev}
+      GIT_SHA: ${GIT_SHA:-dev}
+      BUILT_AT: ${BUILT_AT:-}
+    volumes:
+      - vigilance_cache:/app/data
+    expose: ["3000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   worker:
     build:
@@ -133,8 +161,7 @@ services:
       COPERNICUS_CDS_KEY: ${COPERNICUS_CDS_KEY:-}
       FIRE_RISK_GARD_FALLBACK_DIR: /app/data/incendies
     depends_on:
-      db:
-        condition: service_healthy
+      db: { condition: service_healthy }
     volumes:
       - ./data/incendies:/app/data/incendies:ro
 
@@ -156,8 +183,7 @@ services:
       COPERNICUS_DOWNLOAD_DIR: /app/data/downloads
       RUN_ONCE: ${COPERNICUS_RUN_ONCE:-false}
     depends_on:
-      db:
-        condition: service_healthy
+      db: { condition: service_healthy }
     volumes:
       - ./data/downloads:/app/data/downloads
 
@@ -168,20 +194,12 @@ services:
     restart: unless-stopped
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
-    ports:
-      - "8080:80"
-    # Caddy reste indépendant du nouveau gateway afin que les routes historiques
-    # et les fichiers statiques restent disponibles même si le gateway échoue.
+    ports: ["8080:80"]
     depends_on:
-      api:
-        condition: service_started
+      api: { condition: service_started }
     volumes:
       - caddy_data:/data
       - caddy_config:/config
-      # Extraits de relief 3D servis en statique (URL /relief/*.pmtiles) : montés depuis
-      # l'hôte plutôt qu'embarqués dans l'image (cf. .dockerignore). ~2 Go, régénérables.
-      # Montés fichier par fichier (et non le dossier entier) pour ne pas masquer la page
-      # buildée /srv/relief/index.html — sinon la route /relief renvoie 404.
       - ./apps/web/public/relief/aigoual.pmtiles:/srv/relief/aigoual.pmtiles:ro
       - ./apps/web/public/relief/aigoual-hd.pmtiles:/srv/relief/aigoual-hd.pmtiles:ro
 
@@ -189,3 +207,4 @@ volumes:
   db_data:
   caddy_data:
   caddy_config:
+  vigilance_cache:
