@@ -1,0 +1,191 @@
+openapi: 3.1.0
+info:
+  title: OpenDataVal Weather Vigilance Service
+  version: 1.0.0
+  description: Vigilance météorologique officielle Météo-France, à l'échelle départementale.
+servers:
+  - url: http://weather-vigilance-service:3000
+paths:
+  /healthz:
+    get:
+      operationId: health
+      responses:
+        '200':
+          description: Processus vivant
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service]
+                properties:
+                  status: { const: ok }
+                  service: { const: weather-vigilance }
+  /readyz:
+    get:
+      operationId: readiness
+      responses:
+        '200': { description: Un état frais ou obsolète mais exploitable est disponible }
+        '503': { description: Aucune donnée exploitable }
+  /version:
+    get:
+      operationId: version
+      responses:
+        '200':
+          description: Version du service
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [service, version, commit, built_at]
+                properties:
+                  service: { const: weather-vigilance }
+                  version: { type: string }
+                  commit: { type: string }
+                  built_at: { type: string }
+  /v1/vigilance/departments/{department_code}:
+    get:
+      operationId: getDepartmentVigilance
+      parameters:
+        - name: department_code
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^(0[1-9]|1[0-9]|2A|2B|2[1-9]|[3-8][0-9]|9[0-5])$'
+        - name: include_bulletins
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Vigilance officielle du département
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VigilanceResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+components:
+  schemas:
+    Level:
+      type: object
+      required: [code, rank, label, source_code]
+      properties:
+        code: { type: string, enum: [green, yellow, orange, red] }
+        rank: { type: integer, minimum: 0, maximum: 3 }
+        label: { type: string }
+        source_code: { type: string }
+    Timeline:
+      type: object
+      required: [valid_from, valid_until, level, source_level_code]
+      properties:
+        valid_from: { type: [string, 'null'], format: date-time }
+        valid_until: { type: [string, 'null'], format: date-time }
+        level: { type: string, enum: [green, yellow, orange, red] }
+        source_level_code: { type: string }
+    Phenomenon:
+      type: object
+      required: [code, source_code, label, level, timeline]
+      properties:
+        code:
+          type: string
+          enum: [wind, waves_submersion, rain_flood, flood, thunderstorm, snow_ice, avalanche, heatwave, extreme_cold, unknown]
+        source_code: { type: string }
+        label: { type: string }
+        level: { $ref: '#/components/schemas/Level' }
+        timeline:
+          type: array
+          items: { $ref: '#/components/schemas/Timeline' }
+    Period:
+      type: object
+      required: [day, date, overall_level, phenomena, valid_from, valid_until]
+      properties:
+        day: { type: string, enum: [today, tomorrow] }
+        date: { type: [string, 'null'], format: date }
+        overall_level: { $ref: '#/components/schemas/Level' }
+        phenomena:
+          type: array
+          items: { $ref: '#/components/schemas/Phenomenon' }
+        valid_from: { type: [string, 'null'], format: date-time }
+        valid_until: { type: [string, 'null'], format: date-time }
+    Bulletin:
+      type: object
+      required: [scope, scope_code, title, text, issued_at, valid_from, valid_until, source_id]
+      properties:
+        scope: { type: string, enum: [department, zone, national] }
+        scope_code: { type: string }
+        title: { type: string }
+        text: { type: string }
+        issued_at: { type: [string, 'null'], format: date-time }
+        valid_from: { type: [string, 'null'], format: date-time }
+        valid_until: { type: [string, 'null'], format: date-time }
+        source_id: { type: string }
+    Warning:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        source_code: { type: string }
+    VigilanceResponse:
+      type: object
+      required: [service, version, data_status, freshness_status, geographic_scope, location, periods, bulletins, source, cache, warnings, requestId]
+      properties:
+        service: { const: weather-vigilance }
+        version: { type: string }
+        data_status: { const: available }
+        freshness_status: { type: string, enum: [fresh, stale] }
+        geographic_scope: { const: department }
+        location:
+          type: object
+          required: [department_code, department_name]
+          properties:
+            department_code: { type: string }
+            department_name: { type: [string, 'null'] }
+        periods:
+          type: array
+          items: { $ref: '#/components/schemas/Period' }
+        bulletins:
+          type: array
+          items: { $ref: '#/components/schemas/Bulletin' }
+        source:
+          type: object
+          required: [name, product, issued_at, retrieved_at, publication_id]
+          properties:
+            name: { const: Météo-France }
+            product: { const: Vigilance météorologique }
+            issued_at: { type: [string, 'null'], format: date-time }
+            retrieved_at: { type: string, format: date-time }
+            publication_id: { type: [string, 'null'] }
+        cache:
+          type: object
+          required: [status, age_seconds]
+          properties:
+            status: { type: string, enum: [hit, restored] }
+            age_seconds: { type: [integer, 'null'], minimum: 0 }
+        warnings:
+          type: array
+          items: { $ref: '#/components/schemas/Warning' }
+        requestId: { type: string }
+    Error:
+      type: object
+      required: [error, requestId]
+      properties:
+        error:
+          type: object
+          required: [code, message, retryable]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            retryable: { type: boolean }
+        requestId: { type: string }
+  responses:
+    BadRequest:
+      description: Paramètre invalide
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: Département absent de la source
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Unavailable:
+      description: Aucune donnée officielle exploitable
+      content: { application/json: { schema: { type: object } } }
