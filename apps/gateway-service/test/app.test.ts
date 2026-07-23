@@ -8,6 +8,8 @@ const config: GatewayConfig = {
   port: 3000,
   legacyApiUrl: "http://legacy-api:3000",
   upstreamTimeoutMs: 100,
+  geographyServiceUrl: "http://geography-service:3000",
+  geographyServiceTimeoutMs: 100,
   version: "test",
 };
 
@@ -125,6 +127,17 @@ test("le proxy normalise un timeout amont", async (t) => {
   assert.equal(response.statusCode, 504);
   assert.equal(response.json().error.code, "UPSTREAM_TIMEOUT");
   assert.equal(response.json().error.retryable, true);
+});
+
+test("le gateway délègue la géographie au service interne et propage le request-id", async (t) => {
+  const fetchImpl = fakeFetch(async (input, init) => {
+    assert.equal(String(input), "http://geography-service:3000/internal/v1/geography/resolve?lat=44.081&lon=3.641");
+    assert.equal(new Headers(init?.headers).get("x-request-id"), "req-geography");
+    return new Response('{"requestId":"req-geography"}', { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const app = buildApp({ config, logger: false, fetchImpl }); t.after(() => app.close());
+  const response = await app.inject({ method: "GET", url: "/api/v2/geography/resolve?lat=44.081&lon=3.641", headers: { "x-request-id": "req-geography" } });
+  assert.equal(response.statusCode, 200); assert.equal(response.headers["x-request-id"], "req-geography");
 });
 
 test("le pont historique refuse les méthodes d'écriture", async (t) => {

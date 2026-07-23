@@ -1,0 +1,13 @@
+[
+  { "id": "val-aigoual-mairie", "latitude": 44.081192, "longitude": 3.641467, "note": "point réel déjà partagé par localisationsMeteo" },
+  { "id": "mont-aigoual", "latitude": 44.1216, "longitude": 3.5814 },
+  { "id": "paris-centre", "latitude": 48.8566, "longitude": 2.3522 },
+  { "id": "marseille-centre", "latitude": 43.2965, "longitude": 5.3698 },
+  { "id": "commune-rurale", "latitude": 43.947, "longitude": 3.58, "note": "Montdardier" },
+  { "id": "limite-communale", "latitude": 44.08, "longitude": 3.75, "note": "point proche de la limite est du territoire" },
+  { "id": "gard-hors-val-aigoual", "latitude": 44.243, "longitude": 4.010167, "note": "La Grand-Combe" },
+  { "id": "zone-isolee", "latitude": 44.15, "longitude": 3.55, "note": "secteur forestier" },
+  { "id": "mer", "latitude": 43.2, "longitude": 4.6 },
+  { "id": "coordonnees-invalides", "latitude": 91, "longitude": 3 },
+  { "id": "fournisseur-indisponible", "simulation": "timeout ou HTTP 503 via test injecté" }
+]
