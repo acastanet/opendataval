@@ -90,11 +90,11 @@ Ton role : **Executer, developper, proposer** — **jamais decider seul** des ch
 
 | Besoin | Fichier | Emplacement |
 |---|---|---|
-| Regles de travail | AGENT.md | `doc/AGENT.md` |
-| Vision produit | PROJECT.md | `doc/PROJECT.md` |
-| Backlog et priorites | ROADMAP.md | `doc/ROADMAP.md` |
-| Architecture technique | ARCHITECTURE.md | `doc/ARCHITECTURE.md` |
-| Decisions immuables | DECISIONS.md | `doc/DECISIONS.md` |
+| Regles de travail | AGENT.md | `doc/gouvernance/AGENT.md` |
+| Vision produit | PROJECT.md | `doc/gouvernance/PROJECT.md` |
+| Backlog et priorites | ROADMAP.md | `doc/gouvernance/ROADMAP.md` |
+| Architecture technique | ARCHITECTURE.md | `doc/v1/monolithe/architecture-legacy.md` |
+| Decisions immuables | DECISIONS.md | `doc/gouvernance/DECISIONS.md` |
 
 ---
 

@@ -1,6 +1,6 @@
 # Vigilance feu — page `/vigilance-feu`
 
-Page dédiée qui, sans action de l'utilisateur, affiche déjà la situation à la mairie de Val-d'Aigoual (massif, niveau d'alerte, point chaud le plus proche), et qui peut recalculer la même chose pour sa position réelle sur simple clic. Elle réutilise les données déjà collectées pour la mini-app `/incendies` (voir [doc/EXPLOITATION-INCENDIES.md](doc/EXPLOITATION-INCENDIES.md)), mais élargies du seul massif de l'Aigoual (3 massifs, 15 km) à l'ensemble du département (8 massifs officiels, bbox départementale).
+Page dédiée qui, sans action de l'utilisateur, affiche déjà la situation à la mairie de Val-d'Aigoual (massif, niveau d'alerte, point chaud le plus proche), et qui peut recalculer la même chose pour sa position réelle sur simple clic. Elle réutilise les données déjà collectées pour la mini-app `/incendies` (voir [exploitation.md](exploitation.md)), mais élargies du seul massif de l'Aigoual (3 massifs, 15 km) à l'ensemble du département (8 massifs officiels, bbox départementale).
 
 Design éditorial brutaliste, repris à l'identique du système déjà établi par `/meteo/essentiel` (voir `brutalist_interpretabilite.md`) : fond papier `#fcfcfa`, noir mat `#1a1a1a`, bleu `#0047ab`, Inter/sans-serif, chiffres géants en 800, bordures fines sans arrondi ni ombre. La signature de la page : le niveau de risque du massif détecté devient un mot géant coloré à bordure gauche épaisse — l'information la plus importante domine visuellement.
 

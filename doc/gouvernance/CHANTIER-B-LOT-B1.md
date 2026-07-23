@@ -1,6 +1,6 @@
 # Chantier B — Lot B.1 « Socio-économie » (indicateurs logement INSEE + couche BPE)
 
-> Plan d'implémentation du lot B.1 de `doc/FEUILLE-DE-ROUTE-2026.md`. À mettre à jour (✅/🟡/⏳/❌) au fil
+> Plan d'implémentation du lot B.1 de `doc/gouvernance/FEUILLE-DE-ROUTE-2026.md`. À mettre à jour (✅/🟡/⏳/❌) au fil
 > de la livraison.
 
 ## Contexte

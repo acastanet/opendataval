@@ -18,7 +18,7 @@ Route interne : /incendies/
 Le nginx de l'hôte, hors de ce dépôt, réécrit `/feu/` vers le Caddy local sur
 `/incendies/` et adapte les chemins des assets et de l'API. La configuration exacte
 et les contrôles réalisés sont documentés dans
-`doc/RAPPORT-INSTALLATION-INCENDIES.md`.
+`doc/v1/incendies/rapport-installation.md`.
 
 La mini-app Eau, sous `/eau/` et `/eau/tableau-de-bord/` dans le dépôt, est la
 deuxième mini-app actuellement en développement. Ne pas supposer qu'elle est déjà
@@ -329,7 +329,7 @@ docker compose run --rm -e RUN_ONCE=true -e RUN_ONLY=firms worker
 
 Pour le risque Gard, un fichier de secours validé peut être placé temporairement
 dans `data/incendies/YYYYMMDD.json`, conformément à
-`doc/EXPLOITATION-INCENDIES.md`. Le retirer après le retour du flux automatique et
+`doc/v1/incendies/exploitation.md`. Le retirer après le retour du flux automatique et
 ne pas le committer.
 
 ## 11. Compte rendu de mise à jour

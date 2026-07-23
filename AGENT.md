@@ -14,18 +14,18 @@ Utiliser cet ordre de confiance :
 1. code, `package.json`, migrations SQL, `docker-compose.yml`, `Caddyfile` et
    `.env.example` ;
 2. ce fichier racine `AGENT.md` ;
-3. `MISE_A_JOUR.md` pour toute mise à jour du dépôt, des dépendances ou d'un
+3. `doc/gouvernance/mise-a-jour.md` pour toute mise à jour du dépôt, des dépendances ou d'un
    déploiement ;
 4. documentation spécialisée récente, notamment
-   `doc/RAPPORT-INSTALLATION-INCENDIES.md`,
-   `doc/EXPLOITATION-INCENDIES.md`, `doc/EXPLOITATION-COPERNICUS.md`,
+   `doc/v1/incendies/rapport-installation.md`,
+   `doc/v1/incendies/exploitation.md`, `doc/microservice/copernicus/exploitation.md`,
    `apps/copernicus/README.md`, `mini_app/README.md` et les ADR ;
-5. `README_agent.md` pour les précautions de déploiement, en vérifiant chaque
+5. `doc/gouvernance/deploiement-vps.md` pour les précautions de déploiement, en vérifiant chaque
    commande contre les fichiers réellement présents ;
 6. feuilles de route et documents de vision dans `doc/` ;
 7. archives dans `doc/archive/`.
 
-`CLAUDE.md`, `doc/AGENT.md` et `doc/ARCHITECTURE.md` ont servi de documents de
+`CLAUDE.md`, `doc/gouvernance/AGENT.md` et `doc/v1/monolithe/architecture-legacy.md` ont servi de documents de
 conception, mais sont partiellement obsolètes. Ne pas reprendre sans vérification
 leurs listes de sources, tables, ports, versions, commandes ou règles de travail.
 Exemples d'écarts connus :
@@ -69,7 +69,7 @@ Le travail opérationnel porte notamment sur les applications suivantes :
 
 Le portail complet contenu dans le monorepo ne doit pas être considéré comme
 entièrement déployé simplement parce que la mini-app Feu l'est. Pour l'état précis
-du déploiement Feu, consulter `doc/RAPPORT-INSTALLATION-INCENDIES.md`.
+du déploiement Feu, consulter `doc/v1/incendies/rapport-installation.md`.
 
 Le flux principal est :
 
