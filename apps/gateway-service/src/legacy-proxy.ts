@@ -9,15 +9,7 @@ import type { GatewayConfig } from "./config.js";
 export type FetchLike = typeof fetch;
 
 const LEGACY_PREFIX = "/api/v2/legacy";
-const PROXY_METHODS: HTTPMethods[] = [
-  "GET",
-  "HEAD",
-  "POST",
-  "PUT",
-  "PATCH",
-  "DELETE",
-  "OPTIONS",
-];
+const PROXY_METHODS: HTTPMethods[] = ["GET", "HEAD"];
 
 const EXCLUDED_REQUEST_HEADERS = new Set([
   "connection",
@@ -42,20 +34,13 @@ function targetUrl(request: FastifyRequest, legacyApiUrl: string): string {
   const suffix = rawUrl.startsWith(LEGACY_PREFIX)
     ? rawUrl.slice(LEGACY_PREFIX.length)
     : "";
-  const legacyPath = suffix === "" ? "/api" : `/api${suffix.startsWith("/") ? suffix : `/${suffix}`}`;
+  const legacyPath = suffix === ""
+    ? "/api"
+    : `/api${suffix.startsWith("/") ? suffix : `/${suffix}`}`;
   return new URL(legacyPath, `${legacyApiUrl}/`).toString();
 }
 
-function serializeBody(request: FastifyRequest): BodyInit | undefined {
-  if (request.method === "GET" || request.method === "HEAD" || request.body === undefined) {
-    return undefined;
-  }
-  if (typeof request.body === "string") return request.body;
-  if (Buffer.isBuffer(request.body)) return new Uint8Array(request.body);
-  return JSON.stringify(request.body);
-}
-
-function upstreamHeaders(request: FastifyRequest, body: BodyInit | undefined): Headers {
+function upstreamHeaders(request: FastifyRequest): Headers {
   const headers = new Headers();
   for (const [name, rawValue] of Object.entries(request.headers)) {
     if (EXCLUDED_REQUEST_HEADERS.has(name.toLowerCase()) || rawValue === undefined) continue;
@@ -66,9 +51,6 @@ function upstreamHeaders(request: FastifyRequest, body: BodyInit | undefined): H
     }
   }
   headers.set("x-request-id", request.id);
-  if (body !== undefined && request.body !== undefined && typeof request.body === "object") {
-    if (!headers.has("content-type")) headers.set("content-type", "application/json");
-  }
   return headers;
 }
 
@@ -101,13 +83,11 @@ export function registerLegacyProxy(
 ): void {
   const handler = async (request: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
     const url = targetUrl(request, config.legacyApiUrl);
-    const body = serializeBody(request);
 
     try {
       const response = await fetchImpl(url, {
         method: request.method,
-        headers: upstreamHeaders(request, body),
-        body,
+        headers: upstreamHeaders(request),
         redirect: "manual",
         signal: AbortSignal.timeout(config.upstreamTimeoutMs),
       });
