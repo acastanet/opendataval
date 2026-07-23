@@ -44,7 +44,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: options.logger ?? true,
     requestIdHeader: "x-request-id",
-    requestIdLogLabel: "requestId",
+    logController: {
+      requestIdLogLabel: "requestId",
+    },
     trustProxy: true,
   });
 
