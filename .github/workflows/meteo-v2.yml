@@ -7,11 +7,11 @@ on:
       - "apps/gateway-service/**"
       - "apps/geography-service/**"
       - "apps/weather-service/**"
+      - "services/weather-vigilance/**"
       - "apps/meteo-web/**"
       - "apps/web/**"
       - "apps/worker/**"
-      - "doc/ARCHITECTURE-GATEWAY-SERVICE.md"
-      - "doc/meteo-v2/**"
+      - "doc/**"
       - "packages/shared/**"
       - "scripts/**"
       - "Dockerfile.caddy"
@@ -42,13 +42,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
+        with: { version: "${{ env.PNPM_VERSION }}", run_install: false }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile --reporter=silent
       - name: Tests API
         run: pnpm --filter api test
@@ -64,13 +60,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
+        with: { version: "${{ env.PNPM_VERSION }}", run_install: false }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile --reporter=silent
       - name: Tests gateway
         shell: bash
@@ -99,18 +91,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
+        with: { version: "${{ env.PNPM_VERSION }}", run_install: false }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile --reporter=silent
-      - name: Tests geography service
-        run: pnpm --filter geography-service test
-      - name: Typage geography service
-        run: pnpm --filter geography-service typecheck
+      - run: pnpm --filter geography-service test
+      - run: pnpm --filter geography-service typecheck
 
   weather:
     name: Weather Service
@@ -119,15 +105,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
+        with: { version: "${{ env.PNPM_VERSION }}", run_install: false }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile --reporter=silent
       - run: pnpm check:weather
+
+  vigilance:
+    name: Weather Vigilance Service
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/weather-vigilance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}" }
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
 
   worker:
     name: Worker météo
@@ -136,18 +133,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
+        with: { version: "${{ env.PNPM_VERSION }}", run_install: false }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile --reporter=silent
-      - name: Tests worker
-        run: pnpm --filter worker test
-      - name: Typage worker
-        run: pnpm --filter worker exec tsc --noEmit
+      - run: pnpm --filter worker test
+      - run: pnpm --filter worker exec tsc --noEmit
 
   contract:
     name: Contrat OpenAPI
@@ -156,27 +147,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
+        with: { version: "${{ env.PNPM_VERSION }}", run_install: false }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile --reporter=silent
-      - name: Régénérer le client OpenAPI
-        run: pnpm --filter meteo-web run generate:api
+      - run: pnpm --filter meteo-web run generate:api
       - name: Publier le client généré
         if: always()
         uses: actions/upload-artifact@v4
-        with:
-          name: meteo-openapi-client
-          path: apps/meteo-web/src/api/schema.d.ts
-          if-no-files-found: error
-      - name: Afficher le diff éventuel
-        run: git diff -- apps/meteo-web/src/api/schema.d.ts
-      - name: Vérifier la synchronisation
-        run: git diff --exit-code -- apps/meteo-web/src/api/schema.d.ts
+        with: { name: meteo-openapi-client, path: apps/meteo-web/src/api/schema.d.ts, if-no-files-found: error }
+      - run: git diff -- apps/meteo-web/src/api/schema.d.ts
+      - run: git diff --exit-code -- apps/meteo-web/src/api/schema.d.ts
 
   frontend:
     name: Interface Météo V2
@@ -185,18 +166,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
+        with: { version: "${{ env.PNPM_VERSION }}", run_install: false }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile --reporter=silent
-      - name: Tests frontend
-        run: pnpm --filter meteo-web test
-      - name: Build frontend
-        run: pnpm --filter meteo-web build
+      - run: pnpm --filter meteo-web test
+      - run: pnpm --filter meteo-web build
 
   containers:
     name: Images de déploiement
@@ -204,18 +179,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Construire l’image API
-        run: docker build --file apps/api/Dockerfile --tag opendataval-api:test .
-      - name: Construire l’image gateway
-        run: docker build --file apps/gateway-service/Dockerfile --tag opendataval-gateway:test .
-      - name: Construire l’image geography service
-        run: docker build --file apps/geography-service/Dockerfile --tag opendataval-geography:test .
-      - name: Construire l’image weather service
-        run: docker build --file apps/weather-service/Dockerfile --tag opendataval-weather:test .
-      - name: Construire l’image worker
-        run: docker build --file apps/worker/Dockerfile --tag opendataval-worker:test .
-      - name: Construire l’image Caddy
-        run: docker build --file Dockerfile.caddy --tag opendataval-caddy:test .
+      - run: docker build --file apps/api/Dockerfile --tag opendataval-api:test .
+      - run: docker build --file apps/gateway-service/Dockerfile --tag opendataval-gateway:test .
+      - run: docker build --file apps/geography-service/Dockerfile --tag opendataval-geography:test .
+      - run: docker build --file apps/weather-service/Dockerfile --tag opendataval-weather:test .
+      - run: docker build --file services/weather-vigilance/Dockerfile --tag opendataval-vigilance:test .
+      - run: docker build --file apps/worker/Dockerfile --tag opendataval-worker:test .
+      - run: docker build --file Dockerfile.caddy --tag opendataval-caddy:test .
       - name: Vérifier l’embarquement de Météo V2
         run: >-
           docker run --rm opendataval-caddy:test sh -ec
