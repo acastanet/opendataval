@@ -116,11 +116,11 @@ function parseCsv(csv: string): FirmsRecord[] {
   });
 }
 
-async function getWatchBoundingBox(pool: pg.Pool): Promise<FirmsBoundingBox | null> {
+async function getDepartementBoundingBox(pool: pg.Pool): Promise<FirmsBoundingBox | null> {
   const { rows } = await pool.query<BboxRow>(
     `select ST_XMin(geom) as west, ST_YMin(geom) as south,
             ST_XMax(geom) as east, ST_YMax(geom) as north
-       from incendies.zones where slug = 'veille_15km'`,
+       from incendies.zones where slug = 'departement_30'`,
   );
   const bbox = rows[0];
   if (!bbox || bbox.west === null || bbox.south === null || bbox.east === null || bbox.north === null) return null;
@@ -165,6 +165,8 @@ async function upsertDetection(pool: pg.Pool, detection: FirmsRecord): Promise<b
        select geom from incendies.zones where slug = 'coeur'
      ), veille as (
        select geom from incendies.zones where slug = 'veille_15km'
+     ), departement as (
+       select geom from incendies.zones where slug = 'departement_30'
      ), point as (
        select ST_SetSRID(ST_MakePoint($2, $3), 4326) as geom
      )
@@ -174,12 +176,13 @@ async function upsertDetection(pool: pg.Pool, detection: FirmsRecord): Promise<b
        case
          when ST_Covers(coeur.geom, point.geom) then 'coeur'
          when ST_DWithin(coeur.geom::geography, point.geom::geography, 5000) then 'proche'
-         else 'veille'
+         when ST_Covers(veille.geom, point.geom) then 'veille'
+         else 'departement'
        end,
        ST_Distance(coeur.geom::geography, point.geom::geography),
        point.geom
-     from coeur cross join veille cross join point
-     where ST_Covers(veille.geom, point.geom)
+     from coeur cross join veille cross join departement cross join point
+     where ST_Covers(departement.geom, point.geom)
      on conflict (external_id) do update set
        confiance = excluded.confiance,
        frp = excluded.frp,
@@ -200,14 +203,14 @@ async function upsertDetection(pool: pg.Pool, detection: FirmsRecord): Promise<b
   return rowCount === 1;
 }
 
-/** Collecte les anomalies thermiques VIIRS dans la zone de veille validée. */
+/** Collecte les anomalies thermiques VIIRS sur tout le département du Gard. */
 export async function run(pool: pg.Pool): Promise<number | { nbLignes: number; statut: "partiel"; avertissement: string }> {
   const mapKey = process.env.NASA_FIRMS_MAP_KEY;
   if (!mapKey) throw new Error("FIRMS : NASA_FIRMS_MAP_KEY absente");
 
-  const bbox = await getWatchBoundingBox(pool);
+  const bbox = await getDepartementBoundingBox(pool);
   if (!bbox) {
-    console.warn("[firms] ignoré — zone de veille non initialisée");
+    console.warn("[firms] ignoré — zone département non initialisée");
     return 0;
   }
 

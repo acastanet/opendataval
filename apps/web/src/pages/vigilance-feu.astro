@@ -1,0 +1,29 @@
+---
+import Layout from "../layouts/Layout.astro";
+import BoutonAccueil from "../components/BoutonAccueil.astro";
+import VigilanceFeu from "../islands/VigilanceFeu.svelte";
+---
+
+<Layout
+  title="Vigilance feu — Gard"
+  description="Localisation, couleur d’alerte du massif et carte des anomalies thermiques du département du Gard."
+>
+  <BoutonAccueil />
+  <main class="page-vigilance-feu">
+    <header class="entete-page">
+      <p class="sur-titre">Val-d’Aigoual · vigilance incendie</p>
+      <h1>Vigilance feu</h1>
+      <p class="introduction">Votre position, le niveau du massif concerné et les anomalies thermiques détectées dans le Gard, en un coup d’œil.</p>
+    </header>
+    <VigilanceFeu client:only="svelte" />
+  </main>
+</Layout>
+
+<style>
+  .page-vigilance-feu { width: 100%; margin: 0 auto; }
+  .entete-page { width: min(45rem, 100%); margin: 0 auto; padding: clamp(1.5rem, 6vw, 3rem) clamp(1.15rem, 6vw, 4.5rem) 0; }
+  .sur-titre { margin: 0 0 0.5rem; color: #686868; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+  h1 { margin: 0; color: #1a1a1a; font-family: Inter, "Helvetica Neue", Arial, sans-serif; font-weight: 800; font-size: clamp(2rem, 7vw, 3.2rem); letter-spacing: -0.03em; }
+  .introduction { max-width: 42ch; margin: 0.75rem 0 0; color: #686868; font-size: 0.95rem; font-weight: 600; line-height: 1.5; }
+  :global(body) { background: #fcfcfa; }
+</style>

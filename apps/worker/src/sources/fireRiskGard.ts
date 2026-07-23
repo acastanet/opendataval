@@ -5,10 +5,16 @@ import path from "node:path";
 const GARD_BASE_URL = "https://www.risque-prevention-incendie.fr/static/30/import_data";
 const MAX_TENTATIVES = 2;
 
+/** Les 8 massifs officiels du Gard (source : massifs_30.fgb, propriété NOM_MASSIF). */
 const MASSIFS = [
   { id: "301", nom: "CAUSSE AIGOUAL" },
   { id: "302", nom: "SUD CEVENNES" },
   { id: "303", nom: "NORD CEVENNES" },
+  { id: "304", nom: "GARDON VIDOURLE" },
+  { id: "305", nom: "VAL DE CEZE" },
+  { id: "306", nom: "GARRIGUES" },
+  { id: "307", nom: "COSTIERES PETITE CAMARGUE" },
+  { id: "308", nom: "GARD RHODANIEN" },
 ] as const;
 
 interface GardFile {

@@ -6,6 +6,10 @@ import { cleDate, dateParis, evaluerFraicheurFirms, parseHours } from "../lib/in
 const MASSIFS_GARD_FGB_URL = "https://www.risque-prevention-incendie.fr/static/30/massifs_30.fgb";
 const IDS_MASSIFS_AIGOUAL = new Set([301, 302, 303]);
 const NOMS_MASSIFS_AIGOUAL = new Set(["CAUSSE AIGOUAL", "SUD CEVENNES", "NORD CEVENNES"]);
+const NOMS_MASSIFS_GARD = new Set([
+  "CAUSSE AIGOUAL", "SUD CEVENNES", "NORD CEVENNES", "GARDON VIDOURLE",
+  "VAL DE CEZE", "GARRIGUES", "COSTIERES PETITE CAMARGUE", "GARD RHODANIEN",
+]);
 const CACHE_MASSIFS_MS = 6 * 60 * 60 * 1000;
 
 interface MassifGardFeature {
@@ -28,11 +32,11 @@ async function chargerMassifsGardOfficiels(): Promise<MassifGardFeature[]> {
   const features: MassifGardFeature[] = [];
   const bytes = new Uint8Array(await response.arrayBuffer());
   for await (const feature of deserialize(bytes)) {
-    const massif = feature as MassifGardFeature;
-    if (IDS_MASSIFS_AIGOUAL.has(Number(massif.properties?.ID))) features.push(massif);
+    features.push(feature as MassifGardFeature);
   }
-  if (features.length !== IDS_MASSIFS_AIGOUAL.size) {
-    throw new Error(`Massifs officiels du Gard : ${features.length}/3 contours reçus`);
+  const idsRecus = new Set(features.map((feature) => Number(feature.properties?.ID)));
+  if (![...IDS_MASSIFS_AIGOUAL].every((id) => idsRecus.has(id))) {
+    throw new Error("Massifs officiels du Gard : contours de l'Aigoual manquants");
   }
 
   cacheMassifsGard = { expireA: Date.now() + CACHE_MASSIFS_MS, features };
@@ -41,6 +45,7 @@ async function chargerMassifsGardOfficiels(): Promise<MassifGardFeature[]> {
 
 interface DetectionQuery {
   hours?: string;
+  perimetre?: string;
 }
 
 interface PointGeometry {
@@ -61,7 +66,7 @@ interface DetectionRow {
   confiance: string | null;
   frp: string | null;
   jour_nuit: "D" | "N" | null;
-  position: "coeur" | "proche" | "veille";
+  position: "coeur" | "proche" | "veille" | "departement";
   distance_coeur_m: string;
   collectee_a: string;
   geometry: PointGeometry;
@@ -70,7 +75,7 @@ interface DetectionRow {
 interface ZoneRow {
   slug: string;
   nom: string;
-  type_zone: "coeur" | "proche_5km" | "veille_15km" | "officielle";
+  type_zone: "coeur" | "proche_5km" | "veille_15km" | "departement" | "officielle";
   source: string;
   version_source: string | null;
   maj: string;
@@ -99,10 +104,10 @@ function collecteLaPlusRecente(rows: RiskRow[]): string | null {
   return valeurs.length === 0 ? null : new Date(Math.max(...valeurs)).toISOString();
 }
 
-function resumeRisque(rows: RiskRow[], dateDemandee: string, repli: RiskRow[] = []) {
+function resumeRisque(rows: RiskRow[], dateDemandee: string, repli: RiskRow[] = [], massifsAttendus: Set<string> = NOMS_MASSIFS_AIGOUAL) {
   const ordre = ["inconnu", "vert", "jaune", "orange", "rouge"];
   const lignesCompletes = (lignes: RiskRow[]) => (
-    lignes.length === NOMS_MASSIFS_AIGOUAL.size && lignes.every((ligne) => NOMS_MASSIFS_AIGOUAL.has(ligne.zone_officielle))
+    lignes.length === massifsAttendus.size && lignes.every((ligne) => massifsAttendus.has(ligne.zone_officielle))
   );
   const lignesDemandee = lignesCompletes(rows) ? rows : [];
   const zonesRepli = lignesCompletes(repli) ? repli : [];
@@ -133,15 +138,20 @@ function resumeRisque(rows: RiskRow[], dateDemandee: string, repli: RiskRow[] = 
   };
 }
 
+interface PerimetreQuery {
+  perimetre?: string;
+}
+
 export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): void {
-  app.get("/api/incendies/massifs-officiels", async (_request, reply) => {
+  app.get<{ Querystring: PerimetreQuery }>("/api/incendies/massifs-officiels", async (request, reply) => {
     try {
+      const departement = request.query.perimetre === "departement";
       const features = await chargerMassifsGardOfficiels();
       reply.header("cache-control", "public, max-age=21600");
       return {
         type: "FeatureCollection",
         source: MASSIFS_GARD_FGB_URL,
-        features,
+        features: departement ? features : features.filter((feature) => IDS_MASSIFS_AIGOUAL.has(Number(feature.properties?.ID))),
       };
     } catch (error) {
       app.log.error(error, "Chargement des contours officiels des massifs gardois impossible");
@@ -150,7 +160,8 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
     }
   });
 
-  app.get("/api/incendies/situation", async (_request, reply) => {
+  app.get<{ Querystring: PerimetreQuery }>("/api/incendies/situation", async (request, reply) => {
+    const massifsAttendus = request.query.perimetre === "departement" ? NOMS_MASSIFS_GARD : NOMS_MASSIFS_AIGOUAL;
     const [{ rows: counts }, { rows: firmsLogs }, { rows: gardLogs }, { rows: risks }, { rows: zones }] = await Promise.all([
       pool.query<{ position: string; nombre: number }>(
         `select detection.position, count(*)::int as nombre
@@ -220,8 +231,8 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
                 : undefined,
           },
       risque_gard: {
-        aujourd_hui: resumeRisque(risquesAujourdhui, aujourdhui, risquesRepli),
-        demain: resumeRisque(risquesDemain, demain),
+        aujourd_hui: resumeRisque(risquesAujourdhui, aujourdhui, risquesRepli, massifsAttendus),
+        demain: resumeRisque(risquesDemain, demain, [], massifsAttendus),
         source: {
           etat: latestGard?.statut ?? "non_collecte",
           derniere_tentative: latestGard?.termine_a ?? latestGard?.demarre_a ?? null,
@@ -243,17 +254,26 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
       reply.code(400);
       return { error: "Le paramètre hours doit être un entier compris entre 1 et 72." };
     }
+    const departement = request.query.perimetre === "departement";
 
     const { rows } = await pool.query<DetectionRow>(
-      `select detection.external_id, detection.observee_a, detection.satellite, detection.instrument,
-              detection.confiance, detection.frp::text, detection.jour_nuit, detection.position,
-              round(detection.distance_coeur_m)::text as distance_coeur_m, detection.collectee_a,
-              ST_AsGeoJSON(detection.geom, 6)::json as geometry
-         from incendies.detections_firms as detection
-         join incendies.zones as veille
-           on veille.slug = 'veille_15km' and ST_Covers(veille.geom, detection.geom)
-        where detection.observee_a >= now() - ($1::text || ' hours')::interval
-        order by detection.observee_a desc`,
+      departement
+        ? `select detection.external_id, detection.observee_a, detection.satellite, detection.instrument,
+                  detection.confiance, detection.frp::text, detection.jour_nuit, detection.position,
+                  round(detection.distance_coeur_m)::text as distance_coeur_m, detection.collectee_a,
+                  ST_AsGeoJSON(detection.geom, 6)::json as geometry
+             from incendies.detections_firms as detection
+            where detection.observee_a >= now() - ($1::text || ' hours')::interval
+            order by detection.observee_a desc`
+        : `select detection.external_id, detection.observee_a, detection.satellite, detection.instrument,
+                  detection.confiance, detection.frp::text, detection.jour_nuit, detection.position,
+                  round(detection.distance_coeur_m)::text as distance_coeur_m, detection.collectee_a,
+                  ST_AsGeoJSON(detection.geom, 6)::json as geometry
+             from incendies.detections_firms as detection
+             join incendies.zones as veille
+               on veille.slug = 'veille_15km' and ST_Covers(veille.geom, detection.geom)
+            where detection.observee_a >= now() - ($1::text || ' hours')::interval
+            order by detection.observee_a desc`,
       [hours],
     );
     reply.header("cache-control", "public, max-age=60");
@@ -319,8 +339,8 @@ export function registerIncendiesRoutes(app: FastifyInstance, pool: pg.Pool): vo
       `select slug, nom, type_zone, source, version_source, maj,
               ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.00005), 6)::json as geometry
          from incendies.zones
-        where type_zone in ('coeur', 'proche_5km', 'veille_15km')
-        order by case type_zone when 'veille_15km' then 1 when 'proche_5km' then 2 else 3 end`,
+        where type_zone in ('coeur', 'proche_5km', 'veille_15km', 'departement')
+        order by case type_zone when 'departement' then 0 when 'veille_15km' then 1 when 'proche_5km' then 2 else 3 end`,
     );
     reply.header("cache-control", "public, max-age=3600");
     return {
