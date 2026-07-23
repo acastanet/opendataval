@@ -100,6 +100,24 @@ function first(record: Record<string, unknown>, keys: readonly string[]): unknow
   return null;
 }
 
+function mergeObservation(
+  previous: NationalHourlyObservation,
+  incoming: NationalHourlyObservation,
+): NationalHourlyObservation {
+  return {
+    numPoste: previous.numPoste,
+    heureUtc: previous.heureUtc,
+    t: incoming.t ?? previous.t,
+    humidite: incoming.humidite ?? previous.humidite,
+    ventDir: incoming.ventDir ?? previous.ventDir,
+    ventKmh: incoming.ventKmh ?? previous.ventKmh,
+    rafaleKmh: incoming.rafaleKmh ?? previous.rafaleKmh,
+    pluie1hMm: incoming.pluie1hMm ?? previous.pluie1hMm,
+    pressionHpa: incoming.pressionHpa ?? previous.pressionHpa,
+    neigeCm: incoming.neigeCm ?? previous.neigeCm,
+  };
+}
+
 export function parseHourlyObservationPacket(payload: unknown): ParsedHourlyPacket {
   const observationsByKey = new Map<string, NationalHourlyObservation>();
   let rejectedRows = 0;
@@ -133,8 +151,13 @@ export function parseHourlyObservationPacket(payload: unknown): ParsedHourlyPack
     };
 
     const key = `${numPoste}:${heureUtc}`;
-    if (observationsByKey.has(key)) duplicateRows += 1;
-    observationsByKey.set(key, observation);
+    const previous = observationsByKey.get(key);
+    if (previous) {
+      duplicateRows += 1;
+      observationsByKey.set(key, mergeObservation(previous, observation));
+    } else {
+      observationsByKey.set(key, observation);
+    }
   }
 
   return {
@@ -231,8 +254,10 @@ export async function run(
     ? configuredMinimum
     : DEFAULT_MINIMUM_OBSERVATIONS;
   const warnings: string[] = [];
-  if (parsed.rejectedRows > 0) warnings.push(`${parsed.rejectedRows} lignes rejetées`);
-  if (parsed.duplicateRows > 0) warnings.push(`${parsed.duplicateRows} doublons remplacés`);
+  if (parsed.rejectedRows === 1) warnings.push("1 ligne rejetée");
+  else if (parsed.rejectedRows > 1) warnings.push(`${parsed.rejectedRows} lignes rejetées`);
+  if (parsed.duplicateRows === 1) warnings.push("1 doublon fusionné");
+  else if (parsed.duplicateRows > 1) warnings.push(`${parsed.duplicateRows} doublons fusionnés`);
   if (parsed.observations.length < minimumObservations) {
     warnings.push(
       `paquet incomplet probable : ${parsed.observations.length} observations, minimum ${minimumObservations}`,
