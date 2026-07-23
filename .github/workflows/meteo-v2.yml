@@ -6,6 +6,7 @@ on:
       - "apps/api/**"
       - "apps/meteo-web/**"
       - "apps/web/**"
+      - "apps/worker/**"
       - "doc/meteo-v2/**"
       - "packages/shared/**"
       - "Dockerfile.caddy"
@@ -48,6 +49,26 @@ jobs:
         run: pnpm --filter api test
       - name: Typage API
         run: pnpm --filter api exec tsc --noEmit
+
+  worker:
+    name: Worker météo
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Tests worker
+        run: pnpm --filter worker test
+      - name: Typage worker
+        run: pnpm --filter worker exec tsc --noEmit
 
   contract:
     name: Contrat OpenAPI
@@ -106,6 +127,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Construire l’image API
         run: docker build --file apps/api/Dockerfile --tag opendataval-api:test .
+      - name: Construire l’image worker
+        run: docker build --file apps/worker/Dockerfile --tag opendataval-worker:test .
       - name: Construire l’image Caddy
         run: docker build --file Dockerfile.caddy --tag opendataval-caddy:test .
       - name: Vérifier l’embarquement de Météo V2
