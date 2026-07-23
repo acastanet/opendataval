@@ -109,11 +109,11 @@ services:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
     ports:
       - "8080:80"
+    # Caddy reste indépendant du nouveau gateway afin que les routes historiques
+    # et les fichiers statiques restent disponibles même si le gateway échoue.
     depends_on:
       api:
         condition: service_started
-      gateway:
-        condition: service_healthy
     volumes:
       - caddy_data:/data
       - caddy_config:/config
