@@ -39,6 +39,8 @@ export interface SelectionTarget {
   altitudeM: number | null;
 }
 
+export type StationSearchTarget = Pick<SelectionTarget, "latitude" | "longitude">;
+
 export type StationSelectionStatus =
   | "selected"
   | "no_measurements"
@@ -93,6 +95,13 @@ interface LatestObservationRow {
   heure_utc?: unknown;
 }
 
+interface StationCatalogueRow {
+  external_id?: unknown;
+  props?: unknown;
+  latitude?: unknown;
+  longitude?: unknown;
+}
+
 function round(value: number, decimals = 1): number {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
@@ -116,6 +125,130 @@ function distanceKm(
     Math.sqrt(boundedHaversine),
     Math.sqrt(1 - boundedHaversine),
   );
+}
+
+function finiteNumber(value: unknown): number | null {
+  const parsed = typeof value === "number" || typeof value === "string"
+    ? Number(value)
+    : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function properties(value: unknown): Record<string, unknown> | null {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function stationFromCatalogueRow(row: StationCatalogueRow): StationMeteo | null {
+  const id = String(row.external_id ?? "").trim();
+  const props = properties(row.props);
+  const lat = finiteNumber(row.latitude);
+  const lon = finiteNumber(row.longitude);
+  const altitudeM = finiteNumber(props?.altitude_m);
+  const network = props?.reseau;
+  if (
+    id.length === 0
+    || props === null
+    || lat === null
+    || lon === null
+    || altitudeM === null
+    || (network !== "meteofrance" && network !== "infoclimat")
+  ) {
+    return null;
+  }
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+
+  const rawPack = props.pack;
+  const pack = rawPack === "RADOME" || rawPack === "ETENDU" ? rawPack : undefined;
+  const name = typeof props.nom === "string" && props.nom.trim().length > 0
+    ? props.nom.trim()
+    : id;
+  const licence = typeof props.licence === "string" && props.licence.trim().length > 0
+    ? props.licence.trim()
+    : "Licence non renseignée";
+
+  return {
+    id,
+    nom: name,
+    altitudeM,
+    lon,
+    lat,
+    reseau: network,
+    ...(pack ? { pack } : {}),
+    licence,
+  };
+}
+
+function nearbyFallbackStations(
+  target: StationSearchTarget,
+  radiusKm: number,
+  stations: readonly StationMeteo[],
+): StationMeteo[] {
+  return stations
+    .map((station) => ({ station, distance: distanceKm(target, station) }))
+    .filter(({ distance }) => distance <= radiusKm)
+    .sort((a, b) => a.distance - b.distance || a.station.id.localeCompare(b.station.id))
+    .map(({ station }) => station);
+}
+
+/**
+ * Charge depuis PostGIS uniquement les stations situées dans le rayon utile à
+ * la politique de sélection. Si le catalogue persistant est encore vide autour
+ * du point, le petit catalogue historique reste un repli transitoire, lui aussi
+ * filtré spatialement : Paris et Marseille ne reçoivent donc plus de candidates
+ * cévenoles situées à plusieurs centaines de kilomètres.
+ */
+export async function loadNearbyStations(
+  pool: pg.Pool,
+  target: StationSearchTarget,
+  radiusKm = STATION_SELECTION_POLICY.maxDistanceKm,
+  fallbackStations: readonly StationMeteo[] = STATIONS_METEO,
+): Promise<StationMeteo[]> {
+  if (!Number.isFinite(radiusKm) || radiusKm <= 0) {
+    throw new RangeError("Le rayon de recherche des stations doit être strictement positif.");
+  }
+
+  const radiusM = radiusKm * 1_000;
+  const { rows } = await pool.query<StationCatalogueRow>(
+    `select
+       external_id,
+       props,
+       ST_Y(geom) as latitude,
+       ST_X(geom) as longitude
+     from couches.objets
+     where couche = 'station_meteo'
+       and geom is not null
+       and ST_DWithin(
+         geom::geography,
+         ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+         $3
+       )
+     order by
+       ST_Distance(
+         geom::geography,
+         ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
+       ),
+       external_id`,
+    [target.longitude, target.latitude, radiusM],
+  );
+
+  const stations = rows
+    .map(stationFromCatalogueRow)
+    .filter((station): station is StationMeteo => station !== null);
+
+  return stations.length > 0
+    ? stations
+    : nearbyFallbackStations(target, radiusKm, fallbackStations);
 }
 
 function temperature(value: unknown): number | null {
@@ -162,6 +295,18 @@ export async function loadLatestStationMeasurements(
     measurements.push({ station, temperatureC, observedAt });
   }
   return measurements;
+}
+
+/**
+ * Point d'entrée utilisé par l'API : présélection spatiale du catalogue, puis
+ * lecture de la dernière observation uniquement pour les stations candidates.
+ */
+export async function loadNearbyStationMeasurements(
+  pool: pg.Pool,
+  target: StationSearchTarget,
+): Promise<StationMeasurement[]> {
+  const stations = await loadNearbyStations(pool, target);
+  return loadLatestStationMeasurements(pool, stations);
 }
 
 function evaluateCandidate(
