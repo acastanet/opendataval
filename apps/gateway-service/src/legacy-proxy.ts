@@ -29,15 +29,40 @@ const EXCLUDED_RESPONSE_HEADERS = new Set([
   "content-encoding",
 ]);
 
-function targetUrl(request: FastifyRequest, legacyApiUrl: string): string {
+function targetUrl(request: FastifyRequest, legacyApiUrl: string): string | null {
   const rawUrl = request.raw.url ?? LEGACY_PREFIX;
-  const suffix = rawUrl.startsWith(LEGACY_PREFIX)
-    ? rawUrl.slice(LEGACY_PREFIX.length)
+  const queryIndex = rawUrl.indexOf("?");
+  const rawPath = queryIndex >= 0 ? rawUrl.slice(0, queryIndex) : rawUrl;
+  const rawQuery = queryIndex >= 0 ? rawUrl.slice(queryIndex + 1) : "";
+  const rawSuffix = rawPath.startsWith(LEGACY_PREFIX)
+    ? rawPath.slice(LEGACY_PREFIX.length)
     : "";
-  const legacyPath = suffix === ""
-    ? "/api"
-    : `/api${suffix.startsWith("/") ? suffix : `/${suffix}`}`;
-  return new URL(legacyPath, `${legacyApiUrl}/`).toString();
+
+  let suffix: string;
+  try {
+    suffix = decodeURIComponent(rawSuffix);
+  } catch {
+    return null;
+  }
+
+  const segments = suffix.split("/");
+  if (
+    suffix.includes("\\")
+    || segments.some((segment) => segment === "." || segment === "..")
+  ) {
+    return null;
+  }
+
+  const normalizedSuffix = suffix === ""
+    ? ""
+    : suffix.startsWith("/")
+      ? suffix
+      : `/${suffix}`;
+  const target = new URL(legacyApiUrl);
+  const basePath = target.pathname.replace(/\/+$/, "");
+  target.pathname = `${basePath}/api${normalizedSuffix}`;
+  target.search = rawQuery === "" ? "" : `?${rawQuery}`;
+  return target.toString();
 }
 
 function upstreamHeaders(request: FastifyRequest): Headers {
@@ -83,6 +108,16 @@ export function registerLegacyProxy(
 ): void {
   const handler = async (request: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
     const url = targetUrl(request, config.legacyApiUrl);
+    if (url === null) {
+      return reply.code(400).send({
+        error: {
+          code: "INVALID_LEGACY_PATH",
+          message: "Le chemin demandé n'est pas autorisé.",
+          retryable: false,
+        },
+        requestId: request.id,
+      });
+    }
 
     try {
       const response = await fetchImpl(url, {
