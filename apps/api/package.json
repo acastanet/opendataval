@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "test": "tsx --test src/lib/incendies.test.ts src/lib/meteoClimate.test.ts src/lib/meteoPoint.test.ts src/lib/meteoRevisions.test.ts src/lib/radar.test.ts src/lib/geography.test.ts src/lib/station-observations.test.ts src/lib/meteo-provenance.test.ts src/lib/meteo-station-selection-provenance.test.ts src/routes/meteo-v1.test.ts src/routes/meteo-v1-with-provenance.test.ts src/routes/meteo-v1-spatial.test.ts"
+    "test": "tsx --test src/lib/incendies.test.ts src/lib/meteoClimate.test.ts src/lib/meteoPoint.test.ts src/lib/meteoRevisions.test.ts src/lib/radar.test.ts src/lib/geography.test.ts src/lib/station-observations.test.ts src/lib/meteo-provenance.test.ts src/lib/meteo-station-selection-provenance.test.ts src/lib/meteo-observation-health.test.ts src/routes/meteo-v1.test.ts src/routes/meteo-v1-with-provenance.test.ts src/routes/meteo-v1-spatial.test.ts src/routes/meteo-health.test.ts"
   },
   "dependencies": {
     "@opendata-vda/shared": "workspace:*",
