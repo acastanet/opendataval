@@ -12,6 +12,7 @@
     "build:web": "pnpm --filter web build",
     "build:meteo-v2": "pnpm --filter meteo-web build",
     "test:meteo-v2": "pnpm --filter meteo-web test",
+    "verify:meteo-national": "node scripts/verify-meteo-national.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:incendies": "pnpm --filter api test && pnpm --filter worker test",

@@ -8,6 +8,7 @@
 - [Audit de la couverture nationale des observations](./OBSERVATIONS-NATIONALES-AUDIT.md)
 - [Plan d’implémentation des observations nationales](./OBSERVATIONS-NATIONALES-IMPLEMENTATION.md)
 - [Observabilité et contrôles d’exploitation](./OBSERVABILITE.md)
+- [Déploiement des observations nationales](./DEPLOIEMENT-OBSERVATIONS-NATIONALES.md)
 - [Contrat OpenAPI de l’interface](./openapi.yaml)
 - [Schéma public de provenance](./provenance.schema.json)
 
@@ -39,4 +40,4 @@ Les lots structurants sont intégrés :
 - PR #16 : ingestion horaire du paquet national d’observations ;
 - PR #17 : diagnostic de couverture, fraîcheur et état des ingestions.
 
-Le prochain jalon est le déploiement conjoint de l’API et du worker, suivi de l’exécution contrôlée de `meteo_stations` et `meteo_obs_national`, puis de la vérification de Paris, Marseille et Val-d’Aigoual.
+Le prochain jalon est le déploiement conjoint de l’API et du worker, suivi de l’exécution contrôlée de `meteo_stations` et `meteo_obs_national`, puis de la vérification automatisée de Paris, Marseille et Val-d’Aigoual.
