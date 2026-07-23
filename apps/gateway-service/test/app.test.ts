@@ -126,3 +126,22 @@ test("le proxy normalise un timeout amont", async (t) => {
   assert.equal(response.json().error.code, "UPSTREAM_TIMEOUT");
   assert.equal(response.json().error.retryable, true);
 });
+
+test("le pont historique refuse les méthodes d'écriture", async (t) => {
+  const app = buildApp({
+    config,
+    logger: false,
+    fetchImpl: fakeFetch(async () => {
+      throw new Error("le service amont ne doit pas être appelé");
+    }),
+  });
+  t.after(() => app.close());
+
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/v2/legacy/meteo/v1/essential",
+    payload: { test: true },
+  });
+
+  assert.equal(response.statusCode, 404);
+});
