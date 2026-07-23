@@ -3,11 +3,12 @@
 Cette application est le nouveau frontend météo d’OpenDataVal. Elle ne dépend ni
 du code du worker, ni de PostgreSQL, ni du paquet `@opendata-vda/shared`. Son seul
 point de contact avec le backend est le contrat HTTP versionné décrit dans
-`doc/meteo-v2/openapi.yaml`.
+`doc/architecture/conception-v2/openapi.yaml`.
 
-La commune, le département et l’altitude sont résolus par l’API. L’interface ne
-contacte jamais directement l’IGN et n’invente aucun état de vigilance lorsque
-le département ou le bulletin officiel sont indisponibles.
+Cette itération de test consomme les deux routes du gateway :
+`/api/v2/geography/resolve` et `/api/v2/weather/temperature`. Elle ne contacte
+jamais directement l’IGN ni le fournisseur météo ; elle affiche précisément la
+provenance de la température renvoyée par les services.
 
 ## Développement visuel autonome
 
@@ -42,5 +43,6 @@ pnpm --filter meteo-web test
 pnpm --filter meteo-web build
 ```
 
-`generate:api` régénère les types TypeScript depuis OpenAPI. Le contrat doit être
-mis à jour avant toute modification incompatible de l’API.
+La page est une landing mobile-first de validation des services V2. Les prévisions
+et la vigilance restent volontairement sur le parcours historique : ce nouveau
+contrat ne publie à ce stade que la température et son contexte.

@@ -25,3 +25,52 @@ export interface WeatherCoordinates {
   longitude: number;
   accuracyM?: number;
 }
+
+export interface GeographyResolution {
+  query: WeatherCoordinates & { positionSource: "browser-geolocation" | "manual" | "unknown" };
+  territory: {
+    status: "available" | "not_found" | "unavailable" | "timeout";
+    data: { label: string; commune: { name: string; inseeCode: string }; department: { name: string; code: string } } | null;
+  };
+  address: {
+    status: "available" | "not_found" | "unavailable" | "timeout";
+    data: { formatted: string; precision: "house" | "street" | "locality" | "unknown"; distanceMeters: number | null } | null;
+  };
+  elevation: {
+    status: "available" | "not_found" | "unavailable" | "timeout";
+    data: { meters: number } | null;
+  };
+  requestId: string;
+}
+
+export interface TemperatureResolution {
+  location: WeatherCoordinates & { altitudeMeters: number | null };
+  temperature: {
+    valueCelsius: number;
+    nature: "station_observation" | "model_at_point";
+    referenceTime: string;
+    ageMinutes: number | null;
+    stale: boolean;
+    quality: "good" | "stale";
+    retrievedAt?: string;
+  };
+  method?: { id: string; version: string; stationSelectionPolicyVersion: string };
+  stationSelection: {
+    status: string;
+    selectedStation: {
+      name: string;
+      network: string;
+      distanceKilometers: number;
+      altitudeDifferenceMeters: number | null;
+    } | null;
+  };
+  provenance: { source: { provider: string; product: string } };
+  degraded: boolean;
+  unavailableSources: string[];
+  requestId: string;
+}
+
+export interface LiveWeatherData {
+  geography: GeographyResolution | null;
+  temperature: TemperatureResolution;
+}

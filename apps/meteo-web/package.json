@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "dev:mock": "vite --mode mock --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "generate:api": "openapi-typescript ../../doc/meteo-v2/openapi.yaml -o src/api/schema.d.ts",
+    "generate:api": "openapi-typescript ../../doc/architecture/conception-v2/openapi.yaml -o src/api/schema.d.ts",
     "test": "vitest run"
   },
   "dependencies": {

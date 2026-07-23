@@ -1,6 +1,9 @@
 import type {
   EssentialWeather,
+  GeographyResolution,
+  LiveWeatherData,
   LocationsResponse,
+  TemperatureResolution,
   WeatherCoordinates,
 } from "./contracts";
 
@@ -50,4 +53,24 @@ export function fetchEssentialWeather(
     query.set("accuracyM", String(Math.round(coordinates.accuracyM)));
   }
   return getJson<EssentialWeather>(`/api/v1/meteo/essential?${query}`, signal);
+}
+
+function gatewayQuery(coordinates: WeatherCoordinates, positionSource: "browser-geolocation" | "manual" | "unknown") {
+  const query = new URLSearchParams({ lat: String(coordinates.latitude), lon: String(coordinates.longitude), positionSource });
+  if (coordinates.accuracyM !== undefined) query.set("horizontalAccuracyMeters", String(Math.round(coordinates.accuracyM)));
+  return query;
+}
+
+export async function fetchLiveWeather(
+  coordinates: WeatherCoordinates,
+  positionSource: "browser-geolocation" | "manual" | "unknown",
+  signal?: AbortSignal,
+): Promise<LiveWeatherData> {
+  const query = gatewayQuery(coordinates, positionSource).toString();
+  const [geography, temperature] = await Promise.allSettled([
+    getJson<GeographyResolution>(`/api/v2/geography/resolve?${query}`, signal),
+    getJson<TemperatureResolution>(`/api/v2/weather/temperature?${query}`, signal),
+  ]);
+  if (temperature.status === "rejected") throw temperature.reason;
+  return { geography: geography.status === "fulfilled" ? geography.value : null, temperature: temperature.value };
 }
