@@ -7,6 +7,8 @@ export interface GatewayConfig {
   geographyServiceTimeoutMs: number;
   weatherServiceUrl: string;
   weatherServiceTimeoutMs: number;
+  vigilanceServiceUrl?: string;
+  vigilanceServiceTimeoutMs?: number;
   version: string;
 }
 
@@ -49,8 +51,24 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       3_000,
       "GEOGRAPHY_SERVICE_TIMEOUT_MS",
     ),
-    weatherServiceUrl: normalizeHttpUrl(env.WEATHER_SERVICE_URL?.trim() || "http://weather-service:3000", "WEATHER_SERVICE_URL"),
-    weatherServiceTimeoutMs: positiveInteger(env.WEATHER_SERVICE_TIMEOUT_MS, 3_000, "WEATHER_SERVICE_TIMEOUT_MS"),
+    weatherServiceUrl: normalizeHttpUrl(
+      env.WEATHER_SERVICE_URL?.trim() || "http://weather-service:3000",
+      "WEATHER_SERVICE_URL",
+    ),
+    weatherServiceTimeoutMs: positiveInteger(
+      env.WEATHER_SERVICE_TIMEOUT_MS,
+      3_000,
+      "WEATHER_SERVICE_TIMEOUT_MS",
+    ),
+    vigilanceServiceUrl: normalizeHttpUrl(
+      env.VIGILANCE_SERVICE_URL?.trim() || "http://weather-vigilance-service:3000",
+      "VIGILANCE_SERVICE_URL",
+    ),
+    vigilanceServiceTimeoutMs: positiveInteger(
+      env.VIGILANCE_SERVICE_TIMEOUT_MS,
+      4_000,
+      "VIGILANCE_SERVICE_TIMEOUT_MS",
+    ),
     version: env.APP_VERSION?.trim() || env.GIT_SHA?.trim() || "dev",
   };
 }
