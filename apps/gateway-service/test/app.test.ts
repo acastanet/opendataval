@@ -145,3 +145,25 @@ test("le pont historique refuse les méthodes d'écriture", async (t) => {
 
   assert.equal(response.statusCode, 404);
 });
+
+test("le pont historique bloque les traversées de chemin encodées", async (t) => {
+  let upstreamCalled = false;
+  const app = buildApp({
+    config,
+    logger: false,
+    fetchImpl: fakeFetch(async () => {
+      upstreamCalled = true;
+      return new Response(null, { status: 200 });
+    }),
+  });
+  t.after(() => app.close());
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/v2/legacy/%2e%2e/health",
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.json().error.code, "INVALID_LEGACY_PATH");
+  assert.equal(upstreamCalled, false);
+});
