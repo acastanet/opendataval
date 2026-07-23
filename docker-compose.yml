@@ -46,11 +46,14 @@ services:
       GEOGRAPHY_SERVICE_TIMEOUT_MS: ${GEOGRAPHY_SERVICE_TIMEOUT_MS:-3000}
       WEATHER_SERVICE_URL: http://weather-service:3000
       WEATHER_SERVICE_TIMEOUT_MS: ${WEATHER_SERVICE_TIMEOUT_MS:-3000}
+      VIGILANCE_SERVICE_URL: http://weather-vigilance-service:3000
+      VIGILANCE_SERVICE_TIMEOUT_MS: ${VIGILANCE_SERVICE_TIMEOUT_MS:-3000}
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
       - api
       - geography-service
       - weather-service
+      - weather-vigilance-service
     expose:
       - "3000"
     healthcheck:
@@ -108,6 +111,42 @@ services:
       - "3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  weather-vigilance-service:
+    build:
+      context: .
+      dockerfile: services/weather-vigilance/Dockerfile
+    image: opendataval-vigilance:latest
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      METEOFRANCE_VIGILANCE_API_URL: ${METEOFRANCE_VIGILANCE_API_URL:-https://public-api.meteofrance.fr/public/DPVigilance/v1}
+      METEOFRANCE_VIGILANCE_API_TOKEN: ${METEOFRANCE_VIGILANCE_API_TOKEN:-}
+      METEOFRANCE_API_TOKEN_VIGILANCE: ${METEOFRANCE_API_TOKEN_VIGILANCE:-}
+      METEOFRANCE_VIGILANCE_AUTH_MODE: ${METEOFRANCE_VIGILANCE_AUTH_MODE:-apikey}
+      VIGILANCE_REFRESH_SECONDS: ${VIGILANCE_REFRESH_SECONDS:-300}
+      VIGILANCE_STALE_AFTER_SECONDS: ${VIGILANCE_STALE_AFTER_SECONDS:-900}
+      VIGILANCE_EXPIRE_AFTER_SECONDS: ${VIGILANCE_EXPIRE_AFTER_SECONDS:-21600}
+      VIGILANCE_CONNECT_TIMEOUT_MS: ${VIGILANCE_CONNECT_TIMEOUT_MS:-3000}
+      VIGILANCE_READ_TIMEOUT_MS: ${VIGILANCE_READ_TIMEOUT_MS:-10000}
+      VIGILANCE_MAX_RETRIES: ${VIGILANCE_MAX_RETRIES:-2}
+      VIGILANCE_MAX_RESPONSE_BYTES: ${VIGILANCE_MAX_RESPONSE_BYTES:-5000000}
+      VIGILANCE_CIRCUIT_FAILURE_THRESHOLD: ${VIGILANCE_CIRCUIT_FAILURE_THRESHOLD:-3}
+      VIGILANCE_CIRCUIT_OPEN_SECONDS: ${VIGILANCE_CIRCUIT_OPEN_SECONDS:-60}
+      VIGILANCE_SNAPSHOT_PATH: /app/data/vigilance-snapshot.json
+      APP_VERSION: ${APP_VERSION:-dev}
+      GIT_SHA: ${GIT_SHA:-unknown}
+      BUILT_AT: ${BUILT_AT:-unknown}
+    volumes:
+      - vigilance_cache:/app/data
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -189,3 +228,4 @@ volumes:
   db_data:
   caddy_data:
   caddy_config:
+  vigilance_cache:
