@@ -166,3 +166,24 @@ test("une traversée de chemin encodée n'atteint jamais l'API historique", asyn
   assert.ok(response.statusCode >= 400 && response.statusCode < 500);
   assert.equal(upstreamCalled, false);
 });
+
+test("une traversée doublement encodée reste confinée sous /api", async (t) => {
+  let upstreamCalled = false;
+  const app = buildApp({
+    config,
+    logger: false,
+    fetchImpl: fakeFetch(async () => {
+      upstreamCalled = true;
+      return new Response(null, { status: 200 });
+    }),
+  });
+  t.after(() => app.close());
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/api/v2/legacy/%252e%252e/health",
+  });
+
+  assert.ok(response.statusCode >= 400 && response.statusCode < 500);
+  assert.equal(upstreamCalled, false);
+});
