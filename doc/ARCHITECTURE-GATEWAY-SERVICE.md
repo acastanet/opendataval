@@ -22,6 +22,22 @@ Dans ce premier lot, il assure uniquement :
 
 Caddy envoie uniquement `/api/v2` et `/api/v2/*` vers le gateway. Les routes existantes continuent d'être servies directement par le monolithe pendant la migration.
 
+Caddy écoute sur le port HTTP indépendamment de la valeur de l'en-tête `Host`. La compression Caddy est réservée aux fichiers statiques et n'est pas appliquée aux réponses des API.
+
+Le démarrage de Caddy ne dépend pas de la santé du gateway. Une panne du nouveau service rend uniquement `/api/v2/*` indisponible ; les fichiers statiques et les routes historiques `/api/*` restent servis.
+
+## Pont vers l'API historique
+
+Le pont temporaire :
+
+- accepte uniquement `GET` et `HEAD` ;
+- transmet le `x-request-id` ;
+- applique un délai maximal configurable ;
+- ne suit pas les redirections ;
+- retire les en-têtes HTTP de proche en proche ;
+- refuse les traversées de chemin simples ou doublement encodées ;
+- garantit que la cible normalisée reste sous le préfixe `/api` du monolithe.
+
 ## Variables d'environnement
 
 | Variable | Défaut | Description |
@@ -35,15 +51,18 @@ Caddy envoie uniquement `/api/v2` et `/api/v2/*` vers le gateway. Les routes exi
 ## Contrôles
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm check:gateway
 docker compose build gateway
 docker compose up -d gateway caddy
 curl -i http://localhost:8080/api/v2/gateway
 curl -i http://localhost:8080/api/v2/legacy/health
+curl -i -H 'Host: 127.0.0.1' http://127.0.0.1:8080/api/health
 ```
 
 `/health` confirme que le processus fonctionne. `/ready` vérifie également que l'API historique répond sur `/api/health`.
+
+Les tests automatisés couvrent la santé, la disponibilité, le routage, la propagation du `request-id`, les délais d'attente, le refus des écritures et les traversées de chemin encodées.
 
 ## Limites volontaires du premier lot
 
