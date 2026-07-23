@@ -77,12 +77,12 @@ test("normalise le paquet GeoJSON national et les champs de rafale v1/v2", () =>
     numPoste: "13054001",
     heureUtc: "2026-07-23T03:00:00.000Z",
     t: 26,
-    humidite: null,
-    ventDir: null,
-    ventKmh: null,
-    rafaleKmh: null,
-    pluie1hMm: null,
-    pressionHpa: null,
+    humidite: 50,
+    ventDir: 220,
+    ventKmh: 18,
+    rafaleKmh: 28.8,
+    pluie1hMm: 0,
+    pressionHpa: 1008,
     neigeCm: null,
   });
 });
@@ -130,7 +130,7 @@ test("télécharge et insère le paquet national en une requête SQL", { concurr
     assert.deepEqual(result, {
       nbLignes: 2,
       statut: "partiel",
-      avertissement: "1 lignes rejetées ; 1 doublons remplacés",
+      avertissement: "1 ligne rejetée ; 1 doublon fusionné",
     });
     assert.equal(queries.length, 1);
     assert.match(queries[0]?.sql ?? "", /insert into series\.meteo_horaire/);
