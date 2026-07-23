@@ -63,7 +63,9 @@ test("importe les stations dans la couche PostGIS et signale un catalogue partie
   process.env.METEOFRANCE_STATIONS_URL = "https://example.test/liste-stations";
   globalThis.fetch = async (input, init) => {
     assert.equal(String(input), "https://example.test/liste-stations");
-    assert.equal((init?.headers as Record<string, string>).apikey, "token-test");
+    const headers = init?.headers as Record<string, string>;
+    assert.equal(headers.Authorization, "Bearer token-test");
+    assert.equal(headers.apikey, "token-test");
     return new Response(catalogueCsv, { status: 200 });
   };
 
