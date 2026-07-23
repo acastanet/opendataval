@@ -11,6 +11,7 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 |---|---|---|---|
 | [architecture/ARCHITECTURE-GENERALE.md](architecture/ARCHITECTURE-GENERALE.md) | Vue d'ensemble technique : monolithe v1 + microservices v2, routage, services Compose | 2026-07-23 | 2026-07-23 |
 | [architecture/conception-v2/](architecture/conception-v2/) | Spécifications transverses météo v2 (OpenAPI, provenance, observabilité, déploiement) | 2026-07-23 | 2026-07-23 |
+| [architecture/lot-4-weather-vigilance.md](architecture/lot-4-weather-vigilance.md) | Architecture du microservice de Vigilance météorologique officielle | 2026-07-23 | 2026-07-23 |
 
 ## Microservices (v2)
 
@@ -27,6 +28,7 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 | [microservice/weather-service/station-selection-policy.md](microservice/weather-service/station-selection-policy.md) | Politique de sélection de station | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-service/temperature-method-v1.md](microservice/weather-service/temperature-method-v1.md) | Méthode de détermination de température v1 | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-service/parity-corpus.json](microservice/weather-service/parity-corpus.json) | Corpus de parité météo | 2026-07-23 | 2026-07-23 |
+| [microservice/weather-vigilance/README.md](microservice/weather-vigilance/README.md) | Vigilance : niveaux et bulletins officiels à l'échelle départementale | 2026-07-23 | 2026-07-23 |
 | [microservice/copernicus/README.md](microservice/copernicus/README.md) | Copernicus : jobs climatiques ERA5 → PostGIS | 2026-07-23 | 2026-07-23 |
 | [microservice/copernicus/exploitation.md](microservice/copernicus/exploitation.md) | Exploitation générale Copernicus | 2026-07-22 | 2026-07-23 |
 | [microservice/copernicus/plan-meteo-essentiel.md](microservice/copernicus/plan-meteo-essentiel.md) | Plan météo essentiel via Copernicus | 2026-07-22 | 2026-07-23 |
@@ -71,4 +73,5 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 | Dossier | Description |
 |---|---|
 | [ADR/](ADR/) | Architecture Decision Records numérotés (001-007) |
+| [adr/ADR-weather-vigilance-scope.md](adr/ADR-weather-vigilance-scope.md) | Décision de périmètre du lot 4 |
 | [archive/](archive/) | Documents historiques et plans obsolètes |

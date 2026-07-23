@@ -1,0 +1,67 @@
+name: Weather Vigilance Service
+
+on:
+  pull_request:
+    paths:
+      - "services/weather-vigilance/**"
+      - "apps/gateway-service/**"
+      - "doc/architecture/lot-4-weather-vigilance.md"
+      - "doc/adr/ADR-weather-vigilance-scope.md"
+      - "doc/microservice/weather-vigilance/**"
+      - "docker-compose.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/weather-vigilance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weather-vigilance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 11.10.0
+  NODE_VERSION: 22
+
+jobs:
+  service:
+    name: Service et contrat
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm install --prefix services/weather-vigilance
+      - run: npm run check:vigilance
+      - name: Vérifier le contrat OpenAPI
+        run: test -s services/weather-vigilance/openapi.yaml
+
+  gateway:
+    name: Intégration gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - run: pnpm check:gateway
+
+  container:
+    name: Image Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --file services/weather-vigilance/Dockerfile --tag opendataval-vigilance:test .
+      - run: POSTGRES_PASSWORD=ci-validation docker compose config --quiet
