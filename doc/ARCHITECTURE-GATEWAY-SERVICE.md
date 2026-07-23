@@ -50,10 +50,12 @@ Le pont temporaire :
 
 ## Contrôles
 
+`caddy` embarque le `Caddyfile` au build (`Dockerfile.caddy`, `COPY Caddyfile /etc/caddy/Caddyfile`) : il n'est jamais lu au runtime. Tout déploiement touchant une route derrière Caddy (ou le `Caddyfile` lui-même) doit donc reconstruire `caddy`, pas seulement le service ciblé — sinon `/api/v2/*` retombe silencieusement sur `handle /api/*` (l'API historique), qui répond avec un 404 JSON dans le même format que le nouveau service, ce qui piège le diagnostic (cf. `doc/geography-service-operations.md`).
+
 ```bash
 pnpm install --frozen-lockfile
 pnpm check:gateway
-docker compose build gateway
+docker compose build gateway caddy
 docker compose up -d gateway caddy
 curl -i http://localhost:8080/api/v2/gateway
 curl -i http://localhost:8080/api/v2/legacy/health
