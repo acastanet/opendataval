@@ -38,6 +38,20 @@ const readinessSchema = {
   },
 } as const;
 
+function normalizeError(error: unknown): { error: Error; statusCode: number } {
+  const normalized = error instanceof Error
+    ? error
+    : new Error("Erreur inconnue");
+  const statusCode = typeof error === "object"
+    && error !== null
+    && "statusCode" in error
+    && typeof error.statusCode === "number"
+    && error.statusCode >= 400
+      ? error.statusCode
+      : 500;
+  return { error: normalized, statusCode };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const config = options.config ?? loadConfig();
   const fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
@@ -118,17 +132,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   registerLegacyProxy(app, config, fetchImpl);
 
   app.setErrorHandler((error, request, reply) => {
-    request.log.error({ err: error }, "requête gateway en erreur");
-    const statusCode = error.statusCode && error.statusCode >= 400
-      ? error.statusCode
-      : 500;
-    return reply.code(statusCode).send({
+    const normalized = normalizeError(error);
+    request.log.error({ err: normalized.error }, "requête gateway en erreur");
+    return reply.code(normalized.statusCode).send({
       error: {
-        code: statusCode < 500 ? "BAD_REQUEST" : "INTERNAL_ERROR",
-        message: statusCode < 500
-          ? error.message
+        code: normalized.statusCode < 500 ? "BAD_REQUEST" : "INTERNAL_ERROR",
+        message: normalized.statusCode < 500
+          ? normalized.error.message
           : "Une erreur interne est survenue.",
-        retryable: statusCode >= 500,
+        retryable: normalized.statusCode >= 500,
       },
       requestId: request.id,
     });
