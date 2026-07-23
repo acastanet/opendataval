@@ -4,9 +4,11 @@ on:
   pull_request:
     paths:
       - "apps/api/**"
+      - "apps/gateway-service/**"
       - "apps/meteo-web/**"
       - "apps/web/**"
       - "apps/worker/**"
+      - "doc/ARCHITECTURE-GATEWAY-SERVICE.md"
       - "doc/meteo-v2/**"
       - "packages/shared/**"
       - "scripts/**"
@@ -52,6 +54,41 @@ jobs:
         run: pnpm --filter api exec tsc --noEmit
       - name: Syntaxe de la sonde nationale
         run: node --check scripts/verify-meteo-national.mjs
+
+  gateway:
+    name: Gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Tests gateway
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter gateway-service test 2>&1 | tee gateway-test.log
+      - name: Typage gateway
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter gateway-service typecheck 2>&1 | tee gateway-typecheck.log
+      - name: Publier les diagnostics gateway
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-diagnostics
+          path: |
+            gateway-test.log
+            gateway-typecheck.log
+          if-no-files-found: warn
 
   worker:
     name: Worker météo
@@ -130,6 +167,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Construire l’image API
         run: docker build --file apps/api/Dockerfile --tag opendataval-api:test .
+      - name: Construire l’image gateway
+        run: docker build --file apps/gateway-service/Dockerfile --tag opendataval-gateway:test .
       - name: Construire l’image worker
         run: docker build --file apps/worker/Dockerfile --tag opendataval-worker:test .
       - name: Construire l’image Caddy

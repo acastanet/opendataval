@@ -33,6 +33,27 @@ services:
     expose:
       - "3000"
 
+  gateway:
+    build:
+      context: .
+      dockerfile: apps/gateway-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      LEGACY_API_URL: http://api:3000
+      GATEWAY_UPSTREAM_TIMEOUT_MS: ${GATEWAY_UPSTREAM_TIMEOUT_MS:-5000}
+      APP_VERSION: ${APP_VERSION:-dev}
+    depends_on:
+      - api
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
   worker:
     build:
       context: .
@@ -90,8 +111,11 @@ services:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
     ports:
       - "8080:80"
+    # Caddy reste indépendant du nouveau gateway afin que les routes historiques
+    # et les fichiers statiques restent disponibles même si le gateway échoue.
     depends_on:
-      - api
+      api:
+        condition: service_started
     volumes:
       - caddy_data:/data
       - caddy_config:/config
