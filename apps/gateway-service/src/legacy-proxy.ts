@@ -60,7 +60,19 @@ function targetUrl(request: FastifyRequest, legacyApiUrl: string): string | null
       : `/${suffix}`;
   const target = new URL(legacyApiUrl);
   const basePath = target.pathname.replace(/\/+$/, "");
-  target.pathname = `${basePath}/api${normalizedSuffix}`;
+  const apiBasePath = `${basePath}/api`;
+  target.pathname = `${apiBasePath}${normalizedSuffix}`;
+
+  // URL normalise aussi les segments encodés. Vérifier le préfixe après cette
+  // normalisation empêche notamment une traversée doublement encodée de sortir
+  // de l'espace /api de l'application historique.
+  if (
+    target.pathname !== apiBasePath
+    && !target.pathname.startsWith(`${apiBasePath}/`)
+  ) {
+    return null;
+  }
+
   target.search = rawQuery === "" ? "" : `?${rawQuery}`;
   return target.toString();
 }
