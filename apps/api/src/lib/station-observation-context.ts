@@ -1,15 +1,25 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { StationMeasurement } from "./station-observations.js";
+import type {
+  StationMeasurement,
+  StationSearchTarget,
+} from "./station-observations.js";
 
 interface StationObservationContext {
   measurements: StationMeasurement[] | null;
   providerUnavailable: boolean;
+  target: StationSearchTarget | null;
 }
 
 const storage = new AsyncLocalStorage<StationObservationContext>();
 
 export function runWithStationObservationContext(callback: () => void): void {
-  storage.run({ measurements: null, providerUnavailable: false }, callback);
+  storage.run({ measurements: null, providerUnavailable: false, target: null }, callback);
+}
+
+export function recordStationSearchTarget(target: StationSearchTarget | null): void {
+  const context = storage.getStore();
+  if (!context) return;
+  context.target = target === null ? null : { ...target };
 }
 
 export function recordStationMeasurements(measurements: readonly StationMeasurement[]): void {
