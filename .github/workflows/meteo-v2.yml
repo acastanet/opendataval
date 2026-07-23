@@ -75,15 +75,20 @@ jobs:
         run: |
           set -o pipefail
           pnpm --filter gateway-service test 2>&1 | tee gateway-test.log
-      - name: Publier la sortie des tests gateway
+      - name: Typage gateway
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter gateway-service typecheck 2>&1 | tee gateway-typecheck.log
+      - name: Publier les diagnostics gateway
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gateway-test-output
-          path: gateway-test.log
+          name: gateway-diagnostics
+          path: |
+            gateway-test.log
+            gateway-typecheck.log
           if-no-files-found: warn
-      - name: Typage gateway
-        run: pnpm --filter gateway-service typecheck
 
   worker:
     name: Worker météo
