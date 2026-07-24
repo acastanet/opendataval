@@ -28,6 +28,24 @@ export function productIds(payload: unknown): string[] {
   return [...new Set(candidates)];
 }
 
+function totalResults(payload: unknown): number | null {
+  if (!payload || typeof payload !== "object") return null;
+  const queue: unknown[] = [payload];
+  const names = new Set(["totalresults", "total_results", "totalitems", "total_items"]);
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object") continue;
+    for (const [key, value] of Object.entries(current)) {
+      if (names.has(key.toLowerCase())) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+      }
+      if (value && typeof value === "object") queue.push(value);
+    }
+  }
+  return null;
+}
+
 export function entryCandidates(metadata: unknown, productId: string): string[] {
   const candidates = stringsDeep(metadata)
     .flatMap((value) => {
@@ -38,6 +56,21 @@ export function entryCandidates(metadata: unknown, productId: string): string[] 
     .filter((value) => /\.(?:xml|cap)$/i.test(value));
   candidates.push(`${productId}.xml`, productId);
   return [...new Set(candidates)];
+}
+
+async function mapLimit<T, R>(items: T[], concurrency: number, work: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(Math.max(1, concurrency), Math.max(1, items.length)) }, async () => {
+    while (true) {
+      const index = next;
+      next += 1;
+      if (index >= items.length) return;
+      results[index] = await work(items[index]!);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 export class EumetsatClient {
@@ -56,7 +89,7 @@ export class EumetsatClient {
     const response = await fetchWithRetry(this.fetchImpl, this.config.eumetsatTokenUrl, {
       method: "POST",
       headers: { authorization: `Basic ${basic}`, "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
-      body: "grant_type=client_credentials&validity_period=3600",
+      body: "grant_type=client_credentials",
     }, this.config.eumetsatTimeoutMs, 1);
     const text = await readLimitedText(response, 100_000);
     if (!response.ok) throw new Error(`Jeton EUMETSAT HTTP ${response.status}: ${text.slice(0, 160)}`);
@@ -70,17 +103,36 @@ export class EumetsatClient {
   private async search(collection: string): Promise<string[]> {
     const end = this.now();
     const start = new Date(end.getTime() - this.config.realtimeWindowMinutes * 60_000);
-    const url = new URL(this.config.eumetsatSearchUrl);
-    url.searchParams.set("format", "json");
-    url.searchParams.set("pi", collection);
-    url.searchParams.set("sort", "start,time,0");
-    url.searchParams.set("dtstart", start.toISOString());
-    url.searchParams.set("dtend", end.toISOString());
-    url.searchParams.set("c", String(this.config.eumetsatMaxProducts));
-    const response = await fetchWithRetry(this.fetchImpl, url, { headers: { accept: "application/json" } }, this.config.eumetsatTimeoutMs, 1);
-    const text = await readLimitedText(response, this.config.maxResponseBytes);
-    if (!response.ok) throw new Error(`Recherche EUMETSAT HTTP ${response.status}: ${text.slice(0, 160)}`);
-    return productIds(JSON.parse(text)).slice(0, this.config.eumetsatMaxProducts);
+    const identifiers = new Set<string>();
+    let expectedTotal: number | null = null;
+
+    for (let page = 0; page < this.config.eumetsatMaxPages; page += 1) {
+      const url = new URL(this.config.eumetsatSearchUrl);
+      url.searchParams.set("format", "json");
+      url.searchParams.set("pi", collection);
+      url.searchParams.set("sort", "start,time,0");
+      url.searchParams.set("dtstart", start.toISOString());
+      url.searchParams.set("dtend", end.toISOString());
+      url.searchParams.set("si", String(page * this.config.eumetsatPageSize));
+      url.searchParams.set("c", String(this.config.eumetsatPageSize));
+      const response = await fetchWithRetry(this.fetchImpl, url, { headers: { accept: "application/json" } }, this.config.eumetsatTimeoutMs, 1);
+      const text = await readLimitedText(response, this.config.maxResponseBytes);
+      if (!response.ok) throw new Error(`Recherche EUMETSAT HTTP ${response.status}: ${text.slice(0, 160)}`);
+      const payload = JSON.parse(text);
+      const pageIds = productIds(payload);
+      expectedTotal ??= totalResults(payload);
+      const previousSize = identifiers.size;
+      for (const id of pageIds) identifiers.add(id);
+
+      if (expectedTotal !== null && identifiers.size >= expectedTotal) return [...identifiers];
+      if (pageIds.length === 0) return [...identifiers];
+      if (identifiers.size === previousSize) {
+        if (expectedTotal !== null && identifiers.size < expectedTotal) throw new Error(`Pagination EUMETSAT bloquée : ${identifiers.size}/${expectedTotal} produits récupérés`);
+        return [...identifiers];
+      }
+      if (expectedTotal === null && pageIds.length < this.config.eumetsatPageSize) return [...identifiers];
+    }
+    throw new Error(`Recherche EUMETSAT tronquée après ${this.config.eumetsatMaxPages} pages`);
   }
 
   private async metadata(collection: string, productId: string): Promise<unknown> {
@@ -124,9 +176,7 @@ export class EumetsatClient {
       const ids = await this.search(collection);
       if (!ids.length) return { detections: [], reports: [{ source, state: "available", retrieved_at: retrievedAt, latest_observation_at: null, detection_count: 0 }] };
       const token = await this.accessToken();
-      const detections: FireDetection[] = [];
-      const failed: string[] = [];
-      for (const productId of ids) {
+      const products = await mapLimit(ids, this.config.eumetsatDownloadConcurrency, async (productId) => {
         const metadata = await this.metadata(collection, productId);
         let xml: string | null = null;
         for (const candidate of entryCandidates(metadata, productId)) {
@@ -134,11 +184,12 @@ export class EumetsatClient {
           catch { xml = null; }
           if (xml) break;
         }
-        if (!xml) { failed.push(productId); continue; }
-        try { detections.push(...parseCapXml(xml, source, { latitude, longitude }, radiusKm)); }
-        catch { failed.push(productId); }
-      }
-      const unique = deduplicateDetections(detections);
+        if (!xml) return { productId, detections: [] as FireDetection[], failed: true };
+        try { return { productId, detections: parseCapXml(xml, source, { latitude, longitude }, radiusKm), failed: false }; }
+        catch { return { productId, detections: [] as FireDetection[], failed: true }; }
+      });
+      const unique = deduplicateDetections(products.flatMap((product) => product.detections));
+      const failed = products.filter((product) => product.failed).map((product) => product.productId);
       return { detections: unique, reports: [{
         source,
         state: failed.length === ids.length ? "unavailable" : "available",
