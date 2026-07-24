@@ -34,9 +34,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - run: npm install --prefix services/fire-detection
-      - run: npm run check:fire-detection
-      - run: test -s services/fire-detection/openapi.yaml
+      - name: Installer le service
+        run: npm install --prefix services/fire-detection
+      - name: TypeScript du service
+        run: npm --prefix services/fire-detection run typecheck
+      - name: Tests du service
+        run: npm --prefix services/fire-detection test
+      - name: Contrat OpenAPI
+        run: test -s services/fire-detection/openapi.yaml
 
   gateway:
     name: Intégration gateway
@@ -52,8 +57,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-      - run: pnpm install --frozen-lockfile --reporter=silent
-      - run: pnpm check:gateway
+      - name: Installer le monorepo
+        run: pnpm install --frozen-lockfile --reporter=silent
+      - name: TypeScript du gateway
+        run: pnpm --filter gateway-service typecheck
+      - name: Tests du gateway
+        run: pnpm --filter gateway-service test
 
   container:
     name: Image Docker
@@ -61,5 +70,7 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - run: docker build --file services/fire-detection/Dockerfile --tag opendataval-fire-detection:test .
-      - run: POSTGRES_PASSWORD=ci-validation docker compose config --quiet
+      - name: Construire l'image
+        run: docker build --file services/fire-detection/Dockerfile --tag opendataval-fire-detection:test .
+      - name: Valider Compose
+        run: POSTGRES_PASSWORD=ci-validation docker compose config --quiet
