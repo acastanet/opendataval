@@ -1,67 +1,156 @@
 # Geography Service
 
-> Enrichissement géographique d'un point (territoire, adresse, altitude).
-> Dernière mise à jour : 2026-07-23 · Dernière vérification : 2026-07-23
+> Enrichissement géographique d’un point : territoire, adresse postale et altitude.
+> Dernière mise à jour : 2026-07-24 · Dernière vérification : 2026-07-24
 > Code : `apps/geography-service/`
 
 ## Rôle
 
-Service interne v2 qui résout un couple de coordonnées en contexte géographique : rattachement au territoire, adresse la plus proche (géocodage inverse) et altitude. Il n'est jamais exposé au navigateur : le gateway publie `/api/v2/geography/resolve` et transmet `x-request-id`. Aucune base de données — uniquement des appels à des fournisseurs publics, chacun avec son propre délai.
+Geography Service transforme un couple latitude–longitude en contexte géographique structuré. Il résout en parallèle :
 
-## Périmètre / endpoints
+- la commune, le département et l’EPCI ;
+- l’adresse postale la plus proche par géocodage inverse ;
+- l’altitude et, lorsqu’elles sont fournies, les métadonnées de précision altimétrique.
+
+Le service n’est pas appelé directement par le navigateur. Le gateway publie `/api/v2/geography/resolve`, propage `x-request-id` et utilise également Geography pour déterminer le département d’une requête Vigilance par coordonnées. Weather Service l’appelle pour normaliser le point et récupérer son altitude.
+
+Le service ne possède ni base de données ni cache : il interroge des fournisseurs publics avec des délais indépendants et un budget global.
+
+## Endpoints
 
 | Route | Description |
 |---|---|
-| `GET /health` | statut du processus |
-| `GET /ready` | disponibilité |
-| `GET /internal/v1/geography/resolve` | résolution géographique d'un point |
+| `GET /health` | Vie du processus |
+| `GET /ready` | Processus prêt à recevoir une requête |
+| `GET /internal/v1/geography/resolve` | Résolution géographique interne |
+| `GET /api/v2/geography/resolve` | Route publique équivalente via le gateway |
 
-Paramètres : `lat`, `lon`, `horizontalAccuracyMeters` (optionnel), `positionSource` (`browser-geolocation`\|`manual`\|`unknown`).
-Contrats JSON Schema dans `src/contracts/geography.ts`.
+Exemple :
 
-Codes d'erreur : `INVALID_COORDINATES` (400), `LOCATION_NOT_RESOLVABLE` (404), `GEOGRAPHY_SERVICE_UNAVAILABLE` (502), `GEOGRAPHY_SERVICE_TIMEOUT` (504). Réponse d'erreur : `{ error: { code, message, retryable }, requestId }`.
+```text
+GET /api/v2/geography/resolve?lat=44.0812&lon=3.6421&horizontalAccuracyMeters=25&positionSource=browser-geolocation
+```
 
-Les trois fournisseurs sont interrogés en parallèle ; l'altitude est facultative (le service reste exploitable sans elle). Les journaux ne conservent que des coordonnées arrondies et un intervalle de précision (`accuracyBucket`), jamais la position brute.
+## Paramètres
 
-## Dépendances (fournisseurs externes)
+| Paramètre | Obligatoire | Règle |
+|---|---:|---|
+| `lat` | oui | Nombre entre `-90` et `90` |
+| `lon` | oui | Nombre entre `-180` et `180` |
+| `horizontalAccuracyMeters` | non | Précision GPS positive ou nulle |
+| `positionSource` | non | `browser-geolocation`, `manual` ou `unknown` |
 
-| Client | Fournisseur par défaut |
-|---|---|
-| `territory` | `geo.api.gouv.fr` |
-| `address` (géocodage inverse) | `data.geopf.fr/geocodage` |
-| `elevation` | `data.geopf.fr/altimetrie` |
+Les paramètres supplémentaires sont refusés par le schéma JSON. En l’absence de `positionSource`, le domaine normalise la provenance selon le comportement défini dans `src/domain/coordinates.ts`.
+
+## Contrat de réponse
+
+La réponse contient :
+
+- `query` : coordonnées validées, précision éventuelle et source de position ;
+- `territory` : libellé, commune, département et EPCI ;
+- `address` : adresse formatée, numéro, voie, code postal, ville, précision et distance ;
+- `elevation` : altitude, référentiel vertical et précisions disponibles ;
+- `requestId` : identifiant de corrélation.
+
+Chaque enrichissement suit la même structure :
+
+```json
+{
+  "status": "available",
+  "data": {},
+  "provenance": {
+    "source": "fournisseur",
+    "resolvedAt": "2026-07-24T07:00:00.000Z"
+  }
+}
+```
+
+Valeurs possibles de `status` : `available`, `not_found`, `unavailable`, `timeout`. L’altitude est facultative : son absence ne rend pas nécessairement la réponse globale inutilisable. Le service peut donc répondre `200` avec certains enrichissements dégradés.
+
+## Politique d’échec
+
+Les trois fournisseurs sont interrogés en parallèle. Une erreur globale n’est renvoyée que lorsqu’aucun enrichissement exploitable ne subsiste :
+
+| Code | HTTP | Sens |
+|---|---:|---|
+| `INVALID_COORDINATES` | 400 | Coordonnées, précision ou paramètres invalides |
+| `LOCATION_NOT_RESOLVABLE` | 404 | Aucun enrichissement exploitable |
+| `GEOGRAPHY_SERVICE_UNAVAILABLE` | 502 | Fournisseurs indisponibles |
+| `GEOGRAPHY_SERVICE_TIMEOUT` | 504 | Budget de temps dépassé |
+| `INTERNAL_ERROR` | 500 | Erreur interne non prévue |
+
+Format : `{ error: { code, message, retryable }, requestId }`.
+
+`/health` et `/ready` ne contactent pas les fournisseurs. Une réponse `ready` indique que le processus accepte les requêtes, pas que chaque source externe est disponible.
+
+## Confidentialité et journalisation
+
+Les journaux applicatifs ne conservent pas la position brute :
+
+- latitude et longitude sont arrondies à deux décimales ;
+- la précision est convertie en classe (`<10m`, `10-50m`, `50-200m`, `200m-1km`, `>1km`, `unknown`) ;
+- les statuts des trois fournisseurs sont journalisés séparément ;
+- `x-request-id` permet la corrélation avec le gateway et les services consommateurs.
+
+## Fournisseurs externes
+
+| Client | Fournisseur par défaut | Donnée |
+|---|---|---|
+| `territory` | `geo.api.gouv.fr` | Commune, département, EPCI |
+| `address` | `data.geopf.fr/geocodage` | Géocodage inverse |
+| `elevation` | `data.geopf.fr/altimetrie` | Altitude |
 
 ## Configuration (`src/config.ts`)
 
 | Variable | Défaut | Description |
 |---|---|---|
-| `HOST` | `0.0.0.0` | Adresse d'écoute |
+| `HOST` | `0.0.0.0` | Adresse d’écoute |
 | `PORT` | `3000` | Port HTTP interne |
-| `TERRITORY_UPSTREAM_URL` | `https://geo.api.gouv.fr` | Rattachement territoire |
-| `REVERSE_GEOCODING_UPSTREAM_URL` | `https://data.geopf.fr/geocodage` | Adresse la plus proche |
-| `ELEVATION_UPSTREAM_URL` | `https://data.geopf.fr/altimetrie/…/elevation.json` | Altitude |
-| `TERRITORY_TIMEOUT_MS` | `2000` | Délai fournisseur territoire |
-| `REVERSE_GEOCODING_TIMEOUT_MS` | `2000` | Délai fournisseur adresse |
-| `ELEVATION_TIMEOUT_MS` | `2000` | Délai fournisseur altitude |
-| `GEOGRAPHY_GLOBAL_TIMEOUT_MS` | `2500` | Budget global (≥ max des délais fournisseurs) |
-| `APP_VERSION` | `dev` | Version exposée |
+| `TERRITORY_UPSTREAM_URL` | `https://geo.api.gouv.fr` | Fournisseur territoire |
+| `REVERSE_GEOCODING_UPSTREAM_URL` | `https://data.geopf.fr/geocodage` | Fournisseur adresse |
+| `ELEVATION_UPSTREAM_URL` | `https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json` | Fournisseur altitude |
+| `TERRITORY_TIMEOUT_MS` | `2000` | Délai territoire |
+| `REVERSE_GEOCODING_TIMEOUT_MS` | `2000` | Délai adresse |
+| `ELEVATION_TIMEOUT_MS` | `2000` | Délai altitude |
+| `GEOGRAPHY_GLOBAL_TIMEOUT_MS` | `2500` | Budget global |
+| `APP_VERSION` | `GIT_SHA` puis `dev` | Version exposée |
 
-## Lancement
+Le budget global doit être supérieur ou égal au plus grand délai fournisseur. Une URL non HTTP(S), un délai non positif ou un budget incohérent arrête le service au démarrage.
+
+## Validation et lancement
 
 ```bash
-docker compose up -d geography-service
-curl -i "http://geography-service:3000/internal/v1/geography/resolve?lat=44.12&lon=3.58"
-# via le gateway :
-curl -i "http://localhost:8080/api/v2/geography/resolve?lat=44.12&lon=3.58"
+pnpm --filter geography-service typecheck
+pnpm test:geography
+
+docker compose build geography-service gateway caddy
+docker compose up -d geography-service gateway caddy
+
+curl -i http://localhost:8080/api/v2/gateway
+curl -i "http://localhost:8080/api/v2/geography/resolve?lat=44.0812&lon=3.6421"
 ```
+
+Pour valider la dégradation, contrôler séparément les statuts `territory`, `address` et `elevation`, et ne pas réduire une altitude absente à un échec complet.
+
+## Dépendants et impact d’une panne
+
+- Weather Service ne peut pas résoudre une température v2 si Geography est indisponible ; sa route renvoie alors une erreur de contexte géographique.
+- La route Vigilance par coordonnées échoue si le département ne peut pas être résolu.
+- La route Vigilance avec `department_code` reste utilisable sans Geography.
+- Le monolithe et ses routes historiques restent indépendants.
 
 ## Rollback
 
-Retirer la route `/api/v2/geography/*` du gateway : aucun autre service ne dépend de geography-service en écriture. `weather-service` l'appelle pour son contexte — son absence dégrade la météo sans casser le monolithe.
+Retirer le proxy `/api/v2/geography/*` ou revenir à l’image précédente de Geography. Si le routage Caddy change, restaurer également l’image Caddy correspondante. Vérifier ensuite explicitement Weather et Vigilance par coordonnées, qui dépendent de ce service.
 
-## Docs liées
+## Documentation liée
 
+- Index des microservices : [`../README.md`](../README.md)
 - Audit de couverture : [`audit.md`](audit.md)
-- Exploitation & diagnostic : [`operations.md`](operations.md)
-- Rapport de parité (vs API historique) : [`parity-report.md`](parity-report.md) · corpus [`reference-corpus.json`](reference-corpus.json)
+- Exploitation et diagnostic : [`operations.md`](operations.md)
+- Rapport de parité : [`parity-report.md`](parity-report.md)
+- Corpus de référence : [`reference-corpus.json`](reference-corpus.json)
+- Gateway Service : [`../gateway-service/README.md`](../gateway-service/README.md)
+- Weather Service : [`../weather-service/README.md`](../weather-service/README.md)
+- Weather Vigilance : [`../weather-vigilance/README.md`](../weather-vigilance/README.md)
 - Architecture globale : [`../../architecture/ARCHITECTURE-GENERALE.md`](../../architecture/ARCHITECTURE-GENERALE.md)
