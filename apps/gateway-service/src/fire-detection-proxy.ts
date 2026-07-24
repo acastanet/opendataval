@@ -30,7 +30,7 @@ export function registerFireDetectionProxy(app: FastifyInstance, config: Gateway
     if (latitude === null || longitude === null || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
       return reply.code(400).send({ error: { code: "INVALID_COORDINATES", message: "Les coordonnées sont invalides.", retryable: false }, requestId: request.id });
     }
-    if (request.query.accuracy !== undefined && (accuracy === null || accuracy < 0)) {
+    if (request.query.accuracy !== undefined && (accuracy === undefined || accuracy === null || accuracy < 0)) {
       return reply.code(400).send({ error: { code: "INVALID_ACCURACY", message: "La précision GPS est invalide.", retryable: false }, requestId: request.id });
     }
     const baseUrl = config.fireDetectionServiceUrl ?? "http://fire-detection-service:3000";
