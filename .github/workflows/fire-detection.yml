@@ -37,11 +37,21 @@ jobs:
       - name: Installer le service
         run: npm install --prefix services/fire-detection
       - name: TypeScript du service
-        run: npm --prefix services/fire-detection run typecheck
+        run: |
+          set -o pipefail
+          npm --prefix services/fire-detection run typecheck 2>&1 | tee service-typecheck.log
       - name: Tests du service
         run: npm --prefix services/fire-detection test
       - name: Contrat OpenAPI
         run: test -s services/fire-detection/openapi.yaml
+      - name: Diagnostic TypeScript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-service-typecheck
+          path: service-typecheck.log
+          if-no-files-found: ignore
+          retention-days: 1
 
   gateway:
     name: Intégration gateway
@@ -60,9 +70,19 @@ jobs:
       - name: Installer le monorepo
         run: pnpm install --frozen-lockfile --reporter=silent
       - name: TypeScript du gateway
-        run: pnpm --filter gateway-service typecheck
+        run: |
+          set -o pipefail
+          pnpm --filter gateway-service typecheck 2>&1 | tee gateway-typecheck.log
       - name: Tests du gateway
         run: pnpm --filter gateway-service test
+      - name: Diagnostic TypeScript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-gateway-typecheck
+          path: gateway-typecheck.log
+          if-no-files-found: ignore
+          retention-days: 1
 
   container:
     name: Image Docker
@@ -71,6 +91,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Construire l'image
-        run: docker build --file services/fire-detection/Dockerfile --tag opendataval-fire-detection:test .
+        run: |
+          set -o pipefail
+          docker build --file services/fire-detection/Dockerfile --tag opendataval-fire-detection:test . 2>&1 | tee fire-docker-build.log
       - name: Valider Compose
         run: POSTGRES_PASSWORD=ci-validation docker compose config --quiet
+      - name: Diagnostic Docker
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fire-docker-build
+          path: fire-docker-build.log
+          if-no-files-found: ignore
+          retention-days: 1
