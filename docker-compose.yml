@@ -48,12 +48,15 @@ services:
       WEATHER_SERVICE_TIMEOUT_MS: ${WEATHER_SERVICE_TIMEOUT_MS:-3000}
       VIGILANCE_SERVICE_URL: http://weather-vigilance-service:3000
       VIGILANCE_SERVICE_TIMEOUT_MS: ${VIGILANCE_SERVICE_TIMEOUT_MS:-3000}
+      FIRE_DETECTION_SERVICE_URL: http://fire-detection-service:3000
+      FIRE_DETECTION_SERVICE_TIMEOUT_MS: ${FIRE_DETECTION_SERVICE_TIMEOUT_MS:-20000}
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
       - api
       - geography-service
       - weather-service
       - weather-vigilance-service
+      - fire-detection-service
     expose:
       - "3000"
     healthcheck:
@@ -143,6 +146,46 @@ services:
       BUILT_AT: ${BUILT_AT:-unknown}
     volumes:
       - vigilance_cache:/app/data
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  fire-detection-service:
+    build:
+      context: .
+      dockerfile: services/fire-detection/Dockerfile
+    image: opendataval-fire-detection:latest
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      NASA_FIRMS_MAP_KEY: ${NASA_FIRMS_MAP_KEY:-}
+      FIRMS_API_BASE_URL: ${FIRMS_API_BASE_URL:-https://firms.modaps.eosdis.nasa.gov/api/area/csv}
+      FIRMS_TIMEOUT_MS: ${FIRMS_TIMEOUT_MS:-8000}
+      FIRMS_MAX_RETRIES: ${FIRMS_MAX_RETRIES:-1}
+      EUMETSAT_CONSUMER_KEY: ${EUMETSAT_CONSUMER_KEY:-}
+      EUMETSAT_CONSUMER_SECRET: ${EUMETSAT_CONSUMER_SECRET:-}
+      EUMETSAT_TOKEN_URL: ${EUMETSAT_TOKEN_URL:-https://api.eumetsat.int/token}
+      EUMETSAT_SEARCH_URL: ${EUMETSAT_SEARCH_URL:-https://api.eumetsat.int/data/search-products/1.0.0/os}
+      EUMETSAT_BROWSE_URL: ${EUMETSAT_BROWSE_URL:-https://api.eumetsat.int/data/browse}
+      EUMETSAT_DOWNLOAD_URL: ${EUMETSAT_DOWNLOAD_URL:-https://api.eumetsat.int/data/download/1.0.0}
+      EUMETSAT_MTG_FIRE_COLLECTION: ${EUMETSAT_MTG_FIRE_COLLECTION:-EO:EUM:DAT:0801}
+      EUMETSAT_MSG_FIRE_COLLECTION: ${EUMETSAT_MSG_FIRE_COLLECTION:-EO:EUM:DAT:MSG:FIRC}
+      EUMETSAT_TIMEOUT_MS: ${EUMETSAT_TIMEOUT_MS:-10000}
+      EUMETSAT_MAX_PRODUCTS: ${EUMETSAT_MAX_PRODUCTS:-24}
+      FIRE_DEFAULT_RADIUS_KM: ${FIRE_DEFAULT_RADIUS_KM:-50}
+      FIRE_MAX_RADIUS_KM: ${FIRE_MAX_RADIUS_KM:-100}
+      FIRE_HISTORY_DAYS: ${FIRE_HISTORY_DAYS:-7}
+      FIRE_REALTIME_WINDOW_MINUTES: ${FIRE_REALTIME_WINDOW_MINUTES:-90}
+      FIRE_CACHE_SECONDS: ${FIRE_CACHE_SECONDS:-45}
+      FIRE_MAX_RESPONSE_BYTES: ${FIRE_MAX_RESPONSE_BYTES:-5000000}
+      APP_VERSION: ${APP_VERSION:-dev}
+      GIT_SHA: ${GIT_SHA:-unknown}
+      BUILT_AT: ${BUILT_AT:-unknown}
     expose:
       - "3000"
     healthcheck:
