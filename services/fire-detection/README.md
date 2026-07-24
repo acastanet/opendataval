@@ -34,14 +34,14 @@ Le gateway impose `radius_km=50` et `history_days=7`.
 
 Quatre produits NRT sont interrogés séparément : `VIIRS_SNPP_NRT`, `VIIRS_NOAA20_NRT`, `VIIRS_NOAA21_NRT` et `MODIS_NRT`.
 
-L'historique de sept jours est découpé en une requête de cinq jours et une requête historique de deux jours. La boîte englobante sert uniquement à la requête distante ; chaque point est ensuite contrôlé par distance de Haversine et supprimé seulement s'il dépasse réellement 50 km.
+L'historique de sept jours est découpé en une requête de cinq jours et une requête historique de deux jours. Les deux fenêtres sont interrogées en parallèle. La boîte englobante sert uniquement à la requête distante ; chaque point est ensuite contrôlé par distance de Haversine et supprimé seulement s'il dépasse réellement 50 km.
 
 ### EUMETSAT CAP
 
 - MTG : collection `EO:EUM:DAT:0801` ;
 - MSG de secours : collection `EO:EUM:DAT:MSG:FIRC`.
 
-La recherche catalogue est publique. Le téléchargement nécessite un compte gratuit EUMETSAT et un couple consumer key / consumer secret. Les produits CAP sont lus en mémoire puis oubliés après la réponse.
+La recherche catalogue est publique. Le téléchargement nécessite un compte gratuit EUMETSAT et un couple consumer key / consumer secret. Les résultats OpenSearch sont parcourus page par page ; une pagination bloquée ou tronquée rend la source indisponible au lieu de perdre silencieusement des produits. Les téléchargements sont bornés à huit connexions concurrentes, puis les produits CAP sont lus en mémoire et oubliés après la réponse.
 
 ## États
 
