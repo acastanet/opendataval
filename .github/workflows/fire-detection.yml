@@ -1,0 +1,65 @@
+name: Fire Detection Service
+
+on:
+  pull_request:
+    paths:
+      - "services/fire-detection/**"
+      - "apps/gateway-service/**"
+      - "doc/architecture/lot-5-fire-detection.md"
+      - "doc/adr/ADR-fire-detection-stateless.md"
+      - "doc/microservice/fire-detection/**"
+      - "docker-compose.yml"
+      - "package.json"
+      - ".github/workflows/fire-detection.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fire-detection-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 11.10.0
+  NODE_VERSION: 22
+
+jobs:
+  service:
+    name: Service et contrat
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm install --prefix services/fire-detection
+      - run: npm run check:fire-detection
+      - run: test -s services/fire-detection/openapi.yaml
+
+  gateway:
+    name: Intégration gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - run: pnpm check:gateway
+
+  container:
+    name: Image Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --file services/fire-detection/Dockerfile --tag opendataval-fire-detection:test .
+      - run: POSTGRES_PASSWORD=ci-validation docker compose config --quiet
