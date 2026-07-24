@@ -23,7 +23,9 @@ export interface FireDetectionConfig {
   eumetsatMtgCollection: string;
   eumetsatMsgCollection: string;
   eumetsatTimeoutMs: number;
-  eumetsatMaxProducts: number;
+  eumetsatPageSize: number;
+  eumetsatMaxPages: number;
+  eumetsatDownloadConcurrency: number;
 }
 
 function integer(value: string | undefined, fallback: number, name: string, minimum = 0): number {
@@ -72,6 +74,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FireDetectionC
     eumetsatMtgCollection: env.EUMETSAT_MTG_FIRE_COLLECTION?.trim() || "EO:EUM:DAT:0801",
     eumetsatMsgCollection: env.EUMETSAT_MSG_FIRE_COLLECTION?.trim() || "EO:EUM:DAT:MSG:FIRC",
     eumetsatTimeoutMs: integer(env.EUMETSAT_TIMEOUT_MS, 10_000, "EUMETSAT_TIMEOUT_MS", 100),
-    eumetsatMaxProducts: integer(env.EUMETSAT_MAX_PRODUCTS, 24, "EUMETSAT_MAX_PRODUCTS", 1),
+    eumetsatPageSize: integer(env.EUMETSAT_PAGE_SIZE, 100, "EUMETSAT_PAGE_SIZE", 1),
+    eumetsatMaxPages: integer(env.EUMETSAT_MAX_PAGES, 100, "EUMETSAT_MAX_PAGES", 1),
+    eumetsatDownloadConcurrency: integer(env.EUMETSAT_DOWNLOAD_CONCURRENCY, 8, "EUMETSAT_DOWNLOAD_CONCURRENCY", 1),
   };
 }
