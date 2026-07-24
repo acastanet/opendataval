@@ -47,7 +47,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       return reply.code(400).send(error("INVALID_COORDINATES", "Les coordonnées sont invalides.", false, request.id));
     }
     const accuracy = request.query.accuracy === undefined ? undefined : finite(request.query.accuracy);
-    if (request.query.accuracy !== undefined && (accuracy === null || accuracy < 0)) {
+    if (request.query.accuracy !== undefined && (accuracy === undefined || accuracy === null || accuracy < 0)) {
       return reply.code(400).send(error("INVALID_ACCURACY", "La précision GPS est invalide.", false, request.id));
     }
     const radius = request.query.radius_km === undefined ? config.defaultRadiusKm : finite(request.query.radius_km);
