@@ -1,6 +1,6 @@
 # Weather Service
 
-> Température météo ponctuelle d'un point (observation la plus pertinente, sinon modèle).
+> Température météo ponctuelle d'un point (station ajustée par le modèle si possible, sinon observation ou modèle).
 > Dernière mise à jour : 2026-07-23 · Dernière vérification : 2026-07-23
 > Code : `apps/weather-service/`
 
@@ -17,11 +17,11 @@ Service interne v2 qui isole progressivement la météo ordinaire de Météo V2.
 | `GET /internal/v1/weather/temperature` | température résolue pour un point |
 
 Paramètres : `lat`, `lon`, `horizontalAccuracyMeters` (optionnel).
-La réponse indique la nature de la température (observation vs modèle), la station sélectionnée, l'état de sélection et un indicateur `degraded`.
+La réponse indique la nature de la température (`station_adjusted_by_model`, observation ou modèle), la station sélectionnée, l'état de sélection et un indicateur `degraded`. Lorsqu'elle est ajustée, `temperature.adjustment` expose les deux valeurs du modèle et le delta appliqué.
 
 Codes d'erreur : `INVALID_COORDINATES` (400), `WEATHER_NOT_AVAILABLE` (503), `GEOGRAPHY_CONTEXT_UNAVAILABLE` (502), `INTERNAL_ERROR` (500).
 
-Chaîne de résolution : le service demande le contexte géographique à geography-service, lit les observations candidates dans PostgreSQL (lecture seule), applique la politique de sélection de station, et se replie sur le modèle météo si aucune observation n'est exploitable.
+Chaîne de résolution : le service demande le contexte géographique à geography-service, lit les observations candidates dans PostgreSQL (lecture seule), applique la politique de sélection de station, puis ajuste la température retenue avec le delta du modèle entre la station et le point. Si ce calcul n'est pas disponible, il renvoie la mesure brute ; sans observation exploitable, il se replie sur le modèle météo.
 
 ## Dépendances
 
@@ -60,6 +60,6 @@ Retirer le service et le proxy v2 : les routes météo historiques `/api/meteo/*
 
 - Comportement actuel : [`current-behaviour.md`](current-behaviour.md)
 - Politique de sélection de station : [`station-selection-policy.md`](station-selection-policy.md)
-- Méthode de température v1 : [`temperature-method-v1.md`](temperature-method-v1.md) · corpus de parité [`parity-corpus.json`](parity-corpus.json)
+- Méthode de température v2 : [`temperature-method-v2.md`](temperature-method-v2.md) · méthode v1 archivée [`temperature-method-v1.md`](temperature-method-v1.md) · corpus de parité [`parity-corpus.json`](parity-corpus.json)
 - Conception v2 (OpenAPI, provenance, observabilité) : [`../../architecture/conception-v2/`](../../architecture/conception-v2/)
 - Architecture globale : [`../../architecture/ARCHITECTURE-GENERALE.md`](../../architecture/ARCHITECTURE-GENERALE.md)

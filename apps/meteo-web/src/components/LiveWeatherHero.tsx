@@ -8,6 +8,7 @@ export function LiveWeatherHero({ data }: { data: LiveWeatherData }) {
   const altitude = geography?.elevation.data?.meters ?? weather.location.altitudeMeters;
   const station = weather.stationSelection.selectedStation;
   const observed = weather.temperature.nature === "station_observation";
+  const adjusted = weather.temperature.nature === "station_adjusted_by_model";
   const place = territory?.label ?? address?.formatted ?? "Votre position";
 
   return <>
@@ -19,7 +20,7 @@ export function LiveWeatherHero({ data }: { data: LiveWeatherData }) {
       </div>
       <div className="live-temperature-row">
         <div><p className="live-temperature" data-testid="current-temperature">{temperature(weather.temperature.valueCelsius)}<sup>°C</sup></p><p className="live-mode">{observed ? "Observation locale" : "Estimation au point"}</p></div>
-        <div className="live-meta"><p>{observed ? "Mesurée" : "Calculée"}</p><strong>{formatDateTime(weather.temperature.referenceTime)}</strong>{weather.temperature.stale ? <span>Dernière donnée connue</span> : null}</div>
+        <div className="live-meta"><p>{observed ? "Mesurée" : adjusted ? "Station ajustée" : "Calculée"}</p><strong>{formatDateTime(weather.temperature.referenceTime)}</strong>{weather.temperature.stale ? <span>Dernière donnée connue</span> : null}</div>
       </div>
     </section>
     <section className="live-facts" aria-label="Contexte de la mesure">
@@ -28,7 +29,8 @@ export function LiveWeatherHero({ data }: { data: LiveWeatherData }) {
       <article><span>Source</span><strong>{station ? station.name : weather.provenance.source.product}</strong><small>{station ? `${station.distanceKilometers.toFixed(1)} km · ${station.network}` : weather.provenance.source.provider}</small></article>
     </section>
     <section className="live-trust" aria-label="Méthode de la donnée">
-      <p><b>{observed ? "Station retenue" : "Modèle au point"}</b>{station ? ` · ${station.distanceKilometers.toFixed(1)} km de votre position` : " · aucune station locale représentative disponible"}</p>
+      <p><b>{observed ? "Station retenue" : adjusted ? "Station ajustée par le modèle" : "Modèle au point"}</b>{station ? ` · ${station.distanceKilometers.toFixed(1)} km de votre position` : " · aucune station locale représentative disponible"}</p>
+      {adjusted && weather.temperature.adjustment ? <p>Correction modèle : {weather.temperature.adjustment.deltaCelsius >= 0 ? "+" : ""}{weather.temperature.adjustment.deltaCelsius.toFixed(1)} °C entre la station et votre point.</p> : null}
       <p>Référence : {formatDateTime(weather.temperature.referenceTime)}{weather.temperature.ageMinutes !== null ? ` · il y a ${Math.round(weather.temperature.ageMinutes)} min` : ""}</p>
     </section>
   </>;

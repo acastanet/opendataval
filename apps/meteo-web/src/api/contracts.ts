@@ -47,12 +47,13 @@ export interface TemperatureResolution {
   location: WeatherCoordinates & { altitudeMeters: number | null };
   temperature: {
     valueCelsius: number;
-    nature: "station_observation" | "model_at_point";
+    nature: "station_observation" | "station_adjusted_by_model" | "model_at_point";
     referenceTime: string;
     ageMinutes: number | null;
     stale: boolean;
     quality: "good" | "stale";
     retrievedAt?: string;
+    adjustment?: { modelAtPointCelsius: number; modelAtStationCelsius: number; deltaCelsius: number; modelReferenceTime: string } | null;
   };
   method?: { id: string; version: string; stationSelectionPolicyVersion: string };
   stationSelection: {

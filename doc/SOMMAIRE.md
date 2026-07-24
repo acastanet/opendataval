@@ -27,6 +27,7 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 | [microservice/weather-service/current-behaviour.md](microservice/weather-service/current-behaviour.md) | Comportement actuel du service météo | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-service/station-selection-policy.md](microservice/weather-service/station-selection-policy.md) | Politique de sélection de station | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-service/temperature-method-v1.md](microservice/weather-service/temperature-method-v1.md) | Méthode de détermination de température v1 | 2026-07-23 | 2026-07-23 |
+| [microservice/weather-service/temperature-method-v2.md](microservice/weather-service/temperature-method-v2.md) | Méthode de détermination de température v2 | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-service/parity-corpus.json](microservice/weather-service/parity-corpus.json) | Corpus de parité météo | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-vigilance/README.md](microservice/weather-vigilance/README.md) | Vigilance : niveaux et bulletins officiels à l'échelle départementale | 2026-07-23 | 2026-07-23 |
 | [microservice/copernicus/README.md](microservice/copernicus/README.md) | Copernicus : jobs climatiques ERA5 → PostGIS | 2026-07-23 | 2026-07-23 |
