@@ -49,9 +49,7 @@ export class FirmsClient {
     const area = [box.west, box.south, box.east, box.north].map((value) => value.toFixed(6)).join(",");
     const windows = firmsQueryWindows(historyDays, this.now());
     const batches = await Promise.all(FIRMS_SOURCES.map(async (source) => {
-      const detections: FireDetection[] = [];
-      const failures: string[] = [];
-      for (const window of windows) {
+      const windowResults = await Promise.all(windows.map(async (window) => {
         try {
           const response = await fetchWithRetry(
             this.fetchImpl,
@@ -62,12 +60,13 @@ export class FirmsClient {
           );
           const text = await readLimitedText(response, this.config.maxResponseBytes);
           if (!response.ok) throw new Error(`HTTP ${response.status}: ${text.slice(0, 160)}`);
-          detections.push(...parseFirmsCsv(text, source, { latitude, longitude }, radiusKm));
+          return { detections: parseFirmsCsv(text, source, { latitude, longitude }, radiusKm), error: null };
         } catch (error) {
-          failures.push(error instanceof Error ? error.message : "erreur inconnue");
+          return { detections: [] as FireDetection[], error: error instanceof Error ? error.message : "erreur inconnue" };
         }
-      }
-      const unique = deduplicateDetections(detections);
+      }));
+      const unique = deduplicateDetections(windowResults.flatMap((result) => result.detections));
+      const failures = windowResults.flatMap((result) => result.error ? [result.error] : []);
       return {
         detections: unique,
         report: {
