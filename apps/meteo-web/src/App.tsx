@@ -9,6 +9,8 @@ const places: LocationSummary[] = [
   { id: "val-daigoual", shortLabel: "Val-d’Aigoual", label: "Val-d’Aigoual", latitude: 44.081192, longitude: 3.641467 },
   { id: "le-vigan", shortLabel: "Le Vigan", label: "Le Vigan", latitude: 43.991, longitude: 3.606 },
   { id: "l-esperou", shortLabel: "L’Espérou", label: "L’Espérou", latitude: 44.121, longitude: 3.535 },
+  { id: "paris", shortLabel: "Paris", label: "Paris", latitude: 48.8566, longitude: 2.3522 },
+  { id: "marseille", shortLabel: "Marseille", label: "Marseille", latitude: 43.2965, longitude: 5.3698 },
 ];
 
 export default function App() {
@@ -63,6 +65,6 @@ export default function App() {
       {weatherQuery.data && activeTab === "weather" ? <div id="weather-panel" role="tabpanel" aria-labelledby="weather-tab"><LiveWeatherHero data={weatherQuery.data} /></div> : null}
       {weatherQuery.data && activeTab === "services" ? <div id="services-panel" role="tabpanel" aria-labelledby="services-tab"><ServiceDemonstrator data={weatherQuery.data} /></div> : null}
     </main>
-    <footer className="site-footer live-footer"><p>Cette première page teste les nouveaux services Geography et Weather via le gateway. Les prévisions, alertes et routes historiques restent séparées.</p><a href="/meteo/essentiel/">Voir la météo essentielle existante</a></footer>
+    <footer className="site-footer live-footer"><p>Cette première page teste Geography, Weather et Weather Vigilance via le gateway. La vigilance affichée est officielle et départementale ; les prévisions et routes historiques restent séparées.</p><a href="/meteo/essentiel/">Voir la météo essentielle existante</a></footer>
   </div>;
 }

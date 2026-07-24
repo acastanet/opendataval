@@ -13,10 +13,12 @@ function Value({ label, children }: { label: string; children: ReactNode }) {
 export function ServiceDemonstrator({ data }: { data: LiveWeatherData }) {
   const geography = data.geography;
   const weather = data.temperature;
+  const vigilance = data.vigilance;
   const station = weather.stationSelection.selectedStation;
+  const currentPeriod = vigilance?.periods.find((period) => period.day === "today");
 
   return <section className="service-demo" aria-labelledby="service-demo-title">
-    <div className="service-demo-intro"><p className="eyebrow">Démonstrateur technique</p><h1 id="service-demo-title">Les deux services, sans boîte noire.</h1><p>Chaque bloc ci-dessous correspond à une réponse réellement reçue du gateway pour le lieu sélectionné.</p></div>
+    <div className="service-demo-intro"><p className="eyebrow">Démonstrateur technique</p><h1 id="service-demo-title">Les trois services, sans boîte noire.</h1><p>Chaque bloc ci-dessous correspond à une réponse réellement reçue du gateway pour le lieu sélectionné.</p></div>
 
     <article className="service-card">
       <header><div><p className="service-name">01 · Geography</p><h2>Résolution du lieu</h2></div><Status value={geography ? "available" : "unavailable"} /></header>
@@ -53,6 +55,24 @@ export function ServiceDemonstrator({ data }: { data: LiveWeatherData }) {
         <Value label="Request ID">{weather.requestId}</Value>
       </dl>
       <details><summary>Réponse Weather complète</summary><pre>{JSON.stringify(weather, null, 2)}</pre></details>
+    </article>
+
+    <article className="service-card">
+      <header><div><p className="service-name">03 · Weather Vigilance</p><h2>Vigilance officielle</h2></div><Status value={vigilance ? vigilance.freshness_status : "unavailable"} /></header>
+      {vigilance ? <>
+        <dl className="service-grid">
+          <Value label="Portée">Départementale · ne décrit pas un risque précis au point</Value>
+          <Value label="Département">{vigilance.location.department_name ?? "Département"} ({vigilance.location.department_code})</Value>
+          <Value label="Aujourd’hui"><Status value={currentPeriod?.overall_level.code ?? "unavailable"} /> {currentPeriod?.overall_level.label ?? "Période indisponible"}</Value>
+          <Value label="Phénomènes">{currentPeriod?.phenomena.length ? currentPeriod.phenomena.map((phenomenon) => `${phenomenon.label} · ${phenomenon.level.label}`).join(", ") : "Aucun phénomène signalé"}</Value>
+          <Value label="Source">{vigilance.source.name} · {vigilance.source.product}</Value>
+          <Value label="Données">{vigilance.freshness_status === "fresh" ? "Snapshot à jour" : "Dernier snapshot exploitable"}</Value>
+          <Value label="Cache">{vigilance.cache.status}{vigilance.cache.age_seconds !== null ? ` · ${Math.round(vigilance.cache.age_seconds / 60)} min` : ""}</Value>
+          <Value label="Request ID">{vigilance.requestId}</Value>
+        </dl>
+        {vigilance.warnings.length ? <p className="service-warning">{vigilance.warnings.map((warning) => warning.message).join(" ")}</p> : null}
+        <details><summary>Réponse Weather Vigilance complète</summary><pre>{JSON.stringify(vigilance, null, 2)}</pre></details>
+      </> : <p className="service-unavailable">La Vigilance officielle n’a pas répondu. Cette absence ne signifie pas une vigilance verte.</p>}
     </article>
   </section>;
 }

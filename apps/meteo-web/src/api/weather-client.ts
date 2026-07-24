@@ -4,6 +4,7 @@ import type {
   LiveWeatherData,
   LocationsResponse,
   TemperatureResolution,
+  VigilanceResolution,
   WeatherCoordinates,
 } from "./contracts";
 
@@ -61,16 +62,27 @@ function gatewayQuery(coordinates: WeatherCoordinates, positionSource: "browser-
   return query;
 }
 
+function vigilanceQuery(coordinates: WeatherCoordinates) {
+  const query = new URLSearchParams({ lat: String(coordinates.latitude), lon: String(coordinates.longitude) });
+  if (coordinates.accuracyM !== undefined) query.set("accuracy", String(Math.round(coordinates.accuracyM)));
+  return query;
+}
+
 export async function fetchLiveWeather(
   coordinates: WeatherCoordinates,
   positionSource: "browser-geolocation" | "manual" | "unknown",
   signal?: AbortSignal,
 ): Promise<LiveWeatherData> {
   const query = gatewayQuery(coordinates, positionSource).toString();
-  const [geography, temperature] = await Promise.allSettled([
+  const [geography, temperature, vigilance] = await Promise.allSettled([
     getJson<GeographyResolution>(`/api/v2/geography/resolve?${query}`, signal),
     getJson<TemperatureResolution>(`/api/v2/weather/temperature?${query}`, signal),
+    getJson<VigilanceResolution>(`/api/v2/vigilance?${vigilanceQuery(coordinates)}`, signal),
   ]);
   if (temperature.status === "rejected") throw temperature.reason;
-  return { geography: geography.status === "fulfilled" ? geography.value : null, temperature: temperature.value };
+  return {
+    geography: geography.status === "fulfilled" ? geography.value : null,
+    temperature: temperature.value,
+    vigilance: vigilance.status === "fulfilled" ? vigilance.value : null,
+  };
 }

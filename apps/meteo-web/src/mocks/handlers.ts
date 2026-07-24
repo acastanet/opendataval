@@ -35,6 +35,23 @@ export const handlers = [
     });
   }),
 
+  http.get("*/api/v2/vigilance", async ({ request }) => {
+    const url = new URL(request.url);
+    const latitude = Number(url.searchParams.get("lat"));
+    const longitude = Number(url.searchParams.get("lon"));
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return HttpResponse.json({ error: { message: "coordonnées invalides" } }, { status: 400 });
+    }
+    await delay(220);
+    return HttpResponse.json({
+      service: "weather-vigilance", version: "1.0.0", data_status: "available", freshness_status: "fresh", geographic_scope: "department",
+      location: { department_code: "30", department_name: "Gard", resolved_by: "geography-service" },
+      periods: [{ day: "today", overall_level: { code: "green", label: "Pas de vigilance particulière" }, phenomena: [] }], bulletins: [],
+      source: { name: "Météo-France", product: "Vigilance météorologique", issued_at: new Date().toISOString(), retrieved_at: new Date().toISOString() },
+      cache: { status: "hit", age_seconds: 90 }, warnings: [], requestId: "mock-vigilance",
+    });
+  }),
+
   http.get("*/api/v1/meteo/locations", async () => {
     await delay(180);
     return HttpResponse.json({ locations });

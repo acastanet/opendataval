@@ -71,7 +71,32 @@ export interface TemperatureResolution {
   requestId: string;
 }
 
+export interface VigilanceResolution {
+  service: "weather-vigilance";
+  version: string;
+  data_status: "available";
+  freshness_status: "fresh" | "stale";
+  geographic_scope: "department";
+  location: {
+    department_code: string;
+    department_name: string | null;
+    resolved_by?: "geography-service" | "request";
+  };
+  periods: Array<{
+    day: "today" | "tomorrow";
+    overall_level: { code: "green" | "yellow" | "orange" | "red"; label: string };
+    phenomena: Array<{ label: string; level: { code: "green" | "yellow" | "orange" | "red"; label: string } }>;
+  }>;
+  bulletins: Array<{ title: string; text: string }>;
+  source: { name: string; product: string; issued_at: string | null; retrieved_at: string };
+  cache: { status: "hit" | "restored"; age_seconds: number | null };
+  warnings: Array<{ code: string; message: string }>;
+  requestId: string;
+}
+
 export interface LiveWeatherData {
   geography: GeographyResolution | null;
   temperature: TemperatureResolution;
+  /** L'absence de vigilance est une indisponibilité technique, jamais du vert. */
+  vigilance: VigilanceResolution | null;
 }
