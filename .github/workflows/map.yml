@@ -1,0 +1,95 @@
+name: Map Service
+
+on:
+  pull_request:
+    paths:
+      - "apps/map-service/**"
+      - "apps/web/**"
+      - "apps/api/src/lib/radar*"
+      - "packages/shared/**"
+      - "scripts/apply-map-client-migration.mjs"
+      - "Caddyfile"
+      - "Dockerfile.caddy"
+      - "docker-compose.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/map.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: map-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 11.10.0
+  NODE_VERSION: 22
+
+jobs:
+  validate:
+    name: Migration et validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Appliquer la migration cliente idempotente
+        run: node scripts/apply-map-client-migration.mjs
+
+      - name: Installer et régénérer le verrou pnpm
+        run: pnpm install --no-frozen-lockfile --reporter=silent
+
+      - name: Vérifier map-service
+        run: pnpm check:map
+
+      - name: Vérifier l’API radar
+        run: |
+          pnpm --filter api test
+          pnpm --filter api exec tsc --noEmit
+
+      - name: Construire le site historique
+        run: pnpm build:web
+
+      - name: Vérifier le gateway existant
+        run: pnpm check:gateway
+
+      - name: Vérifier Compose et l’image map-service
+        run: |
+          docker compose config --quiet
+          docker build --file apps/map-service/Dockerfile --tag opendataval-map:test .
+          docker run --rm opendataval-map:test sh -ec '! find /app -name "*.pmtiles" -print -quit | grep -q .'
+
+      - name: Interdire les appels cartographiques directs du navigateur
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE 'data\.geopf\.fr|geoservices\.brgm\.fr|demotiles\.maplibre\.org|tile\.openstreetmap\.org|unpkg\.com/leaflet' apps/web/src; then
+            echo "Une origine cartographique tierce reste appelée par le navigateur." >&2
+            exit 1
+          fi
+
+      - name: Enregistrer la migration et le verrou validés
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Aucun fichier généré à enregistrer."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/src/lib/carte.ts apps/web/src pnpm-lock.yaml apps/map-service/src/app.ts
+          git commit -m "chore(map): applique la migration cliente validée"
+          git push origin HEAD:${{ github.head_ref }}
