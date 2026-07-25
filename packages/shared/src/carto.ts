@@ -73,8 +73,8 @@ export const REPRESENTATIONS_COUCHES = Object.fromEntries(
       libellePluriel: couche.libellePluriel,
       geometrie: couche.geometrie,
       couleur: couche.couleur,
-      cluster: couche.cluster === true,
-      tirets: couche.tirets === true,
+      cluster: "cluster" in couche && couche.cluster === true,
+      tirets: "tirets" in couche && couche.tirets === true,
     } satisfies RepresentationCouche,
   ]),
 ) as Record<string, RepresentationCouche>;
