@@ -1,6 +1,7 @@
 {
   "name": "map-service",
   "version": "0.1.0",
+  "description": "Serveur de représentation cartographique OpenDataVal",
   "private": true,
   "type": "module",
   "scripts": {
