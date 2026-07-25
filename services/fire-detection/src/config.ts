@@ -21,7 +21,6 @@ export interface FireDetectionConfig {
   eumetsatBrowseUrl: string;
   eumetsatDownloadUrl: string;
   eumetsatMtgCollection: string;
-  eumetsatMsgCollection: string;
   eumetsatTimeoutMs: number;
   eumetsatPageSize: number;
   eumetsatMaxPages: number;
@@ -72,7 +71,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FireDetectionC
     eumetsatBrowseUrl: url(env.EUMETSAT_BROWSE_URL, "https://api.eumetsat.int/data/browse", "EUMETSAT_BROWSE_URL"),
     eumetsatDownloadUrl: url(env.EUMETSAT_DOWNLOAD_URL, "https://api.eumetsat.int/data/download/1.0.0", "EUMETSAT_DOWNLOAD_URL"),
     eumetsatMtgCollection: env.EUMETSAT_MTG_FIRE_COLLECTION?.trim() || "EO:EUM:DAT:0801",
-    eumetsatMsgCollection: env.EUMETSAT_MSG_FIRE_COLLECTION?.trim() || "EO:EUM:DAT:MSG:FIRC",
     eumetsatTimeoutMs: integer(env.EUMETSAT_TIMEOUT_MS, 10_000, "EUMETSAT_TIMEOUT_MS", 100),
     eumetsatPageSize: integer(env.EUMETSAT_PAGE_SIZE, 100, "EUMETSAT_PAGE_SIZE", 1),
     eumetsatMaxPages: integer(env.EUMETSAT_MAX_PAGES, 100, "EUMETSAT_MAX_PAGES", 1),

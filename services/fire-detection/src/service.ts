@@ -50,12 +50,11 @@ export class FireDetectionService {
     const cached = this.cache.get(key);
     if (cached && cached.expiresAt > this.now().getTime()) return structuredClone(cached.value);
 
-    const [firms, mtg, msg] = await Promise.all([
+    const [firms, mtg] = await Promise.all([
       this.firms.fetchNearby(input.latitude, input.longitude, input.radiusKm, input.historyDays),
       this.eumetsat.fetchCollection(this.config.eumetsatMtgCollection, "EUMETSAT_MTG_CAP", input.latitude, input.longitude, input.radiusKm),
-      this.eumetsat.fetchCollection(this.config.eumetsatMsgCollection, "EUMETSAT_MSG_CAP", input.latitude, input.longitude, input.radiusKm),
     ]);
-    const batches: DetectionBatch[] = [firms, mtg, msg];
+    const batches: DetectionBatch[] = [firms, mtg];
     const sources = batches.flatMap((batch) => batch.reports);
     const all = deduplicateDetections(batches.flatMap((batch) => batch.detections));
     const threshold = this.now().getTime() - this.config.realtimeWindowMinutes * 60_000;

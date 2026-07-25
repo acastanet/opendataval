@@ -10,8 +10,7 @@ export const FIRMS_SOURCES = [
 export type FirmsSource = (typeof FIRMS_SOURCES)[number];
 export type DetectionSource =
   | `FIRMS_${FirmsSource}`
-  | "EUMETSAT_MTG_CAP"
-  | "EUMETSAT_MSG_CAP";
+  | "EUMETSAT_MTG_CAP";
 export type ConfidenceLevel = "low" | "nominal" | "high" | "unknown";
 export type SourceState = "available" | "unavailable" | "not_configured";
 
@@ -247,7 +246,7 @@ function parseCircle(value: string): { latitude: number; longitude: number; radi
 
 export function parseCapXml(
   xml: string,
-  source: "EUMETSAT_MTG_CAP" | "EUMETSAT_MSG_CAP",
+  source: "EUMETSAT_MTG_CAP",
   center: { latitude: number; longitude: number },
   radiusKm: number,
 ): FireDetection[] {
@@ -268,8 +267,8 @@ export function parseCapXml(
         ?? severity
         ?? null;
       const frp = parseNumber(parameters.get("frp") ?? parameters.get("fire radiative power"));
-      const satellite = parameters.get("satellite") ?? (source === "EUMETSAT_MTG_CAP" ? "Meteosat-12" : "Meteosat");
-      const instrument = parameters.get("instrument") ?? (source === "EUMETSAT_MTG_CAP" ? "FCI" : "SEVIRI");
+      const satellite = parameters.get("satellite") ?? "Meteosat-12";
+      const instrument = parameters.get("instrument") ?? "FCI";
       const areaBlocks = blocks(info, "area");
       const circleBlocks = areaBlocks.length ? areaBlocks.flatMap((area) => blocks(area, "circle")) : blocks(info, "circle");
       for (const circleBlock of circleBlocks) {

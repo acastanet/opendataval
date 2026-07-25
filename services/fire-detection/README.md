@@ -5,7 +5,7 @@ Microservice v2 stateless de localisation des **suspicions de feu** autour d'une
 ## Objectif
 
 - restituer sans filtrage local toutes les suspicions reçues des sources configurées ;
-- privilégier les données géostationnaires EUMETSAT MTG/MSG pour la proximité du temps réel ;
+- privilégier les données géostationnaires EUMETSAT MTG pour la proximité du temps réel ;
 - utiliser exclusivement l'API Area de NASA FIRMS pour la fonction « dernière suspicion dans un rayon de 50 km » ;
 - fonctionner sans PostgreSQL, sans volume et sans historique local ;
 - distinguer une source disponible sans résultat d'une source indisponible.
@@ -38,8 +38,9 @@ L'historique de sept jours est découpé en une requête de cinq jours et une re
 
 ### EUMETSAT CAP
 
-- MTG : collection `EO:EUM:DAT:0801` ;
-- MSG de secours : collection `EO:EUM:DAT:MSG:FIRC`.
+- MTG : collection `EO:EUM:DAT:0801`.
+
+La collection MSG historique (`EO:EUM:DAT:MSG:FIRC`) a été retirée : Meteosat Seconde Génération est en fin de vie et EUMETSAT ne publie plus cette collection (réponse `404 Collection not found`).
 
 La recherche catalogue est publique. Le téléchargement nécessite un compte gratuit EUMETSAT et un couple consumer key / consumer secret. Les résultats OpenSearch sont parcourus page par page ; une pagination bloquée ou tronquée rend la source indisponible au lieu de perdre silencieusement des produits. Les téléchargements sont bornés à huit connexions concurrentes, puis les produits CAP sont lus en mémoire et oubliés après la réponse.
 
