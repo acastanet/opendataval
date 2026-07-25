@@ -46,7 +46,18 @@ jobs:
           cache: pnpm
 
       - name: Appliquer la migration des styles nommés
-        run: node scripts/migrate-map-styles.mjs
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/migrate-map-styles.mjs 2>&1 | tee map-migration.log
+
+      - name: Publier le diagnostic de migration
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-migration-diagnostics
+          path: map-migration.log
+          if-no-files-found: warn
 
       - name: Installer les dépendances verrouillées
         run: pnpm install --frozen-lockfile --reporter=silent
