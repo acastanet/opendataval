@@ -7,7 +7,7 @@ interface Actif { data: Buffer; gzip: Buffer; contentType: string; nom: string }
 export class ActifsStatiques {
   private js?: Actif;
   private css?: Actif;
-  private glyphe?: Buffer;
+  private glypheData?: Buffer;
   private version?: string;
 
   constructor(private readonly assetsRoot: string) {}
@@ -29,20 +29,20 @@ export class ActifsStatiques {
     }
 
     try {
-      this.glyphe = await readFile(join(this.assetsRoot, "glyphs", "Noto Sans Regular", "0-255.pbf"));
+      this.glypheData = await readFile(join(this.assetsRoot, "glyphs", "Noto Sans Regular", "0-255.pbf"));
     } catch {
-      this.glyphe = undefined;
+      this.glypheData = undefined;
     }
   }
 
   vendorStatus(): "disponible" | "indisponible" { return this.js && this.css ? "disponible" : "indisponible"; }
-  glyphStatus(): "disponible" | "indisponible" { return this.glyphe ? "disponible" : "indisponible"; }
+  glyphStatus(): "disponible" | "indisponible" { return this.glypheData ? "disponible" : "indisponible"; }
   vendorVersion(): string | undefined { return this.version; }
 
   vendor(type: "js" | "css"): Actif | undefined { return type === "js" ? this.js : this.css; }
 
   glyphe(fontstack: string, range: string): Buffer | undefined {
-    if (fontstack === "Noto Sans Regular" && range === "0-255") return this.glyphe;
+    if (fontstack === "Noto Sans Regular" && range === "0-255") return this.glypheData;
     return Buffer.alloc(0);
   }
 }
