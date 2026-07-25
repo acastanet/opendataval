@@ -74,7 +74,18 @@ jobs:
           pnpm --filter api exec tsc --noEmit
 
       - name: Construire le site historique
-        run: pnpm build:web
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm build:web 2>&1 | tee web-build.log
+
+      - name: Publier le diagnostic du build web
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-web-diagnostics
+          path: web-build.log
+          if-no-files-found: warn
 
       - name: Vérifier le gateway existant
         run: pnpm check:gateway
