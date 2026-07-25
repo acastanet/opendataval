@@ -1,7 +1,7 @@
 # Gateway Service
 
 > Point d’entrée unique des API v2 (`/api/v2/*`). Aucune logique métier, aucun accès direct à la base.
-> Dernière mise à jour : 2026-07-24 · Dernière vérification : 2026-07-24
+> Dernière mise à jour : 2026-07-25 · Dernière vérification : 2026-07-25
 > Code : `apps/gateway-service/`
 
 ## Rôle
@@ -14,6 +14,9 @@ Il conserve aussi un pont temporaire en lecture seule vers le monolithe historiq
 
 | Route | Cible ou traitement | Méthode |
 |---|---|---|
+| `/api/v2` | Page d’accueil HTML : présente les microservices et l’état live | `GET` |
+| `/api/v2/demo/:service` | Page de démo interactive d’un microservice (formulaire → appel réel) | `GET` |
+| `/api/v2/status` | État agrégé léger de chaque service (alimente les pages) | `GET` |
 | `/health` | Vie du processus gateway | `GET` |
 | `/ready` | Gateway prêt et API historique joignable sur `/api/health` | `GET` |
 | `/api/v2/gateway` | Identité et version du gateway | `GET` |
@@ -126,9 +129,21 @@ Les tests couvrent notamment la santé, le routage, la propagation du `request-i
 
 Retirer le service ou un proxy v2 ne modifie pas les routes historiques `/api/*`. Pour un rollback de routage, rétablir conjointement l’image du gateway et celle de Caddy afin d’éviter un décalage entre le code et le `Caddyfile` embarqué.
 
+## Pages de présentation
+
+Le gateway sert aussi sa propre façade HTML (styles et scripts inline, sans fichier statique ni bundler), compatible avec le CSP appliqué par Caddy :
+
+- `/api/v2` : accueil listant les microservices (rôle, route, badge d’état) avec un lien vers chaque démo ;
+- `/api/v2/demo/:service` : démonstration interactive d’un service (formulaire pré-rempli sur Val-d’Aigoual → appel réel de la route publique → affichage du résultat). Le résultat s’affiche sous deux onglets : une **synthèse lisible** (« Résultat ») et le **JSON brut**. Pour les services géographiques (champs `lat`/`lon` : geography, weather, vigilance, fire), la page ajoute un bouton **« Me localiser »** (`navigator.geolocation`) et une **carte Leaflet** (marqueur, clic pour saisir les coordonnées, cercle du rayon et marqueurs des détections pour fire) ;
+- `/api/v2/status` : sonde d’état légère, dédiée à ces pages, qui interroge en parallèle la santé de chaque microservice et renvoie `{ generatedAt, version, services: [{ id, name, status, latencyMs }] }`. Elle ne relaie aucun corps amont ni secret, et ne renvoie jamais de 5xx.
+
+Les pages et le catalogue des services sont pilotés par un descripteur unique (`src/services-catalog.ts`) ; la synthèse lisible par service vit dans `src/pages/demo-presentation.ts` (rendu en DOM sûr, jamais d’HTML interpolé).
+
+**Dépendance externe des démos géographiques** : Leaflet 1.9.4 est chargé depuis `unpkg.com` (avec contrôle d’intégrité SRI) et les fonds de carte depuis `tile.openstreetmap.org`. Le CSP du `Caddyfile` autorise ces origines (`script-src`/`style-src` : `unpkg.com` ; `img-src` : `unpkg.com` et `tile.openstreetmap.org`). Si le CDN est inaccessible, la carte affiche un message de repli et le formulaire reste pleinement utilisable. La géolocalisation exige un contexte sécurisé (HTTPS ou `localhost`).
+
 ## Limites volontaires
 
-Pas d’authentification, de cache, de Redis ou file de messages, de gRPC, de circuit breaker avancé, ni de logique météo, géographique, incendie ou vigilance dans le gateway. La sonde `/ready` n’agrège pas encore la santé des microservices v2. La fixation du rayon et de l’historique de la route feu est un contrôle de contrat, pas un calcul de détection.
+Pas d’authentification, de cache, de Redis ou file de messages, de gRPC, de circuit breaker avancé, ni de logique météo, géographique, incendie ou vigilance dans le gateway. La sonde `/ready` n’agrège **pas** la santé des microservices v2 (elle ne vérifie que l’API historique) ; l’état live des services est fourni séparément par `/api/v2/status`, orienté présentation et non orchestration. La fixation du rayon et de l’historique de la route feu est un contrôle de contrat, pas un calcul de détection.
 
 ## Documentation liée
 

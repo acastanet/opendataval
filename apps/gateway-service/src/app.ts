@@ -1,10 +1,18 @@
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+} from "fastify";
 import { loadConfig, type GatewayConfig } from "./config.js";
 import { registerLegacyProxy, type FetchLike } from "./legacy-proxy.js";
 import { registerGeographyProxy } from "./geography-proxy.js";
 import { registerWeatherProxy } from "./weather-proxy.js";
 import { registerVigilanceProxy } from "./vigilance-proxy.js";
 import { registerFireDetectionProxy } from "./fire-detection-proxy.js";
+import { registerStatusRoute } from "./status-route.js";
+import { findService } from "./services-catalog.js";
+import { renderLanding } from "./pages/landing.js";
+import { renderDemo } from "./pages/demo.js";
 
 export interface BuildAppOptions {
   config?: GatewayConfig;
@@ -133,6 +141,38 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     }),
   );
 
+  // Pages HTML de la façade : accueil listant les microservices et démos
+  // interactives. Servies par le gateway et atteintes via Caddy (/api/v2*).
+  const sendHtml = (reply: FastifyReply, html: string): FastifyReply => {
+    reply.header("content-type", "text/html; charset=utf-8");
+    return reply.send(html);
+  };
+
+  const landingHandler = async (_request: FastifyRequest, reply: FastifyReply) =>
+    sendHtml(reply, renderLanding(config));
+
+  app.get("/api/v2", landingHandler);
+  app.get("/api/v2/", landingHandler);
+
+  app.get<{ Params: { service: string } }>(
+    "/api/v2/demo/:service",
+    async (request: FastifyRequest<{ Params: { service: string } }>, reply: FastifyReply) => {
+      const service = findService(request.params.service);
+      if (!service) {
+        return reply.code(404).send({
+          error: {
+            code: "UNKNOWN_SERVICE",
+            message: "Ce microservice n'existe pas.",
+            retryable: false,
+          },
+          requestId: request.id,
+        });
+      }
+      return sendHtml(reply, renderDemo(config, service));
+    },
+  );
+
+  registerStatusRoute(app, config, fetchImpl);
   registerLegacyProxy(app, config, fetchImpl);
   registerGeographyProxy(app, config, fetchImpl);
   registerWeatherProxy(app, config, fetchImpl);

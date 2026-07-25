@@ -1,6 +1,6 @@
 # Guide de travail pour les agents
 
-Dernière vérification : 22 juillet 2026.
+Dernière vérification : 25 juillet 2026.
 
 Ce fichier donne le contexte opérationnel nécessaire pour travailler dans le dépôt
 `opendata-vda`. Il décrit l'état réel du code au moment de sa rédaction. Lire ce
@@ -94,10 +94,17 @@ racine. TypeScript est configuré en mode strict avec `noUncheckedIndexedAccess`
 
 ```text
 apps/
-  api/                  API Fastify et routes HTTP
+  api/                  API Fastify historique et routes HTTP (/api/*)
+  gateway-service/      façade des API v2 (/api/v2/*), landing et démos HTML
+  geography-service/    résolution lat/lon → commune/département + altitude
+  weather-service/      température ponctuelle (modèle MétéoFrance)
+  meteo-web/            front v2 météo (consommateur, non proxifié par le gateway)
   copernicus/           collectes climatiques Python ERA5-Land et ERA5-HEAT
   web/                  site Astro statique et îlots Svelte
   worker/               collectes, transformations et planification cron
+services/
+  weather-vigilance/    vigilance départementale MétéoFrance (npm, hors workspace pnpm)
+  fire-detection/       détection stateless FIRMS + EUMETSAT (npm, hors workspace pnpm)
 packages/
   shared/               territoire, catalogue, indicateurs, DB et migrations
 db/migrations/          migrations SQL appliquées automatiquement
@@ -106,7 +113,7 @@ data/downloads/         cache local ignoré des fichiers bruts Copernicus
 doc/                    documentation, ADR, exploitation et feuilles de route
 e2e/                    tests visuels et fonctionnels Playwright
 mini_app/               prototype historique autonome de la mini-app Eau
-docker-compose.yml      stack locale : db, api, worker, caddy + profil copernicus
+docker-compose.yml      stack locale : db, api, gateway, services v2, worker, caddy
 Caddyfile               reverse proxy local et serveur de fichiers statiques
 ```
 
@@ -124,10 +131,48 @@ Points d'entrée importants :
 - `apps/worker/src/scheduler.ts` : registre et fréquence de tous les jobs ;
 - `apps/api/src/index.ts` : enregistrement des modules de routes ;
 - `apps/api/src/routes/meteoClimate.ts` : publication des agrégats climatiques ;
+- `apps/gateway-service/src/app.ts` : construction du gateway (proxies, pages, statut) ;
+- `apps/gateway-service/src/services-catalog.ts` : descripteur unique des services v2 ;
 - `apps/copernicus/src/copernicus/main.py` : collecte, calcul et planification
   Copernicus ;
 - `apps/web/src/lib/carte.ts` : primitives MapLibre partagées ;
 - `apps/web/src/styles/global.css` : variables et styles globaux.
+
+### Microservices v2, gateway et pages de démo
+
+La plateforme migre progressivement du monolithe historique (`apps/api`, routes
+`/api/*`) vers des microservices « v2 » exposés sous `/api/v2/*`. Le
+`gateway-service` est la **façade HTTP unique** de ces API : il valide les
+paramètres, propage `x-request-id`, normalise les erreurs et route vers chaque
+service. Il n'accède à aucune base et ne porte aucune logique métier. Caddy
+n'envoie au gateway que les chemins `/api/v2` et `/api/v2/*` (`@gateway`) ; les
+routes `/api/*` restent servies directement par le monolithe.
+
+Services derrière le gateway (tous Fastify/Node, écoute interne `:3000`) :
+
+| Service | Emplacement | Route publique | Santé interne | Rôle |
+|---|---|---|---|---|
+| gateway-service | `apps/gateway-service` | `/api/v2/*` | `/health` | Façade, aucun accès DB |
+| geography-service | `apps/geography-service` | `/api/v2/geography/resolve` | `/health` | lat/lon → commune/département + altitude |
+| weather-service | `apps/weather-service` | `/api/v2/weather/temperature` | `/health` | Température ponctuelle |
+| weather-vigilance-service | `services/weather-vigilance` | `/api/v2/vigilance` | `/healthz` | Vigilance départementale MétéoFrance |
+| fire-detection-service | `services/fire-detection` | `/api/v2/fire/nearby` | `/healthz` | Détection stateless FIRMS + EUMETSAT |
+| api (legacy) | `apps/api` | `/api/v2/legacy/*` (GET/HEAD) | `/api/health` | Pont lecture seule vers le monolithe |
+
+Le gateway sert aussi sa propre **façade HTML** (styles et scripts inline, sans
+bundler) : `/api/v2` (accueil listant les microservices avec un état live),
+`/api/v2/demo/:service` (démos interactives : formulaire → appel réel → résultat,
+avec onglets « Résultat lisible » / « JSON brut », bouton « Me localiser » et carte
+Leaflet pour les services géographiques) et `/api/v2/status` (état agrégé léger
+alimentant les pages, distinct de `/ready` qui ne sonde que le monolithe). Ces
+pages et le catalogue dérivent du descripteur unique
+`apps/gateway-service/src/services-catalog.ts`. Les démos géographiques chargent
+Leaflet depuis unpkg (avec SRI) et les tuiles OSM ; le CSP du `Caddyfile` autorise
+ces origines et la carte se dégrade proprement si le CDN est indisponible.
+
+Les services `services/weather-vigilance` et `services/fire-detection` sont gérés
+en **npm** (hors workspace pnpm) ; les autres sont des packages pnpm. Voir
+`doc/microservice/gateway-service/README.md` pour le détail des routes.
 
 ## 4. Commandes courantes
 
@@ -143,6 +188,19 @@ pnpm test:e2e
 pnpm test:incendies
 pnpm check:incendies
 ```
+
+Microservices v2 (dev, tests et contrôles ciblés) :
+
+```bash
+pnpm dev:gateway        # dev:geography, dev:weather, dev:meteo-v2 (workspaces pnpm)
+pnpm dev:vigilance      # dev:fire-detection (services/*, via npm --prefix)
+pnpm check:gateway      # typecheck + tests du gateway
+pnpm test:geography     # test:weather, test:vigilance, test:fire-detection
+pnpm check:weather      # check:vigilance, check:fire-detection
+```
+
+Les tests du gateway couvrent la santé, le routage, les proxies, les pages
+d'accueil/démo et la sonde `/api/v2/status`.
 
 Malgré son nom historique, `pnpm test:incendies` exécute toute la suite déclarée
 par l'API, y compris les tests météo, puis les tests du worker actuellement centrés
@@ -422,6 +480,8 @@ Choisir les contrôles selon les fichiers touchés :
 | API incendies | `pnpm --filter api test` puis `tsc --noEmit` |
 | Worker FIRMS | `pnpm --filter worker test` puis `tsc --noEmit` |
 | Ensemble incendies | `pnpm check:incendies` |
+| Gateway (proxies, pages, statut) | `pnpm check:gateway` |
+| Microservice v2 (geography/weather/vigilance/fire) | `check:*` du service concerné |
 | Autre code API/worker | `tsc --noEmit` ciblé + contrôle fonctionnel pertinent |
 | Compose ou Caddy | `docker compose config` puis démarrage ciblé si autorisé |
 | Migration SQL | démarrage sur une base de test et inspection de `meta.migrations` |
