@@ -13,38 +13,12 @@ export interface DescripteurFond {
 }
 
 export const FONDS_CARTOGRAPHIQUES: readonly DescripteurFond[] = [
-  {
-    id: "plan",
-    libelle: "Plan IGN",
-    coucheIgn: "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2",
-    format: "image/png",
-    extension: "png",
-    attribution: "© IGN",
-  },
-  {
-    id: "photo",
-    libelle: "Photographie aérienne",
-    coucheIgn: "ORTHOIMAGERY.ORTHOPHOTOS",
-    format: "image/jpeg",
-    extension: "jpg",
-    attribution: "© IGN",
-  },
-  {
-    id: "satellite",
-    libelle: "Satellite SPOT",
-    coucheIgn: "ORTHOIMAGERY.ORTHO-SAT.SPOT.2022",
-    format: "image/jpeg",
-    extension: "jpg",
-    attribution: "© IGN",
-  },
+  { id: "plan", libelle: "Plan IGN", coucheIgn: "GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", format: "image/png", extension: "png", attribution: "© IGN" },
+  { id: "photo", libelle: "Photographie aérienne", coucheIgn: "ORTHOIMAGERY.ORTHOPHOTOS", format: "image/jpeg", extension: "jpg", attribution: "© IGN" },
+  { id: "satellite", libelle: "Satellite SPOT", coucheIgn: "ORTHOIMAGERY.ORTHO-SAT.SPOT.2022", format: "image/jpeg", extension: "jpg", attribution: "© IGN" },
 ] as const;
 
-export const GEOLOGIE = {
-  id: "geologie",
-  libelle: "Carte géologique",
-  couche: "SCAN_D_GEOL50",
-  attribution: "© BRGM",
-} as const;
+export const GEOLOGIE = { id: "geologie", libelle: "Carte géologique", couche: "SCAN_D_GEOL50", attribution: "© BRGM" } as const;
 
 export const RELIEF_BOUNDS = [3.2, 43.8, 4.1, 44.4] as const;
 export const RELIEF_GLOBAL_MAXZOOM = 12;
@@ -63,12 +37,22 @@ export const PALETTE_HYPSOMETRIQUE = [
 ] as const;
 
 export const VIGILANCE_FEU = {
-  blanc: { libelle: "Blanc", acces: "Accès autorisé", couleur: "#ffffff", opacite: 0 },
-  jaune: { libelle: "Jaune", acces: "Accès autorisé", couleur: "#ffff00", opacite: 0.5 },
-  orange: { libelle: "Orange", acces: "Accès déconseillé", couleur: "#ffa500", opacite: 0.7 },
-  rouge: { libelle: "Rouge", acces: "Accès interdit", couleur: "#ff0000", opacite: 0.7 },
-  inconnu: { libelle: "Non publié", acces: "Consultez la carte officielle", couleur: "#808285", opacite: 0.35 },
-} as const satisfies Record<NiveauVigilanceFeu, { libelle: string; acces: string; couleur: string; opacite: number }>;
+  blanc: { libelle: "Blanc", acces: "Accès autorisé", couleurPastille: "#ffffff", couleurCarte: "#ffffff", opacite: 0, largeurContour: 3 },
+  jaune: { libelle: "Jaune", acces: "Accès autorisé", couleurPastille: "#ffff80", couleurCarte: "#ffff00", opacite: 0.5, largeurContour: 2 },
+  orange: { libelle: "Orange", acces: "Accès déconseillé", couleurPastille: "#ff854a", couleurCarte: "#ffa500", opacite: 0.7, largeurContour: 2 },
+  rouge: { libelle: "Rouge", acces: "Accès interdit", couleurPastille: "#ff3e3e", couleurCarte: "#ff0000", opacite: 0.7, largeurContour: 2 },
+  inconnu: { libelle: "Non publié", acces: "Consultez la carte officielle", couleurPastille: "#808285", couleurCarte: "#808285", opacite: 0.35, largeurContour: 2 },
+} as const satisfies Record<NiveauVigilanceFeu, {
+  libelle: string;
+  acces: string;
+  couleurPastille: string;
+  couleurCarte: string;
+  opacite: number;
+  largeurContour: number;
+}>;
+
+export const VIGILANCE_FEU_CONTOUR = "#000000";
+export const VIGILANCE_FEU_TEXTE = "#1a1a1a";
 
 export interface RepresentationCouche {
   slug: string;
@@ -96,21 +80,8 @@ export const REPRESENTATIONS_COUCHES = Object.fromEntries(
 ) as Record<string, RepresentationCouche>;
 
 export const IDS_CARTOGRAPHIQUES = {
-  sources: {
-    plan: "fond-plan-src",
-    photo: "fond-photo-src",
-    satellite: "fond-satellite-src",
-    geologie: "geologie-src",
-    relief: "relief-dem-src",
-  },
-  couches: {
-    plan: "basemap-plan",
-    photo: "basemap-photo",
-    satellite: "basemap-satellite",
-    geologie: "geologie-layer",
-    hillshade: "relief-hillshade",
-    reliefCouleur: "relief-color",
-  },
+  sources: { plan: "fond-plan-src", photo: "fond-photo-src", satellite: "fond-satellite-src", geologie: "geologie-src", relief: "relief-dem-src" },
+  couches: { plan: "basemap-plan", photo: "basemap-photo", satellite: "basemap-satellite", geologie: "geologie-layer", hillshade: "relief-hillshade", reliefCouleur: "relief-color" },
 } as const;
 
 export function prefixerId(id: string, prefixe?: string): string {
