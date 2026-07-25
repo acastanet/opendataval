@@ -9,12 +9,23 @@ export type Legende =
   | { id: "relief-hypsometrique"; type: "continue"; libelle: string; unite: "m"; paliers: readonly { altitude: number; couleur: string; libelle: string }[] }
   | { id: "vigilance-feu"; type: "categorielle"; libelle: string; niveaux: typeof VIGILANCE_FEU };
 
-export function indexLegendes(): { id: string; libelle: string; type: Legende["type"] }[] {
-  return Object.values(REPRESENTATIONS_COUCHES).map((couche) => ({ id: couche.slug, libelle: couche.libellePluriel, type: "couche" as const }))
-    .concat([
-      { id: "relief-hypsometrique", libelle: "Altitude", type: "continue" as const },
-      { id: "vigilance-feu", libelle: "Vigilance feu", type: "categorielle" as const },
-    ]);
+export interface EntreeIndexLegende {
+  id: string;
+  libelle: string;
+  type: Legende["type"];
+}
+
+export function indexLegendes(): EntreeIndexLegende[] {
+  const couches: EntreeIndexLegende[] = Object.values(REPRESENTATIONS_COUCHES).map((couche) => ({
+    id: couche.slug,
+    libelle: couche.libellePluriel,
+    type: "couche",
+  }));
+  return [
+    ...couches,
+    { id: "relief-hypsometrique", libelle: "Altitude", type: "continue" },
+    { id: "vigilance-feu", libelle: "Vigilance feu", type: "categorielle" },
+  ];
 }
 
 export function trouverLegende(id: string): Legende | null {
