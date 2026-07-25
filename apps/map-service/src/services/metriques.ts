@@ -30,7 +30,9 @@ export class MetriquesMap {
   snapshot(): { famille: string; hits: number; miss: number; erreursAmont: number; octetsServis: number; p95Ms: number }[] {
     return [...this.compteurs.entries()].map(([famille, c]) => {
       const triees = [...c.dureesMs].sort((a, b) => a - b);
-      const p95Ms = triees.length === 0 ? 0 : triees[Math.min(triees.length - 1, Math.floor(triees.length * 0.95))];
+      const p95Ms = triees.length === 0
+        ? 0
+        : (triees[Math.min(triees.length - 1, Math.floor(triees.length * 0.95))] ?? 0);
       return { famille, hits: c.hits, miss: c.miss, erreursAmont: c.erreursAmont, octetsServis: c.octetsServis, p95Ms };
     });
   }
