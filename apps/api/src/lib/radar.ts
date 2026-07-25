@@ -1,3 +1,9 @@
+import {
+  cheminFrameValide,
+  gabaritTuilesRadar,
+  urlTuileRadarAmont,
+} from "@opendata-vda/shared/carto";
+
 // Intégration du radar de précipitations RainViewer (https://www.rainviewer.com/api/weather-maps-api.html).
 // API publique gratuite, sans clé, couverture mondiale (France comprise). Attribution « RainViewer » requise.
 // Le radar mesure l'intensité des précipitations, PAS la foudre : ces helpers ne prétendent jamais détecter
@@ -6,16 +12,15 @@
 export type IntensiteRadar = "aucune" | "faible" | "moderee" | "forte";
 
 export interface FrameRadar {
-  time: number; // horodatage Unix (secondes)
-  kind: "passe" | "prevu"; // observation radar passée ou extrapolation nowcast
-  tileUrl: string; // gabarit de tuile prêt pour MapLibre, avec les jetons {z}/{x}/{y}
+  time: number;
+  kind: "passe" | "prevu";
+  path: string;
+  /** Conservé pendant la migration des consommateurs historiques. */
+  tileUrl: string;
 }
 
 const HOTE_DEFAUT = "https://tilecache.rainviewer.com";
-// Schéma couleur RainViewer 2 (« Universal Blue »), tuiles 256 px.
 const COULEUR = "2";
-// Carte : tuiles lissées (rendu). Échantillonnage : tuiles non lissées (lecture de pixel nette).
-const OPTIONS_CARTE = "1_1";
 const OPTIONS_ECHANTILLON = "0_1";
 
 interface FrameBrute {
@@ -44,39 +49,36 @@ export function hoteRadar(data: unknown): string {
   return racineRadar(data).host;
 }
 
-/**
- * Frames radar (passé + nowcast) avec un gabarit de tuile MapLibre prêt à l'emploi.
- * Les tuiles sont servies via notre propre proxy `/api/meteo/radar/tuile/...` : RainViewer n'envoie pas
- * d'en-tête CORS et MapLibre charge les tuiles raster par `fetch` (soumis au CORS), contrairement au
- * chargement par `<img>`. Passer par la même origine évite le blocage CORS et resserre la CSP.
- */
+/** Frames radar : les tuiles d'affichage passent exclusivement par map-service. */
 export function construireFramesRadar(data: unknown): { host: string; frames: FrameRadar[] } {
   const { host, past, nowcast } = racineRadar(data);
-  const gabarit = (path: string): string => `/api/meteo/radar/tuile/{z}/{x}/{y}?path=${encodeURIComponent(path)}`;
-  const frames: FrameRadar[] = [
-    ...past.map((f) => ({ time: f.time, kind: "passe" as const, tileUrl: gabarit(f.path) })),
-    ...nowcast.map((f) => ({ time: f.time, kind: "prevu" as const, tileUrl: gabarit(f.path) })),
-  ];
-  return { host, frames };
+  const convertir = (frame: FrameBrute, kind: FrameRadar["kind"]): FrameRadar => ({
+    time: frame.time,
+    kind,
+    path: frame.path,
+    tileUrl: gabaritTuilesRadar(frame.path),
+  });
+  return {
+    host,
+    frames: [
+      ...past.map((frame) => convertir(frame, "passe")),
+      ...nowcast.map((frame) => convertir(frame, "prevu")),
+    ],
+  };
 }
 
-/** URL amont RainViewer d'une tuile de carte (schéma 2, lissée), reconstruite côté proxy. */
+/** Alias maintenu pour l'échantillonnage et les tests historiques. */
 export function urlTuileCarte(path: string, z: number, x: number, y: number): string {
-  return `${HOTE_DEFAUT}${path}/256/${z}/${x}/${y}/${COULEUR}/${OPTIONS_CARTE}.png`;
+  return urlTuileRadarAmont(path, z, x, y);
 }
 
-/** Valide un chemin de frame RainViewer (anti-SSRF pour le proxy de tuiles). */
-export function cheminFrameValide(path: string): boolean {
-  return /^\/v2\/radar\/(nowcast\/)?[0-9a-f]+$/.test(path);
-}
+export { cheminFrameValide };
 
-/** Frame passée la plus récente, base de l'échantillon au point. */
 export function derniereFramePassee(data: unknown): FrameBrute | null {
   const { past } = racineRadar(data);
   return past[past.length - 1] ?? null;
 }
 
-/** Coordonnées de tuile slippy (z/x/y) et pixel interne (0..255) d'un point WGS84. */
 export function tuilePourPoint(lat: number, lon: number, z: number): { z: number; x: number; y: number; px: number; py: number } {
   const n = 2 ** z;
   const xf = ((lon + 180) / 360) * n;
@@ -88,26 +90,19 @@ export function tuilePourPoint(lat: number, lon: number, z: number): { z: number
   return { z, x, y, px: borne(xf - x), py: borne(yf - y) };
 }
 
-/** URL de la tuile d'échantillonnage (non lissée) d'une frame donnée. */
 export function urlTuileEchantillon(host: string, path: string, z: number, x: number, y: number): string {
   return `${host}${path}/256/${z}/${x}/${y}/${COULEUR}/${OPTIONS_ECHANTILLON}.png`;
 }
 
-/**
- * Classe un pixel RGBA du schéma RainViewer 2 en intensité de précipitation.
- * Approximation assumée : palette du bleu clair (faible) au vert/jaune (modérée) puis rouge/magenta (forte).
- * Un pixel quasi transparent signifie « pas de précipitation ».
- */
 export function classerIntensitePixel(r: number, g: number, b: number, a: number): IntensiteRadar {
   if (a < 40) return "aucune";
-  if (b > g && b > r) return "faible"; // bleu dominant → pluie faible
-  if (r >= 180 && g < 160) return "forte"; // rouge / magenta → forte
-  return "moderee"; // vert / jaune / orange → modérée
+  if (b > g && b > r) return "faible";
+  if (r >= 180 && g < 160) return "forte";
+  return "moderee";
 }
 
 const ORDRE_INTENSITE: Record<IntensiteRadar, number> = { aucune: 0, faible: 1, moderee: 2, forte: 3 };
 
-/** Intensité maximale sur le voisinage 3×3 du pixel visé (robustesse au sous-échantillonnage radar). */
 export function intensiteVoisinage(rgba: Uint8Array, largeur: number, hauteur: number, px: number, py: number): IntensiteRadar {
   let max: IntensiteRadar = "aucune";
   for (let dy = -1; dy <= 1; dy += 1) {
