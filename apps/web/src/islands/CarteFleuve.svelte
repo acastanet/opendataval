@@ -52,7 +52,7 @@
         version: 8,
         sources: {},
         layers: [],
-        glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+        glyphs: "/api/v2/map/glyphs/{fontstack}/{range}.pbf",
       },
       bounds: [3.35, 43.28, 3.82, 44.13],
       fitBoundsOptions: { padding: 48 },

@@ -56,7 +56,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   app.get<{ Params: Params; Querystring: Query }>("/api/v2/map/styles/:style.json", async (request, reply) => {
-    const nom = request.params.style;
+    const nom = String(request.params.style ?? "");
     if (!estNomStyle(nom)) return reply.code(404).send(erreurPublique("STYLE_INCONNU", "Le style cartographique demandé n’existe pas.", false, request.id));
     try {
       const optionsStyle = lireOptionsStyle(request.query);
@@ -119,7 +119,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const tuile = lireCoordonneesTuile(request.params, 15);
     if (!tuile) return reply.code(400).send(erreurPublique("TUILE_INVALIDE", "Les coordonnées de tuile sont invalides.", false, request.id));
     try {
-      const data = await relief.getTile(tuile.z, tuile.x, tuile.y, request.raw.signal);
+      const data = await relief.getTile(tuile.z, tuile.x, tuile.y);
       if (!data) return reply.code(404).send(erreurPublique("TUILE_RELIEF_ABSENTE", "Aucune tuile de relief n’est disponible à cette coordonnée.", false, request.id));
       return envoyerBinaire(reply, Buffer.from(data), "image/png", "public, max-age=2592000, immutable");
     } catch (error) {
@@ -134,14 +134,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return indexLegendes();
   });
   app.get<{ Params: Params }>("/api/v2/map/legends/:layer", async (request, reply) => {
-    const legende = trouverLegende(request.params.layer);
+    const legende = trouverLegende(String(request.params.layer ?? ""));
     if (!legende) return reply.code(404).send(erreurPublique("LEGENDE_INCONNUE", "La légende demandée n’existe pas.", false, request.id));
     reply.header("cache-control", "public, max-age=3600");
     return legende;
   });
 
   app.get<{ Params: Params }>("/api/v2/map/glyphs/:fontstack/:range.pbf", async (request, reply) => {
-    const data = actifs.glyphe(request.params.fontstack, request.params.range);
+    const data = actifs.glyphe(String(request.params.fontstack ?? ""), String(request.params.range ?? ""));
     if (data === undefined) return reply.code(503).send(erreurPublique("GLYPHES_INDISPONIBLES", "Les glyphes cartographiques ne sont pas installés.", true, request.id));
     return envoyerBinaire(reply, data, "application/x-protobuf", "public, max-age=31536000, immutable");
   });

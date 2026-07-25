@@ -265,7 +265,7 @@
         version: 8,
         sources: {},
         layers: [],
-        glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+        glyphs: "/api/v2/map/glyphs/{fontstack}/{range}.pbf",
       },
       center: [TERRITOIRE.montAigoual.lon, TERRITOIRE.montAigoual.lat],
       zoom: 11,
