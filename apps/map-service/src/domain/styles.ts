@@ -115,7 +115,8 @@ export function construireStyle(nom: NomStyle, options: OptionsStyle): Record<st
     };
 
     if (nom === "hypsometrique") {
-      layers.unshift({
+      // Le fond drapé reste sous la teinte, puis le hillshade vient révéler la microtopographie.
+      layers.push({
         id: id(IDS_CARTOGRAPHIQUES.couches.reliefCouleur, prefixe),
         type: "color-relief",
         source: id(IDS_CARTOGRAPHIQUES.sources.relief, prefixe),
