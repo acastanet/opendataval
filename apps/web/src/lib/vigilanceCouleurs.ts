@@ -1,62 +1,25 @@
-export type NiveauVigilance = "blanc" | "jaune" | "orange" | "rouge" | "inconnu";
+import {
+  VIGILANCE_FEU,
+  VIGILANCE_FEU_CONTOUR,
+  VIGILANCE_FEU_TEXTE,
+  type NiveauVigilanceFeu,
+} from "@opendata-vda/shared/carto";
 
-export const LIBELLES_NIVEAU: Record<NiveauVigilance, string> = {
-  blanc: "Blanc",
-  jaune: "Jaune",
-  orange: "Orange",
-  rouge: "Rouge",
-  inconnu: "Non publié",
-};
+export type NiveauVigilance = NiveauVigilanceFeu;
 
-// Conséquence officielle du niveau, telle qu'affichée dans les popups de massif
-// de risque-prevention-incendie.fr/gard/ (massifs_prev.js, onEachMassifs).
-export const LIBELLES_ACCES_NIVEAU: Record<NiveauVigilance, string> = {
-  blanc: "Accès autorisé",
-  jaune: "Accès autorisé",
-  orange: "Accès déconseillé",
-  rouge: "Accès interdit",
-  inconnu: "Consultez la carte officielle",
-};
+const projeter = <T>(selection: (niveau: (typeof VIGILANCE_FEU)[NiveauVigilance]) => T): Record<NiveauVigilance, T> => ({
+  blanc: selection(VIGILANCE_FEU.blanc),
+  jaune: selection(VIGILANCE_FEU.jaune),
+  orange: selection(VIGILANCE_FEU.orange),
+  rouge: selection(VIGILANCE_FEU.rouge),
+  inconnu: selection(VIGILANCE_FEU.inconnu),
+});
 
-// Couleurs exactes des pastilles de légende officielles (static/30/img/legende_*.png),
-// utilisées pour le bandeau de niveau et la légende de carte.
-export const COULEUR_PASTILLE_NIVEAU: Record<NiveauVigilance, string> = {
-  blanc: "#ffffff",
-  jaune: "#ffff80",
-  orange: "#ff854a",
-  rouge: "#ff3e3e",
-  inconnu: "#808285",
-};
-
-// Couleurs de remplissage des massifs sur la carte officielle Leaflet
-// (static/30/js/massifs_prev.js, styleMassifs).
-export const COULEUR_CARTE_NIVEAU: Record<NiveauVigilance, string> = {
-  blanc: "#ffffff",
-  jaune: "#ffff00",
-  orange: "#ffa500",
-  rouge: "#ff0000",
-  inconnu: "#808285",
-};
-
-// Opacité de remplissage par niveau (styleMassifs) : le blanc n'est pas rempli.
-export const OPACITE_CARTE_NIVEAU: Record<NiveauVigilance, number> = {
-  blanc: 0,
-  jaune: 0.5,
-  orange: 0.7,
-  rouge: 0.7,
-  inconnu: 0.35,
-};
-
-// Contour noir des massifs, plus épais au niveau blanc (styleMassifs : weight 3 vs 2).
-export const CONTOUR_CARTE_NIVEAU = "#000000";
-export const LARGEUR_CONTOUR_NIVEAU: Record<NiveauVigilance, number> = {
-  blanc: 3,
-  jaune: 2,
-  orange: 2,
-  rouge: 2,
-  inconnu: 2,
-};
-
-// Couleur de texte posée sur un bandeau/fond de niveau (tous les fonds de
-// COULEUR_PASTILLE_NIVEAU sont clairs, y compris le rouge #ff3e3e).
-export const TEXTE_SUR_NIVEAU = "#1a1a1a";
+export const LIBELLES_NIVEAU = projeter((niveau) => niveau.libelle);
+export const LIBELLES_ACCES_NIVEAU = projeter((niveau) => niveau.acces);
+export const COULEUR_PASTILLE_NIVEAU = projeter((niveau) => niveau.couleurPastille);
+export const COULEUR_CARTE_NIVEAU = projeter((niveau) => niveau.couleurCarte);
+export const OPACITE_CARTE_NIVEAU = projeter((niveau) => niveau.opacite);
+export const LARGEUR_CONTOUR_NIVEAU = projeter((niveau) => niveau.largeurContour);
+export const CONTOUR_CARTE_NIVEAU = VIGILANCE_FEU_CONTOUR;
+export const TEXTE_SUR_NIVEAU = VIGILANCE_FEU_TEXTE;
