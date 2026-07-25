@@ -2,13 +2,10 @@ import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 async function remplacerFichier(path, transformations) {
-  let contenu = await readFile(path, "utf8");
-  for (const transformation of transformations) {
-    const avant = contenu;
-    contenu = transformation(contenu);
-    if (contenu === avant) throw new Error(`Transformation sans effet dans ${path}`);
-  }
-  await writeFile(path, contenu, "utf8");
+  const original = await readFile(path, "utf8");
+  let contenu = original;
+  for (const transformation of transformations) contenu = transformation(contenu);
+  if (contenu !== original) await writeFile(path, contenu, "utf8");
 }
 
 const cartePath = "apps/web/src/lib/carte.ts";
@@ -100,7 +97,7 @@ export function ajouterSourceRelief(map: maplibregl.Map, prefixe?: string): void
   if (map.getSource(sourceId)) return;
   map.addSource(sourceId, {
     type: "raster-dem",
-    tiles: [\`${BASE_CARTE}/relief/{z}/{x}/{y}.png\`],
+    tiles: [BASE_CARTE + "/relief/{z}/{x}/{y}.png"],
     encoding: "terrarium",
     tileSize: 512,
     maxzoom: RELIEF_MAXZOOM,
@@ -154,7 +151,7 @@ async function fichiersRecursifs(dossier) {
 }
 
 for (const path of await fichiersRecursifs("apps/web/src")) {
-  let contenu = await readFile(path, "utf8");
+  const contenu = await readFile(path, "utf8");
   const suivant = contenu.replaceAll(
     "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
     "/api/v2/map/glyphs/{fontstack}/{range}.pbf",
