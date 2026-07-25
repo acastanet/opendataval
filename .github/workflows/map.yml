@@ -9,6 +9,7 @@ on:
       - "packages/shared/**"
       - "scripts/apply-map-client-migration.mjs"
       - "scripts/fix-map-service-types.mjs"
+      - "scripts/fix-map-client-compat.mjs"
       - "Caddyfile"
       - "Dockerfile.caddy"
       - "docker-compose.yml"
@@ -50,6 +51,7 @@ jobs:
         run: |
           node scripts/apply-map-client-migration.mjs
           node scripts/fix-map-service-types.mjs
+          node scripts/fix-map-client-compat.mjs
 
       - name: Installer et régénérer le verrou pnpm
         run: pnpm install --no-frozen-lockfile --reporter=silent
