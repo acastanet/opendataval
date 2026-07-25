@@ -7,6 +7,7 @@ on:
       - "apps/web/**"
       - "apps/api/src/lib/radar*"
       - "packages/shared/**"
+      - "scripts/migrate-map-styles.mjs"
       - "Caddyfile"
       - "Dockerfile.caddy"
       - "docker-compose.yml"
@@ -15,7 +16,7 @@ on:
       - ".github/workflows/map.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: map-${{ github.workflow }}-${{ github.ref }}
@@ -32,6 +33,9 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -40,6 +44,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
+
+      - name: Appliquer la migration des styles nommés
+        run: node scripts/migrate-map-styles.mjs
 
       - name: Installer les dépendances verrouillées
         run: pnpm install --frozen-lockfile --reporter=silent
@@ -108,3 +115,13 @@ jobs:
             echo "Une origine cartographique tierce reste appelée par le navigateur." >&2
             exit 1
           fi
+
+      - name: Enregistrer les îlots validés
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/src/islands
+          git commit -m "refactor(map): branche les îlots sur les styles nommés"
+          git push origin HEAD:${{ github.head_ref }}
