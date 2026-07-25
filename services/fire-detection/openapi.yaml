@@ -1,0 +1,136 @@
+openapi: 3.1.0
+info:
+  title: OpenDataVal Fire Detection Service
+  version: 1.0.0
+  description: Suspicion de feu autour d'une position. Les résultats sont des anomalies thermiques non confirmées.
+servers:
+  - url: http://fire-detection-service:3000
+paths:
+  /healthz:
+    get:
+      operationId: health
+      responses:
+        '200':
+          description: Service vivant
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+  /readyz:
+    get:
+      operationId: readiness
+      responses:
+        '200': { description: Au moins une famille de sources est configurée }
+        '503': { description: Aucune source n'est configurée }
+  /v1/fire/nearby:
+    get:
+      operationId: nearbyFireSuspicions
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: lon, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
+        - { name: accuracy, in: query, required: false, schema: { type: number, minimum: 0 } }
+        - { name: radius_km, in: query, required: false, schema: { type: number, minimum: 1, maximum: 100, default: 50 } }
+        - { name: history_days, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 7, default: 7 } }
+      responses:
+        '200':
+          description: État agrégé des sources et suspicions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NearbyResponse' }
+        '400':
+          description: Paramètres invalides
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status, service, version]
+      properties:
+        status: { const: ok }
+        service: { const: fire-detection }
+        version: { type: string }
+    Detection:
+      type: object
+      required: [id, latitude, longitude, distance_km, observed_at, source, confidence, classification]
+      properties:
+        id: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        distance_km: { type: number }
+        observed_at: { type: string, format: date-time }
+        source: { type: string }
+        satellite: { type: [string, 'null'] }
+        instrument: { type: [string, 'null'] }
+        confidence:
+          type: object
+          required: [raw, normalized]
+          properties:
+            raw: {}
+            normalized: { enum: [low, nominal, high, unknown] }
+        certainty: { type: [string, 'null'] }
+        frp_mw: { type: [number, 'null'] }
+        daynight: { type: [string, 'null'] }
+        type_code: { type: [integer, 'null'] }
+        pixel_radius_km: { type: [number, 'null'] }
+        classification: { const: unconfirmed_fire_suspicion }
+    SourceReport:
+      type: object
+      required: [source, state, retrieved_at, latest_observation_at, detection_count]
+      properties:
+        source: { type: string }
+        state: { enum: [available, unavailable, not_configured] }
+        retrieved_at: { type: string, format: date-time }
+        latest_observation_at: { type: [string, 'null'], format: date-time }
+        detection_count: { type: integer, minimum: 0 }
+        detail: { type: string }
+    NearbyResponse:
+      type: object
+      required: [service, version, data_status, location, realtime, last_detection_50km, sources, warnings, generated_at]
+      properties:
+        service: { const: fire-detection }
+        version: { type: string }
+        data_status: { enum: [available, partial, unavailable] }
+        location:
+          type: object
+          required: [latitude, longitude, radius_km]
+          properties:
+            latitude: { type: number }
+            longitude: { type: number }
+            accuracy_m: { type: number }
+            radius_km: { type: number }
+        realtime:
+          type: object
+          required: [window_minutes, suspicions]
+          properties:
+            window_minutes: { type: integer }
+            suspicions: { type: array, items: { $ref: '#/components/schemas/Detection' } }
+        last_detection_50km:
+          anyOf:
+            - type: 'null'
+            - allOf:
+                - { $ref: '#/components/schemas/Detection' }
+                - type: object
+                  required: [basis]
+                  properties: { basis: { const: NASA_FIRMS_AREA_API_ONLY } }
+        sources: { type: array, items: { $ref: '#/components/schemas/SourceReport' } }
+        warnings:
+          type: array
+          items:
+            type: object
+            required: [code, message]
+            properties: { code: { type: string }, message: { type: string } }
+        generated_at: { type: string, format: date-time }
+        requestId: { type: string }
+    Error:
+      type: object
+      required: [error, requestId]
+      properties:
+        error:
+          type: object
+          required: [code, message, retryable]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            retryable: { type: boolean }
+        requestId: { type: string }

@@ -9,6 +9,8 @@ export interface GatewayConfig {
   weatherServiceTimeoutMs: number;
   vigilanceServiceUrl?: string;
   vigilanceServiceTimeoutMs?: number;
+  fireDetectionServiceUrl?: string;
+  fireDetectionServiceTimeoutMs?: number;
   version: string;
 }
 
@@ -68,6 +70,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       env.VIGILANCE_SERVICE_TIMEOUT_MS,
       3_000,
       "VIGILANCE_SERVICE_TIMEOUT_MS",
+    ),
+    fireDetectionServiceUrl: normalizeHttpUrl(
+      env.FIRE_DETECTION_SERVICE_URL?.trim() || "http://fire-detection-service:3000",
+      "FIRE_DETECTION_SERVICE_URL",
+    ),
+    fireDetectionServiceTimeoutMs: positiveInteger(
+      env.FIRE_DETECTION_SERVICE_TIMEOUT_MS,
+      20_000,
+      "FIRE_DETECTION_SERVICE_TIMEOUT_MS",
     ),
     version: env.APP_VERSION?.trim() || env.GIT_SHA?.trim() || "dev",
   };
