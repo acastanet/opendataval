@@ -7,9 +7,6 @@ on:
       - "apps/web/**"
       - "apps/api/src/lib/radar*"
       - "packages/shared/**"
-      - "scripts/apply-map-client-migration.mjs"
-      - "scripts/fix-map-service-types.mjs"
-      - "scripts/fix-map-client-compat.mjs"
       - "Caddyfile"
       - "Dockerfile.caddy"
       - "docker-compose.yml"
@@ -18,7 +15,7 @@ on:
       - ".github/workflows/map.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: map-${{ github.workflow }}-${{ github.ref }}
@@ -30,14 +27,11 @@ env:
 
 jobs:
   validate:
-    name: Migration et validation
+    name: Validation cartographique
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -47,14 +41,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
-      - name: Appliquer les migrations idempotentes
-        run: |
-          node scripts/apply-map-client-migration.mjs
-          node scripts/fix-map-service-types.mjs
-          node scripts/fix-map-client-compat.mjs
-
-      - name: Installer et régénérer le verrou pnpm
-        run: pnpm install --no-frozen-lockfile --reporter=silent
+      - name: Installer les dépendances verrouillées
+        run: pnpm install --frozen-lockfile --reporter=silent
 
       - name: Vérifier map-service
         shell: bash
@@ -120,17 +108,3 @@ jobs:
             echo "Une origine cartographique tierce reste appelée par le navigateur." >&2
             exit 1
           fi
-
-      - name: Enregistrer la migration et le verrou validés
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet; then
-            echo "Aucun fichier généré à enregistrer."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/web/src/lib/carte.ts apps/web/src pnpm-lock.yaml apps/map-service/src/app.ts
-          git commit -m "chore(map): applique la migration cliente validée"
-          git push origin HEAD:${{ github.head_ref }}
