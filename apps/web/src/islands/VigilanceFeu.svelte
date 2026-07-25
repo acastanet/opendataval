@@ -3,7 +3,7 @@
   import type maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import { POINT_METEO_PAR_DEFAUT } from "@opendata-vda/shared/localisations-meteo";
-  import { IGN_WMTS, ajouterControleFondIgn } from "../lib/carte";
+  import { urlStyle, ajouterControleFondIgn } from "../lib/carte";
   import {
     COULEUR_PASTILLE_NIVEAU,
     COULEUR_CARTE_NIVEAU,
@@ -226,7 +226,7 @@
     const maplibre = (await import("maplibre-gl")).default;
     map = new maplibre.Map({
       container: mapContainer,
-      style: { version: 8, sources: {}, layers: [] },
+      style: urlStyle("territoire", { fond: "plan" }),
       center: [4.05, 44.0],
       zoom: 8,
       attributionControl: { compact: true },
@@ -234,11 +234,7 @@
     map.addControl(new maplibre.NavigationControl(), "bottom-right");
     map.on("load", () => {
       if (!map) return;
-      map.addSource("plan-ign", { type: "raster", tiles: [IGN_WMTS("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", "image/png")], tileSize: 256, attribution: "© IGN" });
-      map.addLayer({ id: "plan-ign", type: "raster", source: "plan-ign" });
-      map.addSource("orthophoto-ign", { type: "raster", tiles: [IGN_WMTS("ORTHOIMAGERY.ORTHOPHOTOS", "image/jpeg")], tileSize: 256, attribution: "© IGN" });
-      map.addLayer({ id: "orthophoto-ign", type: "raster", source: "orthophoto-ign", layout: { visibility: "none" } });
-      ajouterControleFondIgn(map, { planLayerId: "plan-ign", photoLayerId: "orthophoto-ign" });
+      ajouterControleFondIgn(map, { planLayerId: "basemap-plan", photoLayerId: "basemap-photo" });
 
       if (departementContour) {
         map.addSource("departement", { type: "geojson", data: departementContour as GeoJSON.Feature });

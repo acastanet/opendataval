@@ -3,7 +3,7 @@
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import { TERRITOIRE } from "@opendata-vda/shared/territoire";
-  import { BASEMAPS, ajouterControleFondIgn } from "../lib/carte";
+  import { urlStyle, ajouterControleFondIgn } from "../lib/carte";
 
   const POINT_INITIAL = { lat: 44.064579, lon: 3.683019 };
   const CLE_FAVORI = "opendata-vda-meteo-favori-v1";
@@ -269,11 +269,7 @@
     const lon = Number(longitudeSaisie);
     mapRadar = new maplibregl.Map({
       container: conteneurRadar,
-      style: {
-        version: 8,
-        sources: { "ign-plan": { type: "raster", tiles: [BASEMAPS[0].tiles], tileSize: 256, attribution: BASEMAPS[0].attribution } },
-        layers: [{ id: "ign-plan-layer", type: "raster", source: "ign-plan" }],
-      },
+      style: urlStyle("plan"),
       center: [Number.isFinite(lon) ? lon : POINT_INITIAL.lon, Number.isFinite(lat) ? lat : POINT_INITIAL.lat],
       zoom: 7.5,
       minZoom: 5,
@@ -453,20 +449,9 @@
 
   function initialiserCarte() {
     if (map || !conteneurCarte) return;
-    const style = {
-      version: 8,
-      sources: {
-        "ign-plan": { type: "raster", tiles: [BASEMAPS[0].tiles], tileSize: 256, attribution: BASEMAPS[0].attribution },
-        "ign-photo": { type: "raster", tiles: [BASEMAPS[1].tiles], tileSize: 256, attribution: BASEMAPS[1].attribution },
-      },
-      layers: [
-        { id: "ign-plan-layer", type: "raster", source: "ign-plan" },
-        { id: "ign-photo-layer", type: "raster", source: "ign-photo", layout: { visibility: "none" } },
-      ],
-    };
     map = new maplibregl.Map({
       container: conteneurCarte,
-      style,
+      style: urlStyle("territoire", { fond: "plan" }),
       bounds: TERRITOIRE.bbox,
       fitBoundsOptions: { padding: 24 },
       minZoom: 9,
@@ -474,7 +459,7 @@
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     map.on("load", () => {
-      ajouterControleFondIgn(map, { planLayerId: "ign-plan-layer", photoLayerId: "ign-photo-layer" });
+      ajouterControleFondIgn(map, { planLayerId: "basemap-plan", photoLayerId: "basemap-photo" });
       placerMarqueur(Number(latitudeSaisie), Number(longitudeSaisie));
     });
     map.on("click", (event) => chargerPoint(event.lngLat.lat, event.lngLat.lng, { type: "carte" }));
