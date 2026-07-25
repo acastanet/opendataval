@@ -3,7 +3,7 @@
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import { TERRITOIRE } from "@opendata-vda/shared/territoire";
-  import { IGN_WMTS, ajouterControleFondIgn, ajouterCoucheCarte, enregistrerProtocolePmtiles, activerRelief } from "../lib/carte";
+  import { urlStyle, ajouterControleFondIgn, ajouterCoucheCarte } from "../lib/carte";
   import { COUCHES_PAR_SLUG, titrePopup, lignesPopup } from "@opendata-vda/shared/catalogue";
 
   /** Slugs de couches (COUCHES) à afficher, chargées depuis /api/couches/:slug/geojson. */
@@ -12,14 +12,15 @@
   export let cluster = null;
   export let hauteur = "70vh";
   export let afficherContours = true;
-  /** Affiche la carte en relief 3D incliné (source Mapterhorn), caméra initiale inclinée sur le massif. */
+  /** Affiche la carte en relief 3D incliné, caméra initiale inclinée sur le massif. */
   export let relief3d = false;
-  /** Emprise initiale [ouest, sud, est, nord] ; par défaut TERRITOIRE.bbox (utile si les couches affichées débordent du territoire, ex. réseau de stations météo). */
+  /** Emprise initiale [ouest, sud, est, nord] ; par défaut TERRITOIRE.bbox. */
   export let bounds = null;
 
   let mapContainer;
   let map;
   let total = 0;
+  let erreurCarte = "";
 
   function construirePopup(couche, feature) {
     const props = feature.properties ?? {};
@@ -47,16 +48,14 @@
   }
 
   onMount(() => {
-    if (relief3d) enregistrerProtocolePmtiles(maplibregl.addProtocol);
-
     map = new maplibregl.Map({
       container: mapContainer,
-      style: {
-        version: 8,
-        sources: {},
-        layers: [],
-        glyphs: "/api/v2/map/glyphs/{fontstack}/{range}.pbf",
-      },
+      style: urlStyle(relief3d ? "relief" : "territoire", {
+        fond: "plan",
+        terrain: relief3d,
+        relief: relief3d,
+        exageration: 1.3,
+      }),
       bounds: bounds ?? TERRITOIRE.bbox,
       fitBoundsOptions: { padding: 24 },
       pitch: relief3d ? 55 : 0,
@@ -65,25 +64,13 @@
       attributionControl: { compact: true },
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: relief3d, visualizePitch: relief3d }), "bottom-right");
+    map.on("error", (event) => {
+      console.error("carte thématique indisponible", event.error);
+      erreurCarte = "La représentation cartographique est momentanément indisponible.";
+    });
 
     map.on("load", async () => {
-      map.addSource("basemap-plan-src", {
-        type: "raster",
-        tiles: [IGN_WMTS("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", "image/png")],
-        tileSize: 256,
-        attribution: "© IGN",
-      });
-      map.addLayer({ id: "basemap-plan", type: "raster", source: "basemap-plan-src" });
-      map.addSource("basemap-photo-src", {
-        type: "raster",
-        tiles: [IGN_WMTS("ORTHOIMAGERY.ORTHOPHOTOS", "image/jpeg")],
-        tileSize: 256,
-        attribution: "© IGN",
-      });
-      map.addLayer({ id: "basemap-photo", type: "raster", source: "basemap-photo-src", layout: { visibility: "none" } });
       ajouterControleFondIgn(map, { planLayerId: "basemap-plan", photoLayerId: "basemap-photo" });
-
-      if (relief3d) activerRelief(map, 1.3);
 
       if (afficherContours) {
         try {
@@ -137,44 +124,22 @@
 
 <div class="carte-thematique">
   <div class="carte" bind:this={mapContainer} style={`height:${hauteur}`}></div>
+  {#if erreurCarte}<p class="erreur">{erreurCarte}</p>{/if}
   {#if total > 0}
     <p class="compteur">{total.toLocaleString("fr-FR")} objets affichés</p>
   {/if}
 </div>
 
 <style>
-  .carte-thematique {
-    margin-top: 1rem;
-  }
-
+  .carte-thematique { margin-top: 1rem; }
   .carte {
     width: 100%;
     border-radius: var(--radius);
     border: 1px solid var(--border);
     overflow: hidden;
   }
-
-  .compteur {
-    margin: 0.5rem 0 0;
-    font-size: 0.78rem;
-    color: var(--border);
-  }
-
-  :global(.popup-carte-thematique) {
-    font-family: var(--font-body);
-    font-size: 0.82rem;
-    line-height: 1.4;
-  }
-
-  :global(.popup-carte-thematique strong) {
-    display: block;
-    font-family: var(--font-display);
-    font-size: 0.95rem;
-    margin-bottom: 0.2rem;
-  }
-
-  :global(.popup-carte-thematique p) {
-    margin: 0;
-    color: var(--border);
-  }
+  .compteur, .erreur { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--border); }
+  .erreur { color: var(--danger, #9f2f2f); }
+  :global(.popup-carte-thematique) { font-family: var(--font-body); font-size: 0.82rem; line-height: 1.4; }
+  :global(.popup-carte-thematique strong) { display: block; margin-bottom: 0.35rem; }
 </style>
