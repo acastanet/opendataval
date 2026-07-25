@@ -18,19 +18,20 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 
 | Fichier | Description | MàJ | Vérif. |
 |---|---|---|---|
-| [microservice/gateway-service/README.md](microservice/gateway-service/README.md) | Gateway : point d'entrée `/api/v2/*`, proxys, santé | 2026-07-23 | 2026-07-23 |
-| [microservice/geography-service/README.md](microservice/geography-service/README.md) | Geography : résolution géographique d'un point | 2026-07-23 | 2026-07-23 |
+| [microservice/README.md](microservice/README.md) | Index, dépendances et validation rapide des microservices v2 | 2026-07-24 | 2026-07-24 |
+| [microservice/gateway-service/README.md](microservice/gateway-service/README.md) | Gateway : point d'entrée `/api/v2/*`, proxys, santé et routage Vigilance | 2026-07-24 | 2026-07-24 |
+| [microservice/geography-service/README.md](microservice/geography-service/README.md) | Geography : territoire, adresse et altitude d'un point | 2026-07-24 | 2026-07-24 |
 | [microservice/geography-service/audit.md](microservice/geography-service/audit.md) | Audit de couverture du geography-service | 2026-07-23 | 2026-07-23 |
 | [microservice/geography-service/operations.md](microservice/geography-service/operations.md) | Exploitation et diagnostic geography-service | 2026-07-23 | 2026-07-23 |
 | [microservice/geography-service/parity-report.md](microservice/geography-service/parity-report.md) | Rapport de parité vs API historique | 2026-07-23 | 2026-07-23 |
 | [microservice/geography-service/reference-corpus.json](microservice/geography-service/reference-corpus.json) | Corpus de référence pour les tests de parité | 2026-07-23 | 2026-07-23 |
-| [microservice/weather-service/README.md](microservice/weather-service/README.md) | Weather : température météo ponctuelle | 2026-07-23 | 2026-07-23 |
+| [microservice/weather-service/README.md](microservice/weather-service/README.md) | Weather : température ponctuelle selon la méthode v2 | 2026-07-24 | 2026-07-24 |
 | [microservice/weather-service/current-behaviour.md](microservice/weather-service/current-behaviour.md) | Comportement actuel du service météo | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-service/station-selection-policy.md](microservice/weather-service/station-selection-policy.md) | Politique de sélection de station | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-service/temperature-method-v1.md](microservice/weather-service/temperature-method-v1.md) | Méthode de détermination de température v1 | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-service/temperature-method-v2.md](microservice/weather-service/temperature-method-v2.md) | Méthode de détermination de température v2 | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-service/parity-corpus.json](microservice/weather-service/parity-corpus.json) | Corpus de parité météo | 2026-07-23 | 2026-07-23 |
-| [microservice/weather-vigilance/README.md](microservice/weather-vigilance/README.md) | Vigilance : niveaux et bulletins officiels à l'échelle départementale | 2026-07-23 | 2026-07-23 |
+| [microservice/weather-vigilance/README.md](microservice/weather-vigilance/README.md) | Vigilance officielle : contrat, cache, résilience et exploitation | 2026-07-24 | 2026-07-24 |
 | [microservice/fire-detection/README.md](microservice/fire-detection/README.md) | Détection stateless : suspicions récentes et dernière suspicion FIRMS à 50 km | 2026-07-24 | 2026-07-24 |
 | [microservice/copernicus/README.md](microservice/copernicus/README.md) | Copernicus : jobs climatiques ERA5 → PostGIS | 2026-07-23 | 2026-07-23 |
 | [microservice/copernicus/exploitation.md](microservice/copernicus/exploitation.md) | Exploitation générale Copernicus | 2026-07-22 | 2026-07-23 |
