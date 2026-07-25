@@ -93,10 +93,24 @@ jobs:
         run: pnpm check:gateway
 
       - name: Vérifier Compose et l’image map-service
+        shell: bash
+        env:
+          POSTGRES_PASSWORD: ci-map-service
         run: |
-          docker compose config --quiet
-          docker build --file apps/map-service/Dockerfile --tag opendataval-map:test .
-          docker run --rm opendataval-map:test sh -ec '! find /app -name "*.pmtiles" -print -quit | grep -q .'
+          set -o pipefail
+          {
+            docker compose config --quiet
+            docker build --file apps/map-service/Dockerfile --tag opendataval-map:test .
+            docker run --rm opendataval-map:test sh -ec '! find /app -name "*.pmtiles" -print -quit | grep -q .'
+          } 2>&1 | tee map-container.log
+
+      - name: Publier le diagnostic de l’image
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-container-diagnostics
+          path: map-container.log
+          if-no-files-found: warn
 
       - name: Interdire les appels cartographiques directs du navigateur
         shell: bash
