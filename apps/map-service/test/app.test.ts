@@ -36,7 +36,9 @@ test("sert les styles et les légendes", async () => {
   assert.equal(style.json().version, 8);
   const legendes = await app.inject({ method: "GET", url: "/api/v2/map/legends" });
   assert.equal(legendes.statusCode, 200);
-  assert.ok(legendes.json().length >= 17);
+  const index = legendes.json() as { id: string }[];
+  assert.ok(index.some((item) => item.id === "relief-hypsometrique"));
+  assert.ok(index.some((item) => item.id === "vigilance-feu"));
   await app.close();
 });
 
