@@ -52,7 +52,18 @@ jobs:
         run: pnpm install --no-frozen-lockfile --reporter=silent
 
       - name: Vérifier map-service
-        run: pnpm check:map
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm check:map 2>&1 | tee map-check.log
+
+      - name: Publier les diagnostics map-service
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-service-diagnostics
+          path: map-check.log
+          if-no-files-found: warn
 
       - name: Vérifier l’API radar
         run: |
