@@ -20,6 +20,7 @@ Il conserve aussi un pont temporaire en lecture seule vers le monolithe historiq
 | `/api/v2/geography/resolve` | `geography-service:/internal/v1/geography/resolve` | `GET` |
 | `/api/v2/weather/temperature` | `weather-service:/internal/v1/weather/temperature` | `GET` |
 | `/api/v2/vigilance` | Résolution éventuelle du département, puis `weather-vigilance-service` | `GET` |
+| `/api/v2/fire/nearby` | `fire-detection-service:/v1/fire/nearby` avec 50 km / 7 jours imposés | `GET` |
 | `/api/v2/legacy/*` | `api:/api/*`, pont historique en lecture seule | `GET`, `HEAD` |
 
 Format d’erreur public privilégié :
@@ -75,6 +76,7 @@ Le pont `/api/v2/legacy/*` :
 - `geography-service` : résolution géographique publique et résolution du département pour Vigilance ;
 - `weather-service` : température ponctuelle ;
 - `weather-vigilance-service` : vigilance officielle départementale ;
+- `fire-detection-service` : détection stateless de suspicions de feu ;
 - aucune base de données, aucun cache et aucune file de messages.
 
 ## Configuration (`src/config.ts`)
@@ -91,6 +93,8 @@ Le pont `/api/v2/legacy/*` :
 | `WEATHER_SERVICE_TIMEOUT_MS` | `3000` | Délai Weather |
 | `VIGILANCE_SERVICE_URL` | `http://weather-vigilance-service:3000` | Cible Weather Vigilance |
 | `VIGILANCE_SERVICE_TIMEOUT_MS` | `3000` | Délai Weather Vigilance |
+| `FIRE_DETECTION_SERVICE_URL` | `http://fire-detection-service:3000` | Cible détection incendie |
+| `FIRE_DETECTION_SERVICE_TIMEOUT_MS` | `20000` | Délai agrégé FIRMS/EUMETSAT |
 | `APP_VERSION` | `GIT_SHA` puis `dev` | Version exposée |
 
 Les URL doivent utiliser HTTP ou HTTPS. Les délais doivent être des entiers strictement positifs ; une configuration invalide arrête le processus au démarrage.
@@ -101,21 +105,22 @@ Les URL doivent utiliser HTTP ou HTTPS. Les délais doivent être des entiers st
 pnpm install --frozen-lockfile
 pnpm check:gateway
 
-docker compose build gateway caddy
-docker compose up -d gateway caddy
+docker compose build gateway caddy fire-detection-service
+docker compose up -d gateway caddy fire-detection-service
 
 curl -i http://localhost:8080/api/v2/gateway
 curl -i "http://localhost:8080/api/v2/geography/resolve?lat=44.0812&lon=3.6421"
 curl -i "http://localhost:8080/api/v2/weather/temperature?lat=44.0812&lon=3.6421"
 curl -i "http://localhost:8080/api/v2/vigilance?department_code=30"
+curl -i "http://localhost:8080/api/v2/fire/nearby?lat=44.0812&lon=3.6415"
 curl -i http://localhost:8080/api/v2/legacy/health
 ```
 
 Le `Caddyfile` est copié dans l’image au build (`Dockerfile.caddy`). Modifier une route sans reconstruire `caddy` peut faire retomber `/api/v2/*` sur le gestionnaire historique `/api/*`, avec un 404 JSON trompeur.
 
-`/health` confirme uniquement que le processus tourne. `/ready` vérifie actuellement l’API historique, mais ne sonde pas individuellement Geography, Weather ou Weather Vigilance. La disponibilité réelle d’une route métier se vérifie donc par une requête fonctionnelle.
+`/health` confirme uniquement que le processus tourne. `/ready` vérifie actuellement l’API historique, mais ne sonde pas individuellement Geography, Weather, Weather Vigilance ou Fire Detection. La disponibilité réelle d’une route métier se vérifie donc par une requête fonctionnelle.
 
-Les tests couvrent notamment la santé, le routage, la propagation du `request-id`, les délais, le refus des écritures, les traversées de chemin et la validation des paramètres Vigilance.
+Les tests couvrent notamment la santé, le routage, la propagation du `request-id`, les délais, le refus des écritures, les traversées de chemin et la validation des paramètres Vigilance et Feu.
 
 ## Rollback
 
@@ -123,7 +128,7 @@ Retirer le service ou un proxy v2 ne modifie pas les routes historiques `/api/*`
 
 ## Limites volontaires
 
-Pas d’authentification, de cache, de Redis ou file de messages, de gRPC, de circuit breaker avancé, ni de logique météo, géographique, incendie ou vigilance dans le gateway. La sonde `/ready` n’agrège pas encore la santé des trois microservices v2.
+Pas d’authentification, de cache, de Redis ou file de messages, de gRPC, de circuit breaker avancé, ni de logique météo, géographique, incendie ou vigilance dans le gateway. La sonde `/ready` n’agrège pas encore la santé des microservices v2. La fixation du rayon et de l’historique de la route feu est un contrôle de contrat, pas un calcul de détection.
 
 ## Documentation liée
 
@@ -131,5 +136,6 @@ Pas d’authentification, de cache, de Redis ou file de messages, de gRPC, de ci
 - Geography Service : [`../geography-service/README.md`](../geography-service/README.md)
 - Weather Service : [`../weather-service/README.md`](../weather-service/README.md)
 - Weather Vigilance : [`../weather-vigilance/README.md`](../weather-vigilance/README.md)
+- Détection incendie : [`../fire-detection/README.md`](../fire-detection/README.md)
 - Architecture globale : [`../../architecture/ARCHITECTURE-GENERALE.md`](../../architecture/ARCHITECTURE-GENERALE.md)
 - Conception v2 : [`../../architecture/conception-v2/`](../../architecture/conception-v2/)

@@ -9,9 +9,10 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 
 | Fichier | Description | MàJ | Vérif. |
 |---|---|---|---|
-| [architecture/ARCHITECTURE-GENERALE.md](architecture/ARCHITECTURE-GENERALE.md) | Vue d'ensemble technique : monolithe v1 + microservices v2, routage, services Compose | 2026-07-23 | 2026-07-23 |
+| [architecture/ARCHITECTURE-GENERALE.md](architecture/ARCHITECTURE-GENERALE.md) | Vue d'ensemble technique : monolithe v1 + microservices v2, routage, services Compose | 2026-07-24 | 2026-07-24 |
 | [architecture/conception-v2/](architecture/conception-v2/) | Spécifications transverses météo v2 (OpenAPI, provenance, observabilité, déploiement) | 2026-07-23 | 2026-07-23 |
 | [architecture/lot-4-weather-vigilance.md](architecture/lot-4-weather-vigilance.md) | Architecture du microservice de Vigilance météorologique officielle | 2026-07-23 | 2026-07-23 |
+| [architecture/lot-5-fire-detection.md](architecture/lot-5-fire-detection.md) | Architecture du microservice stateless de détection de suspicions de feu | 2026-07-24 | 2026-07-24 |
 
 ## Microservices (v2)
 
@@ -31,6 +32,7 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 | [microservice/weather-service/temperature-method-v2.md](microservice/weather-service/temperature-method-v2.md) | Méthode de détermination de température v2 | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-service/parity-corpus.json](microservice/weather-service/parity-corpus.json) | Corpus de parité météo | 2026-07-23 | 2026-07-23 |
 | [microservice/weather-vigilance/README.md](microservice/weather-vigilance/README.md) | Vigilance officielle : contrat, cache, résilience et exploitation | 2026-07-24 | 2026-07-24 |
+| [microservice/fire-detection/README.md](microservice/fire-detection/README.md) | Détection stateless : suspicions récentes et dernière suspicion FIRMS à 50 km | 2026-07-24 | 2026-07-24 |
 | [microservice/copernicus/README.md](microservice/copernicus/README.md) | Copernicus : jobs climatiques ERA5 → PostGIS | 2026-07-23 | 2026-07-23 |
 | [microservice/copernicus/exploitation.md](microservice/copernicus/exploitation.md) | Exploitation générale Copernicus | 2026-07-22 | 2026-07-23 |
 | [microservice/copernicus/plan-meteo-essentiel.md](microservice/copernicus/plan-meteo-essentiel.md) | Plan météo essentiel via Copernicus | 2026-07-22 | 2026-07-23 |
@@ -76,4 +78,5 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 |---|---|
 | [ADR/](ADR/) | Architecture Decision Records numérotés (001-007) |
 | [adr/ADR-weather-vigilance-scope.md](adr/ADR-weather-vigilance-scope.md) | Décision de périmètre du lot 4 |
+| [adr/ADR-fire-detection-stateless.md](adr/ADR-fire-detection-stateless.md) | Décision de périmètre et de non-persistance du lot 5 |
 | [archive/](archive/) | Documents historiques et plans obsolètes |

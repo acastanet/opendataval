@@ -4,6 +4,7 @@ import { registerLegacyProxy, type FetchLike } from "./legacy-proxy.js";
 import { registerGeographyProxy } from "./geography-proxy.js";
 import { registerWeatherProxy } from "./weather-proxy.js";
 import { registerVigilanceProxy } from "./vigilance-proxy.js";
+import { registerFireDetectionProxy } from "./fire-detection-proxy.js";
 
 export interface BuildAppOptions {
   config?: GatewayConfig;
@@ -136,6 +137,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   registerGeographyProxy(app, config, fetchImpl);
   registerWeatherProxy(app, config, fetchImpl);
   registerVigilanceProxy(app, config, fetchImpl);
+  registerFireDetectionProxy(app, config, fetchImpl);
 
   app.setErrorHandler((error, request, reply) => {
     const normalized = normalizeError(error);
