@@ -95,6 +95,16 @@ export const SERVICES: ServiceDescriptor[] = [
     demo: [],
   },
   {
+    id: "map",
+    name: "Map",
+    role: "Styles, tuiles, relief et légendes cartographiques, servis directement par Caddy.",
+    repo: "apps/map-service",
+    method: "GET",
+    publicRoute: "/api/v2/map/styles/territoire.json",
+    healthUrl: (config) => `${baseUrl(config.mapServiceUrl, "http://map-service:3000")}/health`,
+    demo: [],
+  },
+  {
     id: "geography",
     name: "Geography",
     role: "Résout des coordonnées (lat/lon) vers la commune et le département, avec altitude.",

@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 cd /d "%~dp0"
-title Lancement - OpenDataVdA (stack + meteo V2)
+title Lancement - OpenDataVdA (stack, services V2 et meteo V2)
 set "METEO_V2_PID_FILE=%TEMP%\opendatavda-meteo-v2.pid"
 
 if not exist ".env" (
@@ -48,15 +48,19 @@ echo Liberation du port 4322 pour Meteo V2...
 powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4322 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }"
 
 echo.
-echo Relance de la stack OpenDataVdA et des microservices gateway, geography, weather-vigilance et fire-detection...
+echo Relance de la stack OpenDataVdA et de ses microservices...
 echo.
-echo Accueil : http://localhost:8080
-echo Test Meteo V2 : http://localhost:4322/meteo-v2/
-echo Mini-apps accessibles depuis la meme stack :
-echo   - Incendies : http://localhost:8080/incendies/
-echo   - Meteo     : http://localhost:8080/meteo/essentiel/
-echo   - Eau       : http://localhost:8080/eau/
+echo Adresses locales :
+echo   - Portail OpenDataVdA       : http://localhost:8080/
+echo   - Accueil des services V2   : http://localhost:8080/api/v2
+echo   - Etat des services V2      : http://localhost:8080/api/v2/status
+echo   - Cartographie              : http://localhost:8080/api/v2/map/styles/territoire.json
+echo   - Mini-app Incendies        : http://localhost:8080/incendies/
+echo   - Mini-app Meteo            : http://localhost:8080/meteo/essentiel/
+echo   - Mini-app Eau              : http://localhost:8080/eau/
+echo   - Frontend Meteo V2         : http://localhost:4322/meteo-v2/
 echo.
+echo L'accueil des services V2 liste toutes les API et leurs adresses avec leur etat en direct.
 echo Le frontend Meteo V2 est lance dans une seconde fenetre et utilise le gateway via Caddy.
 echo Ctrl+C dans cette fenetre arrete la stack Docker. La fenetre Meteo V2 sera fermee automatiquement a la prochaine relance.
 echo.
@@ -71,7 +75,7 @@ if errorlevel 1 (
     powershell -NoProfile -Command "$p = Start-Process cmd.exe -ArgumentList '/k', 'cd /d ""%~dp0"" && set VITE_GATEWAY_PROXY_URL=http://localhost:8080 && pnpm --filter meteo-web dev' -PassThru; $p.Id | Set-Content -NoNewline '%METEO_V2_PID_FILE%'"
 )
 
-start "OpenDataVdA - ouverture navigateur" /min cmd /c "timeout /t 12 /nobreak >nul & start http://localhost:4322/meteo-v2/"
+start "OpenDataVdA - ouverture navigateur" /min cmd /c "timeout /t 12 /nobreak >nul & start http://localhost:8080/api/v2"
 
 %COMPOSE_CMD% up --build
 

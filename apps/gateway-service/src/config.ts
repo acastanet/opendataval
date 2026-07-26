@@ -11,6 +11,7 @@ export interface GatewayConfig {
   vigilanceServiceTimeoutMs?: number;
   fireDetectionServiceUrl?: string;
   fireDetectionServiceTimeoutMs?: number;
+  mapServiceUrl?: string;
   version: string;
 }
 
@@ -79,6 +80,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       env.FIRE_DETECTION_SERVICE_TIMEOUT_MS,
       20_000,
       "FIRE_DETECTION_SERVICE_TIMEOUT_MS",
+    ),
+    mapServiceUrl: normalizeHttpUrl(
+      env.MAP_SERVICE_URL?.trim() || "http://map-service:3000",
+      "MAP_SERVICE_URL",
     ),
     version: env.APP_VERSION?.trim() || env.GIT_SHA?.trim() || "dev",
   };
