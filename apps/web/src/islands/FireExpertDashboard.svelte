@@ -2,7 +2,7 @@
   import { onDestroy, onMount, tick } from "svelte";
   import type maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
-  import { IGN_WMTS, ajouterControleIncendies } from "../lib/carte";
+  import { urlStyle, ajouterControleIncendies } from "../lib/carte";
 
   interface GeoJsonFeature { type: "Feature"; geometry: { type: string; coordinates: unknown }; properties: Record<string, unknown>; }
   interface GeoJsonCollection { type: "FeatureCollection"; features: GeoJsonFeature[]; }
@@ -69,13 +69,6 @@
     return element;
   }
 
-  function ajouterFondsCarte(carte: maplibregl.Map, prefixe: string): void {
-    carte.addSource(`${prefixe}-plan-ign`, { type: "raster", tiles: [IGN_WMTS("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", "image/png")], tileSize: 256, attribution: "© IGN" });
-    carte.addLayer({ id: `${prefixe}-plan-ign`, type: "raster", source: `${prefixe}-plan-ign` });
-    carte.addSource(`${prefixe}-orthophoto-ign`, { type: "raster", tiles: [IGN_WMTS("ORTHOIMAGERY.ORTHOPHOTOS", "image/jpeg")], tileSize: 256, attribution: "© IGN" });
-    carte.addLayer({ id: `${prefixe}-orthophoto-ign`, type: "raster", source: `${prefixe}-orthophoto-ign`, layout: { visibility: "none" } });
-  }
-
   function recentrerCarte(carte: maplibregl.Map): void {
     carte.flyTo({ center: [3.66, 44.12], zoom: 9.05, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 800, essential: false });
   }
@@ -98,12 +91,11 @@
 
   async function initialiserCarte(zones: GeoJsonCollection): Promise<void> {
     const maplibre = (await import("maplibre-gl")).default;
-    map = new maplibre.Map({ container: mapContainer, style: { version: 8, sources: {}, layers: [] }, center: [3.66, 44.12], zoom: 9.05, attributionControl: { compact: true } });
+    map = new maplibre.Map({ container: mapContainer, style: urlStyle("territoire", { prefixe: "principal", fond: "plan" }), center: [3.66, 44.12], zoom: 9.05, attributionControl: { compact: true } });
     map.addControl(new maplibre.NavigationControl(), "bottom-right");
     map.on("load", () => {
       if (!map) return;
-      ajouterFondsCarte(map, "principal");
-      ajouterControleIncendies(map, { planLayerId: "principal-plan-ign", photoLayerId: "principal-orthophoto-ign", onRecentrer: () => recentrerCarte(map!), onLocaliser: () => meLocaliser(map!, "position-utilisateur-principale") });
+      ajouterControleIncendies(map, { planLayerId: "principal-basemap-plan", photoLayerId: "principal-basemap-photo", onRecentrer: () => recentrerCarte(map!), onLocaliser: () => meLocaliser(map!, "position-utilisateur-principale") });
       map.addSource("zones-incendies", { type: "geojson", data: zones as GeoJSON.FeatureCollection });
       for (const zone of [{ type: "veille_15km", color: "#d69d00" }, { type: "proche_5km", color: "#e67524" }, { type: "coeur", color: "#bb2435" }]) {
         map.addLayer({ id: `zone-${zone.type}-fill`, type: "fill", source: "zones-incendies", filter: ["==", ["get", "type_zone"], zone.type], paint: { "fill-color": zone.color, "fill-opacity": zone.type === "coeur" ? 0.1 : 0.045 } });

@@ -22,7 +22,7 @@ const exempleRainViewer = {
   },
 };
 
-test("construireFramesRadar concatène passé puis nowcast avec un gabarit MapLibre", () => {
+test("construireFramesRadar concatène passé puis nowcast avec le proxy cartographique", () => {
   const { host, frames } = construireFramesRadar(exempleRainViewer);
   assert.equal(host, "https://tilecache.rainviewer.com");
   assert.equal(frames.length, 3);
@@ -31,7 +31,8 @@ test("construireFramesRadar concatène passé puis nowcast avec un gabarit MapLi
   assert.ok(premiere && derniere);
   assert.equal(premiere.kind, "passe");
   assert.equal(derniere.kind, "prevu");
-  assert.equal(premiere.tileUrl, "/api/meteo/radar/tuile/{z}/{x}/{y}?path=%2Fv2%2Fradar%2Faaa");
+  assert.equal(premiere.path, "/v2/radar/aaa");
+  assert.equal(premiere.tileUrl, "/api/v2/map/tiles/radar/{z}/{x}/{y}.png?path=%2Fv2%2Fradar%2Faaa");
 });
 
 test("urlTuileCarte reconstruit l'URL amont RainViewer (schéma 2 lissé)", () => {
@@ -77,17 +78,16 @@ test("urlTuileEchantillon utilise le schéma 2 non lissé", () => {
 
 test("classerIntensitePixel distingue transparent, bleu, vert et rouge", () => {
   assert.equal(classerIntensitePixel(0, 0, 0, 0), "aucune");
-  assert.equal(classerIntensitePixel(100, 180, 255, 255), "faible"); // bleu clair
-  assert.equal(classerIntensitePixel(0, 200, 0, 255), "moderee"); // vert
-  assert.equal(classerIntensitePixel(255, 0, 0, 255), "forte"); // rouge
-  assert.equal(classerIntensitePixel(255, 0, 255, 255), "forte"); // magenta
+  assert.equal(classerIntensitePixel(100, 180, 255, 255), "faible");
+  assert.equal(classerIntensitePixel(0, 200, 0, 255), "moderee");
+  assert.equal(classerIntensitePixel(255, 0, 0, 255), "forte");
+  assert.equal(classerIntensitePixel(255, 0, 255, 255), "forte");
 });
 
 test("intensiteVoisinage retient l'intensité maximale du bloc 3×3", () => {
   const largeur = 3;
   const hauteur = 3;
   const rgba = new Uint8Array(largeur * hauteur * 4);
-  // Tout transparent sauf un pixel rouge en (2,2).
   const i = (2 * largeur + 2) * 4;
   rgba[i] = 255;
   rgba[i + 1] = 0;

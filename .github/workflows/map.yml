@@ -1,0 +1,110 @@
+name: Map Service
+
+on:
+  pull_request:
+    paths:
+      - "apps/map-service/**"
+      - "apps/web/**"
+      - "apps/api/src/lib/radar*"
+      - "packages/shared/**"
+      - "Caddyfile"
+      - "Dockerfile.caddy"
+      - "docker-compose.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/map.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: map-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 11.10.0
+  NODE_VERSION: 22
+
+jobs:
+  validate:
+    name: Validation cartographique
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Installer les dépendances verrouillées
+        run: pnpm install --frozen-lockfile --reporter=silent
+
+      - name: Vérifier map-service
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm check:map 2>&1 | tee map-check.log
+
+      - name: Publier les diagnostics map-service
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-service-diagnostics
+          path: map-check.log
+          if-no-files-found: warn
+
+      - name: Vérifier l’API radar
+        run: |
+          pnpm --filter api test
+          pnpm --filter api exec tsc --noEmit
+
+      - name: Construire le site historique
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm build:web 2>&1 | tee web-build.log
+
+      - name: Publier le diagnostic du build web
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-web-diagnostics
+          path: web-build.log
+          if-no-files-found: warn
+
+      - name: Vérifier le gateway existant
+        run: pnpm check:gateway
+
+      - name: Vérifier Compose et l’image map-service
+        shell: bash
+        env:
+          POSTGRES_PASSWORD: ci-map-service
+        run: |
+          set -o pipefail
+          {
+            docker compose config --quiet
+            docker build --file apps/map-service/Dockerfile --tag opendataval-map:test .
+            docker run --rm opendataval-map:test sh -ec '! find /app -name "*.pmtiles" -print -quit | grep -q .'
+          } 2>&1 | tee map-container.log
+
+      - name: Publier le diagnostic de l’image
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-container-diagnostics
+          path: map-container.log
+          if-no-files-found: warn
+
+      - name: Interdire les appels cartographiques directs du navigateur
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE 'data\.geopf\.fr|geoservices\.brgm\.fr|demotiles\.maplibre\.org|tile\.openstreetmap\.org|unpkg\.com/leaflet' apps/web/src; then
+            echo "Une origine cartographique tierce reste appelée par le navigateur." >&2
+            exit 1
+          fi

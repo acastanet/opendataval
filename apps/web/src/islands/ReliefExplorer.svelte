@@ -3,20 +3,12 @@
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import { TERRITOIRE } from "@opendata-vda/shared/territoire";
-  import {
-    IGN_WMTS,
-    ajouterControleFondIgn,
-    PALETTE_HYPSOMETRIQUE,
-    RELIEF_SOURCE_ID,
-    enregistrerProtocolePmtiles,
-    ajouterSourceRelief,
-    reglerExagerationRelief,
-  } from "../lib/carte";
+  import { urlStyle, PALETTE_HYPSOMETRIQUE, RELIEF_SOURCE_ID, reglerExagerationRelief } from "../lib/carte";
 
-  const COLOR_RELIEF_ID = "relief-hypsometrie";
-  const HILLSHADE_ID = "relief-ombrage";
-  const BASEMAP_ID = "relief-fond-drape";
-  const BASEMAP_SRC = "relief-fond-drape-src";
+  const COLOR_RELIEF_ID = "relief-color";
+  const HILLSHADE_ID = "relief-hillshade";
+  const BASEMAP_PLAN_ID = "basemap-plan";
+  const BASEMAP_PHOTO_ID = "basemap-photo";
 
   /** Méthodes d'ombrage MapLibre GL ≥ 5.6 (couche hillshade), du plus lisible au plus classique. */
   const METHODES = [
@@ -29,8 +21,8 @@
   /** Fonds drapés sous l'ombrage. « nu » = teinte hypsométrique seule (rendu le plus lisible). */
   const FONDS = [
     { id: "nu", label: "Relief nu", opaciteTeinte: 0.92 },
-    { id: "photo", label: "Photo aérienne", opaciteTeinte: 0.3, tiles: IGN_WMTS("ORTHOIMAGERY.ORTHOPHOTOS", "image/jpeg") },
-    { id: "plan", label: "Plan IGN", opaciteTeinte: 0.4, tiles: IGN_WMTS("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", "image/png") },
+    { id: "photo", label: "Photo aérienne", opaciteTeinte: 0.3 },
+    { id: "plan", label: "Plan IGN", opaciteTeinte: 0.4 },
   ];
 
   let mapContainer;
@@ -43,14 +35,6 @@
   let intensiteOmbrage = 0.55;
   let opaciteTeinte = 0.92;
   let fondActif = "nu";
-
-  /** Expression `color-relief-color` : interpolation linéaire de la teinte le long de l'altitude. */
-  const expressionTeinte = [
-    "interpolate",
-    ["linear"],
-    ["elevation"],
-    ...PALETTE_HYPSOMETRIQUE.flatMap((p) => [p.altitude, p.couleur]),
-  ];
 
   const altMin = PALETTE_HYPSOMETRIQUE[0].altitude;
   const altMax = PALETTE_HYPSOMETRIQUE[PALETTE_HYPSOMETRIQUE.length - 1].altitude;
@@ -95,28 +79,16 @@
   function changerFond(id) {
     fondActif = id;
     if (!map) return;
-    const fond = FONDS.find((f) => f.id === id);
-    if (fond.tiles) {
-      const src = map.getSource(BASEMAP_SRC);
-      if (src) src.setTiles([fond.tiles]);
-      map.setLayoutProperty(BASEMAP_ID, "visibility", "visible");
-    } else if (map.getLayer(BASEMAP_ID)) {
-      map.setLayoutProperty(BASEMAP_ID, "visibility", "none");
-    }
+    if (map.getLayer(BASEMAP_PLAN_ID)) map.setLayoutProperty(BASEMAP_PLAN_ID, "visibility", id === "plan" ? "visible" : "none");
+    if (map.getLayer(BASEMAP_PHOTO_ID)) map.setLayoutProperty(BASEMAP_PHOTO_ID, "visibility", id === "photo" ? "visible" : "none");
+    const fond = FONDS.find((item) => item.id === id) ?? FONDS[0];
     changerOpaciteTeinte(fond.opaciteTeinte);
   }
 
   onMount(() => {
-    enregistrerProtocolePmtiles(maplibregl.addProtocol);
-
     map = new maplibregl.Map({
       container: mapContainer,
-      style: {
-        version: 8,
-        sources: {},
-        layers: [],
-        glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-      },
+      style: urlStyle("hypsometrique", { fond: "nu", terrain: true, exageration }),
       center: [TERRITOIRE.montAigoual.lon, TERRITOIRE.montAigoual.lat],
       zoom: 12,
       pitch: 62,
@@ -128,38 +100,13 @@
     map.fitBounds(TERRITOIRE.bbox, { padding: 40, pitch: 62, bearing: -18, duration: 0 });
 
     map.on("load", async () => {
-      ajouterSourceRelief(map);
-
-      // Fond drapé optionnel (masqué par défaut : le rendu « nu » est le plus lisible), sous l'ombrage.
-      map.addSource(BASEMAP_SRC, {
-        type: "raster",
-        tiles: [IGN_WMTS("ORTHOIMAGERY.ORTHOPHOTOS", "image/jpeg")],
-        tileSize: 256,
-        attribution: "© IGN",
-      });
-      map.addLayer({ id: BASEMAP_ID, type: "raster", source: BASEMAP_SRC, layout: { visibility: "none" } });
-      ajouterControleFondIgn(map, {
-        actif: "photo",
-        onChange: (fond) => { changerFond(fond === "photo" ? "photo" : "plan"); },
-      });
-
-      // Teinte hypsométrique (couleur = altitude, calculée pixel par pixel sur GPU).
-      map.addLayer({
-        id: COLOR_RELIEF_ID,
-        type: "color-relief",
-        source: RELIEF_SOURCE_ID,
-        paint: { "color-relief-color": expressionTeinte, "color-relief-opacity": opaciteTeinte },
-      });
-
-      // Ombrage porté par-dessus la teinte, pour révéler la microtopographie.
-      map.addLayer({
-        id: HILLSHADE_ID,
-        type: "hillshade",
-        source: RELIEF_SOURCE_ID,
-        paint: { "hillshade-method": methode, "hillshade-exaggeration": intensiteOmbrage },
-      });
-
-      map.setTerrain({ source: RELIEF_SOURCE_ID, exaggeration: exageration });
+      changerFond(fondActif);
+      if (map.getLayer(COLOR_RELIEF_ID)) map.setPaintProperty(COLOR_RELIEF_ID, "color-relief-opacity", opaciteTeinte);
+      if (map.getLayer(HILLSHADE_ID)) {
+        map.setPaintProperty(HILLSHADE_ID, "hillshade-method", methode);
+        map.setPaintProperty(HILLSHADE_ID, "hillshade-exaggeration", intensiteOmbrage);
+      }
+      reglerExagerationRelief(map, exageration);
 
       // Contour de la commune principale, en surimpression discrète.
       try {

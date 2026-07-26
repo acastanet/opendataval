@@ -7,10 +7,9 @@
   import RechercheLieux from "./RechercheLieux.svelte";
   import {
     BASEMAPS,
-    GEOLOGIE_WMS,
+    urlStyle,
     ajouterControleFondIgn,
     ajouterCoucheCarte,
-    enregistrerProtocolePmtiles,
     activerRelief,
     desactiverRelief,
     reglerExagerationRelief,
@@ -257,16 +256,9 @@
       /* stockage indisponible, thème auto par défaut */
     }
 
-    enregistrerProtocolePmtiles(maplibregl.addProtocol);
-
     map = new maplibregl.Map({
       container: mapContainer,
-      style: {
-        version: 8,
-        sources: {},
-        layers: [],
-        glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-      },
+      style: urlStyle("relief", { fond: basemapActif, geologie: estCoucheVisible("geologie"), relief: true, terrain: relief3d, exageration: exagerationRelief }),
       center: [TERRITOIRE.montAigoual.lon, TERRITOIRE.montAigoual.lat],
       zoom: 11,
       pitch: 60,
@@ -276,20 +268,6 @@
     map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), "bottom-right");
 
     map.on("load", async () => {
-      for (const b of BASEMAPS) {
-        map.addSource(`basemap-${b.id}-src`, {
-          type: "raster",
-          tiles: [b.tiles],
-          tileSize: 256,
-          attribution: b.attribution,
-        });
-        map.addLayer({
-          id: `basemap-${b.id}`,
-          type: "raster",
-          source: `basemap-${b.id}-src`,
-          layout: { visibility: b.id === basemapActif ? "visible" : "none" },
-        });
-      }
       ajouterControleFondIgn(map, {
         planLayerId: "basemap-plan",
         photoLayerId: "basemap-photo",
@@ -297,20 +275,10 @@
         actif: basemapActif,
         onChange: (fond) => { changerBasemap(fond); },
       });
-
-      map.addSource("geologie-src", {
-        type: "raster",
-        tiles: [GEOLOGIE_WMS],
-        tileSize: 256,
-        attribution: "© BRGM",
-      });
-      map.addLayer({
-        id: "geologie-layer",
-        type: "raster",
-        source: "geologie-src",
-        paint: { "raster-opacity": opaciteGeologie },
-        layout: { visibility: estCoucheVisible("geologie") ? "visible" : "none" },
-      });
+      if (map.getLayer("geologie-layer")) {
+        map.setPaintProperty("geologie-layer", "raster-opacity", opaciteGeologie);
+        map.setLayoutProperty("geologie-layer", "visibility", estCoucheVisible("geologie") ? "visible" : "none");
+      }
       layerIdsParCouche.geologie = ["geologie-layer"];
 
       try {
@@ -389,6 +357,7 @@
       }
 
       if (relief3d) activerRelief(map, exagerationRelief);
+      else desactiverRelief(map);
 
       try {
         const res = await fetch("/api/couches");

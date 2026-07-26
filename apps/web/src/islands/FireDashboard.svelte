@@ -4,7 +4,7 @@
   import Fa from "svelte-fa";
   import { faCampground, faCircleInfo, faFireFlameCurved, faHammer, faRoad } from "@fortawesome/free-solid-svg-icons";
   import "maplibre-gl/dist/maplibre-gl.css";
-  import { IGN_WMTS, ajouterControleIncendies } from "../lib/carte";
+  import { urlStyle, ajouterControleIncendies } from "../lib/carte";
   import {
     LIBELLES_NIVEAU,
     LIBELLES_ACCES_NIVEAU,
@@ -251,17 +251,13 @@
     const maplibre = (await import("maplibre-gl")).default;
     map = new maplibre.Map({
       container: mapContainer,
-      style: { version: 8, sources: {}, layers: [] },
+      style: urlStyle("territoire", { fond: "plan" }),
       center: [3.66, 44.12], zoom: 9.05, attributionControl: { compact: true },
     });
     map.addControl(new maplibre.NavigationControl(), "bottom-right");
     map.on("load", () => {
       if (!map) return;
-      map.addSource("plan-ign", { type: "raster", tiles: [IGN_WMTS("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", "image/png")], tileSize: 256, attribution: "© IGN" });
-      map.addLayer({ id: "plan-ign", type: "raster", source: "plan-ign" });
-      map.addSource("orthophoto-ign", { type: "raster", tiles: [IGN_WMTS("ORTHOIMAGERY.ORTHOPHOTOS", "image/jpeg")], tileSize: 256, attribution: "© IGN" });
-      map.addLayer({ id: "orthophoto-ign", type: "raster", source: "orthophoto-ign", layout: { visibility: "none" } });
-      ajouterControleIncendies(map, { planLayerId: "plan-ign", photoLayerId: "orthophoto-ign", onRecentrer: recentrerCommune, onLocaliser: meLocaliser });
+      ajouterControleIncendies(map, { planLayerId: "basemap-plan", photoLayerId: "basemap-photo", onRecentrer: recentrerCommune, onLocaliser: meLocaliser });
       if (limitesCommune) {
         map.addSource("val-aigoual", { type: "geojson", data: limitesCommune as GeoJSON.Feature });
       }

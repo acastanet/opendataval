@@ -1,0 +1,25 @@
+{
+  "name": "map-service",
+  "version": "0.1.0",
+  "description": "Serveur de représentation cartographique OpenDataVal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "sync:vendor": "node scripts/sync-vendor.mjs"
+  },
+  "dependencies": {
+    "@opendata-vda/shared": "workspace:*",
+    "fastify": "^5.1.0",
+    "pmtiles": "^4.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "maplibre-gl": "^5.9.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}

@@ -8,6 +8,7 @@ export default defineConfig({
   vite: {
     server: {
       proxy: {
+        "/api/v2/map": "http://localhost:3003",
         "/api": "http://localhost:3000",
       },
     },

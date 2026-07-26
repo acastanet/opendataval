@@ -19,7 +19,14 @@ http://:80 {
 	@assets path /_astro/*
 	header @assets Cache-Control "public, max-age=31536000, immutable"
 
-	# Les nouvelles API passent par le gateway. Les routes /api/* historiques restent
+	# Cartographie : servie directement, sans passer par le gateway (cf. ADR 008).
+	@carte path /api/v2/map/*
+	handle @carte {
+		encode zstd gzip
+		reverse_proxy map-service:3000
+	}
+
+	# Les autres nouvelles API passent par le gateway. Les routes /api/* historiques restent
 	# directement servies par le monolithe pendant la migration progressive.
 	@gateway path /api/v2 /api/v2/*
 	handle @gateway {

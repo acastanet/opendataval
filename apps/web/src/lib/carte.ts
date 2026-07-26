@@ -1,17 +1,65 @@
 import type maplibregl from "maplibre-gl";
 import type { CoucheCarte } from "@opendata-vda/shared/catalogue";
 import { faBuildingColumns, faCircleDot, faMap, faPlane } from "@fortawesome/free-solid-svg-icons";
-import { PMTiles } from "pmtiles";
+import {
+  FONDS_CARTOGRAPHIQUES,
+  IDS_CARTOGRAPHIQUES,
+  PALETTE_HYPSOMETRIQUE as PALETTE_PARTAGEE,
+  RELIEF_ATTRIBUTION,
+  RELIEF_BOUNDS,
+  RELIEF_MAXZOOM,
+  gabaritTuilesRadar as gabaritRadarPartage,
+  prefixerId,
+} from "@opendata-vda/shared/carto";
 
-export const IGN_WMTS = (layer: string, format: string): string =>
-  `https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER=${layer}` +
-  `&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=${format}`;
+export const BASE_CARTE = "/api/v2/map";
 
-export const BASEMAPS = [
-  { id: "plan", label: "Plan", tiles: IGN_WMTS("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", "image/png"), attribution: "© IGN" },
-  { id: "photo", label: "Photo aérienne", tiles: IGN_WMTS("ORTHOIMAGERY.ORTHOPHOTOS", "image/jpeg"), attribution: "© IGN" },
-  { id: "satellite", label: "Satellite (SPOT)", tiles: IGN_WMTS("ORTHOIMAGERY.ORTHO-SAT.SPOT.2022", "image/jpeg"), attribution: "© IGN" },
-];
+/** Adaptateur historique : résout un identifiant de couche IGN vers le proxy cartographique local. */
+export const IGN_WMTS = (layer: string, format: string): string => {
+  const fond = FONDS_CARTOGRAPHIQUES.find((item) => item.coucheIgn === layer && item.format === format);
+  if (!fond) throw new Error(`Fond IGN non autorisé : ${layer}`);
+  return `${BASE_CARTE}/tiles/${fond.id}/{z}/{x}/{y}.${fond.extension}`;
+};
+export type NomStyle = "plan" | "territoire" | "relief" | "hypsometrique";
+export interface OptionsStyle {
+  prefixe?: string;
+  fond?: "plan" | "photo" | "satellite" | "nu";
+  terrain?: boolean;
+  exageration?: number;
+  geologie?: boolean;
+  relief?: boolean;
+}
+
+export function urlStyle(nom: NomStyle, options: OptionsStyle = {}): string {
+  const params = new URLSearchParams();
+  if (options.prefixe) params.set("prefixe", options.prefixe);
+  if (options.fond) params.set("fond", options.fond);
+  if (options.terrain !== undefined) params.set("terrain", options.terrain ? "1" : "0");
+  if (options.exageration !== undefined) params.set("exageration", String(options.exageration));
+  if (options.geologie !== undefined) params.set("geologie", options.geologie ? "1" : "0");
+  if (options.relief !== undefined) params.set("relief", options.relief ? "1" : "0");
+  const query = params.toString();
+  return `${BASE_CARTE}/styles/${nom}.json${query ? `?${query}` : ""}`;
+}
+
+export const BASEMAPS = FONDS_CARTOGRAPHIQUES.map((fond) => ({
+  id: fond.id,
+  label: fond.libelle,
+  tiles: `${BASE_CARTE}/tiles/${fond.id}/{z}/{x}/{y}.${fond.extension}`,
+  attribution: fond.attribution,
+}));
+
+export function idCouche(role: keyof typeof IDS_CARTOGRAPHIQUES.couches, prefixe?: string): string {
+  return prefixerId(IDS_CARTOGRAPHIQUES.couches[role], prefixe);
+}
+
+export function idSourceRelief(prefixe?: string): string {
+  return prefixerId(IDS_CARTOGRAPHIQUES.sources.relief, prefixe);
+}
+
+export function gabaritTuilesRadar(cheminFrame: string): string {
+  return gabaritRadarPartage(cheminFrame);
+}
 
 export const ICONES_REGLEMENTATION = {
   danger: "⚠",
@@ -131,9 +179,7 @@ export function ajouterControleFondIgn(map: maplibregl.Map, options: ControleFon
   map.addControl(control, "top-right");
 }
 
-export const GEOLOGIE_WMS =
-  "https://geoservices.brgm.fr/geologie?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=SCAN_D_GEOL50" +
-  "&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true";
+export const GEOLOGIE_WMS = `${BASE_CARTE}/tiles/geologie/{z}/{x}/{y}.png`;
 
 /**
  * Ajoute une source GeoJSON clusterisée (clusters + halo + points individuels) et retourne
@@ -304,119 +350,51 @@ export function ajouterCoucheCarte(
   return [layerId];
 }
 
-const RELIEF_PMTILES_URL = "/relief/aigoual.pmtiles";
-const RELIEF_HD_PMTILES_URL = "/relief/aigoual-hd.pmtiles";
-const RELIEF_GLOBAL_MAXZOOM = 12;
-const RELIEF_HD_MINZOOM = 13;
-const RELIEF_HD_MAXZOOM = 15;
-/** Bbox couverte par les deux extraits pmtiles (cf. commande de régénération dans CLAUDE.md). */
-const RELIEF_BOUNDS: [number, number, number, number] = [3.2, 43.8, 4.1, 44.4];
 export const RELIEF_PROTOCOL = "aigoualdem";
-export const RELIEF_SOURCE_ID = "relief-dem-src";
-const RELIEF_HILLSHADE_ID = "relief-hillshade";
-const RELIEF_ATTRIBUTION = '© <a href="https://mapterhorn.com/attribution">Mapterhorn</a>';
+export const RELIEF_SOURCE_ID = IDS_CARTOGRAPHIQUES.sources.relief;
+const RELIEF_HILLSHADE_ID = IDS_CARTOGRAPHIQUES.couches.hillshade;
+export const PALETTE_HYPSOMETRIQUE = PALETTE_PARTAGEE.map(({ altitude, couleur }) => ({ altitude, couleur }));
 
-/**
- * Palette hypsométrique calée sur les altitudes du territoire (~150 m dans les vallées cévenoles
- * jusqu'au mont Aigoual, 1567 m). Consommée à la fois pour construire l'expression
- * `color-relief-color` (couche `color-relief` de MapLibre GL ≥ 5.6) et la légende côté île.
- * Chaque palier associe une altitude (m) à une teinte : verts profonds en fond de vallée,
- * verts clairs sur les versants, ocres puis bruns pâles vers les crêtes.
- */
-export const PALETTE_HYPSOMETRIQUE: { altitude: number; couleur: string }[] = [
-  { altitude: 150, couleur: "#2c5a2c" },
-  { altitude: 400, couleur: "#4a7a3a" },
-  { altitude: 650, couleur: "#7a9a4a" },
-  { altitude: 900, couleur: "#b8a95a" },
-  { altitude: 1150, couleur: "#c98f4e" },
-  { altitude: 1350, couleur: "#a86b42" },
-  { altitude: 1567, couleur: "#d8c4a8" },
-];
+/** Compatibilité temporaire : les îlots peuvent conserver cet appel, aucun protocole custom n'est enregistré. */
+export function enregistrerProtocolePmtiles(_addProtocol: (scheme: string, loader: unknown) => void): void {}
 
-let protocolePmtilesEnregistre = false;
-
-/**
- * Enregistre le protocole `aigoualdem://{z}/{x}/{y}` auprès de MapLibre (une seule fois par
- * page) : sert l'extrait global (z0-12) sous RELIEF_HD_MINZOOM, l'extrait HD IGN (z13-15,
- * LiDAR HD via Mapterhorn) au-delà, avec repli sur la tuile ancêtre du fond global si la tuile
- * HD est absente (ex. bord de la bbox extraite) pour éviter tout trou de relief.
- * `addProtocol` provient du module `maplibre-gl` importé côté appelant (île client:only).
- */
-export function enregistrerProtocolePmtiles(addProtocol: (scheme: string, loader: unknown) => void): void {
-  if (protocolePmtilesEnregistre) return;
-
-  const global = new PMTiles(new URL(RELIEF_PMTILES_URL, window.location.origin).href);
-  const hd = new PMTiles(new URL(RELIEF_HD_PMTILES_URL, window.location.origin).href);
-
-  addProtocol(RELIEF_PROTOCOL, async (params: { url: string }, abortController: AbortController) => {
-    const correspondance = params.url.match(new RegExp(`^${RELIEF_PROTOCOL}://(\\d+)/(\\d+)/(\\d+)$`));
-    if (!correspondance) throw new Error(`URL de relief invalide : ${params.url}`);
-    const z = Number(correspondance[1]);
-    const x = Number(correspondance[2]);
-    const y = Number(correspondance[3]);
-
-    if (z >= RELIEF_HD_MINZOOM) {
-      try {
-        const tuile = await hd.getZxy(z, x, y, abortController.signal);
-        if (tuile) return { data: tuile.data };
-      } catch {
-        /* archive HD indisponible : repli sur le fond global ci-dessous */
-      }
-      const decalage = z - RELIEF_GLOBAL_MAXZOOM;
-      const secours = await global.getZxy(RELIEF_GLOBAL_MAXZOOM, x >> decalage, y >> decalage, abortController.signal);
-      if (secours) return { data: secours.data };
-      throw new Error(`Aucune donnée de relief pour ${params.url}`);
-    }
-
-    const tuile = await global.getZxy(z, x, y, abortController.signal);
-    if (!tuile) throw new Error(`Aucune donnée de relief pour ${params.url}`);
-    return { data: tuile.data };
-  });
-
-  protocolePmtilesEnregistre = true;
-}
-
-/**
- * Ajoute (si absente) la source `raster-dem` du relief : DEM terrarium Mapterhorn/LiDAR HD servi
- * via le protocole `aigoualdem://`. Point d'entrée commun à `activerRelief` (terrain 3D + hillshade)
- * et à la page Relief dédiée (couches `color-relief`/`hillshade` sur cette même source).
- */
-export function ajouterSourceRelief(map: maplibregl.Map): void {
-  if (map.getSource(RELIEF_SOURCE_ID)) return;
-  map.addSource(RELIEF_SOURCE_ID, {
+export function ajouterSourceRelief(map: maplibregl.Map, prefixe?: string): void {
+  const sourceId = idSourceRelief(prefixe);
+  if (map.getSource(sourceId)) return;
+  map.addSource(sourceId, {
     type: "raster-dem",
-    tiles: [`${RELIEF_PROTOCOL}://{z}/{x}/{y}`],
+    tiles: [BASE_CARTE + "/relief/{z}/{x}/{y}.png"],
     encoding: "terrarium",
     tileSize: 512,
-    maxzoom: RELIEF_HD_MAXZOOM,
-    bounds: RELIEF_BOUNDS,
+    maxzoom: RELIEF_MAXZOOM,
+    bounds: [...RELIEF_BOUNDS],
     attribution: RELIEF_ATTRIBUTION,
   });
 }
 
-/** Active le relief 3D (source raster-dem Mapterhorn + hillshade + terrain MapLibre). */
-export function activerRelief(map: maplibregl.Map, exageration: number): void {
-  ajouterSourceRelief(map);
-  if (!map.getLayer(RELIEF_HILLSHADE_ID)) {
+export function activerRelief(map: maplibregl.Map, exageration: number, prefixe?: string): void {
+  const sourceId = idSourceRelief(prefixe);
+  const hillshadeId = prefixerId(RELIEF_HILLSHADE_ID, prefixe);
+  ajouterSourceRelief(map, prefixe);
+  if (!map.getLayer(hillshadeId)) {
     map.addLayer({
-      id: RELIEF_HILLSHADE_ID,
+      id: hillshadeId,
       type: "hillshade",
-      source: RELIEF_SOURCE_ID,
+      source: sourceId,
       paint: { "hillshade-exaggeration": 0.3 },
     });
   } else {
-    map.setLayoutProperty(RELIEF_HILLSHADE_ID, "visibility", "visible");
+    map.setLayoutProperty(hillshadeId, "visibility", "visible");
   }
-  map.setTerrain({ source: RELIEF_SOURCE_ID, exaggeration: exageration });
+  map.setTerrain({ source: sourceId, exaggeration: exageration });
 }
 
-/** Ajuste l'exagération verticale du relief déjà activé. */
-export function reglerExagerationRelief(map: maplibregl.Map, exageration: number): void {
-  if (map.getTerrain()) map.setTerrain({ source: RELIEF_SOURCE_ID, exaggeration: exageration });
+export function reglerExagerationRelief(map: maplibregl.Map, exageration: number, prefixe?: string): void {
+  if (map.getTerrain()) map.setTerrain({ source: idSourceRelief(prefixe), exaggeration: exageration });
 }
 
-/** Désactive le relief 3D (repasse la carte à plat). */
-export function desactiverRelief(map: maplibregl.Map): void {
+export function desactiverRelief(map: maplibregl.Map, prefixe?: string): void {
+  const hillshadeId = prefixerId(RELIEF_HILLSHADE_ID, prefixe);
   map.setTerrain(null);
-  if (map.getLayer(RELIEF_HILLSHADE_ID)) map.setLayoutProperty(RELIEF_HILLSHADE_ID, "visibility", "none");
+  if (map.getLayer(hillshadeId)) map.setLayoutProperty(hillshadeId, "visibility", "none");
 }
