@@ -33,11 +33,12 @@ test("GET /api/v2 renvoie la landing HTML listant les microservices", async (t) 
 
   assert.equal(response.statusCode, 200);
   assert.match(String(response.headers["content-type"]), /text\/html/);
-  for (const name of ["Geography", "Weather", "Weather Vigilance", "Fire Detection", "Gateway"]) {
+  for (const name of ["Geography", "Weather", "Weather Vigilance", "Fire Detection", "Gateway", "Map"]) {
     assert.ok(response.body.includes(name), `landing doit mentionner ${name}`);
   }
   assert.ok(response.body.includes("/api/v2/geography/resolve"));
   assert.ok(response.body.includes("/api/v2/demo/fire"));
+  assert.ok(response.body.includes("/api/v2/demo/map"));
 });
 
 test("GET /api/v2/ (slash final) renvoie aussi la landing", async (t) => {
@@ -87,6 +88,20 @@ test("la démo fire active le tracé des détections sur la carte", async (t) =>
   assert.equal(response.statusCode, 200);
   assert.ok(response.body.includes('"drawDetections":true'));
   assert.ok(response.body.includes('id="map"'));
+});
+
+test("la démo map charge MapLibre depuis map-service et propose les styles", async (t) => {
+  const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/api/v2/demo/map" });
+
+  assert.equal(response.statusCode, 200);
+  assert.ok(response.body.includes("/api/v2/map/vendor/maplibre-gl.js"));
+  assert.ok(response.body.includes("/api/v2/map/styles/territoire.json"));
+  assert.ok(response.body.includes('id="map-style"'));
+  assert.ok(response.body.includes("Hypsométrique"));
+  assert.ok(!response.body.includes("unpkg.com"));
 });
 
 test("la démo vigilance vide le code département lors d'une localisation", async (t) => {
