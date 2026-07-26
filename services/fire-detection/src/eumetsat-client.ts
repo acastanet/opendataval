@@ -3,7 +3,7 @@ import { deduplicateDetections, latestObservation, parseCapXml, type FireDetecti
 import { fetchWithRetry, readLimitedText } from "./http.js";
 import type { DetectionBatch } from "./firms-client.js";
 
-type EumetsatSource = "EUMETSAT_MTG_CAP" | "EUMETSAT_MSG_CAP";
+type EumetsatSource = "EUMETSAT_MTG_CAP";
 interface Token { value: string; expiresAt: number; }
 
 function stringsDeep(value: unknown, output: string[] = []): string[] {

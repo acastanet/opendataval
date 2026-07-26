@@ -32,10 +32,10 @@ const report = (source: string, state: SourceReport["state"]): SourceReport => (
 test("la dernière suspicion 50 km provient exclusivement de FIRMS", async () => {
   const config = loadConfig({ FIRE_CACHE_SECONDS: "0" });
   const firms = { fetchNearby: async () => ({ detections: [detection("FIRMS_VIIRS_NOAA21_NRT", "2026-07-24T19:00:00Z")], reports: [report("FIRMS", "available")] }) };
-  const eumetsat = { fetchCollection: async (_collection: string, source: "EUMETSAT_MTG_CAP" | "EUMETSAT_MSG_CAP") => ({ detections: [detection(source, "2026-07-24T20:50:00Z")], reports: [report(source, "available")] }) };
+  const eumetsat = { fetchCollection: async (_collection: string, source: "EUMETSAT_MTG_CAP") => ({ detections: [detection(source, "2026-07-24T20:50:00Z")], reports: [report(source, "available")] }) };
   const service = new FireDetectionService(config, firms, eumetsat, () => new Date("2026-07-24T21:00:00Z"));
   const result = await service.nearby({ latitude: 44, longitude: 3, radiusKm: 50, historyDays: 7 });
   assert.equal(result.last_detection_50km?.source, "FIRMS_VIIRS_NOAA21_NRT");
   assert.equal(result.last_detection_50km?.basis, "NASA_FIRMS_AREA_API_ONLY");
-  assert.equal(result.realtime.suspicions.length, 2);
+  assert.equal(result.realtime.suspicions.length, 1);
 });
