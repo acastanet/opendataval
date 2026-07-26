@@ -70,6 +70,8 @@ export interface ServiceDescriptor {
   healthUrl: (config: GatewayConfig) => string | null;
   /** Champs du formulaire de démonstration. Vide = pas de paramètre. */
   demo: DemoField[];
+  /** Affiche une démo dédiée lorsque le service n'utilise pas le formulaire générique. */
+  hasDemo?: boolean;
 }
 
 /** Coordonnées d'exemple (Val-d'Aigoual / Gard), aussi centre par défaut de la carte. */
@@ -103,6 +105,7 @@ export const SERVICES: ServiceDescriptor[] = [
     publicRoute: "/api/v2/map/styles/territoire.json",
     healthUrl: (config) => `${baseUrl(config.mapServiceUrl, "http://map-service:3000")}/health`,
     demo: [],
+    hasDemo: true,
   },
   {
     id: "geography",

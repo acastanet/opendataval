@@ -20,6 +20,83 @@ import { escapeAttr, escapeHtml, renderPage } from "./layout.js";
 const LEAFLET_HEAD = `<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>`;
 
+/** MapLibre est servi par map-service : aucune dépendance CDN pour cette démo. */
+const MAPLIBRE_HEAD = `<link rel="stylesheet" href="/api/v2/map/vendor/maplibre-gl.css">
+<script defer src="/api/v2/map/vendor/maplibre-gl.js"></script>`;
+
+const MAP_DEMO_SCRIPT = `
+(function () {
+  var select = document.getElementById("map-style");
+  var mapEl = document.getElementById("map");
+  var status = document.getElementById("map-status");
+  var url = document.getElementById("map-style-url");
+  if (!select || !mapEl || !status || !url) return;
+
+  function styleUrl() { return "/api/v2/map/styles/" + encodeURIComponent(select.value) + ".json"; }
+  function showUrl() { url.textContent = "GET " + styleUrl(); }
+  function unavailable(message) {
+    mapEl.classList.add("map-fallback");
+    mapEl.textContent = message;
+    status.textContent = "Carte indisponible";
+  }
+  function loadStyle(map) {
+    var nextUrl = styleUrl();
+    showUrl();
+    status.textContent = "Chargement du style « " + select.options[select.selectedIndex].text + " »…";
+    map.setStyle(nextUrl);
+  }
+
+  function init() {
+    if (!window.maplibregl) {
+      unavailable("MapLibre est indisponible. Vérifiez que map-service est démarré.");
+      return;
+    }
+    showUrl();
+    var map = new window.maplibregl.Map({
+      container: mapEl,
+      style: styleUrl(),
+      center: [3.6421, 44.0812],
+      zoom: 9,
+      attributionControl: true,
+    });
+    map.addControl(new window.maplibregl.NavigationControl(), "top-right");
+    map.on("load", function () { status.textContent = "Style chargé. Utilisez la souris pour explorer la carte."; });
+    map.on("error", function () { status.textContent = "Le style ou une tuile n'a pas pu être chargé."; });
+    select.addEventListener("change", function () { loadStyle(map); });
+  }
+  if (document.readyState === "complete") init();
+  else window.addEventListener("load", init);
+})();
+`;
+
+function renderMapDemo(config: GatewayConfig, service: ServiceDescriptor): string {
+  const body = `<h2>Démo &mdash; ${escapeHtml(service.name)}</h2>
+<p class="lead">Explorez les styles cartographiques servis localement par map-service. Les tuiles, le relief et les légendes sont fournis via <span class="route">/api/v2/map/*</span>.</p>
+<p><span class="route">${escapeHtml(service.method)} ${escapeHtml(service.publicRoute)}</span> &middot; code&nbsp;: <span class="route">${escapeHtml(service.repo)}</span></p>
+<div class="field">
+  <label for="map-style">Style cartographique</label>
+  <select id="map-style">
+    <option value="territoire" selected>Territoire</option>
+    <option value="plan">Plan</option>
+    <option value="relief">Relief</option>
+    <option value="hypsometrique">Hypsométrique</option>
+  </select>
+</div>
+<p class="called-url" id="map-style-url">—</p>
+<p class="status-line" id="map-status" role="status" aria-live="polite">Chargement de la carte…</p>
+<div id="map" class="map" role="region" aria-label="Démo cartographique interactive"></div>
+<p class="hint">Les données restent proxifiées par le service cartographique ; aucun CDN cartographique n’est utilisé.</p>
+<p><a class="btn-secondary" href="/api/v2/map/legends">Voir les légendes JSON</a></p>
+<script>${MAP_DEMO_SCRIPT}</script>`;
+  return renderPage({
+    title: `Démo ${service.name} — API v2`,
+    version: config.version,
+    body,
+    showBackLink: true,
+    head: MAPLIBRE_HEAD,
+  });
+}
+
 function renderField(field: DemoField): string {
   const id = `f_${field.name}`;
   const optionalTag = field.optional ? ` <span class="hint">(facultatif)</span>` : "";
@@ -269,6 +346,7 @@ const DEMO_SCRIPT = `
 `;
 
 export function renderDemo(config: GatewayConfig, service: ServiceDescriptor): string {
+  if (service.id === "map") return renderMapDemo(config, service);
   const fields = service.demo.map(renderField).join("\n");
   const fieldNames = new Set(service.demo.map((field) => field.name));
   const hasCoordinates = serviceHasCoordinates(service);

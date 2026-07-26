@@ -60,7 +60,7 @@ export function renderLanding(config: GatewayConfig): string {
         service.name,
         service.role,
         service.displayRoute ?? service.publicRoute,
-        service.demo.length > 0,
+        service.hasDemo ?? service.demo.length > 0,
       ),
     )
     .join("\n");
