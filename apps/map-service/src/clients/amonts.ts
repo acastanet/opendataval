@@ -4,13 +4,20 @@ import { bboxWebMercator, type CoordonneesTuile } from "../domain/tuiles.js";
 export interface ReponseBinaire { data: Buffer; contentType: string }
 export type FetchLike = typeof fetch;
 
+export class ErreurHttpAmont extends Error {
+  constructor(readonly status: number) {
+    super(`Amont cartographique HTTP ${status}`);
+    this.name = "ErreurHttpAmont";
+  }
+}
+
 export async function chargerBinaire(url: string, timeoutMs: number, fetchImpl: FetchLike): Promise<ReponseBinaire> {
   const response = await fetchImpl(url, {
     headers: { accept: "image/avif,image/webp,image/png,image/jpeg,*/*", "user-agent": "OpenDataVal map-service/1.0" },
     redirect: "error",
     signal: AbortSignal.timeout(timeoutMs),
   });
-  if (!response.ok) throw new Error(`Amont cartographique HTTP ${response.status}`);
+  if (!response.ok) throw new ErreurHttpAmont(response.status);
   const longueur = Number(response.headers.get("content-length") ?? 0);
   if (longueur > 5_000_000) throw new Error("Réponse cartographique trop volumineuse.");
   const data = Buffer.from(await response.arrayBuffer());

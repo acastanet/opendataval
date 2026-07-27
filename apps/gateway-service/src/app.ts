@@ -163,16 +163,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const terrainHandler = async (_request: FastifyRequest, reply: FastifyReply) =>
     sendHtml(reply, renderAppTerrain(config));
 
-  app.get("/api/v2/app", terrainHandler);
-  app.get("/api/v2/app/", terrainHandler);
-  app.get("/api/v2/app/manifest.webmanifest", async (_request, reply) => {
+  app.get("/valfeu", terrainHandler);
+  app.get("/valfeu/", terrainHandler);
+  app.get("/valfeu/manifest.webmanifest", async (_request, reply) => {
     reply.header("content-type", "application/manifest+json; charset=utf-8");
     return reply.send(APP_MANIFEST);
   });
-  app.get("/api/v2/app/icone.svg", async (_request, reply) => {
+  app.get("/valfeu/icone.svg", async (_request, reply) => {
     reply.header("content-type", "image/svg+xml; charset=utf-8");
     return reply.send(APP_ICONE_SVG);
   });
+  app.get("/api/v2/app", async (_request, reply) => reply.redirect("/valfeu", 308));
+  app.get("/api/v2/app/", async (_request, reply) => reply.redirect("/valfeu/", 308));
+  app.get("/api/v2/app/manifest.webmanifest", async (_request, reply) => reply.redirect("/valfeu/manifest.webmanifest", 308));
+  app.get("/api/v2/app/icone.svg", async (_request, reply) => reply.redirect("/valfeu/icone.svg", 308));
 
   app.get<{ Params: { service: string } }>(
     "/api/v2/demo/:service",

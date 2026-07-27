@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { performance } from "node:perf_hooks";
 import { type FondCartographique } from "@opendata-vda/shared/carto";
 import { loadConfig, type MapConfig } from "./config.js";
-import { chargerBinaire, urlBrgm, urlIgn, urlRadar, type FetchLike } from "./clients/amonts.js";
+import { chargerBinaire, ErreurHttpAmont, urlBrgm, urlIgn, urlRadar, type FetchLike } from "./clients/amonts.js";
 import { erreurPublique } from "./domain/erreurs.js";
 import { indexLegendes, trouverLegende } from "./domain/legendes.js";
 import { construireStyle, estNomStyle, lireOptionsStyle } from "./domain/styles.js";
@@ -20,6 +20,10 @@ export interface BuildAppOptions {
 
 type Params = Record<string, string>;
 type Query = Record<string, unknown>;
+const TUILE_TRANSPARENTE_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+3jHqWQAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 function envoyerBinaire(reply: any, data: Buffer, contentType: string, cacheControl: string, cache?: "hit" | "miss") {
   reply.type(contentType).header("cache-control", cacheControl);
@@ -106,6 +110,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       request.log.info({ source, z: tuile.z, x: tuile.x, y: tuile.y }, "tuile chargée depuis l’amont");
       return envoyerBinaire(reply, reponse.data, contentType, cacheControl, source === "radar" ? undefined : "miss");
     } catch (error) {
+      if (source !== "radar" && error instanceof ErreurHttpAmont && error.status === 404) {
+        const cacheControl = "public, max-age=86400";
+        cache.set(cle, { data: TUILE_TRANSPARENTE_PNG, contentType: "image/png", cacheControl });
+        metriques.miss(source, TUILE_TRANSPARENTE_PNG.byteLength, performance.now() - debut);
+        request.log.info({ source, ...tuile }, "tuile absente de la couverture amont");
+        return envoyerBinaire(reply, TUILE_TRANSPARENTE_PNG, "image/png", cacheControl, "miss");
+      }
       metriques.erreur(source, performance.now() - debut);
       request.log.warn({ err: error, source, ...tuile }, "échec de chargement d’une tuile");
       const invalide = source === "radar" && error instanceof Error && error.message.includes("frame radar");

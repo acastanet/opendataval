@@ -26,6 +26,12 @@ http://:80 {
 		reverse_proxy map-service:3000
 	}
 
+	# Application mobile valfeu, exposée à la racine publique.
+	@valfeu path /valfeu /valfeu/*
+	handle @valfeu {
+		reverse_proxy gateway:3000
+	}
+
 	# Les autres nouvelles API passent par le gateway. Les routes /api/* historiques restent
 	# directement servies par le monolithe pendant la migration progressive.
 	@gateway path /api/v2 /api/v2/*

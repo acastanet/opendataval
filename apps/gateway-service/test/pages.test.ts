@@ -39,7 +39,7 @@ test("GET /api/v2 renvoie la landing HTML listant les microservices", async (t) 
   assert.ok(response.body.includes("/api/v2/geography/resolve"));
   assert.ok(response.body.includes("/api/v2/demo/fire"));
   assert.ok(response.body.includes("/api/v2/demo/map"));
-  assert.ok(response.body.includes('href="/api/v2/app/"'));
+  assert.ok(response.body.includes('href="/valfeu/"'));
 });
 
 test("depuis l'accueil, la démo Associations propose la recherche consolidée", async (t) => {

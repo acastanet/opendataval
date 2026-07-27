@@ -42,7 +42,7 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 
 | Fichier | Description | MàJ | Vérif. |
 |---|---|---|---|
-| [application/feu-val/README.md](application/feu-val/README.md) | feu_val : application de terrain `/api/v2/app/` (carte, position, suspicions satellitaires) | 2026-07-27 | 2026-07-27 |
+| [application/feu-val/README.md](application/feu-val/README.md) | valfeu : application de terrain `/valfeu/` (carte, position, suspicions satellitaires) | 2026-07-27 | 2026-07-27 |
 
 ## v1 — Monolithe & mini-applications
 

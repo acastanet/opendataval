@@ -1,12 +1,12 @@
-# feu_val — application de terrain
+# valfeu — application de terrain
 
-> Application mobile-first servie sur `/api/v2/app/` : carte, position et suspicions satellitaires de feu autour d’un point actif.
+> Application mobile-first servie sur `/valfeu/` : carte, position et suspicions satellitaires de feu autour d’un point actif.
 > Dernière mise à jour : 2026-07-27 · Dernière vérification : 2026-07-27
 > Code : `apps/gateway-service/src/pages/app-terrain.ts` · Routes : `apps/gateway-service/src/app.ts:163-175`
 
 ## Rôle
 
-feu_val répond à une question de terrain, sur téléphone, avec du réseau incertain : **y a-t-il une suspicion de feu près d’ici, et quand a-t-elle été observée ?**
+valfeu répond à une question de terrain, sur téléphone, avec du réseau incertain : **y a-t-il une suspicion de feu près d’ici, et quand a-t-elle été observée ?**
 
 Elle compose trois services v2 autour d’un point actif : Map pour le fond, Fire Detection pour les suspicions, Geography pour l’adresse du point. Elle ne contient aucune logique métier : tout est calculé en amont, la page ne fait que présenter.
 
@@ -16,9 +16,9 @@ Toute détection affichée est une **suspicion satellitaire non confirmée** ; l
 
 | URL | Contenu |
 |---|---|
-| `http://localhost:8080/api/v2/app/` | L’application (les deux formes, avec et sans barre finale, sont servies) |
-| `/api/v2/app/manifest.webmanifest` | Manifeste PWA installable (`display: standalone`, portrait) |
-| `/api/v2/app/icone.svg` | Icône SVG |
+| `http://localhost:8080/valfeu/` | L’application (les deux formes, avec et sans barre finale, sont servies) |
+| `/valfeu/manifest.webmanifest` | Manifeste PWA installable (`display: standalone`, portrait) |
+| `/valfeu/icone.svg` | Icône SVG |
 
 Aucun service worker n’est enregistré : les données satellite doivent rester fraîches, on préfère l’échec visible au cache silencieux. Sur iOS, l’ajout à l’écran d’accueil fonctionne mais Safari ignore l’icône SVG faute d’`apple-touch-icon` PNG (hors périmètre).
 
@@ -26,10 +26,10 @@ Aucun service worker n’est enregistré : les données satellite doivent rester
 
 Quatre zones superposées à une carte plein écran :
 
-- **HUD (haut)** — libellé du point actif, pastille d’état des sources (grise en attente, verte disponible, orange incomplète, rouge indisponible), accès direct au **112** et au **18** ;
+- **HUD (haut)** — identité `valfeu`, libellé du point actif, état lisible des sources et accès direct au **112** et au **18** ;
 - **Carte** — MapLibre, style `plan` servi par map-service ;
-- **Feuille de résultats (bas)** — trois états au clic sur la poignée : masquée, repliée, dépliée ;
-- **Barre d’actions (4 boutons)** — Mairie · Ma position · Feux (5 km / 50 km) · Historique 7 j. Cibles tactiles de 48 px minimum, marges `env(safe-area-inset-*)` respectées.
+- **Feuille de résultats (bas)** — deux états au clic sur la poignée : repliée ou dépliée, avec cartes tactiles pour chaque suspicion ;
+- **Console de recherche (bas)** — rayon 5/50 km et recherche feu mis en avant, puis Mairie · Ma position · Historique 7 j en actions secondaires. Cibles tactiles de 48 px minimum, marges `env(safe-area-inset-*)` respectées.
 
 ## Interactions
 
@@ -39,10 +39,14 @@ Quatre zones superposées à une carte plein écran :
 | **Ma position** | `navigator.geolocation` (haute précision, délai 10 s), affiche le cercle de précision, puis interroge `/api/v2/geography/resolve` pour l’adresse, la commune, le département et l’altitude |
 | **Feux** | `/api/v2/fire/nearby` sur 24 h, rayon 5 ou 50 km selon le segment sélectionné |
 | **Historique 7 j** | Même route, forcée à 50 km sur 7 jours, résultats regroupés par jour |
-| **Appui long / clic droit sur la carte** | Choisit un point libre ; les requêtes suivantes l’utilisent |
+| **Appui long / clic droit sur la carte** | Choisit un point libre ; sur écran tactile, l’appui est reconnu après 650 ms et annulé si le doigt se déplace |
 | **Clic sur une détection** (carte ou liste) | Fiche de détail : distance, date d’observation, satellite, instrument, confiance, puissance radiative |
 
 Après une recherche, la vue s’ajuste sur l’ensemble « point actif + détections » (`fitBounds`) ; sans détection, elle recentre simplement sur le point. Les animations sont supprimées si `prefers-reduced-motion` est actif.
+
+Les observations amont sont horodatées en UTC. L’interface les convertit en
+heure locale de Val-d’Aigoual (`Europe/Paris`) et affiche explicitement le
+décalage `UTC+1` ou `UTC+2` selon la date.
 
 ## Couches cartographiques
 
@@ -64,7 +68,7 @@ Après une recherche, la vue s’ajuste sur l’ensemble « point actif + détec
 
 **Aucune ressource externe** : ni CDN, ni tuiles OpenStreetMap, contrairement aux pages de démo. Un test le vérifie explicitement. La page reste donc compatible avec le CSP `default-src 'self'` du `Caddyfile`, et fonctionne sur un réseau sans sortie Internet dès lors que map-service est joignable.
 
-Conséquence de routage à connaître : `/api/v2/map/*` **ne passe pas par le gateway** (cf. [ADR 008](../../ADR/008-map-service-representation-cartographique.md)). Ouvrir l’application directement sur le port du gateway (`http://localhost:3000/api/v2/app`) au lieu de Caddy (`:8080`) renvoie donc 404 sur toutes les ressources carte, et la carte n’apparaît pas.
+Conséquence de routage à connaître : `/api/v2/map/*` **ne passe pas par le gateway** (cf. [ADR 008](../../ADR/008-map-service-representation-cartographique.md)). Ouvrir l’application directement sur le port du gateway (`http://localhost:3000/valfeu`) au lieu de Caddy (`:8080`) renvoie donc 404 sur toutes les ressources carte, et la carte n’apparaît pas.
 
 ## Chargement de la carte
 
@@ -88,7 +92,7 @@ Contrôle rapide de bout en bout :
 
 ```powershell
 docker compose up -d --build gateway
-curl.exe -sI http://localhost:8080/api/v2/app/
+curl.exe -sI http://localhost:8080/valfeu/
 curl.exe -s  http://localhost:8080/api/v2/map/styles/plan.json
 curl.exe -sI http://localhost:8080/api/v2/map/vendor/maplibre-gl.js
 ```
@@ -96,7 +100,7 @@ curl.exe -sI http://localhost:8080/api/v2/map/vendor/maplibre-gl.js
 ## Tests
 
 ```powershell
-pnpm --filter gateway-service run test       # 43 tests, dont 8 pour feu_val
+pnpm --filter gateway-service run test       # 43 tests, dont 8 pour valfeu
 pnpm --filter gateway-service run typecheck
 ```
 
@@ -107,7 +111,7 @@ pnpm --filter gateway-service run typecheck
 - La liste des détections lit toujours `history.suspicions` de la réponse fire ; le mode « Feux » repose donc sur `history_days=1` plutôt que sur le bloc temps réel du contrat amont.
 - Le rayon de recherche est dessiné comme un polygone à 72 côtés calculé en degrés : suffisant à l’échelle communale, ce n’est pas une géodésique exacte.
 - Pas de mode hors ligne, pas de persistance du point actif entre deux visites.
-- Le titre affiché et le manifeste annoncent encore « Terrain — OpenDataVal » : le nom **feu_val** n’est pas encore repris dans le code ni dans le libellé de la page d’accueil.
+- La page d’accueil générale du portail conserve ses propres libellés ; l’application de terrain et son manifeste utilisent désormais l’identité **valfeu**.
 
 ## Documentation liée
 

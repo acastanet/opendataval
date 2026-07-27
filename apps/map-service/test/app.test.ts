@@ -53,6 +53,21 @@ test("met en cache les tuiles IGN", async () => {
   await app.close();
 });
 
+test("sert une tuile transparente lorsque la couverture IGN est absente", async () => {
+  const absentFetch: typeof fetch = async () => new Response(null, { status: 404 });
+  const app = buildApp({ config, fetchImpl: absentFetch, logger: false });
+  const url = "/api/v2/map/tiles/plan/8/131/96.png";
+  const first = await app.inject({ method: "GET", url });
+  const second = await app.inject({ method: "GET", url });
+
+  assert.equal(first.statusCode, 200);
+  assert.equal(first.headers["content-type"], "image/png");
+  assert.equal(first.headers["x-cache"], "miss");
+  assert.ok(first.rawPayload.byteLength > 0);
+  assert.equal(second.headers["x-cache"], "hit");
+  await app.close();
+});
+
 test("refuse un chemin radar détourné", async () => {
   const app = buildApp({ config, fetchImpl, logger: false });
   const response = await app.inject({ method: "GET", url: "/api/v2/map/tiles/radar/2/1/1.png?path=https%3A%2F%2Fexample.org" });

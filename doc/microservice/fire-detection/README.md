@@ -16,6 +16,15 @@ GET /api/v2/fire/nearby?lat={latitude}&lon={longitude}&radius_km={1..50}&history
 GET /v1/fire/nearby?lat={latitude}&lon={longitude}&radius_km=50&history_days=7
 ```
 
+## Interface de terrain
+
+Le service alimente l’application mobile-first **valfeu**, servie sur
+`/valfeu/`. L’interface permet de choisir un point, rechercher les
+suspicions dans un rayon de 5 ou 50 km et consulter l’historique sur sept jours.
+
+La conception, les états d’interface et les procédures de diagnostic sont
+documentés dans [`../../application/feu-val/README.md`](../../application/feu-val/README.md).
+
 ## Contrôles
 
 ```bash

@@ -23,51 +23,65 @@ const failingFetch = (async () => {
   throw new Error("le rendu HTML ne doit appeler aucun service amont");
 }) as typeof fetch;
 
-test("GET /api/v2/app rend l'application mobile de terrain", async (t) => {
+test("GET /valfeu rend l'application mobile de terrain", async (t) => {
   const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
   t.after(() => app.close());
 
-  const response = await app.inject({ method: "GET", url: "/api/v2/app" });
+  const response = await app.inject({ method: "GET", url: "/valfeu" });
 
   assert.equal(response.statusCode, 200);
   assert.match(String(response.headers["content-type"]), /text\/html/);
   assert.ok(response.body.includes("viewport-fit=cover"));
-  assert.ok(response.body.includes('rel="manifest" href="/api/v2/app/manifest.webmanifest"'));
+  assert.ok(response.body.includes('rel="manifest" href="/valfeu/manifest.webmanifest"'));
   assert.ok(response.body.includes("44.081192"));
   assert.ok(response.body.includes("3.641467"));
-  for (const label of ["Mairie", "Ma position", "Feux", "Historique 7 j"]) {
+  for (const label of ["Mairie", "Ma position", "Rechercher les feux", "Historique 7 j"]) {
     assert.ok(response.body.includes(label), `l'application doit proposer ${label}`);
   }
   assert.ok(response.body.includes('href="tel:112"'));
+  assert.ok(response.body.includes('addEventListener("pointerdown"'));
+  assert.ok(response.body.includes("state.map.unproject"));
+  assert.ok(response.body.includes('timeZone: "Europe/Paris", timeZoneName: "short"'));
+  assert.doesNotMatch(response.body, /navigator\.vibrate/);
 });
 
-test("GET /api/v2/app/ est un alias de l'application", async (t) => {
+test("GET /valfeu/ est un alias de l'application", async (t) => {
+  const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/valfeu/" });
+
+  assert.equal(response.statusCode, 200);
+  assert.ok(response.body.includes("valfeu — Veille incendie"));
+});
+
+test("l'ancienne route de l'application redirige vers valfeu", async (t) => {
   const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
   t.after(() => app.close());
 
   const response = await app.inject({ method: "GET", url: "/api/v2/app/" });
 
-  assert.equal(response.statusCode, 200);
-  assert.ok(response.body.includes("Terrain — OpenDataVal"));
+  assert.equal(response.statusCode, 308);
+  assert.equal(response.headers.location, "/valfeu/");
 });
 
 test("le manifeste PWA reste sous le scope de l'application", async (t) => {
   const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
   t.after(() => app.close());
 
-  const response = await app.inject({ method: "GET", url: "/api/v2/app/manifest.webmanifest" });
+  const response = await app.inject({ method: "GET", url: "/valfeu/manifest.webmanifest" });
 
   assert.equal(response.statusCode, 200);
   assert.match(String(response.headers["content-type"]), /application\/manifest\+json/);
-  assert.equal(response.json().start_url, "/api/v2/app/");
-  assert.equal(response.json().scope, "/api/v2/app/");
+  assert.equal(response.json().start_url, "/valfeu/");
+  assert.equal(response.json().scope, "/valfeu/");
 });
 
 test("l'icône PWA est servie en SVG", async (t) => {
   const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
   t.after(() => app.close());
 
-  const response = await app.inject({ method: "GET", url: "/api/v2/app/icone.svg" });
+  const response = await app.inject({ method: "GET", url: "/valfeu/icone.svg" });
 
   assert.equal(response.statusCode, 200);
   assert.match(String(response.headers["content-type"]), /image\/svg\+xml/);
@@ -78,7 +92,7 @@ test("les ressources de l'application ne pointent vers aucun hôte externe", asy
   const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
   t.after(() => app.close());
 
-  const response = await app.inject({ method: "GET", url: "/api/v2/app" });
+  const response = await app.inject({ method: "GET", url: "/valfeu" });
 
   assert.doesNotMatch(response.body, /<script[^>]+src=["']https?:\/\//i);
   assert.doesNotMatch(response.body, /<link[^>]+href=["']https?:\/\//i);
@@ -88,7 +102,7 @@ test("les scripts inline de l'application sont syntaxiquement valides", async (t
   const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
   t.after(() => app.close());
 
-  const response = await app.inject({ method: "GET", url: "/api/v2/app" });
+  const response = await app.inject({ method: "GET", url: "/valfeu" });
   const scripts = [...response.body.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
     .map((match) => match[1] ?? "")
     .filter((script) => script.trim() !== "");
@@ -173,7 +187,7 @@ test("la carte n'est initialisée qu'une fois les scripts différés exécutés"
   const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
   t.after(() => app.close());
 
-  const response = await app.inject({ method: "GET", url: "/api/v2/app" });
+  const response = await app.inject({ method: "GET", url: "/valfeu" });
   const { element, maps, handlers, win, maplibregl } = runTerrainScripts(response.body);
 
   // Le script inline s'exécute pendant l'analyse du document : maplibregl n'existe pas encore
@@ -199,7 +213,7 @@ test("le repli conserve le conteneur de carte et propose un réessai", async (t)
   const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
   t.after(() => app.close());
 
-  const response = await app.inject({ method: "GET", url: "/api/v2/app" });
+  const response = await app.inject({ method: "GET", url: "/valfeu" });
   const { element, maps, handlers } = runTerrainScripts(response.body);
 
   // maplibregl reste indisponible : le repli s'affiche sans détruire l'élément #map,

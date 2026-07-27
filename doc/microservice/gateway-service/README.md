@@ -16,9 +16,9 @@ Il conserve aussi un pont temporaire en lecture seule vers le monolithe historiq
 |---|---|---|
 | `/api/v2` | Page d’accueil HTML : présente les microservices et l’état live | `GET` |
 | `/api/v2/demo/:service` | Page de démo interactive d’un microservice (formulaire → appel réel) | `GET` |
-| `/api/v2/app`, `/api/v2/app/` | Application mobile Terrain (carte, position, suspicions satellitaires) | `GET` |
-| `/api/v2/app/manifest.webmanifest` | Manifeste installable de l’application Terrain | `GET` |
-| `/api/v2/app/icone.svg` | Icône SVG de l’application Terrain | `GET` |
+| `/valfeu`, `/valfeu/` | Application mobile valfeu (carte, position, suspicions satellitaires) | `GET` |
+| `/valfeu/manifest.webmanifest` | Manifeste installable de l’application valfeu | `GET` |
+| `/valfeu/icone.svg` | Icône SVG de l’application valfeu | `GET` |
 | `/api/v2/status` | État agrégé léger de chaque service (alimente les pages) | `GET` |
 | `/health` | Vie du processus gateway | `GET` |
 | `/ready` | Gateway prêt et API historique joignable sur `/api/health` | `GET` |
@@ -171,8 +171,8 @@ Retirer le service ou un proxy v2 ne modifie pas les routes historiques `/api/*`
 Le gateway sert aussi sa propre façade HTML (styles et scripts inline, sans fichier statique ni bundler), compatible avec le CSP appliqué par Caddy :
 
 - `/api/v2` : accueil listant les microservices (rôle, route, badge d’état) avec un lien vers chaque démo ;
-- `/api/v2/app/` : **feu_val**, application de terrain mobile-first, indépendante de `apps/web`, qui compose Map, Geography et Fire Detection autour d’un point actif — voir [`../../application/feu-val/README.md`](../../application/feu-val/README.md) ;
-- `/api/v2/app/manifest.webmanifest` et `/api/v2/app/icone.svg` : ressources PWA installables. Aucun service worker ni cache hors ligne n’est enregistré afin de conserver les données satellite fraîches. Sur iOS, l’ajout à l’écran d’accueil fonctionne, mais Safari n’utilise pas l’icône SVG sans `apple-touch-icon` PNG (hors périmètre) ;
+- `/valfeu/` : **valfeu**, application de terrain mobile-first, indépendante de `apps/web`, qui compose Map, Geography et Fire Detection autour d’un point actif — voir [`../../application/feu-val/README.md`](../../application/feu-val/README.md) ;
+- `/valfeu/manifest.webmanifest` et `/valfeu/icone.svg` : ressources PWA installables. Aucun service worker ni cache hors ligne n’est enregistré afin de conserver les données satellite fraîches. Sur iOS, l’ajout à l’écran d’accueil fonctionne, mais Safari n’utilise pas l’icône SVG sans `apple-touch-icon` PNG (hors périmètre) ;
 - `/api/v2/demo/:service` : démonstration interactive d’un service (formulaire pré-rempli sur Val-d’Aigoual → appel réel de la route publique → affichage du résultat). Le résultat s’affiche sous deux onglets : une **synthèse lisible** (« Résultat ») et le **JSON brut**. Pour les services géographiques (champs `lat`/`lon` : geography, weather, vigilance, fire), la page ajoute un bouton **« Me localiser »** (`navigator.geolocation`) et une **carte Leaflet** (marqueur, clic pour saisir les coordonnées, cercle du rayon et marqueurs des détections pour fire) ;
 - `/api/v2/status` : sonde d’état légère, dédiée à ces pages, qui interroge en parallèle la santé de chaque microservice et renvoie `{ generatedAt, version, services: [{ id, name, status, latencyMs }] }`. Elle ne relaie aucun corps amont ni secret, et ne renvoie jamais de 5xx.
 
@@ -191,6 +191,6 @@ Pas d’authentification, de cache, de Redis ou file de messages, de gRPC, de ci
 - Weather Service : [`../weather-service/README.md`](../weather-service/README.md)
 - Weather Vigilance : [`../weather-vigilance/README.md`](../weather-vigilance/README.md)
 - Détection incendie : [`../fire-detection/README.md`](../fire-detection/README.md)
-- Application feu_val : [`../../application/feu-val/README.md`](../../application/feu-val/README.md)
+- Application valfeu : [`../../application/feu-val/README.md`](../../application/feu-val/README.md)
 - Architecture globale : [`../../architecture/ARCHITECTURE-GENERALE.md`](../../architecture/ARCHITECTURE-GENERALE.md)
 - Conception v2 : [`../../architecture/conception-v2/`](../../architecture/conception-v2/)
