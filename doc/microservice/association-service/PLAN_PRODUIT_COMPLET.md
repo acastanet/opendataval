@@ -3,17 +3,16 @@
 > Statut : cible fonctionnelle et technique après validation du MVP
 > Périmètre : France, recherche nationale et usages territoriaux
 > Architecture cible : service métier indépendant, PostgreSQL/PostGIS, synchronisations multi-sources
-> Sources vérifiées le 27 juillet 2026
 
 ## 1. Vision du produit
 
 Construire le référentiel territorial des associations d’OpenDataVal.
 
-Le produit complet doit permettre de trouver, comprendre, comparer et cartographier les associations présentes dans un territoire, tout en distinguant clairement :
+Le produit complet doit permettre de trouver, comprendre, comparer et cartographier les associations présentes dans un territoire, tout en distinguant :
 
 - l’existence juridique ;
 - le statut administratif ;
-- le siège déclaré ;
+- le siège officiel ;
 - les établissements connus ;
 - le territoire d’action déclaré ou confirmé ;
 - les signes récents d’activité ;
@@ -27,12 +26,12 @@ Le service reste un service de données. Il ne devient ni un réseau social, ni 
 2. **SIRENE complète le RNA**, mais ne remplace pas les associations sans SIREN/SIRET.
 3. **Le JOAFE représente des événements**, pas une photographie consolidée.
 4. **Une association active administrativement n’est pas nécessairement active localement.**
-5. **Le siège n’est pas toujours le lieu d’activité.**
-6. **Chaque valeur importante doit conserver sa provenance.**
-7. **Les données personnelles ne sont pas un produit.**
-8. **La cartographie précise n’est publiée que lorsque le lieu est professionnel, public ou validé.**
-9. **Les corrections locales ne doivent jamais écraser silencieusement la source nationale.**
-10. **Le service doit continuer à répondre avec le dernier état valide lorsque les producteurs sont indisponibles.**
+5. **Le siège officiel n’est pas toujours le lieu d’activité.**
+6. **Chaque donnée importante conserve sa provenance et sa date.**
+7. **Les adresses officiellement publiées peuvent être reprises, géocodées et cartographiées.**
+8. **Le service n’ajoute pas de coordonnées personnelles provenant de sources non officielles.**
+9. **Les corrections locales ne remplacent jamais silencieusement la source nationale.**
+10. **Le dernier état valide reste disponible lorsque les producteurs externes sont indisponibles.**
 
 ## 3. Périmètre fonctionnel complet
 
@@ -48,17 +47,18 @@ Le service reste un service de données. Il ne devient ni un réseau social, ni 
 - filtre par date de création, modification ou dissolution ;
 - fiche consolidée avec sources et dates ;
 - historique des changements connus ;
-- liste des établissements publics connus ;
+- liste des établissements connus ;
 - affichage des communes et territoires d’action confirmés.
 
 ### Cartographie
 
-- points précis pour les établissements SIRET géocodés ;
-- points précis pour les lieux publics vérifiés ;
-- points au centroïde communal pour les sièges potentiellement résidentiels ;
+- position précise du siège lorsqu’une adresse officielle est exploitable ;
+- position précise des établissements SIRET ;
+- position des lieux publics d’activité confirmés ;
+- repli sur la rue ou le centroïde communal en cas de géocodage insuffisant ;
 - clusters et agrégations par maille ;
 - filtres cartographiques par catégorie et statut ;
-- export GeoJSON ;
+- route GeoJSON dédiée à l’affichage ;
 - styles et légendes servis par `map-service` ;
 - logique métier conservée dans `association-service`.
 
@@ -70,55 +70,55 @@ Le service reste un service de données. Il ne devient ni un réseau social, ni 
 - répartition par catégorie ;
 - ancienneté médiane ;
 - part disposant d’un SIREN/SIRET ;
-- part avec établissement employeur lorsque l’information est disponible ;
+- part avec établissement employeur lorsque l’information est publique ;
 - part avec activité locale confirmée ;
 - évolution par commune, EPCI, département et région ;
 - comparaison avec des territoires de référence.
 
-Les statistiques doivent toujours afficher les limites de couverture et la date des sources.
+Les statistiques affichent toujours leur date de référence et les limites de couverture.
 
 ### Validation locale
 
 - interface réservée aux collectivités ou administrateurs ;
 - confirmation qu’une association exerce encore une activité locale ;
 - ajout d’un lieu public d’activité ;
-- ajout d’un site web ou d’une page officielle ;
+- ajout d’un site web officiel ;
 - signalement d’une donnée obsolète ;
 - ajout d’une note publique structurée ;
-- journal d’audit complet ;
-- date d’expiration automatique des validations locales ;
-- possibilité de contredire localement une donnée sans modifier la valeur source.
+- journal d’audit ;
+- date d’expiration des validations locales ;
+- possibilité de compléter une donnée sans effacer la valeur source.
 
 ### Contribution associative facultative
 
-- demande de revendication d’une fiche ;
-- vérification par courriel de domaine, document ou validation locale ;
+- revendication d’une fiche ;
+- vérification de la demande ;
 - mise à jour de données non juridiques : site web, domaines d’action, lieux publics, horaires, territoire couvert ;
 - aucune modification directe des champs juridiques issus du RNA ou de SIRENE ;
-- conservation de la source `association_declared` et de la date de confirmation.
+- conservation de la source déclarative et de la date de confirmation.
+
+### Fonctions non retenues
+
+- module d’export CSV ou archive téléchargeable ;
+- duplication des jeux de données nationaux déjà téléchargeables sur data.gouv.fr ;
+- gestion des adhérents, cotisations ou activités internes ;
+- diffusion de coordonnées collectées hors des sources officielles.
+
+Les réponses JSON et la route GeoJSON cartographique suffisent aux usages de l’application.
 
 ## 4. Sources et rôle de chacune
 
 | Source | Rôle | Mode d’intégration | Autorité |
 |---|---|---|---|
-| RNA agrégé data.gouv.fr | identité, objet, statut, dates, siège déclaré | import complet Parquet | principale pour les associations loi 1901 |
-| Répertoire SIRENE | SIREN/SIRET, établissements, activité APE, état administratif | fichiers ou API autorisée | principale pour les établissements |
+| RNA agrégé data.gouv.fr | identité, objet, statut, dates et siège déclaré | import complet Parquet | principale pour les associations loi 1901 |
+| Répertoire SIRENE | SIREN/SIRET, établissements, activité APE et état administratif | fichiers ou API autorisée | principale pour les établissements |
 | API Recherche d’Entreprises | recherche et géolocalisation complémentaire | API publique avec cache | complémentaire |
-| API Association en open data | fiche consolidée RNA/SIRENE lorsque l’accès est disponible | API avec jeton et quotas | enrichissement |
-| JOAFE | créations, modifications, dissolutions et annonces | API ou fichiers d’événements | historique événementiel |
+| API Association en open data | fiche consolidée RNA/SIRENE lorsque disponible | API avec cache | enrichissement |
+| JOAFE | créations, modifications et dissolutions | API ou fichiers d’événements | historique événementiel |
 | Référentiels INSEE/geo.api.gouv.fr | communes, EPCI, départements, régions et évolutions géographiques | import versionné | autorité territoriale |
-| Géocodage Géoplateforme | géocodage d’adresses autorisées | traitement par lots avec cache | localisation technique |
+| Géocodage Géoplateforme | coordonnées des adresses officielles | traitement par lots avec cache | localisation technique |
 | Validation locale | présence et activité territoriale confirmées | interface authentifiée | complément local daté |
 | Déclaration associative | site, lieux publics et domaines d’action | contribution vérifiée | complément déclaratif daté |
-
-Références officielles :
-
-- RNA agrégé : `https://www.data.gouv.fr/datasets/rna-agrege-a-lechelle-nationale`
-- JOAFE et API : `https://www.journal-officiel.gouv.fr/pages/donnees-ouvertes-et-api/`
-- API Association : `https://entreprise.api.gouv.fr/catalogue/djepva/associations_open_data`
-- API Recherche d’Entreprises : `https://recherche-entreprises.api.gouv.fr/docs/`
-- référentiels géographiques : `https://geo.api.gouv.fr/`
-- documentation Adresse : `https://doc.adresse.data.gouv.fr/`
 
 ## 5. Architecture cible
 
@@ -131,12 +131,12 @@ flowchart LR
   SearchAPI[API Recherche Entreprises] --> Enrich
   Raw --> Normalize[Normalisation et rapprochement]
   Enrich --> Normalize
-  Normalize --> DB[(PostgreSQL / PostGIS)]
+  Normalize --> Geocode[Géocodage officiel]
+  Geocode --> DB[(PostgreSQL / PostGIS)]
   DB --> Service[association-service]
   Gateway[gateway-service] --> Service
   Service --> Map[map-service]
   Admin[Console de validation] --> Service
-  Service --> Export[JSON / CSV / GeoJSON]
 ```
 
 ### Composants
@@ -144,106 +144,109 @@ flowchart LR
 - `apps/association-service/` : API publique et interne ;
 - `workers/association-sync/` : imports complets et incrémentaux ;
 - PostgreSQL 16 / PostGIS ;
-- stockage objet ou volume versionné pour les fichiers sources ;
-- file de travaux légère pour géocodage et enrichissements ;
-- cache Redis facultatif uniquement si le trafic le justifie ;
+- stockage versionné pour les fichiers sources ;
+- file de travaux pour le géocodage et les enrichissements ;
+- cache Redis facultatif si le trafic le justifie ;
 - console d’administration séparée ;
 - métriques Prometheus et journaux structurés.
 
 ### Séparation des responsabilités
 
 - `gateway-service` valide et route ;
-- `association-service` possède la logique métier et les contrats ;
-- `geography-service` résout les territoires et les géométries ;
+- `association-service` possède les données et la logique métier ;
+- `geography-service` résout les territoires et géométries ;
 - `map-service` fournit styles, tuiles, glyphes et légendes ;
 - les workers importent les sources sans exposer de route publique.
 
 ## 6. Modèle de données cible
 
-### Tables principales
+### `associations`
 
-#### `associations`
+- identifiant UUID interne ;
+- numéro RNA ;
+- identifiant historique éventuel ;
+- SIREN éventuel ;
+- titre, sigle et objet ;
+- statut administratif ;
+- dates de création, déclaration et dissolution ;
+- régime juridique ;
+- référence vers l’enregistrement source courant.
 
-- `id` UUID interne ;
-- `rna_id` unique nullable ;
-- `legacy_rna_id` nullable ;
-- `siren` nullable ;
-- `title`, `short_title`, `purpose` ;
-- `administrative_status` ;
-- `creation_date`, `declaration_date`, `dissolution_date` ;
-- `legal_regime` ;
-- `recognized_public_utility` nullable ;
-- `current_source_record_id` ;
-- timestamps techniques.
+### `association_categories`
 
-#### `association_categories`
-
-- catégorie source principale ;
-- catégorie source secondaire ;
+- catégorie RNA principale ;
+- catégorie RNA secondaire ;
 - catégorie OpenDataVal normalisée ;
-- méthode de classement : `source`, `rule`, `manual` ;
+- méthode de classement ;
 - score de confiance.
 
-#### `establishments`
+### `official_addresses`
+
+- adresse officielle originale ;
+- adresse normalisée ;
+- code postal ;
+- commune source ;
+- commune normalisée ;
+- source et date ;
+- état courant ou historique.
+
+### `association_locations`
+
+- type : siège, établissement, lieu d’activité ou territoire couvert ;
+- géométrie ;
+- précision : adresse, rue ou commune ;
+- score de géocodage ;
+- source ;
+- date de confirmation.
+
+### `establishments`
 
 - SIRET ;
 - état administratif ;
 - activité APE ;
 - siège ou établissement secondaire ;
-- effectif par tranche lorsqu’il est public ;
-- adresse de travail ;
+- tranche d’effectif lorsqu’elle est publique ;
+- adresse officielle ;
 - géométrie et précision.
 
-#### `association_locations`
-
-- type : siège, établissement, lieu d’activité, commune couverte ;
-- géométrie ;
-- précision ;
-- visibilité publique ;
-- source ;
-- date de confirmation ;
-- date d’expiration.
-
-#### `territorial_links`
+### `territorial_links`
 
 - association ;
-- type de territoire ;
-- code territoire ;
-- nature du lien : siège, établissement, activité déclarée, activité confirmée ;
-- source et confiance.
+- type et code du territoire ;
+- nature du lien : siège, établissement, activité déclarée ou activité confirmée ;
+- source et niveau de confiance.
 
-#### `association_events`
+### `association_events`
 
-- type : création, modification, transfert, dissolution, publication de comptes ;
+- création, modification, transfert ou dissolution ;
 - date ;
 - source JOAFE ou autre ;
-- payload original référencé ;
+- référence vers le contenu source ;
 - empreinte de déduplication.
 
-#### `source_records`
+### `source_records`
 
 - producteur ;
 - fichier, ressource ou endpoint ;
 - identifiant externe ;
-- contenu brut ou référence vers le stockage brut ;
+- référence vers le contenu brut ;
 - date source ;
 - date d’import ;
 - empreinte ;
 - statut de traitement.
 
-#### `local_validations`
+### `local_validations`
 
 - association ;
 - champ validé ;
 - valeur ;
 - collectivité ou compte validateur ;
-- justificatif facultatif ;
 - date de validation ;
 - date d’expiration ;
 - statut ;
 - journal d’audit.
 
-#### `sync_runs`
+### `sync_runs`
 
 - source ;
 - début et fin ;
@@ -257,26 +260,26 @@ flowchart LR
 
 ### Règles fortes
 
-- même `rna_id` : même association ;
-- même `siren` confirmé par la source : même association économique ;
-- même `siret` : même établissement ;
+- même numéro RNA : même association ;
+- même SIREN confirmé : même association économique ;
+- même SIRET : même établissement ;
 - les identifiants officiels ne sont jamais recalculés.
 
 ### Règles prudentes
 
-Un rapprochement par titre, adresse ou objet ne doit jamais fusionner automatiquement deux associations sans identifiant commun.
+Un rapprochement par titre, adresse ou objet ne fusionne jamais automatiquement deux associations sans identifiant officiel commun.
 
-Les correspondances probabilistes sont stockées comme candidats :
+Les rapprochements incertains sont enregistrés comme candidats avec :
 
-- `candidate_match` ;
 - score ;
 - motifs ;
-- décision automatique interdite au-dessus d’un risque défini ;
-- validation manuelle possible.
+- sources comparées ;
+- statut de décision ;
+- validation manuelle éventuelle.
 
 ### Communes nouvelles
 
-Un référentiel historique versionné doit gérer :
+Un référentiel historique versionné gère :
 
 - fusions ;
 - créations ;
@@ -285,29 +288,31 @@ Un référentiel historique versionné doit gérer :
 - communes déléguées ;
 - dates de validité.
 
-Chaque enregistrement conserve le territoire source et le territoire courant normalisé.
+Chaque fiche conserve le territoire source et le territoire courant normalisé.
 
-## 8. Politique de localisation
+## 8. Politique de géocodage
 
 ### Niveaux de précision
 
-| Niveau | Publication | Usage |
-|---|---|---|
-| `exact_establishment` | oui | établissement SIRET ou lieu public |
-| `verified_public_place` | oui | salle, équipement ou local confirmé |
-| `street_generalized` | exceptionnel | adresse professionnelle sans point fiable |
-| `municipality_centroid` | oui | siège potentiellement résidentiel |
-| `territory_only` | oui | territoire d’action sans adresse |
-| `unknown` | non cartographié | information insuffisante |
+| Niveau | Usage |
+|---|---|
+| `exact_address` | adresse officielle correctement géocodée |
+| `exact_establishment` | établissement SIRET correctement géocodé |
+| `verified_public_place` | lieu d’activité confirmé |
+| `street` | adresse partiellement résolue |
+| `municipality` | repli au centroïde communal |
+| `unknown` | absence de position exploitable |
 
-### Géocodage
+### Règles
 
-- utiliser le service de géocodage de la Géoplateforme, et non l’ancienne API Adresse dépréciée ;
-- géocoder seulement les adresses autorisées ;
-- stocker la réponse, le score et la version du géocodeur ;
+- utiliser le service officiel de géocodage de la Géoplateforme ;
+- géocoder les adresses officielles publiées par les sources ;
+- conserver la valeur source, la valeur normalisée, le score et la précision ;
 - ne pas relancer les adresses inchangées ;
 - limiter les appels et reprendre après erreur ;
-- refuser les résultats hors de la commune attendue sans validation.
+- contrôler la cohérence entre résultat géocodé et commune attendue ;
+- utiliser le centroïde communal en dernier recours ;
+- permettre la correction locale d’une position erronée sans supprimer la donnée source.
 
 ## 9. API cible
 
@@ -339,7 +344,7 @@ GET /api/v2/associations/{rnaOrSiren}/timeline
 GET /api/v2/associations/{rnaOrSiren}/sources
 ```
 
-### Territoires
+### Territoires et cartographie
 
 ```http
 GET /api/v2/associations/territories/{type}/{code}
@@ -347,14 +352,7 @@ GET /api/v2/associations/stats/{type}/{code}
 GET /api/v2/associations/map/{type}/{code}
 ```
 
-### Exports
-
-```http
-GET /api/v2/associations/export?format=csv&code_insee=30339
-GET /api/v2/associations/export?format=geojson&department=30
-```
-
-Les exports volumineux sont produits de façon asynchrone côté serveur avec un fichier temporaire signé. Cette mécanique ne doit pas être utilisée pour les réponses ordinaires.
+La route `map` retourne un GeoJSON optimisé pour l’application. Elle ne constitue pas un système d’export documentaire.
 
 ### Routes internes
 
@@ -375,8 +373,7 @@ Toutes les routes internes sont authentifiées, auditées et inaccessibles depui
 - index PostgreSQL `tsvector` en français ;
 - index trigramme pour titres proches ;
 - normalisation des apostrophes, tirets, accents et sigles ;
-- pondération : titre, sigle, catégories, objet ;
-- surbrillance des termes ;
+- pondération du titre, du sigle, des catégories et de l’objet ;
 - pagination par curseur.
 
 ### Catégorisation
@@ -385,15 +382,15 @@ Ordre de priorité :
 
 1. catégories RNA ;
 2. activité APE des établissements ;
-3. règles transparentes sur l’objet ;
+3. règles transparentes appliquées à l’objet ;
 4. validation locale ou associative ;
-5. classification automatique seulement comme suggestion.
+5. classification automatique uniquement comme suggestion.
 
-Toute catégorie calculée doit exposer sa méthode et son niveau de confiance.
+Toute catégorie calculée expose sa méthode et son niveau de confiance.
 
 ## 11. Indicateurs de qualité
 
-Chaque fiche reçoit des indicateurs séparés, et non une note opaque unique :
+Chaque fiche expose des indicateurs séparés :
 
 - `identity_quality` ;
 - `status_freshness` ;
@@ -402,33 +399,38 @@ Chaque fiche reçoit des indicateurs séparés, et non une note opaque unique :
 - `source_completeness` ;
 - `last_confirmed_at`.
 
-Exemples :
+Exemple :
 
-- `administrative_status = active` ;
-- `local_activity = unknown` ;
-- `location_precision = municipality` ;
-- `last_confirmed_at = null`.
+```json
+{
+  "administrative_status": "active",
+  "local_activity": "unknown",
+  "location_precision": "exact_address",
+  "last_confirmed_at": null
+}
+```
 
-Le client ne doit jamais présenter `active` comme synonyme de « propose actuellement des activités ».
+Le client ne présente jamais `active` comme synonyme de « propose actuellement des activités ».
 
 ## 12. Fraîcheur, synchronisation et historique
 
-### Pipeline en trois niveaux
+### Pipeline
 
 1. **Brut** : fichiers originaux, métadonnées et empreintes ;
 2. **Normalisé** : schéma commun sans perte de provenance ;
-3. **Public** : vue filtrée, sécurisée et optimisée pour l’API.
+3. **Public** : vue optimisée pour l’API.
 
 ### Stratégie
 
 - import complet périodique du RNA ;
-- import complet ou différentiel de SIRENE selon le canal choisi ;
+- import complet ou différentiel de SIRENE ;
 - ingestion régulière des événements JOAFE ;
 - enrichissements API mis en cache ;
+- géocodage différentiel ;
 - réconciliation complète périodique ;
 - historisation des changements significatifs ;
 - remplacement transactionnel de la vue publique ;
-- possibilité de rejouer un import à partir des fichiers bruts.
+- possibilité de rejouer un import depuis les fichiers bruts.
 
 ### Résilience
 
@@ -436,21 +438,32 @@ Le client ne doit jamais présenter `active` comme synonyme de « propose actuel
 - reprise sur erreur ;
 - quotas par source ;
 - temporisation exponentielle ;
-- file morte pour les enregistrements invalides ;
+- file d’erreurs pour les enregistrements invalides ;
 - conservation de la dernière vue publique valide ;
-- alertes en cas de retard ou baisse anormale du volume.
+- alertes en cas de retard ou de baisse anormale du volume.
 
-## 13. Confidentialité et sécurité
+## 13. Données et sécurité
 
-### Données exclues de l’API publique
+### Données publiques
 
-- identité des dirigeants ;
-- documents contenant des données personnelles ;
-- courriels et téléphones personnels ;
-- adresse précise d’un siège résidentiel ;
-- justificatifs de validation ;
-- informations non diffusibles de SIRENE ;
-- données issues d’un accès administratif non autorisées à la rediffusion.
+Le service peut diffuser :
+
+- l’identité officielle de l’association ;
+- son objet ;
+- son statut ;
+- les dates officielles ;
+- l’adresse du siège officiellement publiée ;
+- les établissements SIRET publics ;
+- les sites web et lieux publics validés ;
+- la géolocalisation issue de ces adresses.
+
+### Données exclues
+
+- informations obtenues par un accès administratif non rediffusable ;
+- justificatifs internes ;
+- secrets d’API ;
+- coordonnées ajoutées depuis une source non officielle sans validation ;
+- données internes de modération.
 
 ### Mesures techniques
 
@@ -459,10 +472,8 @@ Le client ne doit jamais présenter `active` comme synonyme de « propose actuel
 - chiffrement des secrets ;
 - rotation des jetons ;
 - limitation de débit ;
-- protection contre l’énumération massive ;
-- journaux sans données personnelles ;
-- audit des validations et contributions ;
-- suppression et expiration des données contributives devenues inutiles.
+- journaux sans contenus bruts inutiles ;
+- audit des validations et contributions.
 
 ## 14. Console de validation
 
@@ -471,11 +482,11 @@ Le client ne doit jamais présenter `active` comme synonyme de « propose actuel
 - recherche d’une association ;
 - comparaison source nationale / donnée locale ;
 - confirmation d’activité ;
+- correction d’une géolocalisation ;
 - ajout d’un lieu public ;
 - signalement d’une incohérence ;
 - validation ou refus d’une contribution ;
 - affichage de l’historique ;
-- export des modifications ;
 - expiration et renouvellement des validations.
 
 ### Rôles
@@ -497,15 +508,15 @@ Les droits territoriaux doivent être explicites et testés.
 - lignes rejetées ;
 - rapprochements ambigus ;
 - taux de géocodage ;
+- précision moyenne des positions ;
 - appels et erreurs des API externes ;
 - temps de réponse par route ;
 - taux de cache ;
-- exports générés ;
 - validations expirées.
 
 ### Journaux
 
-Tous les journaux sont structurés et contiennent :
+Les journaux structurés contiennent :
 
 - `request_id` ;
 - service et version ;
@@ -513,8 +524,7 @@ Tous les journaux sont structurés et contiennent :
 - opération ;
 - durée ;
 - statut ;
-- erreur normalisée ;
-- aucun contenu personnel brut.
+- erreur normalisée.
 
 ## 16. Plan de réalisation
 
@@ -522,7 +532,7 @@ Tous les journaux sont structurés et contiennent :
 
 - migrer le snapshot MVP vers une table d’import ;
 - conserver les contrats publics existants ;
-- ajouter migrations SQL et PostGIS ;
+- ajouter les migrations SQL et PostGIS ;
 - importer plusieurs communes pilotes ;
 - valider les performances.
 
@@ -538,15 +548,15 @@ Tous les journaux sont structurés et contiennent :
 
 - rapprocher RNA et SIRENE par identifiants officiels ;
 - ajouter établissements et activités APE ;
-- intégrer les coordonnées géographiques autorisées ;
-- publier les lieux précis seulement selon la politique de confidentialité.
+- géocoder les adresses officielles ;
+- distinguer siège et établissements.
 
 ### Phase 4 — JOAFE et historique
 
 - ingérer les annonces ;
 - construire la chronologie ;
 - détecter les changements ;
-- mettre en place la réconciliation avec le prochain import RNA complet.
+- réconcilier les événements avec le prochain import RNA complet.
 
 ### Phase 5 — Validation locale
 
@@ -557,20 +567,19 @@ Tous les journaux sont structurés et contiennent :
 
 ### Phase 6 — Contributions associatives
 
-- revendication de fiche ;
-- vérification ;
-- contribution sur les données non juridiques ;
-- modération ;
-- gestion des retraits et expirations.
+- permettre la revendication de fiche ;
+- vérifier les demandes ;
+- accepter les contributions sur les données non juridiques ;
+- mettre en place la modération ;
+- gérer les retraits et expirations.
 
 ### Phase 7 — Généralisation
 
-- optimisation nationale ;
-- exports volumineux ;
-- documentation publique ;
-- supervision et objectifs de service ;
-- tests de charge ;
-- ouverture progressive à d’autres territoires.
+- optimiser la recherche nationale ;
+- publier la documentation publique ;
+- renforcer la supervision ;
+- exécuter les tests de charge ;
+- ouvrir progressivement à d’autres territoires.
 
 ## 17. Tests obligatoires
 
@@ -583,8 +592,8 @@ Tous les journaux sont structurés et contiennent :
 - changements de code ;
 - doublons JOAFE ;
 - réconciliation RNA/SIRENE ;
-- précision géographique ;
-- suppression des champs interdits.
+- normalisation des adresses ;
+- cohérence du géocodage.
 
 ### API
 
@@ -593,8 +602,7 @@ Tous les journaux sont structurés et contiennent :
 - recherche accentuée ;
 - filtres territoriaux ;
 - statistiques reproductibles ;
-- GeoJSON valide ;
-- exports conformes ;
+- GeoJSON cartographique valide ;
 - propagation de `x-request-id` ;
 - erreurs normalisées.
 
@@ -602,21 +610,19 @@ Tous les journaux sont structurés et contiennent :
 
 - contrôle des rôles ;
 - isolation territoriale ;
-- absence de données personnelles dans les journaux ;
+- absence de secrets dans les journaux ;
 - limitation de débit ;
-- tentative d’énumération ;
-- accès impossible aux routes internes depuis Caddy ;
-- contrôle des fichiers d’export.
+- accès impossible aux routes internes depuis Caddy.
 
 ### Exploitation
 
 - restauration après redémarrage ;
 - reprise d’un import interrompu ;
-- rollback de la vue publique ;
+- retour à la vue publique précédente ;
 - indisponibilité d’une source ;
 - dépassement de quota ;
 - corruption d’un fichier ;
-- migrations avant et arrière compatibles avec la stratégie de déploiement.
+- migrations compatibles avec la stratégie de déploiement.
 
 ## 18. Critères d’acceptation du produit complet
 
@@ -627,7 +633,7 @@ Le produit est considéré complet lorsque :
 - RNA, SIRENE et JOAFE sont rapprochés sans fusion probabiliste silencieuse ;
 - chaque donnée importante expose sa source et sa date ;
 - les communes nouvelles et anciennes géographies sont correctement résolues ;
-- les lieux précis respectent la politique de confidentialité ;
+- les adresses officielles sont restituées et géocodées avec leur précision ;
 - les statistiques sont reproductibles ;
 - les validations locales sont auditées et expirables ;
 - une source externe indisponible ne provoque pas la perte de la dernière vue valide ;
@@ -636,24 +642,24 @@ Le produit est considéré complet lorsque :
 
 ## 19. Migration depuis le MVP
 
-La migration doit rester progressive :
+La migration reste progressive :
 
 1. conserver les routes MVP ;
 2. importer le snapshot dans PostgreSQL ;
 3. comparer les réponses JSON avant bascule ;
 4. activer la base par drapeau de fonctionnalité ;
-5. conserver un rollback vers le snapshot ;
+5. conserver un retour possible vers le snapshot ;
 6. ajouter les nouvelles sources une par une ;
-7. ne publier aucune précision géographique supplémentaire avant validation de la politique de confidentialité.
+7. comparer les positions géographiques avant publication.
 
-Le MVP reste donc un sous-ensemble contractuel du produit complet, et non un prototype jetable.
+Le MVP reste un sous-ensemble contractuel du produit complet et non un prototype jetable.
 
 ## 20. Risques principaux
 
 | Risque | Réponse |
 |---|---|
 | association active mais inactive localement | distinguer statut administratif et activité confirmée |
-| siège résidentiel publié sur une carte | généraliser au centroïde communal |
+| géocodage erroné d’une adresse officielle | conserver score, précision et commune attendue |
 | fusion erronée de deux associations | identifiants officiels obligatoires pour fusion automatique |
 | données anciennes après fusion de communes | référentiel historique versionné |
 | dépendance à une API avec jeton | import RNA autonome et enrichissements facultatifs |
@@ -661,11 +667,10 @@ Le MVP reste donc un sous-ensemble contractuel du produit complet, et non un pro
 | catégories imprécises | exposer source, méthode et confiance |
 | corrections locales non traçables | journal d’audit et expiration |
 | volumétrie nationale | PostgreSQL/PostGIS, index et pagination par curseur |
-| exposition de données personnelles | vue publique en liste blanche et tests automatisés |
 
 ## 21. Décision recommandée
 
-Commencer par le MVP Val-d’Aigoual, valider la qualité du RNA et les règles de confidentialité, puis étendre dans cet ordre :
+Commencer par le MVP Val-d’Aigoual, valider la qualité du RNA et du géocodage, puis étendre dans cet ordre :
 
 1. couverture RNA nationale ;
 2. historique territorial ;
@@ -674,4 +679,4 @@ Commencer par le MVP Val-d’Aigoual, valider la qualité du RNA et les règles 
 5. validation locale ;
 6. contributions associatives.
 
-Cette progression maintient un service utile à chaque étape et évite de transformer immédiatement un annuaire simple en plateforme administrative complexe.
+Cette progression maintient un service utile à chaque étape sans transformer immédiatement un annuaire simple en plateforme administrative complexe.
