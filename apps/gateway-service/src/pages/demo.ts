@@ -27,23 +27,99 @@ const MAPLIBRE_HEAD = `<link rel="stylesheet" href="/api/v2/map/vendor/maplibre-
 const MAP_DEMO_SCRIPT = `
 (function () {
   var select = document.getElementById("map-style");
+  var fond = document.getElementById("map-fond");
+  var geologie = document.getElementById("map-geologie");
+  var relief = document.getElementById("map-relief");
+  var exageration = document.getElementById("map-exageration");
+  var exagerationValue = document.getElementById("map-exageration-value");
   var mapEl = document.getElementById("map");
   var status = document.getElementById("map-status");
   var url = document.getElementById("map-style-url");
-  if (!select || !mapEl || !status || !url) return;
+  var description = document.getElementById("map-style-description");
+  var reset = document.getElementById("map-reset");
+  var styleJson = document.getElementById("map-style-json");
+  var styleHttp = document.getElementById("map-style-http");
+  var legendSelect = document.getElementById("map-legend");
+  var legendOut = document.getElementById("map-legend-result");
+  var activity = document.getElementById("map-activity");
+  if (!select || !fond || !geologie || !relief || !exageration || !mapEl || !status || !url) return;
 
-  function styleUrl() { return "/api/v2/map/styles/" + encodeURIComponent(select.value) + ".json"; }
+  var descriptions = {
+    plan: "Fond Plan IGN minimal, avec glyphes servis localement.",
+    territoire: "Plan, photographie aérienne, satellite et géologie : les fonds complémentaires peuvent être activés ici.",
+    relief: "Style Territoire enrichi du relief PMTiles, de l’ombrage et du terrain 3D.",
+    hypsometrique: "Palette d’altitude, ombrage et terrain 3D pour lire la topographie.",
+  };
+  var map = null;
+
+  function styleUrl() {
+    var params = new URLSearchParams();
+    params.set("fond", fond.value);
+    if (geologie.checked) params.set("geologie", "true");
+    if (relief.checked) { params.set("relief", "true"); params.set("terrain", "true"); }
+    params.set("exageration", exageration.value);
+    return "/api/v2/map/styles/" + encodeURIComponent(select.value) + ".json?" + params.toString();
+  }
   function showUrl() { url.textContent = "GET " + styleUrl(); }
+  function showDescription() { if (description) description.textContent = descriptions[select.value] || ""; }
+  function record(label, response) {
+    if (!activity) return;
+    var details = response ? "HTTP " + response.status + (response.headers.get("x-cache") ? " · cache " + response.headers.get("x-cache") : "") + (response.headers.get("x-request-id") ? " · " + response.headers.get("x-request-id") : "") : "en attente";
+    var item = document.createElement("li");
+    item.textContent = label + " — " + details;
+    activity.prepend(item);
+    while (activity.children.length > 6) activity.removeChild(activity.lastChild);
+  }
+  function inspectStyle(nextUrl) {
+    fetch(nextUrl, { headers: { accept: "application/json" } })
+      .then(function (response) {
+        record("Style", response);
+        if (styleHttp) styleHttp.textContent = "HTTP " + response.status + " · cache-control " + (response.headers.get("cache-control") || "—") + " · request-id " + (response.headers.get("x-request-id") || "—");
+        return response.json();
+      })
+      .then(function (data) { if (styleJson) styleJson.textContent = JSON.stringify(data, null, 2); })
+      .catch(function (error) { if (styleHttp) styleHttp.textContent = "Inspection indisponible : " + String(error); });
+  }
   function unavailable(message) {
     mapEl.classList.add("map-fallback");
     mapEl.textContent = message;
     status.textContent = "Carte indisponible";
   }
-  function loadStyle(map) {
+  function loadStyle() {
     var nextUrl = styleUrl();
     showUrl();
+    showDescription();
+    if (exagerationValue) exagerationValue.textContent = exageration.value;
     status.textContent = "Chargement du style « " + select.options[select.selectedIndex].text + " »…";
-    map.setStyle(nextUrl);
+    inspectStyle(nextUrl);
+    if (map) {
+      map.setStyle(nextUrl);
+      var showTerrain = relief.checked || select.value === "relief" || select.value === "hypsometrique";
+      map.easeTo({ pitch: showTerrain ? 55 : 0, duration: 350 });
+    }
+  }
+  function loadLegend() {
+    if (!legendSelect || !legendOut || !legendSelect.value) return;
+    var endpoint = "/api/v2/map/legends/" + encodeURIComponent(legendSelect.value);
+    legendOut.textContent = "Chargement…";
+    fetch(endpoint, { headers: { accept: "application/json" } })
+      .then(function (response) { record("Légende", response); return response.json(); })
+      .then(function (data) { legendOut.textContent = JSON.stringify(data, null, 2); })
+      .catch(function (error) { legendOut.textContent = String(error); });
+  }
+  function loadLegendIndex() {
+    if (!legendSelect) return;
+    fetch("/api/v2/map/legends", { headers: { accept: "application/json" } })
+      .then(function (response) { record("Index des légendes", response); return response.json(); })
+      .then(function (items) {
+        if (!Array.isArray(items)) return;
+        items.forEach(function (item) {
+          var option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = item.libelle;
+          legendSelect.appendChild(option);
+        });
+      });
   }
 
   function init() {
@@ -51,8 +127,7 @@ const MAP_DEMO_SCRIPT = `
       unavailable("MapLibre est indisponible. Vérifiez que map-service est démarré.");
       return;
     }
-    showUrl();
-    var map = new window.maplibregl.Map({
+    map = new window.maplibregl.Map({
       container: mapEl,
       style: styleUrl(),
       center: [3.6421, 44.0812],
@@ -60,10 +135,16 @@ const MAP_DEMO_SCRIPT = `
       attributionControl: true,
     });
     map.addControl(new window.maplibregl.NavigationControl(), "top-right");
+    if (window.maplibregl.FullscreenControl) map.addControl(new window.maplibregl.FullscreenControl(), "top-right");
     map.on("load", function () { status.textContent = "Style chargé. Utilisez la souris pour explorer la carte."; });
     map.on("error", function () { status.textContent = "Le style ou une tuile n'a pas pu être chargé."; });
-    select.addEventListener("change", function () { loadStyle(map); });
+    loadStyle();
   }
+  [select, fond, geologie, relief, exageration].forEach(function (control) { control.addEventListener("change", loadStyle); });
+  if (legendSelect) legendSelect.addEventListener("change", loadLegend);
+  if (reset) reset.addEventListener("click", function () { if (map) { map.easeTo({ center: [3.6421, 44.0812], zoom: 9, pitch: 0, bearing: 0 }); } });
+  showDescription();
+  loadLegendIndex();
   if (document.readyState === "complete") init();
   else window.addEventListener("load", init);
 })();
@@ -82,11 +163,66 @@ function renderMapDemo(config: GatewayConfig, service: ServiceDescriptor): strin
     <option value="hypsometrique">Hypsométrique</option>
   </select>
 </div>
+<p class="summary-note" id="map-style-description"></p>
+<div class="grid" aria-label="Options du style cartographique">
+  <div class="field">
+    <label for="map-fond">Fond cartographique</label>
+    <select id="map-fond">
+      <option value="plan" selected>Plan IGN</option>
+      <option value="photo">Photographie aérienne</option>
+      <option value="satellite">Satellite</option>
+      <option value="nu">Sans fond</option>
+    </select>
+  </div>
+  <div class="field">
+    <label><input id="map-geologie" type="checkbox"> Afficher la géologie BRGM</label>
+    <span class="hint">Disponible avec les styles Territoire, Relief et Hypsométrique.</span>
+  </div>
+  <div class="field">
+    <label><input id="map-relief" type="checkbox"> Afficher le relief en 3D</label>
+    <span class="hint">Active le modèle d’altitude, l’ombrage et l’inclinaison de la carte.</span>
+  </div>
+  <div class="field">
+    <label for="map-exageration">Exagération du relief : <output id="map-exageration-value">1.3</output></label>
+    <input id="map-exageration" type="range" min="0.5" max="3" step="0.1" value="1.3">
+  </div>
+</div>
 <p class="called-url" id="map-style-url">—</p>
 <p class="status-line" id="map-status" role="status" aria-live="polite">Chargement de la carte…</p>
 <div id="map" class="map" role="region" aria-label="Démo cartographique interactive"></div>
-<p class="hint">Les données restent proxifiées par le service cartographique ; aucun CDN cartographique n’est utilisé.</p>
-<p><a class="btn-secondary" href="/api/v2/map/legends">Voir les légendes JSON</a></p>
+<p class="hint">Les styles, tuiles, relief, glyphes et actifs MapLibre sont servis par map-service ; aucun CDN cartographique n’est utilisé.</p>
+<p><button class="btn-secondary" id="map-reset" type="button">Réinitialiser la vue</button></p>
+<div class="result-block">
+  <h2>Ressources exposées par le microservice</h2>
+  <div class="summary">
+    <div class="kv"><span class="k">Style MapLibre</span><span class="v">JSON dynamique</span></div>
+    <div class="kv"><span class="k">Fonds et géologie</span><span class="v">Tuiles IGN / BRGM</span></div>
+    <div class="kv"><span class="k">Relief</span><span class="v">DEM Terrarium PMTiles</span></div>
+    <div class="kv"><span class="k">Rendu</span><span class="v">Glyphes et MapLibre locaux</span></div>
+  </div>
+  <p class="summary-note">Les données métier (recherche, GeoJSON et couches thématiques) ne sont pas stockées ni agrégées par ce service.</p>
+</div>
+<div class="result-block">
+  <h2>Inspection du style servi</h2>
+  <p class="status-line" id="map-style-http" role="status" aria-live="polite">Le style sera inspecté au chargement.</p>
+  <details>
+    <summary>Voir le JSON du style actuellement appliqué</summary>
+    <pre class="result" id="map-style-json" aria-live="polite"></pre>
+  </details>
+</div>
+<div class="result-block">
+  <h2>Légendes visuelles</h2>
+  <div class="field">
+    <label for="map-legend">Couche</label>
+    <select id="map-legend"><option value="">Choisir une légende…</option></select>
+  </div>
+  <pre class="result" id="map-legend-result" aria-live="polite">Sélectionnez une couche pour appeler son endpoint de légende.</pre>
+</div>
+<div class="result-block">
+  <h2>Activité des appels API</h2>
+  <p class="summary-note">Les appels déclenchés par cette démo affichent leur statut, l’identifiant de requête et, lorsqu’il est renvoyé, l’état du cache.</p>
+  <ul id="map-activity" aria-live="polite"></ul>
+</div>
 <script>${MAP_DEMO_SCRIPT}</script>`;
   return renderPage({
     title: `Démo ${service.name} — API v2`,
@@ -238,6 +374,7 @@ const DEMO_SCRIPT = `
   var map = null;
   var marker = null;
   var overlays = null;
+  var fireLegend = null;
   function initMap() {
     var mapEl = document.getElementById("map");
     if (!mapEl) return;
@@ -268,7 +405,78 @@ const DEMO_SCRIPT = `
     if (!map) return;
     if (marker) marker.setLatLng([lat, lon]); else marker = L.marker([lat, lon]).addTo(map);
   }
-  // Trace le rayon de recherche et les suspicions retournées par le service fire.
+  var FIRE_SOURCE_COLORS = {
+    FIRMS_VIIRS_SNPP_NRT: "#d73027",
+    FIRMS_VIIRS_NOAA20_NRT: "#fc8d59",
+    FIRMS_VIIRS_NOAA21_NRT: "#4575b4",
+    FIRMS_MODIS_NRT: "#1a9850",
+    EUMETSAT_MTG_CAP: "#7b3294",
+  };
+  function fireSourceColor(source) {
+    return FIRE_SOURCE_COLORS[source] || "#5b6470";
+  }
+  function fireValue(value, suffix) {
+    if (value === undefined || value === null || value === "") return "—";
+    return String(value) + (suffix || "");
+  }
+  function fireConfidence(confidence) {
+    if (!confidence || typeof confidence !== "object") return "—";
+    var value = confidence.normalized || "unknown";
+    if (confidence.raw !== undefined && confidence.raw !== null && String(confidence.raw) !== String(value)) {
+      value += " (brut : " + confidence.raw + ")";
+    }
+    return value;
+  }
+  function addFireLegend(data, markerCounts) {
+    if (!map) return;
+    if (fireLegend) map.removeControl(fireLegend);
+    fireLegend = L.control({ position: "bottomright" });
+    fireLegend.onAdd = function () {
+      var box = document.createElement("div");
+      box.className = "leaflet-control";
+      box.style.background = "var(--surface)";
+      box.style.color = "var(--text)";
+      box.style.border = "1px solid var(--border)";
+      box.style.borderRadius = "8px";
+      box.style.padding = ".55rem .65rem";
+      box.style.maxWidth = "260px";
+      box.style.fontSize = ".75rem";
+      box.style.lineHeight = "1.35";
+      var title = document.createElement("strong");
+      title.textContent = "Sources satellitaires";
+      box.appendChild(title);
+      var reports = Array.isArray(data.sources) ? data.sources : [];
+      var names = reports.map(function (report) { return report.source; });
+      Object.keys(markerCounts).forEach(function (source) {
+        if (names.indexOf(source) === -1) names.push(source);
+      });
+      names.forEach(function (source) {
+        var report = reports.find(function (item) { return item.source === source; }) || {};
+        var row = document.createElement("div");
+        row.style.display = "flex";
+        row.style.alignItems = "center";
+        row.style.gap = ".4rem";
+        row.style.marginTop = ".3rem";
+        var swatch = document.createElement("span");
+        swatch.style.width = ".7rem";
+        swatch.style.height = ".7rem";
+        swatch.style.borderRadius = "50%";
+        swatch.style.flex = "0 0 auto";
+        swatch.style.background = fireSourceColor(source);
+        var label = document.createElement("span");
+        var count = markerCounts[source] || 0;
+        label.textContent = source + " · " + count + " affichée" + (count === 1 ? "" : "s")
+          + (report.state ? " · " + report.state : "");
+        row.appendChild(swatch);
+        row.appendChild(label);
+        box.appendChild(row);
+      });
+      L.DomEvent.disableClickPropagation(box);
+      return box;
+    };
+    fireLegend.addTo(map);
+  }
+  // Trace le rayon et l'historique complet retourné par toutes les sources fire.
   function drawFire(data) {
     if (!map || !overlays) return;
     overlays.clearLayers();
@@ -279,20 +487,52 @@ const DEMO_SCRIPT = `
     circle.addTo(overlays);
     var detections = [];
     var realtime = data.realtime || {};
-    if (Array.isArray(realtime.suspicions)) detections = detections.concat(realtime.suspicions);
-    if (data.last_detection_50km) detections.push(data.last_detection_50km);
+    var history = data.history || {};
+    if (Array.isArray(history.suspicions)) detections = history.suspicions.slice();
+    else {
+      if (Array.isArray(realtime.suspicions)) detections = detections.concat(realtime.suspicions);
+      if (data.last_detection_50km) detections.push(data.last_detection_50km);
+    }
+    var realtimeIds = {};
+    if (Array.isArray(realtime.suspicions)) {
+      realtime.suspicions.forEach(function (detection) { realtimeIds[detection.id] = true; });
+    }
+    var seen = {};
+    var markerCounts = {};
     detections.forEach(function (detection) {
       if (typeof detection.latitude !== "number" || typeof detection.longitude !== "number") return;
+      var key = detection.id || [detection.source, detection.latitude, detection.longitude, detection.observed_at].join(":");
+      if (seen[key]) return;
+      seen[key] = true;
+      var source = detection.source || "SOURCE_INCONNUE";
+      markerCounts[source] = (markerCounts[source] || 0) + 1;
+      var color = fireSourceColor(source);
       var dot = L.circleMarker([detection.latitude, detection.longitude], {
-        radius: 6, color: "#b3261e", fillColor: "#b3261e", fillOpacity: 0.7,
+        radius: realtimeIds[detection.id] ? 7 : 5,
+        color: color,
+        weight: realtimeIds[detection.id] ? 3 : 1,
+        fillColor: color,
+        fillOpacity: 0.78,
       });
       var popup = document.createElement("div");
-      popup.appendChild(popupLine("Source", detection.source));
+      popup.appendChild(popupLine("Source", source));
       popup.appendChild(popupLine("Observé", detection.observed_at));
-      if (typeof detection.distance_km === "number") popup.appendChild(popupLine("Distance", detection.distance_km.toFixed(1) + " km"));
+      popup.appendChild(popupLine("Distance", typeof detection.distance_km === "number" ? detection.distance_km.toFixed(2) + " km" : "—"));
+      popup.appendChild(popupLine("Satellite", fireValue(detection.satellite)));
+      popup.appendChild(popupLine("Instrument", fireValue(detection.instrument)));
+      popup.appendChild(popupLine("Confiance", fireConfidence(detection.confidence)));
+      popup.appendChild(popupLine("Certitude", fireValue(detection.certainty)));
+      popup.appendChild(popupLine("Puissance radiative", fireValue(detection.frp_mw, " MW")));
+      popup.appendChild(popupLine("Jour / nuit", fireValue(detection.daynight)));
+      popup.appendChild(popupLine("Type", fireValue(detection.type_code)));
+      popup.appendChild(popupLine("Rayon du pixel", fireValue(detection.pixel_radius_km, " km")));
+      popup.appendChild(popupLine("Classification", fireValue(detection.classification)));
+      popup.appendChild(popupLine("Identifiant", fireValue(detection.id)));
       dot.bindPopup(popup);
+      dot.bindTooltip(source);
       dot.addTo(overlays);
     });
+    addFireLegend(data, markerCounts);
     try { map.fitBounds(circle.getBounds(), { padding: [20, 20] }); } catch (e) {}
   }
   function popupLine(label, value) {

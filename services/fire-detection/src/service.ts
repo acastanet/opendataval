@@ -17,6 +17,7 @@ export interface NearbyResponse {
   data_status: "available" | "partial" | "unavailable";
   location: { latitude: number; longitude: number; accuracy_m?: number; radius_km: number };
   realtime: { window_minutes: number; suspicions: FireDetection[] };
+  history: { days: number; suspicions: FireDetection[] };
   last_detection_50km: (FireDetection & { basis: "NASA_FIRMS_AREA_API_ONLY" }) | null;
   sources: SourceReport[];
   warnings: Array<{ code: string; message: string }>;
@@ -42,7 +43,16 @@ export class FireDetectionService {
   ) {}
 
   private key(input: NearbyInput): string {
-    return [input.latitude.toFixed(4), input.longitude.toFixed(4), input.radiusKm, input.historyDays].join(":");
+    // La réponse reprend la position et la précision demandées. Elles doivent
+    // donc toutes deux faire partie de la clé : arrondir les coordonnées ou
+    // ignorer accuracyM ferait fuiter les métadonnées d'un appel voisin.
+    return JSON.stringify([
+      input.latitude,
+      input.longitude,
+      input.accuracyM ?? null,
+      input.radiusKm,
+      input.historyDays,
+    ]);
   }
 
   async nearby(input: NearbyInput): Promise<NearbyResponse> {
@@ -85,6 +95,7 @@ export class FireDetectionService {
         radius_km: input.radiusKm,
       },
       realtime: { window_minutes: this.config.realtimeWindowMinutes, suspicions: realtime },
+      history: { days: input.historyDays, suspicions: all },
       last_detection_50km: lastFirms ? { ...lastFirms, basis: "NASA_FIRMS_AREA_API_ONLY" } : null,
       sources,
       warnings,

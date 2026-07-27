@@ -128,7 +128,14 @@ export function construireStyle(nom: NomStyle, options: OptionsStyle): Record<st
       id: id(IDS_CARTOGRAPHIQUES.couches.hillshade, prefixe),
       type: "hillshade",
       source: id(IDS_CARTOGRAPHIQUES.sources.relief, prefixe),
-      paint: { "hillshade-exaggeration": 0.3 },
+      // Un ombrage plus affirmé reste lisible sur les fonds IGN tout en révélant
+      // les vallées et les crêtes lorsque le relief est activé depuis la démo.
+      paint: {
+        "hillshade-exaggeration": 0.55,
+        "hillshade-shadow-color": "#53606a",
+        "hillshade-highlight-color": "#fff9e8",
+        "hillshade-accent-color": "#7c674f",
+      },
     });
   }
 

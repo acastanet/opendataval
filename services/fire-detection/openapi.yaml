@@ -86,7 +86,7 @@ components:
         detail: { type: string }
     NearbyResponse:
       type: object
-      required: [service, version, data_status, location, realtime, last_detection_50km, sources, warnings, generated_at]
+      required: [service, version, data_status, location, realtime, history, last_detection_50km, sources, warnings, generated_at]
       properties:
         service: { const: fire-detection }
         version: { type: string }
@@ -105,6 +105,15 @@ components:
           properties:
             window_minutes: { type: integer }
             suspicions: { type: array, items: { $ref: '#/components/schemas/Detection' } }
+        history:
+          type: object
+          required: [days, suspicions]
+          properties:
+            days: { type: integer, minimum: 1, maximum: 7 }
+            suspicions:
+              type: array
+              description: Toutes les suspicions valides retournées par les sources sur la période, triées de la plus récente à la plus ancienne.
+              items: { $ref: '#/components/schemas/Detection' }
         last_detection_50km:
           anyOf:
             - type: 'null'

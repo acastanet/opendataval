@@ -9,6 +9,7 @@ const response = {
   data_status: "available" as const,
   location: { latitude: 44, longitude: 3, radius_km: 50 },
   realtime: { window_minutes: 90, suspicions: [] },
+  history: { days: 7, suspicions: [] },
   last_detection_50km: null,
   sources: [],
   warnings: [],

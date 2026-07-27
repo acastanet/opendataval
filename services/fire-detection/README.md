@@ -28,6 +28,15 @@ GET /api/v2/fire/nearby?lat=44.0812&lon=3.6415&accuracy=25
 
 Le gateway impose `radius_km=50` et `history_days=7`.
 
+La réponse distingue :
+
+- `realtime.suspicions` : les suspicions de la fenêtre temps réel ;
+- `history.suspicions` : toutes les suspicions valides des sources configurées
+  sur la période demandée, destinées notamment à la représentation
+  cartographique complète ;
+- `last_detection_50km` : la dernière suspicion provenant exclusivement de
+  NASA FIRMS.
+
 ## Sources
 
 ### NASA FIRMS Area API

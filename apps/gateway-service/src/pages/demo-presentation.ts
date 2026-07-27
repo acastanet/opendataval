@@ -152,18 +152,34 @@ export const PRESENTERS_SCRIPT = `
     partial: "Une partie des sources seulement a répondu.",
     unavailable: "Aucune source n'a répondu.",
   };
+  var FIRE_SOURCE_STATUS = {
+    available: "disponible",
+    unavailable: "indisponible",
+    not_configured: "non configurée",
+  };
 
   function fireView(data) {
     var out = document.createDocumentFragment();
     var location = data.location || {};
     var realtime = data.realtime || {};
     var suspicions = Array.isArray(realtime.suspicions) ? realtime.suspicions : [];
+    var history = data.history || {};
+    var historicalSuspicions = Array.isArray(history.suspicions) ? history.suspicions : [];
     var radius = location.radius_km;
     var cards = [];
     if (suspicions.length === 0) {
       cards.push(kv("Temps réel", "Aucune suspicion dans un rayon de " + (radius || "?") + " km", { wide: true }));
     } else {
       cards.push(kv("Suspicions en temps réel", String(suspicions.length) + " dans un rayon de " + (radius || "?") + " km", { wide: true }));
+    }
+    if (typeof realtime.window_minutes === "number") {
+      cards.push(kv("Fenêtre temps réel", String(realtime.window_minutes) + " min"));
+    }
+    if (typeof history.days === "number") {
+      cards.push(kv(
+        "Historique cartographié",
+        historicalSuspicions.length + " suspicion" + (historicalSuspicions.length === 1 ? "" : "s") + " sur " + history.days + " jours",
+      ));
     }
     cards.push(kv("État des données", FIRE_STATUS[data.data_status] || data.data_status || "—"));
     var last = data.last_detection_50km;
@@ -172,7 +188,27 @@ export const PRESENTERS_SCRIPT = `
     } else {
       cards.push(kv("Dernière détection (50 km)", "Aucune sur la période"));
     }
+    if (data.generated_at) cards.push(kv("Réponse générée", frDate(data.generated_at)));
     out.appendChild(grid(cards));
+
+    var sources = Array.isArray(data.sources) ? data.sources : [];
+    if (sources.length > 0) {
+      out.appendChild(el("h3", "", "État des sources"));
+      var sourceCards = [];
+      sources.forEach(function (source) {
+        var state = FIRE_SOURCE_STATUS[source.state] || source.state || "—";
+        var count = typeof source.detection_count === "number"
+          ? source.detection_count + " détection" + (source.detection_count === 1 ? "" : "s")
+          : "nombre inconnu";
+        var latest = source.latest_observation_at
+          ? " · dernière observation " + frDate(source.latest_observation_at)
+          : "";
+        sourceCards.push(kv(source.source || "Source", state + " · " + count + latest, { wide: true }));
+        if (source.detail) sourceCards.push(kv("Détail " + (source.source || "source"), source.detail, { wide: true }));
+      });
+      out.appendChild(grid(sourceCards));
+    }
+
     var warnings = Array.isArray(data.warnings) ? data.warnings : [];
     warnings.forEach(function (warning) {
       if (warning && warning.message) out.appendChild(note(warning.message));

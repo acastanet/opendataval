@@ -88,6 +88,15 @@ test("la démo fire active le tracé des détections sur la carte", async (t) =>
   assert.equal(response.statusCode, 200);
   assert.ok(response.body.includes('"drawDetections":true'));
   assert.ok(response.body.includes('id="map"'));
+  assert.ok(response.body.includes("État des sources"));
+  assert.ok(response.body.includes("Fenêtre temps réel"));
+  assert.ok(response.body.includes("detection_count"));
+  assert.ok(response.body.includes("history.suspicions"));
+  assert.ok(response.body.includes("FIRMS_VIIRS_SNPP_NRT"));
+  assert.ok(response.body.includes("EUMETSAT_MTG_CAP"));
+  assert.ok(response.body.includes("Sources satellitaires"));
+  assert.ok(response.body.includes("Puissance radiative"));
+  assert.ok(response.body.includes("Rayon du pixel"));
 });
 
 test("la démo map charge MapLibre depuis map-service et propose les styles", async (t) => {
@@ -101,6 +110,15 @@ test("la démo map charge MapLibre depuis map-service et propose les styles", as
   assert.ok(response.body.includes("/api/v2/map/styles/territoire.json"));
   assert.ok(response.body.includes('id="map-style"'));
   assert.ok(response.body.includes("Hypsométrique"));
+  assert.ok(response.body.includes('id="map-fond"'));
+  assert.ok(response.body.includes('id="map-geologie"'));
+  assert.ok(response.body.includes('id="map-relief"'));
+  assert.ok(response.body.includes("Afficher le relief en 3D"));
+  assert.ok(response.body.includes('id="map-exageration"'));
+  assert.ok(response.body.includes('id="map-style-json"'));
+  assert.ok(response.body.includes('id="map-legend"'));
+  assert.ok(response.body.includes('id="map-activity"'));
+  assert.ok(response.body.includes("/api/v2/map/legends"));
   assert.ok(!response.body.includes("unpkg.com"));
 });
 
