@@ -65,7 +65,12 @@ export function renderLanding(config: GatewayConfig): string {
     )
     .join("\n");
 
-  const body = `<h2>Microservices de la plateforme</h2>
+  const body = `<section class="card">
+  <h2>Application de terrain</h2>
+  <p class="role">Carte, position et suspicions satellitaires de feu à proximité, dans une interface mobile.</p>
+  <div class="card-actions"><a class="btn" href="/api/v2/app/">Ouvrir Terrain &rarr;</a></div>
+</section>
+<h2>Microservices de la plateforme</h2>
 <p class="lead">Point d'entrée unique des API v2 d'OpenDataVal. Chaque service est joignable sous <span class="route">/api/v2/*</span> à travers cette façade. Ouvrez une démo pour l'essayer en direct.</p>
 <p class="status-line" role="status" aria-live="polite">L'état de chaque service est rafraîchi automatiquement.</p>
 <div class="grid">

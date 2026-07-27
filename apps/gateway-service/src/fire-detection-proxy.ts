@@ -2,7 +2,13 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { GatewayConfig } from "./config.js";
 import type { FetchLike } from "./legacy-proxy.js";
 
-interface Query { lat?: unknown; lon?: unknown; accuracy?: unknown; }
+interface Query {
+  lat?: unknown;
+  lon?: unknown;
+  accuracy?: unknown;
+  radius_km?: unknown;
+  history_days?: unknown;
+}
 
 function finite(value: unknown): number | null {
   if (typeof value !== "string" || value.trim() === "" || value.length > 40) return null;
@@ -27,19 +33,27 @@ export function registerFireDetectionProxy(app: FastifyInstance, config: Gateway
   app.get<{ Querystring: Query }>("/api/v2/fire/nearby", async (request: FastifyRequest<{ Querystring: Query }>, reply: FastifyReply) => {
     const latitude = finite(request.query.lat); const longitude = finite(request.query.lon);
     const accuracy = request.query.accuracy === undefined ? undefined : finite(request.query.accuracy);
+    const radius = finite(request.query.radius_km);
+    const history = finite(request.query.history_days);
     if (latitude === null || longitude === null || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
       return reply.code(400).send({ error: { code: "INVALID_COORDINATES", message: "Les coordonnées sont invalides.", retryable: false }, requestId: request.id });
     }
     if (request.query.accuracy !== undefined && (accuracy === undefined || accuracy === null || accuracy < 0)) {
       return reply.code(400).send({ error: { code: "INVALID_ACCURACY", message: "La précision GPS est invalide.", retryable: false }, requestId: request.id });
     }
+    if (radius === null || radius < 1 || radius > 50) {
+      return reply.code(400).send({ error: { code: "INVALID_RADIUS", message: "radius_km doit être compris entre 1 et 50.", retryable: false }, requestId: request.id });
+    }
+    if (history === null || !Number.isInteger(history) || history < 1 || history > 7) {
+      return reply.code(400).send({ error: { code: "INVALID_HISTORY", message: "history_days doit être un entier compris entre 1 et 7.", retryable: false }, requestId: request.id });
+    }
     const baseUrl = config.fireDetectionServiceUrl ?? "http://fire-detection-service:3000";
     const timeoutMs = config.fireDetectionServiceTimeoutMs ?? 20_000;
     const upstream = new URL(`${baseUrl}/v1/fire/nearby`);
     upstream.searchParams.set("lat", String(latitude)); upstream.searchParams.set("lon", String(longitude));
     if (accuracy !== undefined && accuracy !== null) upstream.searchParams.set("accuracy", String(accuracy));
-    upstream.searchParams.set("radius_km", "50");
-    upstream.searchParams.set("history_days", "7");
+    upstream.searchParams.set("radius_km", String(radius));
+    upstream.searchParams.set("history_days", String(history));
     try {
       const response = await fetchImpl(upstream, {
         headers: { accept: "application/json", "x-request-id": request.id },

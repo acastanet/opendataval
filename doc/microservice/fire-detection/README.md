@@ -5,10 +5,10 @@ Documentation d'exploitation du microservice du lot 5.
 ## Route publique
 
 ```http
-GET /api/v2/fire/nearby?lat={latitude}&lon={longitude}&accuracy={metres}
+GET /api/v2/fire/nearby?lat={latitude}&lon={longitude}&radius_km={1..50}&history_days={1..7}&accuracy={metres}
 ```
 
-Le rayon est toujours 50 km et la recherche FIRMS porte sur les sept derniers jours.
+`radius_km` et `history_days` sont obligatoires sur la route publique. Le rayon est un nombre compris entre 1 et 50 km ; l’historique est un entier compris entre 1 et 7 jours. `accuracy` reste facultatif.
 
 ## Route interne
 
@@ -19,7 +19,7 @@ GET /v1/fire/nearby?lat={latitude}&lon={longitude}&radius_km=50&history_days=7
 ## Contrôles
 
 ```bash
-curl -fsS 'http://localhost:8080/api/v2/fire/nearby?lat=44.0812&lon=3.6415' | jq
+curl -fsS 'http://localhost:8080/api/v2/fire/nearby?lat=44.0812&lon=3.6415&radius_km=50&history_days=7' | jq
 curl -fsS http://fire-detection-service:3000/healthz
 curl -fsS http://fire-detection-service:3000/readyz
 ```

@@ -50,6 +50,8 @@ services:
       VIGILANCE_SERVICE_TIMEOUT_MS: ${VIGILANCE_SERVICE_TIMEOUT_MS:-3000}
       FIRE_DETECTION_SERVICE_URL: http://fire-detection-service:3000
       FIRE_DETECTION_SERVICE_TIMEOUT_MS: ${FIRE_DETECTION_SERVICE_TIMEOUT_MS:-20000}
+      ASSOCIATION_SERVICE_URL: http://association-service:3000
+      ASSOCIATION_SERVICE_TIMEOUT_MS: ${ASSOCIATION_SERVICE_TIMEOUT_MS:-5000}
       MAP_SERVICE_URL: http://map-service:3000
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
@@ -58,6 +60,7 @@ services:
       - weather-service
       - weather-vigilance-service
       - fire-detection-service
+      - association-service
     expose:
       - "3000"
     healthcheck:
@@ -86,6 +89,33 @@ services:
       - "3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  association-service:
+    build:
+      context: .
+      dockerfile: apps/association-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      ASSOCIATION_DATA_DIR: /var/lib/opendataval/association-service
+      RNA_WALDEC_SOURCE_URL: ${RNA_WALDEC_SOURCE_URL:-https://www.data.gouv.fr/api/1/datasets/r/91fd139b-4c2a-4d36-b05b-8607b41f1202}
+      RNA_IMPORT_SOURCE_URL: ${RNA_IMPORT_SOURCE_URL:-https://www.data.gouv.fr/api/1/datasets/r/66e052d8-e387-443e-8f43-2916d17022fb}
+      RNA_SOURCE_URL: ${RNA_SOURCE_URL:-}
+      ASSOCIATION_GEOCODING_URL: ${ASSOCIATION_GEOCODING_URL:-https://data.geopf.fr/geocodage/search}
+      ASSOCIATION_SYNC_TOKEN: ${ASSOCIATION_SYNC_TOKEN:-}
+      ASSOCIATION_DOWNLOAD_TIMEOUT_MS: ${ASSOCIATION_DOWNLOAD_TIMEOUT_MS:-1800000}
+      ASSOCIATION_GEOCODING_TIMEOUT_MS: ${ASSOCIATION_GEOCODING_TIMEOUT_MS:-5000}
+      APP_VERSION: ${APP_VERSION:-dev}
+    volumes:
+      - association_data:/var/lib/opendataval/association-service
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -293,3 +323,4 @@ volumes:
   caddy_data:
   caddy_config:
   vigilance_cache:
+  association_data:

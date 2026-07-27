@@ -6,7 +6,7 @@
  * l'identifiant du service et de la réponse JSON, il peint le panneau « Résultat »
  * avec une synthèse en français, compréhensible en un coup d'œil.
  *
- * Contrainte de sécurité (voir AGENT.md) : le contenu provient de données
+ * Contrainte de sécurité (voir AGENTS.md) : le contenu provient de données
  * externes, donc tout est construit en DOM via `document.createElement` et
  * `textContent`. Aucune interpolation HTML n'est utilisée ici.
  */
@@ -216,6 +216,97 @@ export const PRESENTERS_SCRIPT = `
     return out;
   }
 
+  var ASSOCIATION_STATUS = {
+    active: "Active",
+    dissolved: "Dissoute",
+    unknown: "Statut inconnu",
+  };
+
+  function associationValue(value) {
+    return value === null || value === undefined || value === "" ? "—" : String(value);
+  }
+
+  function associationDetails(association) {
+    var address = association.address || {};
+    var location = association.location || {};
+    var source = association.source || {};
+    var values = [
+      ["Identifiant RNA", association.rnaId],
+      ["Identifiant historique", association.legacyId],
+      ["Nom court", association.shortTitle],
+      ["Objet", association.purpose],
+      ["Catégorie principale", association.categoryPrimary],
+      ["Catégorie secondaire", association.categorySecondary],
+      ["Statut", ASSOCIATION_STATUS[association.administrativeStatus] || association.administrativeStatus],
+      ["Date de création", association.creationDate],
+      ["Date de déclaration", association.declarationDate],
+      ["Date de dissolution", association.dissolutionDate],
+      ["Site internet", association.website],
+      ["SIREN", association.siren],
+      ["SIRET", association.siret],
+      ["Adresse", address.label],
+      ["Voie", address.street],
+      ["Code postal", address.postalCode],
+      ["Commune", address.municipalityName],
+      ["Code INSEE source", address.sourceCommuneCode],
+      ["Code INSEE normalisé", address.normalizedCommuneCode],
+      ["Latitude", location.latitude],
+      ["Longitude", location.longitude],
+      ["Précision géocodage", location.precision],
+      ["Score géocodage", location.score],
+      ["Source", source.name],
+      ["Source mise à jour", source.sourceUpdatedAt],
+      ["Importé le", source.importedAt],
+    ];
+    var details = el("details", "association-details");
+    details.appendChild(el("summary", "", "Voir toutes les informations"));
+    var list = el("div", "summary");
+    values.forEach(function (entry) { list.appendChild(kv(entry[0], associationValue(entry[1]), { wide: entry[0] === "Objet" || entry[0] === "Adresse" })); });
+    details.appendChild(list);
+    return details;
+  }
+
+  function associationsView(data) {
+    var out = document.createDocumentFragment();
+    var source = data.source || {};
+    var associations = Array.isArray(data.items)
+      ? data.items
+      : Array.isArray(data.associations)
+        ? data.associations
+        : Array.isArray(data.results)
+          ? data.results
+          : [];
+    var total = typeof data.total === "number" ? data.total : associations.length;
+    out.appendChild(grid([
+      kv("Associations trouvées", String(total), { big: true }),
+      source.snapshotUpdatedAt ? kv("Données mises à jour", frDate(source.snapshotUpdatedAt)) : null,
+      source.freshness ? kv("Fraîcheur", source.freshness) : null,
+    ]));
+
+    if (associations.length === 0) {
+      out.appendChild(note("Aucune association ne correspond aux critères renseignés."));
+      return out;
+    }
+
+    var list = el("div", "summary");
+    associations.forEach(function (association) {
+      var title = association.title || association.shortTitle || "Association sans titre";
+      var details = [];
+      if (association.administrativeStatus) {
+        details.push(ASSOCIATION_STATUS[association.administrativeStatus] || association.administrativeStatus);
+      }
+      if (association.categoryPrimary) details.push(association.categoryPrimary);
+      if (association.address && association.address.label) details.push(association.address.label);
+      var card = kv(title, details.join(" · ") || "Informations détaillées dans le JSON", { wide: true });
+      if (association.purpose) card.appendChild(el("span", "summary-note", association.purpose));
+      card.appendChild(associationDetails(association));
+      list.appendChild(card);
+    });
+    out.appendChild(list);
+    if (data.nextCursor) out.appendChild(note("D’autres résultats sont disponibles avec le curseur de page suivante."));
+    return out;
+  }
+
   // Repli générique : liste les valeurs primitives de premier niveau.
   function genericView(data) {
     var cards = [];
@@ -237,6 +328,7 @@ export const PRESENTERS_SCRIPT = `
     weather: weatherView,
     vigilance: vigilanceView,
     fire: fireView,
+    associations: associationsView,
   };
 
   function errorView(error) {

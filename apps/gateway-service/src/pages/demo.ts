@@ -24,6 +24,36 @@ const LEAFLET_HEAD = `<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9
 const MAPLIBRE_HEAD = `<link rel="stylesheet" href="/api/v2/map/vendor/maplibre-gl.css">
 <script defer src="/api/v2/map/vendor/maplibre-gl.js"></script>`;
 
+const ASSOCIATION_EXPORT_COLUMNS = [
+  ["rnaId", "Identifiant RNA"],
+  ["legacyId", "Identifiant historique"],
+  ["title", "Titre"],
+  ["shortTitle", "Nom court"],
+  ["purpose", "Objet"],
+  ["categoryPrimary", "Catégorie principale"],
+  ["categorySecondary", "Catégorie secondaire"],
+  ["administrativeStatus", "Statut administratif"],
+  ["creationDate", "Date de création"],
+  ["declarationDate", "Date de déclaration"],
+  ["dissolutionDate", "Date de dissolution"],
+  ["website", "Site internet"],
+  ["siren", "SIREN"],
+  ["siret", "SIRET"],
+  ["address.label", "Adresse"],
+  ["address.street", "Voie"],
+  ["address.postalCode", "Code postal"],
+  ["address.municipalityName", "Commune"],
+  ["address.sourceCommuneCode", "Code INSEE source"],
+  ["address.normalizedCommuneCode", "Code INSEE normalisé"],
+  ["location.latitude", "Latitude"],
+  ["location.longitude", "Longitude"],
+  ["location.precision", "Précision géocodage"],
+  ["location.score", "Score géocodage"],
+  ["source.name", "Source"],
+  ["source.sourceUpdatedAt", "Source mise à jour"],
+  ["source.importedAt", "Importé le"],
+] as const;
+
 const MAP_DEMO_SCRIPT = `
 (function () {
   var select = document.getElementById("map-style");
@@ -274,6 +304,8 @@ const DEMO_SCRIPT = `
   var out = document.getElementById("result");
   var statusOut = document.getElementById("result-status");
   var summaryOut = document.getElementById("panel-resume");
+  var exportButton = document.getElementById("associations-export");
+  var associationItems = [];
   if (!form) return;
 
   // --- Onglets « Résultat » / « JSON brut » (motif ARIA tabs) ---
@@ -315,6 +347,78 @@ const DEMO_SCRIPT = `
     return qs ? path + "?" + qs : path;
   }
 
+  function fetchJson(url) {
+    return fetch(url, { headers: { accept: "application/json" } }).then(function (response) {
+      var reqId = response.headers.get("x-request-id");
+      return response.text().then(function (text) {
+        var data;
+        try { data = JSON.parse(text); } catch (e) { throw new Error("Réponse JSON illisible"); }
+        if (!response.ok) throw new Error((data.error && data.error.message) || "HTTP " + response.status);
+        return { data: data, status: response.status, requestId: reqId };
+      });
+    });
+  }
+
+  function loadAssociationPages(url) {
+    var pages = 0;
+    var items = [];
+    var first = null;
+    function load(nextUrl) {
+      return fetchJson(nextUrl).then(function (result) {
+        pages += 1;
+        if (!first) first = result;
+        var pageItems = Array.isArray(result.data.items) ? result.data.items : [];
+        items = items.concat(pageItems);
+        if (!result.data.nextCursor) return { first: first, items: items, pages: pages };
+        var next = new URL(nextUrl, window.location.origin);
+        next.searchParams.set("cursor", result.data.nextCursor);
+        next.searchParams.set("limit", "100");
+        return load(next.pathname + "?" + next.searchParams.toString());
+      });
+    }
+    return load(url);
+  }
+
+  function xml(value) {
+    return String(value === null || value === undefined ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;").replace(/'/g, "&apos;");
+  }
+  function associationValue(item, path) {
+    return path.split(".").reduce(function (value, key) {
+      return value === null || value === undefined ? null : value[key];
+    }, item);
+  }
+  function selectedExportColumns() {
+    var selected = {};
+    Array.prototype.slice.call(document.querySelectorAll("#associations-export-columns input:checked"))
+      .forEach(function (input) { selected[input.value] = true; });
+    return (cfg.exportColumns || []).filter(function (column) { return selected[column.key]; });
+  }
+  function exportAssociations() {
+    var columns = selectedExportColumns();
+    if (columns.length === 0) {
+      window.alert("Sélectionnez au moins une colonne à exporter.");
+      return;
+    }
+    var headers = columns.map(function (column) { return column.label; });
+    var rows = [headers].concat(associationItems.map(function (item) {
+      return columns.map(function (column) { return associationValue(item, column.key); });
+    }));
+    var sheet = rows.map(function (row) { return "<Row>" + row.map(function (value) { return "<Cell><Data ss:Type=\\"String\\">" + xml(value) + "</Data></Cell>"; }).join("") + "</Row>"; }).join("");
+    var documentXml = "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?>" +
+      "<Workbook xmlns=\\"urn:schemas-microsoft-com:office:spreadsheet\\" xmlns:ss=\\"urn:schemas-microsoft-com:office:spreadsheet\\"><Worksheet ss:Name=\\"Associations\\"><Table>" + sheet + "</Table></Worksheet></Workbook>";
+    var blob = new Blob([documentXml], { type: "application/vnd.ms-excel;charset=utf-8" });
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "associations.xls";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+  }
+  if (exportButton) exportButton.addEventListener("click", exportAssociations);
+
   form.addEventListener("submit", function (event) {
     event.preventDefault();
     var url = buildUrl();
@@ -322,6 +426,25 @@ const DEMO_SCRIPT = `
     statusOut.textContent = "Appel en cours…";
     out.textContent = "";
     if (summaryOut) summaryOut.textContent = "";
+    if (exportButton) exportButton.disabled = true;
+    if (cfg.serviceId === "associations") {
+      loadAssociationPages(url)
+        .then(function (result) {
+          var parsed = result.first.data;
+          parsed.items = result.items;
+          parsed.nextCursor = null;
+          associationItems = result.items;
+          statusOut.textContent = "HTTP " + result.first.status + " · " + result.items.length + " association(s) chargée(s) sur " + result.pages + " page(s)" + (result.first.requestId ? " · request-id " + result.first.requestId : "");
+          out.textContent = JSON.stringify(parsed, null, 2);
+          if (summaryOut && window.__presenters) window.__presenters.render(cfg.serviceId, parsed, summaryOut);
+          if (exportButton) exportButton.disabled = associationItems.length === 0;
+        })
+        .catch(function (error) {
+          statusOut.textContent = "Échec de la requête";
+          out.textContent = String(error);
+        });
+      return;
+    }
     fetch(url, { headers: { accept: "application/json" } })
       .then(function (response) {
         var reqId = response.headers.get("x-request-id");
@@ -604,6 +727,9 @@ export function renderDemo(config: GatewayConfig, service: ServiceDescriptor): s
     sourceField: fieldNames.has("positionSource") ? "positionSource" : null,
     clearOnLocate: service.demo.filter((field) => field.clearedByGeolocation).map((field) => field.name),
     drawDetections: service.id === "fire",
+    exportColumns: service.id === "associations"
+      ? ASSOCIATION_EXPORT_COLUMNS.map(([key, label]) => ({ key, label }))
+      : [],
     fields: service.demo.map((field) => ({
       name: field.name,
       appendToPath: field.appendToPath === true,
@@ -618,6 +744,12 @@ export function renderDemo(config: GatewayConfig, service: ServiceDescriptor): s
 <div id="map" class="map" role="region" aria-label="Carte de la position"></div>
 <p class="hint">Cliquez sur la carte pour remplir la latitude et la longitude.</p>`
     : "";
+  const associationExportControls = service.id === "associations"
+    ? ASSOCIATION_EXPORT_COLUMNS.map(
+      ([key, label]) =>
+        `<label><input type="checkbox" name="association-export-column" value="${escapeAttr(key)}" checked> ${escapeHtml(label)}</label>`,
+    ).join("\n")
+    : "";
 
   const body = `<h2>Démo &mdash; ${escapeHtml(service.name)}</h2>
 <p class="lead">${escapeHtml(service.role)}</p>
@@ -626,6 +758,7 @@ export function renderDemo(config: GatewayConfig, service: ServiceDescriptor): s
 ${fields}
 <div class="form-actions"><button class="btn" type="submit">Lancer l'appel</button>${locateControls}</div>
 </form>
+${service.id === "associations" ? `<fieldset id="associations-export-columns" class="field"><legend>Colonnes à exporter</legend><div class="export-columns">${associationExportControls}</div></fieldset><p><button class="btn-secondary" type="button" id="associations-export" disabled>Exporter les colonnes sélectionnées au format Excel</button></p><p class="hint">L’export inclut toutes les pages correspondant aux filtres.</p>` : ""}
 ${mapBlock}
 <div class="result-block">
   <p class="status-line" id="result-status" role="status" aria-live="polite">Renseignez le formulaire puis lancez l'appel.</p>

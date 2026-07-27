@@ -33,12 +33,51 @@ test("GET /api/v2 renvoie la landing HTML listant les microservices", async (t) 
 
   assert.equal(response.statusCode, 200);
   assert.match(String(response.headers["content-type"]), /text\/html/);
-  for (const name of ["Geography", "Weather", "Weather Vigilance", "Fire Detection", "Gateway", "Map"]) {
+  for (const name of ["Geography", "Weather", "Weather Vigilance", "Fire Detection", "Associations", "Gateway", "Map"]) {
     assert.ok(response.body.includes(name), `landing doit mentionner ${name}`);
   }
   assert.ok(response.body.includes("/api/v2/geography/resolve"));
   assert.ok(response.body.includes("/api/v2/demo/fire"));
   assert.ok(response.body.includes("/api/v2/demo/map"));
+  assert.ok(response.body.includes('href="/api/v2/app/"'));
+});
+
+test("depuis l'accueil, la démo Associations propose la recherche consolidée", async (t) => {
+  const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
+  t.after(() => app.close());
+
+  const landing = await app.inject({ method: "GET", url: "/api/v2" });
+  const demoPath = landing.body.match(/href="(\/api\/v2\/demo\/associations)"/)?.[1];
+
+  assert.equal(demoPath, "/api/v2/demo/associations");
+  const demo = await app.inject({ method: "GET", url: demoPath });
+
+  assert.equal(demo.statusCode, 200);
+  assert.match(String(demo.headers["content-type"]), /text\/html/);
+  assert.ok(demo.body.includes("Liste consolidée, recherchable et cartographiable"));
+  assert.ok(demo.body.includes('name="code_insee"'));
+  assert.ok(demo.body.includes('value="30339"'));
+  for (const field of ["q", "status", "category_primary", "category_secondary", "limit", "cursor"]) {
+    assert.ok(demo.body.includes(`name="${field}"`), `la démo doit proposer le champ ${field}`);
+  }
+  assert.ok(demo.body.includes('"basePath":"/api/v2/associations"'));
+  assert.ok(demo.body.includes("Associations trouvées"));
+  assert.ok(demo.body.includes("administrativeStatus"));
+  assert.ok(demo.body.includes("snapshotUpdatedAt"));
+  assert.ok(demo.body.includes("freshness"));
+  assert.ok(demo.body.includes('id="associations-export"'));
+  assert.ok(demo.body.includes('id="associations-export-columns"'));
+  assert.ok(demo.body.includes('name="association-export-column"'));
+  assert.ok(demo.body.includes("Exporter les colonnes sélectionnées au format Excel"));
+  assert.ok(demo.body.includes("loadAssociationPages"));
+  assert.ok(demo.body.includes("Identifiant RNA"));
+  assert.ok(demo.body.includes("Voir toutes les informations"));
+  assert.ok(demo.body.includes("001000 - SPORTS"));
+  assert.ok(demo.body.includes("024010 : Clubs canins"));
+  for (const script of demo.body.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
+    assert.doesNotThrow(() => new Function(script[1]!));
+  }
+  assert.ok(demo.body.includes("Retour à l'accueil des API v2"));
 });
 
 test("GET /api/v2/ (slash final) renvoie aussi la landing", async (t) => {

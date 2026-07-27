@@ -3,7 +3,7 @@
 Dernière vérification : 19 juillet 2026.
 
 Ce guide décrit la mise à jour du dépôt `opendata-vda`, de ses dépendances et de
-son déploiement Docker. Il complète `AGENT.md`. Toujours adapter les commandes à
+son déploiement Docker. Il complète `AGENTS.md`. Toujours adapter les commandes à
 l'environnement réel et ne jamais exposer les secrets de `.env`.
 
 ## État des déploiements

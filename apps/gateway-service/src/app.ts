@@ -9,10 +9,16 @@ import { registerGeographyProxy } from "./geography-proxy.js";
 import { registerWeatherProxy } from "./weather-proxy.js";
 import { registerVigilanceProxy } from "./vigilance-proxy.js";
 import { registerFireDetectionProxy } from "./fire-detection-proxy.js";
+import { registerAssociationProxy } from "./association-proxy.js";
 import { registerStatusRoute } from "./status-route.js";
 import { findService } from "./services-catalog.js";
 import { renderLanding } from "./pages/landing.js";
 import { renderDemo } from "./pages/demo.js";
+import {
+  APP_ICONE_SVG,
+  APP_MANIFEST,
+  renderAppTerrain,
+} from "./pages/app-terrain.js";
 
 export interface BuildAppOptions {
   config?: GatewayConfig;
@@ -154,6 +160,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/api/v2", landingHandler);
   app.get("/api/v2/", landingHandler);
 
+  const terrainHandler = async (_request: FastifyRequest, reply: FastifyReply) =>
+    sendHtml(reply, renderAppTerrain(config));
+
+  app.get("/api/v2/app", terrainHandler);
+  app.get("/api/v2/app/", terrainHandler);
+  app.get("/api/v2/app/manifest.webmanifest", async (_request, reply) => {
+    reply.header("content-type", "application/manifest+json; charset=utf-8");
+    return reply.send(APP_MANIFEST);
+  });
+  app.get("/api/v2/app/icone.svg", async (_request, reply) => {
+    reply.header("content-type", "image/svg+xml; charset=utf-8");
+    return reply.send(APP_ICONE_SVG);
+  });
+
   app.get<{ Params: { service: string } }>(
     "/api/v2/demo/:service",
     async (request: FastifyRequest<{ Params: { service: string } }>, reply: FastifyReply) => {
@@ -178,6 +198,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   registerWeatherProxy(app, config, fetchImpl);
   registerVigilanceProxy(app, config, fetchImpl);
   registerFireDetectionProxy(app, config, fetchImpl);
+  registerAssociationProxy(app, config, fetchImpl);
 
   app.setErrorHandler((error, request, reply) => {
     const normalized = normalizeError(error);

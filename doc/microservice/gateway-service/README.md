@@ -1,7 +1,7 @@
 # Gateway Service
 
 > Point d’entrée unique des API v2 (`/api/v2/*`). Aucune logique métier, aucun accès direct à la base.
-> Dernière mise à jour : 2026-07-25 · Dernière vérification : 2026-07-25
+> Dernière mise à jour : 2026-07-27 · Dernière vérification : 2026-07-27
 > Code : `apps/gateway-service/`
 
 ## Rôle
@@ -16,14 +16,18 @@ Il conserve aussi un pont temporaire en lecture seule vers le monolithe historiq
 |---|---|---|
 | `/api/v2` | Page d’accueil HTML : présente les microservices et l’état live | `GET` |
 | `/api/v2/demo/:service` | Page de démo interactive d’un microservice (formulaire → appel réel) | `GET` |
+| `/api/v2/app`, `/api/v2/app/` | Application mobile Terrain (carte, position, suspicions satellitaires) | `GET` |
+| `/api/v2/app/manifest.webmanifest` | Manifeste installable de l’application Terrain | `GET` |
+| `/api/v2/app/icone.svg` | Icône SVG de l’application Terrain | `GET` |
 | `/api/v2/status` | État agrégé léger de chaque service (alimente les pages) | `GET` |
 | `/health` | Vie du processus gateway | `GET` |
 | `/ready` | Gateway prêt et API historique joignable sur `/api/health` | `GET` |
 | `/api/v2/gateway` | Identité et version du gateway | `GET` |
+| `/api/v2/map/*` | `map-service:/` via Caddy, sans passer par le gateway | `GET` |
 | `/api/v2/geography/resolve` | `geography-service:/internal/v1/geography/resolve` | `GET` |
 | `/api/v2/weather/temperature` | `weather-service:/internal/v1/weather/temperature` | `GET` |
 | `/api/v2/vigilance` | Résolution éventuelle du département, puis `weather-vigilance-service` | `GET` |
-| `/api/v2/fire/nearby` | `fire-detection-service:/v1/fire/nearby` avec 50 km / 7 jours imposés | `GET` |
+| `/api/v2/fire/nearby` | `fire-detection-service:/v1/fire/nearby`, rayon et historique obligatoires | `GET` |
 | `/api/v2/legacy/*` | `api:/api/*`, pont historique en lecture seule | `GET`, `HEAD` |
 
 Format d’erreur public privilégié :
@@ -62,6 +66,24 @@ Avec des coordonnées, le gateway appelle Geography, extrait le département, v�
 
 Une indisponibilité de Weather Vigilance n’est jamais traduite en vigilance verte.
 
+## Routage Fire Detection
+
+La route `/api/v2/fire/nearby` exige que l’appelant choisisse explicitement le rayon et la fenêtre temporelle :
+
+```text
+GET /api/v2/fire/nearby?lat=44.081192&lon=3.641467&radius_km=5&history_days=1
+GET /api/v2/fire/nearby?lat=44.081192&lon=3.641467&accuracy=25&radius_km=50&history_days=7
+```
+
+| Paramètre | Règle |
+|---|---|
+| `lat`, `lon` | Coordonnées valides ; les deux sont obligatoires |
+| `accuracy` | Précision GPS facultative, positive ou nulle |
+| `radius_km` | Nombre réel obligatoire compris entre `1` et `50` km |
+| `history_days` | Entier obligatoire compris entre `1` et `7` jours |
+
+Le gateway valide ces bornes avant tout appel réseau, propage les valeurs sans les modifier et renvoie respectivement `INVALID_RADIUS` ou `INVALID_HISTORY` en HTTP 400. Les détections restent des suspicions satellitaires non confirmées ; une source indisponible ne doit jamais être interprétée comme une absence de feu.
+
 ## Pont legacy
 
 Le pont `/api/v2/legacy/*` :
@@ -75,12 +97,27 @@ Le pont `/api/v2/legacy/*` :
 
 ## Dépendances
 
+- `map-service` : exposé directement par Caddy sous `/api/v2/map/*` ; styles, tuiles, relief et légendes ;
 - `api` : cible du pont legacy et de la sonde `/ready` ;
 - `geography-service` : résolution géographique publique et résolution du département pour Vigilance ;
 - `weather-service` : température ponctuelle ;
 - `weather-vigilance-service` : vigilance officielle départementale ;
 - `fire-detection-service` : détection stateless de suspicions de feu ;
 - aucune base de données, aucun cache et aucune file de messages.
+
+## Inventaire des API v2
+
+| Service | Code | Route publique | Rôle |
+|---|---|---|---|
+| Gateway | `apps/gateway-service` | `/api/v2/gateway` | Façade HTTP, validation, `x-request-id` et erreurs normalisées ; sans accès base. |
+| Map | `apps/map-service` | `/api/v2/map/styles/territoire.json` | Styles, tuiles, relief et légendes ; routé directement par Caddy. |
+| Geography | `apps/geography-service` | `/api/v2/geography/resolve` | Commune, département et altitude depuis lat/lon. |
+| Weather | `apps/weather-service` | `/api/v2/weather/temperature` | Température ponctuelle et contexte territorial. |
+| Weather Vigilance | `services/weather-vigilance` | `/api/v2/vigilance` | Vigilance officielle MétéoFrance et bulletins optionnels. |
+| Fire Detection | `services/fire-detection` | `/api/v2/fire/nearby` | Suspicions satellitaires FIRMS/EUMETSAT, rayon et historique fournis par l’appelant. |
+| Legacy | `apps/api` | `/api/v2/legacy/*` | Pont historique en lecture seule (`GET`, `HEAD`). |
+
+Le catalogue d’affichage et les démos sont définis dans `apps/gateway-service/src/services-catalog.ts`. L’état live est fourni par `GET /api/v2/status` ; il est indicatif et ne remplace pas une requête fonctionnelle.
 
 ## Configuration (`src/config.ts`)
 
@@ -115,7 +152,7 @@ curl -i http://localhost:8080/api/v2/gateway
 curl -i "http://localhost:8080/api/v2/geography/resolve?lat=44.0812&lon=3.6421"
 curl -i "http://localhost:8080/api/v2/weather/temperature?lat=44.0812&lon=3.6421"
 curl -i "http://localhost:8080/api/v2/vigilance?department_code=30"
-curl -i "http://localhost:8080/api/v2/fire/nearby?lat=44.0812&lon=3.6415"
+curl -i "http://localhost:8080/api/v2/fire/nearby?lat=44.0812&lon=3.6415&radius_km=5&history_days=1"
 curl -i http://localhost:8080/api/v2/legacy/health
 ```
 
@@ -134,6 +171,8 @@ Retirer le service ou un proxy v2 ne modifie pas les routes historiques `/api/*`
 Le gateway sert aussi sa propre façade HTML (styles et scripts inline, sans fichier statique ni bundler), compatible avec le CSP appliqué par Caddy :
 
 - `/api/v2` : accueil listant les microservices (rôle, route, badge d’état) avec un lien vers chaque démo ;
+- `/api/v2/app/` : **feu_val**, application de terrain mobile-first, indépendante de `apps/web`, qui compose Map, Geography et Fire Detection autour d’un point actif — voir [`../../application/feu-val/README.md`](../../application/feu-val/README.md) ;
+- `/api/v2/app/manifest.webmanifest` et `/api/v2/app/icone.svg` : ressources PWA installables. Aucun service worker ni cache hors ligne n’est enregistré afin de conserver les données satellite fraîches. Sur iOS, l’ajout à l’écran d’accueil fonctionne, mais Safari n’utilise pas l’icône SVG sans `apple-touch-icon` PNG (hors périmètre) ;
 - `/api/v2/demo/:service` : démonstration interactive d’un service (formulaire pré-rempli sur Val-d’Aigoual → appel réel de la route publique → affichage du résultat). Le résultat s’affiche sous deux onglets : une **synthèse lisible** (« Résultat ») et le **JSON brut**. Pour les services géographiques (champs `lat`/`lon` : geography, weather, vigilance, fire), la page ajoute un bouton **« Me localiser »** (`navigator.geolocation`) et une **carte Leaflet** (marqueur, clic pour saisir les coordonnées, cercle du rayon et marqueurs des détections pour fire) ;
 - `/api/v2/status` : sonde d’état légère, dédiée à ces pages, qui interroge en parallèle la santé de chaque microservice et renvoie `{ generatedAt, version, services: [{ id, name, status, latencyMs }] }`. Elle ne relaie aucun corps amont ni secret, et ne renvoie jamais de 5xx.
 
@@ -143,7 +182,7 @@ Les pages et le catalogue des services sont pilotés par un descripteur unique (
 
 ## Limites volontaires
 
-Pas d’authentification, de cache, de Redis ou file de messages, de gRPC, de circuit breaker avancé, ni de logique météo, géographique, incendie ou vigilance dans le gateway. La sonde `/ready` n’agrège **pas** la santé des microservices v2 (elle ne vérifie que l’API historique) ; l’état live des services est fourni séparément par `/api/v2/status`, orienté présentation et non orchestration. La fixation du rayon et de l’historique de la route feu est un contrôle de contrat, pas un calcul de détection.
+Pas d’authentification, de cache, de Redis ou file de messages, de gRPC, de circuit breaker avancé, ni de logique météo, géographique, incendie ou vigilance dans le gateway. La sonde `/ready` n’agrège **pas** la santé des microservices v2 (elle ne vérifie que l’API historique) ; l’état live des services est fourni séparément par `/api/v2/status`, orienté présentation et non orchestration. La validation du rayon et de l’historique de la route feu est un contrôle de contrat, pas un calcul de détection.
 
 ## Documentation liée
 
@@ -152,5 +191,6 @@ Pas d’authentification, de cache, de Redis ou file de messages, de gRPC, de ci
 - Weather Service : [`../weather-service/README.md`](../weather-service/README.md)
 - Weather Vigilance : [`../weather-vigilance/README.md`](../weather-vigilance/README.md)
 - Détection incendie : [`../fire-detection/README.md`](../fire-detection/README.md)
+- Application feu_val : [`../../application/feu-val/README.md`](../../application/feu-val/README.md)
 - Architecture globale : [`../../architecture/ARCHITECTURE-GENERALE.md`](../../architecture/ARCHITECTURE-GENERALE.md)
 - Conception v2 : [`../../architecture/conception-v2/`](../../architecture/conception-v2/)

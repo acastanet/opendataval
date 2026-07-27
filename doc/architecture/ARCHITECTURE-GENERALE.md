@@ -78,7 +78,7 @@ Routes publiques exposées par le gateway :
 | `GET /api/v2/geography/resolve` | `geography-service:/internal/v1/geography/resolve` | GET |
 | `GET /api/v2/weather/temperature` | `weather-service:/internal/v1/weather/temperature` | GET |
 | `GET /api/v2/vigilance` | résolution geography puis `weather-vigilance-service:/v1/vigilance/departments/{code}` | GET |
-| `GET /api/v2/fire/nearby` | `fire-detection-service:/v1/fire/nearby`, rayon 50 km et historique 7 jours imposés | GET |
+| `GET /api/v2/fire/nearby` | `fire-detection-service:/v1/fire/nearby`, `radius_km` (1–50) et `history_days` (1–7) obligatoires | GET |
 | `/api/v2/legacy/*` | `api:/api/*` (pont temporaire) | GET, HEAD |
 
 Le gateway propage `x-request-id`, normalise les erreurs (`{ error: { code, message, retryable }, requestId }`) et reste indépendant de la santé des services amont.

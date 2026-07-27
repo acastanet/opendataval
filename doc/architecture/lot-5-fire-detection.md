@@ -13,8 +13,8 @@ Application nomade
        │ GPS
        ▼
 Gateway /api/v2/fire/nearby
-       │ rayon imposé : 50 km
-       │ historique imposé : 7 jours
+       │ rayon explicite : 1 à 50 km
+       │ historique explicite : 1 à 7 jours
        ▼
 fire-detection-service (stateless)
        ├── EUMETSAT MTG CAP ── proximité du temps réel

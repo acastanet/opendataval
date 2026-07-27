@@ -38,6 +38,12 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 | [microservice/copernicus/plan-meteo-essentiel.md](microservice/copernicus/plan-meteo-essentiel.md) | Plan météo essentiel via Copernicus | 2026-07-22 | 2026-07-23 |
 | [microservice/copernicus/aide-code.md](microservice/copernicus/aide-code.md) | Aide au code Copernicus | 2026-07-22 | 2026-07-23 |
 
+## Applications (v2)
+
+| Fichier | Description | MàJ | Vérif. |
+|---|---|---|---|
+| [application/feu-val/README.md](application/feu-val/README.md) | feu_val : application de terrain `/api/v2/app/` (carte, position, suspicions satellitaires) | 2026-07-27 | 2026-07-27 |
+
 ## v1 — Monolithe & mini-applications
 
 | Fichier | Description | MàJ | Vérif. |

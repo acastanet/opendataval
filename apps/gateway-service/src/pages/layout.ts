@@ -134,6 +134,8 @@ form.demo { display: grid; gap: 1rem; margin-top: 1.5rem; }
   font: inherit;
 }
 .field .hint { color: var(--muted); font-size: .8rem; }
+.export-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .45rem .9rem; margin-top: .5rem; }
+.export-columns label { display: flex; align-items: flex-start; gap: .4rem; font-size: .9rem; }
 .called-url { font-family: ui-monospace, monospace; font-size: .82rem; word-break: break-all; }
 pre.result {
   background: var(--code-bg);
@@ -224,7 +226,7 @@ ${back}
 ${body}
 </main>
 <footer class="site">
-Façade des microservices OpenDataVal. Documentation&nbsp;: <span class="route">doc/microservice/gateway-service/README.md</span> &middot; <span class="route">AGENT.md</span>.
+Façade des microservices OpenDataVal. Documentation&nbsp;: <span class="route">doc/microservice/gateway-service/README.md</span> &middot; <span class="route">AGENTS.md</span>.
 </footer>
 </body>
 </html>`;

@@ -25,8 +25,10 @@ function statusById(services: Array<{ id: string; status: string }>): Record<str
 
 test("GET /api/v2/status agrège l'état des microservices", async (t) => {
   // geography, weather et legacy répondent ; vigilance et fire échouent.
+  const calledUrls: string[] = [];
   const fetchImpl = (async (input: RequestInfo | URL) => {
     const url = String(input);
+    calledUrls.push(url);
     if (url.includes("weather-vigilance-service") || url.includes("fire-detection-service")) {
       throw new Error("service indisponible");
     }
@@ -47,6 +49,8 @@ test("GET /api/v2/status agrège l'état des microservices", async (t) => {
   assert.equal(status.legacy, "ok");
   assert.equal(status.vigilance, "unavailable");
   assert.equal(status.fire, "unavailable");
+  assert.equal(status.associations, "ok");
+  assert.ok(calledUrls.includes("http://association-service:3000/readyz"));
   assert.equal(typeof body.services[0].latencyMs, "number");
 });
 

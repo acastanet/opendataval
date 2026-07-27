@@ -77,6 +77,70 @@ export interface ServiceDescriptor {
 /** Coordonnées d'exemple (Val-d'Aigoual / Gard), aussi centre par défaut de la carte. */
 export const VAL_D_AIGOUAL = { lat: "44.0812", lon: "3.6421" } as const;
 
+const ASSOCIATION_PRIMARY_CATEGORIES: DemoFieldOption[] = [
+  { value: "", label: "Toutes les catégories primaires" },
+  { value: "001000", label: "001000 - SPORTS" },
+  { value: "002000", label: "002000 - CULTURE ET ARTS" },
+  { value: "003000", label: "003000 - LOISIRS ET VIE SOCIALE" },
+  { value: "004000", label: "004000 - ACTION SOCIALE" },
+  { value: "005000", label: "005000 - ÉDUCATION ET FORMATION" },
+  { value: "006000", label: "006000 - SANTÉ" },
+  { value: "008000", label: "008000 - ENVIRONNEMENT ET CADRE DE VIE" },
+  { value: "024000", label: "024000 - ÉLEVAGE ET ANIMAUX" },
+];
+
+const ASSOCIATION_SECONDARY_CATEGORIES: DemoFieldOption[] = [
+  { value: "", label: "Toutes les catégories secondaires" },
+  { value: "001005", label: "001005 : Football, futsal" },
+  { value: "001015", label: "001015 : Tennis, badminton, squash" },
+  { value: "001025", label: "001025 : Cyclisme, VTT, cyclotourisme" },
+  { value: "001045", label: "001045 : Sports de combat (judo, karaté, boxe)" },
+  { value: "001065", label: "001065 : Randonnée pédestre, marche nordique" },
+  { value: "001080", label: "001080 : Gymnastique, fitness, yoga" },
+  { value: "001115", label: "001115 : Chasse, piégeage" },
+  { value: "001120", label: "001120 : Pêche, protection des milieux aquatiques" },
+  { value: "002010", label: "002010 : Musique, chant choral, fanfares" },
+  { value: "002015", label: "002015 : Danse, chorégraphie" },
+  { value: "002020", label: "002020 : Théâtre, marionnettes, cirque" },
+  { value: "002030", label: "002030 : Arts plastiques, peinture, sculpture, dessin" },
+  { value: "002040", label: "002040 : Photographie, cinéma, vidéo" },
+  { value: "002055", label: "002055 : Sauvegarde du patrimoine culturel et historique" },
+  { value: "003005", label: "003005 : Clubs de troisième âge, seniors" },
+  { value: "003020", label: "003020 : Comités des fêtes, kermesses" },
+  { value: "003040", label: "003040 : Jeux de l'esprit (échecs, bridge, tarot)" },
+  { value: "003060", label: "003060 : Associations de quartier, comités de riverains" },
+  { value: "003080", label: "003080 : Clubs de loisirs scientifiques ou techniques" },
+  { value: "004010", label: "004010 : Banques alimentaires, distribution de repas" },
+  { value: "004015", label: "004015 : Aide aux personnes en situation de handicap" },
+  { value: "004020", label: "004020 : Accompagnement, aide aux malades" },
+  { value: "004040", label: "004040 : Centres aérés, colonies de vacances" },
+  { value: "004050", label: "004050 : Insertion par l'activité économique (IAE)" },
+  { value: "004065", label: "004065 : Droits des femmes, égalité des chances" },
+  { value: "005010", label: "005010 : Associations de parents d'élèves" },
+  { value: "005015", label: "005015 : Soutien scolaire, cours de rattrapage" },
+  { value: "005025", label: "005025 : Éducation populaire, mouvements de jeunesse" },
+  { value: "005040", label: "005040 : Formation continue des adultes" },
+  { value: "006015", label: "006015 : Prévention des addictions (alcool, drogue, tabac)" },
+  { value: "006025", label: "006025 : Don de sang, don d'organes" },
+  { value: "006040", label: "006040 : Recherche médicale, financement de laboratoires" },
+  { value: "008010", label: "008010 : Protection de la nature, de la faune et de la flore" },
+  { value: "008015", label: "008015 : Écologie, énergies renouvelables, recyclage" },
+  { value: "008035", label: "008035 : Amélioration du cadre de vie, urbanisme" },
+  { value: "024005", label: "024005 : Défense des animaux, refuges, SPA" },
+  { value: "024010", label: "024010 : Clubs canins, éducation des animaux domestiques" },
+];
+
+/**
+ * Mairie de Val-d'Aigoual : point d'origine de l'app de terrain.
+ * Coordonnées volontairement dupliquées depuis packages/shared/src/localisationsMeteo.ts.
+ */
+export const MAIRIE_VAL_D_AIGOUAL = {
+  lat: 44.081192,
+  lon: 3.641467,
+  libelle: "Mairie de Val-d’Aigoual",
+  adresse: "Rue de la Mairie, Valleraugue",
+} as const;
+
 /**
  * Retourne l'URL de base d'un service en repliant sur la valeur par défaut de
  * Compose lorsque la configuration ne fournit pas d'URL (champs optionnels).
@@ -204,7 +268,7 @@ export const SERVICES: ServiceDescriptor[] = [
   {
     id: "fire",
     name: "Fire Detection",
-    role: "Détection stateless de suspicions de feu à proximité (FIRMS + EUMETSAT), rayon 50 km sur 7 jours.",
+    role: "Détection stateless de suspicions satellitaires de feu à proximité (FIRMS + EUMETSAT), avec rayon et historique explicites.",
     repo: "services/fire-detection",
     method: "GET",
     publicRoute: "/api/v2/fire/nearby",
@@ -213,11 +277,84 @@ export const SERVICES: ServiceDescriptor[] = [
     demo: [
       { name: "lat", label: "Latitude", type: "number", example: VAL_D_AIGOUAL.lat },
       { name: "lon", label: "Longitude", type: "number", example: VAL_D_AIGOUAL.lon },
+      { name: "radius_km", label: "Rayon (km)", type: "number", example: "50" },
+      { name: "history_days", label: "Historique (jours)", type: "number", example: "7" },
       {
         name: "accuracy",
         label: "Précision GPS (m)",
         type: "number",
         example: "25",
+        optional: true,
+      },
+    ],
+  },
+  {
+    id: "associations",
+    name: "Associations",
+    role: "Liste consolidée, recherchable et cartographiable des associations d’une commune française.",
+    repo: "apps/association-service",
+    method: "GET",
+    publicRoute: "/api/v2/associations",
+    healthUrl: (config) =>
+      `${baseUrl(config.associationServiceUrl, "http://association-service:3000")}/readyz`,
+    demo: [
+      {
+        name: "code_insee",
+        label: "Code INSEE de la commune",
+        type: "text",
+        example: "30339",
+        hint: "30339 correspond à Val-d’Aigoual.",
+      },
+      {
+        name: "q",
+        label: "Recherche",
+        type: "text",
+        example: "",
+        optional: true,
+        hint: "Titre, objet ou domaine d’activité.",
+      },
+      {
+        name: "status",
+        label: "Statut administratif",
+        type: "select",
+        example: "",
+        optional: true,
+        options: [
+          { value: "", label: "Tous les statuts" },
+          { value: "active", label: "Active" },
+          { value: "dissolved", label: "Dissoute" },
+          { value: "unknown", label: "Inconnu" },
+        ],
+      },
+      {
+        name: "category_primary",
+        label: "Catégorie principale",
+        type: "select",
+        example: "",
+        optional: true,
+        options: ASSOCIATION_PRIMARY_CATEGORIES,
+      },
+      {
+        name: "category_secondary",
+        label: "Catégorie secondaire",
+        type: "select",
+        example: "",
+        optional: true,
+        options: ASSOCIATION_SECONDARY_CATEGORIES,
+      },
+      {
+        name: "limit",
+        label: "Nombre de résultats",
+        type: "number",
+        example: "25",
+        optional: true,
+        hint: "Maximum : 100.",
+      },
+      {
+        name: "cursor",
+        label: "Curseur de page suivante",
+        type: "text",
+        example: "",
         optional: true,
       },
     ],
