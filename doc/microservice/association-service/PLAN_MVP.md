@@ -3,20 +3,20 @@
 > Statut : proposition d’implémentation
 > Périmètre initial : Val-d’Aigoual, code INSEE `30339`
 > Architecture cible : microservice v2 derrière `gateway-service`
-> Sources vérifiées le 27 juillet 2026
+> Source principale : Répertoire national des associations
 
 ## 1. Objectif
 
-Créer un microservice simple et fiable permettant de consulter les associations déclarées sur une commune française, avec un premier déploiement limité à Val-d’Aigoual.
+Créer un microservice simple permettant de consulter et de cartographier les associations officiellement déclarées sur une commune française, avec un premier déploiement limité à Val-d’Aigoual.
 
 Le MVP doit répondre à quatre questions :
 
-1. Quelles associations sont rattachchées à la commune ?
+1. Quelles associations sont rattachées à la commune ?
 2. Quel est leur objet et leur domaine d’activité ?
-3. Sont-elles administrativement actives, dissoutes ou de statut incertain ?
+3. Quel est leur statut administratif connu ?
 4. Quand et depuis quelle source les informations ont-elles été mises à jour ?
 
-Le service ne doit pas prétendre mesurer l’activité réelle d’une association. Le statut RNA indique une situation administrative, pas la tenue récente d’activités locales.
+Le statut administratif ne doit pas être présenté comme une preuve d’activité locale récente.
 
 ## 2. Périmètre fonctionnel
 
@@ -26,23 +26,26 @@ Le service ne doit pas prétendre mesurer l’activité réelle d’une associat
 - recherche textuelle sur le titre, le sigle et l’objet ;
 - filtre par statut administratif ;
 - filtre par catégorie RNA ;
-- fiche synthétique d’une association ;
+- fiche détaillée d’une association ;
+- adresse officielle publiée par la source ;
+- géocodage de cette adresse ;
+- cartographie des sièges ;
 - statistiques simples par commune ;
-- export JSON, CSV et GeoJSON ;
 - provenance, date de mise à jour et état de fraîcheur ;
-- gestion des anciennes communes composant Val-d’Aigoual ;
-- localisation cartographique au centroïde communal uniquement.
+- gestion des anciennes communes composant Val-d’Aigoual.
 
 ### Hors périmètre
 
 - annuaire des dirigeants ou membres ;
-- publication de coordonnées personnelles ;
+- enrichissement avec des coordonnées non publiées par les sources officielles ;
 - subventions, comptes annuels et effectifs salariés ;
 - validation par la mairie ;
 - historique détaillé des annonces JOAFE ;
-- géocodage précis du siège ;
 - contribution directe des associations ;
+- fonctions d’export dédiées ;
 - couverture nationale chargée intégralement en mémoire.
+
+Les réponses JSON ordinaires de l’API suffisent pour les usages applicatifs. Aucun module CSV ou GeoJSON d’export n’est prévu dans le MVP.
 
 ## 3. Sources de données
 
@@ -53,15 +56,16 @@ Le service ne doit pas prétendre mesurer l’activité réelle d’une associat
 - jeu de données : `https://www.data.gouv.fr/datasets/rna-agrege-a-lechelle-nationale`
 - format recommandé : Parquet ;
 - fréquence de contrôle : hebdomadaire ;
-- fréquence réelle attendue de la source : mensuelle ;
+- fréquence attendue de la source : mensuelle ;
 - licence : Licence Ouverte 2.0.
 
-### Sources facultatives du MVP
+### Sources complémentaires
 
 - référentiel des communes via `geo.api.gouv.fr` ;
-- centroïdes communaux déjà disponibles dans la pile géographique OpenDataVal.
+- service officiel de géocodage de la Géoplateforme ;
+- référentiels géographiques déjà disponibles dans OpenDataVal.
 
-Le MVP ne dépend pas de l’API Association pour fonctionner. Cette API peut nécessiter un accès et des paramètres propres à API Entreprise ; elle sera traitée comme enrichissement facultatif dans le produit complet.
+Le MVP ne doit pas dépendre de l’API Association pour fonctionner. Elle pourra être ajoutée ultérieurement comme source d’enrichissement.
 
 ## 4. Cas particulier de Val-d’Aigoual
 
@@ -75,38 +79,40 @@ Val-d’Aigoual est une commune nouvelle. Le filtre d’import doit reconnaître
 | Libellés possibles | `VAL-D'AIGOUAL`, `VALLERAUGUE`, `NOTRE-DAME-DE-LA-ROUVIERE` |
 | Code postal indicatif | `30570` |
 
-La normalisation doit produire `codeInsee = 30339` tout en conservant `sourceCommuneCode` et `sourceCommuneName` pour l’audit.
+La normalisation produit `codeInsee = 30339` tout en conservant le code et le nom de commune fournis par la source.
 
-Les correspondances historiques doivent être stockées dans un petit référentiel versionné, et non codées directement dans les fonctions métier.
+Les correspondances historiques sont stockées dans un référentiel versionné et non codées directement dans les fonctions métier.
 
 ## 5. Architecture MVP
 
 ```mermaid
 flowchart LR
-  RNA[RNA Parquet data.gouv.fr] --> Sync[Commande de synchronisation]
+  RNA[RNA Parquet] --> Sync[Commande de synchronisation]
   Sync --> Filter[Filtrage et normalisation]
-  Filter --> Snapshot[(Snapshot JSON compressé)]
+  Filter --> Geocode[Géocodage officiel]
+  Geocode --> Snapshot[(Snapshot JSON compressé)]
   Snapshot --> Service[association-service]
   Gateway[gateway-service] --> Service
   Service --> Client[Client OpenDataVal]
-  Service --> Map[map-service via GeoJSON communal]
+  Service --> Map[map-service]
 ```
 
 ### Composants
 
 - `apps/association-service/` : API Node.js / TypeScript ;
-- `scripts/sync-rna.ts` : téléchargement, filtrage et production du snapshot ;
+- `scripts/sync-rna.ts` : téléchargement, filtrage et normalisation ;
+- `scripts/geocode-associations.ts` : géocodage des adresses officielles ;
 - volume persistant : `/var/lib/opendataval/association-service/` ;
 - snapshot courant : `associations-30339.json.gz` ;
 - manifeste : `manifest.json` avec URL, empreinte, date source, date de génération et nombre de lignes ;
 - image Docker indépendante ;
 - routage public par `gateway-service`.
 
-### Choix de stockage
+### Stockage
 
 Aucune base de données métier pour le MVP.
 
-Le service charge en mémoire uniquement le snapshot des communes configurées. Le dernier snapshot valide est conservé après redémarrage. Une synchronisation en échec ne doit jamais remplacer le snapshot courant.
+Le service charge en mémoire uniquement le snapshot des communes configurées. Le dernier snapshot valide est conservé après redémarrage. Une synchronisation en échec ne remplace jamais le snapshot courant.
 
 ## 6. Modèle de données public
 
@@ -126,18 +132,19 @@ export type AssociationSummary = {
   website: string | null;
   siren: string | null;
   siret: string | null;
-  municipality: {
-    codeInsee: string;
-    name: string;
+  address: {
+    label: string | null;
+    street: string | null;
     postalCode: string | null;
+    municipalityName: string;
     sourceCommuneCode: string | null;
-    sourceCommuneName: string | null;
+    normalizedCommuneCode: string;
   };
   location: {
-    type: "municipality_centroid";
     latitude: number;
     longitude: number;
-    precision: "municipality";
+    precision: "address" | "street" | "municipality";
+    score: number | null;
   } | null;
   source: {
     name: "RNA";
@@ -147,13 +154,11 @@ export type AssociationSummary = {
 };
 ```
 
-### Règles de confidentialité
+### Règle de publication
 
-- ne jamais exposer le nom d’un dirigeant ou d’un membre ;
-- ne pas exposer de courriel, téléphone ou adresse personnelle ;
-- ne pas publier l’adresse précise du siège dans le MVP ;
-- publier uniquement la commune, le code postal et le centroïde communal ;
-- conserver seulement les champs nécessaires au service public rendu.
+Le service reprend les informations officiellement diffusées par le RNA. Il n’ajoute pas de coordonnées personnelles provenant d’autres sources et ne publie pas d’informations internes sur les dirigeants.
+
+L’adresse officielle du siège peut être affichée et géocodée puisqu’elle provient du service public source. La réponse conserve toujours la provenance et la précision du géocodage.
 
 ## 7. API publique
 
@@ -180,7 +185,7 @@ Paramètres :
 GET /api/v2/associations/{rnaId}
 ```
 
-Les associations anciennes sans numéro RNA utilisent une route interne par `legacyId`, mais ne doivent pas provoquer de collision avec les numéros RNA.
+Les associations anciennes sans numéro RNA utilisent un identifiant historique stable distinct.
 
 ### Statistiques
 
@@ -195,6 +200,7 @@ Réponse minimale :
 - nombre par catégorie principale ;
 - créations par année ;
 - proportion de fiches avec SIREN/SIRET ;
+- proportion d’adresses géocodées ;
 - date du snapshot.
 
 ### Cartographie
@@ -203,15 +209,9 @@ Réponse minimale :
 GET /api/v2/associations/map?code_insee=30339
 ```
 
-Retourne un `FeatureCollection` GeoJSON. Toutes les associations du MVP sont positionnées au centroïde de la commune avec `location_precision = municipality`. Le client doit agréger les points superposés.
+La route retourne un `FeatureCollection` GeoJSON destiné à l’affichage cartographique. Il ne s’agit pas d’un module d’export générique.
 
-### Export
-
-```http
-GET /api/v2/associations/export?code_insee=30339&format=json
-GET /api/v2/associations/export?code_insee=30339&format=csv
-GET /api/v2/associations/export?code_insee=30339&format=geojson
-```
+Les coordonnées correspondent à l’adresse officielle géocodée. En cas d’échec, le service utilise le centroïde de la commune et indique `precision = municipality`.
 
 ### Exploitation
 
@@ -222,7 +222,7 @@ GET /internal/v1/associations/status
 POST /internal/v1/associations/sync
 ```
 
-La route de synchronisation est interne, protégée et non exposée par Caddy.
+La route de synchronisation est interne et non exposée par Caddy.
 
 ## 8. Normalisation et déduplication
 
@@ -234,13 +234,14 @@ Ordre de priorité des identifiants :
 
 Règles :
 
-- une ligne Waldec et une ligne Import ne doivent jamais être fusionnées sur le seul titre ;
+- ne jamais fusionner deux lignes sur le seul titre ;
 - dédupliquer par identifiant officiel ;
-- normaliser les espaces, apostrophes, accents et majuscules uniquement pour la recherche ;
+- normaliser espaces, apostrophes, accents et majuscules uniquement pour la recherche ;
 - conserver les valeurs originales pour l’affichage ;
 - convertir les dates invalides en `null` avec un avertissement de qualité ;
 - ne jamais transformer un statut absent en `active` ;
-- conserver la trace de la ligne source et du fichier d’origine dans le snapshot interne.
+- conserver la trace du fichier et de la ligne source ;
+- conserver l’adresse originale avant normalisation et géocodage.
 
 ## 9. Fraîcheur et résilience
 
@@ -254,52 +255,61 @@ Règles :
 Comportement :
 
 - téléchargement dans un fichier temporaire ;
-- validation du schéma et du nombre de lignes avant publication ;
+- validation du schéma et du nombre de lignes ;
 - calcul SHA-256 ;
+- géocodage mis en cache ;
 - remplacement atomique du snapshot ;
 - conservation du snapshot précédent ;
 - restauration automatique après redémarrage ;
-- réponse avec données anciennes et `freshness_status=stale` plutôt qu’une panne totale.
+- réponse avec données anciennes et statut `stale` plutôt qu’une panne totale.
 
 ## 10. Étapes d’implémentation
 
-### Étape 1 — Contrat et fixtures
+### Étape 1 — Contrats et fixtures
 
 - créer les types TypeScript ;
 - définir les schémas Zod ;
-- ajouter une fixture RNA réduite couvrant Waldec, Import, dissolution et données manquantes ;
+- ajouter une fixture RNA réduite ;
 - documenter les alias communaux de Val-d’Aigoual.
 
 ### Étape 2 — Synchronisation
 
 - télécharger le Parquet ;
-- sélectionner uniquement les colonnes nécessaires ;
+- sélectionner les colonnes nécessaires ;
 - filtrer les communes configurées ;
 - normaliser les lignes ;
 - générer le snapshot et le manifeste ;
 - rendre l’opération idempotente.
 
-### Étape 3 — API
+### Étape 3 — Géocodage
 
-- implémenter liste, recherche, fiche, statistiques et exports ;
+- construire une adresse normalisée ;
+- interroger le service officiel de géocodage ;
+- mettre les résultats en cache ;
+- conserver le score et la précision ;
+- utiliser le centroïde communal en dernier recours.
+
+### Étape 4 — API
+
+- implémenter liste, recherche, fiche, statistiques et cartographie ;
 - ajouter pagination et validation d’entrée ;
 - appliquer le format d’erreur commun OpenDataVal ;
 - propager `x-request-id`.
 
-### Étape 4 — Intégration OpenDataVal
+### Étape 5 — Intégration OpenDataVal
 
 - ajouter la route au gateway ;
 - ajouter le conteneur Docker et son volume ;
 - ajouter les checks de santé ;
-- connecter le GeoJSON à `map-service` sans intégrer la logique métier dans celui-ci.
+- connecter la route cartographique à `map-service` sans y placer la logique métier.
 
-### Étape 5 — Validation et déploiement
+### Étape 6 — Validation et déploiement
 
 - synchroniser Val-d’Aigoual ;
 - comparer un échantillon avec la recherche publique du Journal officiel ;
 - vérifier les anciennes communes ;
-- contrôler qu’aucune donnée personnelle n’est publiée ;
-- déployer progressivement derrière `/api/v2/associations`.
+- contrôler les adresses et la précision du géocodage ;
+- déployer derrière `/api/v2/associations`.
 
 ## 11. Tests obligatoires
 
@@ -312,7 +322,8 @@ Comportement :
 - recherche accentuée et non accentuée ;
 - catégories absentes ;
 - dates invalides ;
-- génération du GeoJSON communal.
+- normalisation des adresses ;
+- gestion des niveaux de précision du géocodage.
 
 ### Tests d’intégration
 
@@ -321,14 +332,15 @@ Comportement :
 - refus d’un snapshot incomplet ;
 - conservation du dernier snapshot valide en cas d’échec ;
 - pagination stable ;
-- exports conformes.
+- cache de géocodage ;
+- GeoJSON valide pour la carte.
 
 ### Tests de déploiement
 
 ```bash
-curl -fsS http://localhost:8080/api/v2/associations?code_insee=30339
-curl -fsS http://localhost:8080/api/v2/associations/stats?code_insee=30339
-curl -fsS http://localhost:8080/api/v2/associations/map?code_insee=30339
+curl -fsS "http://localhost:8080/api/v2/associations?code_insee=30339"
+curl -fsS "http://localhost:8080/api/v2/associations/stats?code_insee=30339"
+curl -fsS "http://localhost:8080/api/v2/associations/map?code_insee=30339"
 ```
 
 ## 12. Critères d’acceptation
@@ -340,8 +352,8 @@ Le MVP est validé lorsque :
 - les associations de Val-d’Aigoual et de ses anciennes communes sont prises en compte ;
 - la liste peut être recherchée et filtrée ;
 - chaque réponse indique la source et la fraîcheur ;
-- les exports JSON, CSV et GeoJSON sont disponibles ;
-- aucune donnée personnelle de dirigeant ou adresse précise n’est exposée ;
+- l’adresse officielle est restituée lorsqu’elle est fournie par le RNA ;
+- la cartographie indique la précision de chaque position ;
 - une panne de la source ne rend pas indisponible le dernier snapshot valide ;
 - les routes publiques passent par le gateway ;
 - les tests automatiques et les tests de fumée sont verts.
@@ -351,8 +363,8 @@ Le MVP est validé lorsque :
 - une association administrativement active peut ne plus avoir d’activité réelle ;
 - certaines associations anciennes n’ont pas de numéro RNA ;
 - les catégories RNA peuvent être absentes ou trop générales ;
-- la commune du siège ne correspond pas toujours au territoire réel d’action ;
-- la localisation au centroïde communal ne permet pas d’afficher le lieu précis d’activité ;
+- le siège ne correspond pas toujours au lieu d’activité ;
+- certaines adresses sont incomplètes ou difficiles à géocoder ;
 - la mise à jour n’est pas temps réel.
 
 Ces limites doivent être affichées dans la documentation de l’API et dans l’interface utilisateur.
