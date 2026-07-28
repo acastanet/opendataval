@@ -12,6 +12,11 @@ if [[ "${OUTPUT_DIR}" != /* ]]; then
   OUTPUT_DIR="${ROOT_DIR}/${OUTPUT_DIR#./}"
 fi
 
+if [[ ! -d "${OUTPUT_DIR}" ]]; then
+  echo "Répertoire de sortie absent: ${OUTPUT_DIR}" >&2
+  exit 1
+fi
+
 LATEST_RUN="$(find "${OUTPUT_DIR}" -mindepth 1 -maxdepth 1 -type d -name 'run-*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2-)"
 if [[ -z "${LATEST_RUN}" ]]; then
   echo "Aucune exécution trouvée dans ${OUTPUT_DIR}" >&2
@@ -32,7 +37,10 @@ check_file() {
   fi
 }
 
-CITYJSON_COUNT="$(find "${LATEST_RUN}/roofer_output" -type f \( -name '*.jsonl' -o -name '*.city.jsonl' -o -name '*.json' \) 2>/dev/null | wc -l | tr -d ' ')"
+CITYJSON_COUNT=0
+if [[ -d "${LATEST_RUN}/roofer_output" ]]; then
+  CITYJSON_COUNT="$(find "${LATEST_RUN}/roofer_output" -type f \( -name '*.jsonl' -o -name '*.city.jsonl' -o -name '*.json' \) 2>/dev/null | wc -l | tr -d ' ')"
+fi
 
 cat >"${REPORT}" <<EOF_REPORT
 # Validation POC 3D — mairie de Valleraugue
