@@ -45,7 +45,7 @@ Aucun code du microservice cartographique n'est modifié à ce stade.
 
 ```bash
 cd poc/valleraugue-mairie-3d
-cp config/poc.env.example config/poc.env
+cp config/poc.conf.example config/poc.conf
 make check
 make run
 make validate
