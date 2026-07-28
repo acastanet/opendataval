@@ -1,0 +1,53 @@
+{
+  "type": "FeatureCollection",
+  "name": "valleraugue_mairie_poc",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "mairie-val-aigoual",
+        "name": "Mairie de Val-d'Aigoual — bureau de Valleraugue",
+        "address": "1 place Francis Cavalier-Bénézet, 30570 Val-d'Aigoual",
+        "role": "poc_center",
+        "source": "Office de tourisme / site municipal",
+        "status": "starting_reference_to_visually_confirm"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [3.641219, 44.081089]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "mairie-valleraugue-100m",
+        "name": "Carré POC 100 × 100 m autour de la mairie",
+        "role": "processing_bbox",
+        "crs_processing": "EPSG:2154",
+        "bbox_l93": [751306, 6331501, 751406, 6331601],
+        "width_m": 100,
+        "height_m": 100,
+        "area_m2": 10000,
+        "buffer_m": 15
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [3.64058967, 44.08064265],
+            [3.64183819, 44.08063534],
+            [3.64184834, 44.08153534],
+            [3.64059980, 44.08154265],
+            [3.64058967, 44.08064265]
+          ]
+        ]
+      }
+    }
+  ]
+}
