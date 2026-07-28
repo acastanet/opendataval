@@ -1,0 +1,5 @@
+.work/
+output/
+config/poc.conf
+*.log
+.DS_Store
