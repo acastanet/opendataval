@@ -1,0 +1,43 @@
+diff --git a/scripts/build_pdal_pipeline.py b/scripts/build_pdal_pipeline.py
+index b416fe9..06ef808 100755
+--- a/scripts/build_pdal_pipeline.py
++++ b/scripts/build_pdal_pipeline.py
+@@ -9,6 +9,17 @@ from typing import Any, Dict, List
+ 
+ COPC_URL_FIELD = "url"
+ 
++# Tiles already present here are read from disk instead of over HTTP. Reading a COPC tile by
++# range requests hangs on a large area of interest: the server eventually closes the
++# connections and readers.copc waits on them forever, with no timeout and no retry. A whole
++# LiDAR HD tile is around 300 MB, so fetching it once is both cheaper and predictable.
++TILE_CACHE_DIR = Path("/workspace/tiles")
++
++
++def cached_tile(url: str) -> Path | None:
++    tile = TILE_CACHE_DIR / Path(url).name
++    return tile if tile.is_file() else None
++
+ 
+ def parse_args() -> argparse.Namespace:
+     parser = argparse.ArgumentParser(
+@@ -139,10 +150,19 @@ def build_pipeline(urls: List[str], bounds: str, laz_output: str) -> List[Dict[s
+     stages: List[Dict[str, Any]] = []
+ 
+     for url in urls:
++        tile = cached_tile(url)
++        if tile is not None:
++            source: Any = str(tile)
++            print(f"Using cached tile: {tile}", file=sys.stderr)
++        else:
++            source = {
++                "path": url,
++                "headers": {"User-Agent": "OpenDataVdA-Roofer-POC/1.0"},
++            }
+         stages.append(
+             {
+                 "type": "readers.copc",
+-                "filename": url,
++                "filename": source,
+                 "bounds": bounds,
+             }
+         )

@@ -1,0 +1,31 @@
+diff --git a/scripts/run_workflow.sh b/scripts/run_workflow.sh
+index 3204c45..20c797a 100755
+--- a/scripts/run_workflow.sh
++++ b/scripts/run_workflow.sh
+@@ -278,14 +278,26 @@ prepare_extents() {
+   read -r BUILDING_XMIN BUILDING_YMIN BUILDING_XMAX BUILDING_YMAX <<<"$(extract_extent "$BUILDINGS_GPKG" "$BUILDINGS_LAYER_NAME")"
+   write_bbox_json "$BUILDING_BBOX_JSON" "$BUILDING_XMIN" "$BUILDING_YMIN" "$BUILDING_XMAX" "$BUILDING_YMAX"
+ 
++  # The extraction extent is the union of the requested bbox and the building extent, then
++  # buffered. Buffering the building extent alone leaves the requested area uncovered wherever
++  # its edges carry no building - woodland, water, bare slopes - and downstream terrain models
++  # then interpolate across the gap without any way to notice it.
+   read -r BUFFERED_XMIN BUFFERED_YMIN BUFFERED_XMAX BUFFERED_YMAX <<<"$(
+     awk \
+       -v xmin="$BUILDING_XMIN" \
+       -v ymin="$BUILDING_YMIN" \
+       -v xmax="$BUILDING_XMAX" \
+       -v ymax="$BUILDING_YMAX" \
++      -v inxmin="$INPUT_XMIN" \
++      -v inymin="$INPUT_YMIN" \
++      -v inxmax="$INPUT_XMAX" \
++      -v inymax="$INPUT_YMAX" \
+       -v buffer="$BUFFER" \
+       'BEGIN {
++        if (inxmin < xmin) xmin = inxmin
++        if (inymin < ymin) ymin = inymin
++        if (inxmax > xmax) xmax = inxmax
++        if (inymax > ymax) ymax = inymax
+         printf "%.6f %.6f %.6f %.6f\n", xmin - buffer, ymin - buffer, xmax + buffer, ymax + buffer
+       }'
+   )"

@@ -18,17 +18,45 @@
   <body>
     <main id="viewport" aria-label="Scène 3D de Valleraugue"></main>
 
+    <!-- Deux lignes : le surtitre porte la provenance, le titre la scène. Le détail des
+         couches est dans « Informations sur les données », pas dans l'en-tête. -->
     <header class="brand">
       <span class="brand__eyebrow">Val-d’Aigoual · IGN LiDAR HD</span>
       <h1>Valleraugue en relief</h1>
-      <p>Terrain, orthophotographie et bâtiments LoD2.2</p>
     </header>
 
-    <aside class="panel" aria-label="Contrôles de la scène">
-      <div class="panel__status">
+    <button
+      id="panelToggle"
+      class="panel-toggle"
+      type="button"
+      aria-controls="controlPanel"
+      aria-expanded="true"
+      aria-label="Masquer les réglages"
+      title="Masquer les réglages"
+    >
+      <svg class="panel-toggle__icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M9 5l7 7-7 7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <!-- Replié, une icône seule ne dit pas ce qu'elle rouvre : le libellé n'apparaît que
+           dans cet état, là où l'affordance manque. -->
+      <span class="panel-toggle__label">Réglages</span>
+    </button>
+
+    <aside id="controlPanel" class="panel" aria-label="Contrôles de la scène">
+      <div class="panel__status" data-state="loading">
         <span class="pulse" aria-hidden="true"></span>
         <span id="status">Chargement de la scène…</span>
       </div>
+      <!-- La progression se compte en octets du GLB : un compteur de fichiers sauterait à 17 %
+           dès la première texture alors que la scène pèse une vingtaine de mégaoctets. -->
+      <progress id="loadProgress" class="load-progress" max="1" value="0" hidden></progress>
 
       <dl class="metrics">
         <div>
@@ -45,8 +73,11 @@
         </div>
       </dl>
 
-      <section class="controls">
-        <h2>Affichage</h2>
+      <!-- Niveau 1 : ce dont on se sert à chaque ouverture de la scène. Les couches sont
+           pliables — elles sont cinq et on ne les touche pas à chaque fois — mais les points de
+           vue tiennent sur une ligne et ne gagneraient rien à l'être. -->
+      <details id="layersControls" class="controls accordion" open>
+        <summary>Couches</summary>
         <label class="switch-row">
           <span>Terrain IGN</span>
           <input id="terrainToggle" type="checkbox" checked />
@@ -56,55 +87,327 @@
           <input id="buildingsToggle" type="checkbox" checked />
         </label>
         <label class="switch-row">
-          <span>Maillage</span>
-          <input id="wireframeToggle" type="checkbox" />
+          <span>Végétation</span>
+          <input id="vegetationToggle" type="checkbox" checked />
         </label>
         <label class="switch-row">
-          <span>Rendu réaliste</span>
-          <input id="realisticToggle" type="checkbox" />
+          <span>Eau</span>
+          <input id="waterToggle" type="checkbox" checked />
         </label>
-        <label class="range-row">
-          <span>Opacité du terrain</span>
-          <output id="opacityValue">100 %</output>
-          <input id="terrainOpacity" type="range" min="15" max="100" value="100" />
+        <label class="switch-row">
+          <span>Ponts</span>
+          <input id="bridgeToggle" type="checkbox" checked />
         </label>
-        <label class="range-row">
-          <span>Hauteur du soleil</span>
-          <output id="sunValue">35°</output>
-          <input id="sunHeight" type="range" min="10" max="75" value="35" />
-        </label>
-        <label class="range-row">
-          <span>Azimut du soleil</span>
-          <output id="azimuthValue">230°</output>
-          <input id="sunAzimuth" type="range" min="0" max="359" value="230" />
-        </label>
-        <p id="sunNotice" class="notice"></p>
-        <label class="range-row">
-          <span>Exagération verticale</span>
-          <output id="verticalValue">×1,0</output>
-          <input id="verticalScale" type="range" min="100" max="250" value="100" />
-        </label>
-      </section>
+      </details>
 
-      <section class="controls">
-        <h2>Points de vue</h2>
-        <div class="button-row">
-          <button id="viewOverview" type="button">Vue générale</button>
-          <button id="viewMairie" type="button">Mairie</button>
-          <button id="viewRoof" type="button">Toiture</button>
+      <section class="controls controls--inline">
+        <h2 class="controls__title">POV</h2>
+        <div class="pov-row">
+          <button
+            id="viewReset"
+            class="pov"
+            type="button"
+            aria-label="Vue générale"
+            title="Vue générale"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <button id="viewMairie" class="pov" type="button" aria-label="Mairie" title="Mairie">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M3.5 11L12 4.5l8.5 6.5M6 10.2V19.5h12V10.2M10.4 19.5v-4.6h3.2v4.6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            id="viewRoof"
+            class="pov"
+            type="button"
+            aria-label="Vue des toitures"
+            title="Vue des toitures"
+          >
+            <!-- Vue plongeante : la flèche dit d'où l'on regarde, le losange est le plan des
+                 toitures. Un losange seul se lisait comme un œil. -->
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 3v6m-2.6-2.4L12 9.2l2.6-2.6M12 12.6l7 4.2-7 4.2-7-4.2z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
         </div>
-        <button id="grazingLight" type="button">Lumière rasante</button>
       </section>
 
-      <p class="hint">
-        Glisser pour tourner · molette pour zoomer · clic droit pour déplacer<br />
-        1 orthophoto seule · 2 bâtiments seuls · 3 scène complète
-      </p>
+      <!-- Niveau 2 : tout ce qui sert au contrôle fin, replié par défaut et mémorisé. Les
+           sections internes sont indépendantes — régler l'éclairage ne doit pas refermer les
+           textures qu'on vient d'ajuster. -->
+      <details id="expertControls" class="expert">
+        <summary>Réglages avancés</summary>
+        <div class="expert__body">
+          <details id="renderControls" class="controls accordion" open>
+            <summary>Mode de rendu</summary>
+            <fieldset class="render-modes" aria-label="Mode de rendu">
+              <label>
+                <input type="radio" name="renderMode" value="ortho" checked />
+                <span>Orthophoto</span>
+              </label>
+              <label>
+                <input type="radio" name="renderMode" value="model" />
+                <span>Modèle</span>
+              </label>
+              <label>
+                <input type="radio" name="renderMode" value="quality" />
+                <span>Qualité</span>
+              </label>
+            </fieldset>
+            <p id="renderModeDescription" class="mode-description">
+              Photographie aérienne IGN drapée sur le relief et les toitures.
+            </p>
+            <div id="qualityLegend" class="quality-legend" hidden></div>
+          </details>
+
+          <details class="controls accordion" id="sceneControls" hidden>
+            <summary>Emprise</summary>
+            <label class="select-row">
+              <span>Scène chargée</span>
+              <select id="sceneSelect"></select>
+            </label>
+            <p id="sceneSource" class="source"></p>
+          </details>
+
+          <details class="controls accordion" id="searchControls" hidden>
+            <summary>Rechercher un bâtiment</summary>
+            <label class="select-row">
+              <span>Identifiant BD TOPO</span>
+              <input
+                id="buildingSearch"
+                type="search"
+                list="buildingIds"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="BATIMENT…"
+              />
+            </label>
+            <datalist id="buildingIds"></datalist>
+            <button id="searchDegraded" class="button" type="button">
+              Bâtiment à contrôler suivant
+            </button>
+            <p id="searchFeedback" class="notice"></p>
+          </details>
+
+          <details id="textureControls" class="controls accordion">
+            <summary>Textures</summary>
+            <label class="switch-row">
+              <span>Orthophoto du terrain</span>
+              <input id="terrainTextureToggle" type="checkbox" checked />
+            </label>
+            <label class="switch-row">
+              <span>Texture des toitures</span>
+              <input id="roofTextureToggle" type="checkbox" checked />
+            </label>
+            <label class="switch-row">
+              <span>Maillage des bâtiments</span>
+              <input id="wireframeToggle" type="checkbox" />
+            </label>
+            <label class="range-row">
+              <span>Opacité du terrain</span>
+              <output id="opacityValue">100 %</output>
+              <input id="terrainOpacity" type="range" min="15" max="100" value="100" />
+            </label>
+          </details>
+
+          <details id="lightControls" class="controls accordion">
+            <summary>Éclairage</summary>
+            <label class="switch-row">
+              <span>Rendu réaliste</span>
+              <input id="realisticToggle" type="checkbox" />
+            </label>
+            <label class="range-row">
+              <span>Hauteur du soleil</span>
+              <output id="sunValue">35°</output>
+              <input id="sunHeight" type="range" min="10" max="75" value="35" />
+            </label>
+            <label class="range-row">
+              <span>Azimut du soleil</span>
+              <output id="azimuthValue">230°</output>
+              <input id="sunAzimuth" type="range" min="0" max="359" value="230" />
+            </label>
+            <p id="sunNotice" class="notice"></p>
+            <button id="grazingLight" class="button" type="button">Lumière rasante (12°)</button>
+            <label class="range-row">
+              <span>Exagération verticale</span>
+              <output id="verticalValue">×1,0</output>
+              <input id="verticalScale" type="range" min="100" max="250" value="100" />
+            </label>
+          </details>
+
+          <details class="controls accordion" id="crownControls">
+            <summary>Houppiers</summary>
+            <label class="range-row">
+              <span>Largeur est-ouest</span>
+              <output id="crownXValue">×1,00</output>
+              <input id="crownX" type="range" min="20" max="150" value="100" />
+            </label>
+            <label class="range-row">
+              <span>Hauteur</span>
+              <output id="crownYValue">×1,00</output>
+              <input id="crownY" type="range" min="20" max="150" value="100" />
+            </label>
+            <label class="range-row">
+              <span>Largeur nord-sud</span>
+              <output id="crownZValue">×1,00</output>
+              <input id="crownZ" type="range" min="20" max="150" value="100" />
+            </label>
+            <button id="crownReset" class="button" type="button">Rétablir la mesure</button>
+          </details>
+        </div>
+      </details>
+
+      <div class="panel__actions">
+        <button id="dataInfoOpen" class="button button--quiet" type="button">
+          Informations sur les données
+        </button>
+        <button id="helpOpen" class="button button--quiet" type="button">
+          Navigation et raccourcis
+        </button>
+      </div>
     </aside>
 
-    <div class="north" aria-label="Nord">
-      <span>N</span>
-      <i></i>
+    <section
+      id="buildingDetails"
+      class="building-card"
+      aria-live="polite"
+      aria-label="Bâtiment sélectionné"
+      hidden
+    >
+      <div class="card-heading">
+        <div>
+          <span class="card-eyebrow">Bâtiment sélectionné</span>
+          <h2 id="buildingId">—</h2>
+        </div>
+        <button id="buildingClose" class="icon-button" type="button" aria-label="Fermer">×</button>
+      </div>
+      <dl class="building-metrics">
+        <div>
+          <dt>Hauteur approx.</dt>
+          <dd id="buildingHeight">—</dd>
+        </div>
+        <div>
+          <dt>Surface d’emprise</dt>
+          <dd id="buildingArea">—</dd>
+        </div>
+        <div>
+          <dt>Altitude au sol</dt>
+          <dd id="buildingAltitude">—</dd>
+        </div>
+        <div>
+          <dt>Reconstruction</dt>
+          <dd><span id="buildingQuality" class="quality-badge">—</span></dd>
+        </div>
+      </dl>
+      <p id="buildingQualityDetail" class="quality-detail"></p>
+    </section>
+
+    <dialog id="dataInfoDialog" class="data-dialog" aria-labelledby="dataInfoTitle">
+      <form method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="card-eyebrow">Traçabilité</span>
+            <h2 id="dataInfoTitle">Informations sur les données</h2>
+          </div>
+          <button class="icon-button" value="close" aria-label="Fermer">×</button>
+        </div>
+        <div id="dataInfoContent"></div>
+        <button class="button dialog-close" value="close">Fermer</button>
+      </form>
+    </dialog>
+
+    <dialog id="helpDialog" class="data-dialog" aria-labelledby="helpTitle">
+      <form method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="card-eyebrow">Prise en main</span>
+            <h2 id="helpTitle">Navigation et raccourcis</h2>
+          </div>
+          <button class="icon-button" value="close" aria-label="Fermer">×</button>
+        </div>
+        <div class="data-sections">
+          <section class="data-section">
+            <h3>Souris</h3>
+            <ul>
+              <li>Glisser : faire tourner la scène.</li>
+              <li>Molette : approcher ou reculer.</li>
+              <li>Clic droit ou glisser à deux doigts : déplacer le point visé.</li>
+              <li>Clic sur un bâtiment : afficher ses mesures et sa qualité.</li>
+            </ul>
+          </section>
+          <section class="data-section">
+            <h3>Écran tactile</h3>
+            <ul>
+              <li>Un doigt : faire tourner.</li>
+              <li>Deux doigts : zoomer et déplacer.</li>
+              <li>Toucher un bâtiment : l’identifier.</li>
+            </ul>
+          </section>
+          <section class="data-section">
+            <h3>Raccourcis clavier</h3>
+            <ul>
+              <li><kbd>1</kbd> terrain seul.</li>
+              <li><kbd>2</kbd> bâtiments seuls.</li>
+              <li><kbd>3</kbd> toutes les couches.</li>
+              <li><kbd>Échap</kbd> désélectionner le bâtiment.</li>
+            </ul>
+          </section>
+          <section class="data-section">
+            <h3>Contrôler un défaut</h3>
+            <ul>
+              <li>« Lumière rasante » révèle les décrochements et les terrasses.</li>
+              <li>Alterner <kbd>1</kbd> et <kbd>2</kbd> isole un défaut de contact au sol.</li>
+              <li>Le mode « Qualité » colore les toitures signalées par Roofer.</li>
+            </ul>
+          </section>
+          <section class="data-section data-section--wide">
+            <h3>Repères permanents</h3>
+            <p>
+              La flèche rouge indique le nord et suit la caméra. La barre d’échelle donne l’ordre
+              de grandeur au centre de l’image ; en perspective, elle est indicative sur les
+              bords. Les réglages sont conservés d’une session à l’autre dans ce navigateur.
+            </p>
+          </section>
+        </div>
+        <button class="button dialog-close" value="close">Fermer</button>
+      </form>
+    </dialog>
+
+    <!-- Repères ancrés au bas de la fenêtre. Le panneau publie sa hauteur en variable CSS :
+         sans cela, la rose des vents le recouvrait dès que l'écran rétrécissait. -->
+    <div class="viewport-marks">
+      <div id="scaleBar" class="scale-bar" aria-label="Échelle">
+        <span id="scaleLabel">—</span>
+        <i></i>
+      </div>
+      <div class="north" aria-label="Nord">
+        <span>N</span>
+        <i></i>
+      </div>
     </div>
 
     <div id="error" class="error" hidden></div>

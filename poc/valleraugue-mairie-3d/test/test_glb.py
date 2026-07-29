@@ -19,6 +19,7 @@ from poc3d.glb import (
     _newell_normal,
     _palette_index,
     _skirt_depth,
+    _srgb,
     bake_colors,
     load_buildings,
     load_terrain,
@@ -166,6 +167,31 @@ class GlbTest(unittest.TestCase):
             self.assertGreater(sum(emitted[axis] * expected[axis] for axis in range(3)), 0)
 
 
+class SrgbTest(unittest.TestCase):
+    """``baseColorFactor`` est linéaire : une conversion inversée délave toute la scène."""
+
+    def test_conserve_les_extremes(self) -> None:
+        self.assertEqual(_srgb("#FFFFFF"), (1.0, 1.0, 1.0, 1.0))
+        self.assertEqual(_srgb("#000000"), (0.0, 0.0, 0.0, 1.0))
+
+    def test_assombrit_les_valeurs_intermediaires(self) -> None:
+        # Le gris moyen sRGB vaut 21,6 % de luminance linéaire, pas 50 % : c'est tout
+        # l'écart qui rendait les murs quasi blancs.
+        for channel in _srgb("#808080")[:3]:
+            self.assertAlmostEqual(channel, 0.2158605, places=6)
+
+    def test_accepte_le_croisillon_optionnel(self) -> None:
+        self.assertEqual(_srgb("4E6B3A"), _srgb("#4E6B3A"))
+
+    def test_reporte_l_alpha(self) -> None:
+        self.assertEqual(_srgb("#FFFFFF", 0.25)[3], 0.25)
+
+    def test_refuse_une_teinte_mal_formee(self) -> None:
+        for invalid in ("#FFF", "#GGGGGG", ""):
+            with self.assertRaises(ValueError):
+                _srgb(invalid)
+
+
 class TerrainSkirtTest(unittest.TestCase):
     def _terrain(self, skirt: str) -> object:
         with TemporaryDirectory() as directory:
@@ -182,16 +208,40 @@ class TerrainSkirtTest(unittest.TestCase):
         """La tranche de la dalle doit être masquée par une jupe verticale continue."""
         plain = self._terrain("0")
         skirted = self._terrain("12")
-        # Quatre arêtes de contour par côté d'une grille 3 × 3, quatre sommets chacune.
-        self.assertEqual(len(skirted.positions), len(plain.positions) + 8 * 4)
-        self.assertEqual(len(skirted.indices), len(plain.indices) + 8 * 6)
-        self.assertEqual(len(skirted.normals), len(skirted.positions))
+        # La jupe est un groupe distinct : la nappe texturée n'en reçoit aucun sommet.
+        self.assertEqual(len(skirted.positions), len(plain.positions))
         self.assertEqual(len(skirted.uvs), len(skirted.positions))
-        bottom = min(position[1] for position in skirted.positions)
-        self.assertAlmostEqual(bottom, skirted.min_elevation - skirted.base_elevation - 12)
+        self.assertFalse(plain.skirt.positions)
+        # Quatre arêtes de contour par côté d'une grille 3 × 3, quatre sommets chacune.
+        self.assertEqual(len(skirted.skirt.positions), 8 * 4)
+        self.assertEqual(len(skirted.skirt.indices), 8 * 6)
+        self.assertEqual(len(skirted.skirt.normals), len(skirted.skirt.positions))
+        # La jupe ne porte pas l'orthophotographie : sans UV, aucun pixel n'est étiré.
+        self.assertFalse(skirted.skirt.uvs)
+
+    def test_suit_le_relief_plutot_qu_une_altitude_commune(self) -> None:
+        """Un fond unique creuserait une falaise à la hauteur de toute la dénivelée."""
+        skirted = self._terrain("12")
+        tops = {
+            (position[0], position[2]): position[1]
+            for position in skirted.positions
+        }
+        depths = [
+            round(tops[(position[0], position[2])] - position[1], 6)
+            for position in skirted.skirt.positions
+            if (position[0], position[2]) in tops
+        ]
+        # Chaque sommet de jupe est soit sur le bord, soit exactement 12 m dessous.
+        self.assertEqual(set(depths), {0.0, 12.0})
+        # La grille monte de 10 à 18 : un fond absolu descendrait ici à 20 m sous la crête.
+        span = max(position[1] for position in skirted.skirt.positions) - min(
+            position[1] for position in skirted.skirt.positions
+        )
+        self.assertAlmostEqual(span, skirted.max_elevation - skirted.min_elevation + 12)
 
     def test_ignore_une_jupe_nulle_ou_negative(self) -> None:
-        self.assertEqual(len(self._terrain("-4").positions), len(self._terrain("0").positions))
+        self.assertFalse(self._terrain("-4").skirt.positions)
+        self.assertFalse(self._terrain("0").skirt.positions)
 
 
 class SkirtDepthTest(unittest.TestCase):

@@ -19,14 +19,92 @@ présentes dans un dossier `run-*` :
 - emprise par défaut : 200 × 200 m, soit 40 000 m² ;
 - bbox Lambert-93 : `751256 6331451 751456 6331651` ;
 
-La configuration historique 100 × 100 m reste disponible dans
-`config/poc.conf.example`.
+Deux autres emprises sont disponibles, toutes deux centrées sur le même point :
+
+| Configuration | Emprise | Maille | Cellules |
+| --- | --- | --- | --- |
+| `config/poc.conf` | 100 × 100 m | 0,5 m | 68 000 |
+| `config/poc-200m.conf` | 200 × 200 m | 0,5 m | 212 000 |
+| `config/poc-600m.conf` | 600 × 600 m | 1,0 m | 397 000 |
+
+## Emprises carrées
+
+Les trois emprises sont carrées, et c'est une contrainte de la chaîne, pas une préférence.
+
+La requête WMS est carrée, et toute la calibration de `poc.py sun` l'est aussi : le masque
+bâti est rastérisé avec une résolution unique, déduite de la seule largeur. Sur une bbox
+rectangulaire, ses lignes couvriraient la même distance que ses colonnes — le masque
+déborderait de tout le rapport d'aspect et le recalage rendrait un chiffre plausible et faux,
+**sans rien signaler**. `require_square_extent` refuse donc la mesure et indique quoi
+renseigner à la place.
+
+Sur une emprise carrée, les pixels de l'orthophotographie sont carrés, la résolution est
+homogène, et le calage comme la position solaire se mesurent au lieu d'être recopiés.
+
+Le **rendu** ne serait pas affecté par une emprise rectangulaire : les coordonnées de texture
+sont normalisées sur la bbox et compenseraient exactement l'anamorphose de l'image. C'est la
+seule mesure qui achoppe. Rendre la calibration anisotrope demanderait de reprendre
+`footprint_mask`, `_shift` et les deux fonctions de mesure ; le jeu n'en vaut pas la chandelle
+tant qu'une emprise carrée couvre le sujet.
+
+## Emprise 600 m
+
+Elle couvre le village dans sa longueur le long de l'Hérault, et les deux versants qui
+l'encadrent — neuf fois la surface de l'emprise 200 m.
+
+Sa maille est à **1 m** et non 0,5 : à 0,5 m elle demanderait 1,59 million de cellules, sept
+fois et demie l'emprise 200 m, pour environ 170 Mo de `scene.glb`. À 1 m il en reste 397 000,
+moins du double de l'emprise 200 m, et la donnée porte encore **11 points sol par cellule** au
+centre du village. On n'y perd que les ruptures de pente — terrasses et murs de soutènement —
+qui ne se lisent plus à cette distance de vue. La densité baisse sous couvert boisé : à
+surveiller sur les versants.
+
+L'orthophotographie passe à 4096 px, soit 15 cm/pixel contre 11 sur l'emprise 200 m. Monter
+plus haut se heurterait aux limites de la Géoplateforme.
+
+### Ce que le run 630 m a donné
+
+| Mesure | Emprise 200 m | Emprise 600 m |
+| --- | --- | --- |
+| Terrain | 460 × 460 à 0,5 m | **630 × 630 à 1 m** |
+| Cellules portant une mesure de sol | 50,5 % | **72,8 %** |
+| Dénivelé | 57 m | **166 m** |
+| Bâtiments reconstruits | 176 | **490** (482 dans la scène) |
+| Toitures dégradées | 8,5 % | **9,0 %** |
+| Emprise sous canopée | 27 % | **63 %** |
+| Arbres | 358 | **4 371** (médiane 10,1 m) |
+| `scene.glb` | 20 Mo | **57 Mo** |
+
+La maille métrique est **mieux remplie** que la demi-maille de l'emprise 200 m : 72,8 % de
+cellules mesurées contre 50,5 %. Le pari de la section précédente tient donc, y compris sous
+les 63 % de couvert boisé.
+
+Deux mesures se dégradent en revanche avec l'échelle, et c'est attendu. Le plan d'eau unique
+laisse un résidu de **0,66 m** contre 0,14 m sur 200 m : sur 630 m de cours, l'Hérault n'est
+plus un plan. Et la hauteur maximale de canopée annoncée, **44,4 m**, demande un œil dans le
+visualiseur : sur un versant raide dont le sol est interpolé, une cime rapportée à ce sol se
+surestime facilement.
+
+Le calage de l'orthophotographie, lui, se confirme à neuf fois la surface : **2,92 m vers le
+sud** mesurés sur 484 emprises, contre 2,58 m sur 178. Ce n'est donc pas un artefact local.
+
+Cette emprise a révélé un défaut de l'étape amont : celle-ci dimensionnait son extraction LiDAR
+sur l'**étendue du bâti**, sans jamais regarder l'emprise demandée. Sur 200 m, le nuage couvrait
+le terrain avec 0,8 m de marge — par chance. Sur 600 m, dont les bords sont des versants
+boisés sans bâtiment, il serait resté des dizaines de mètres trop court, et le terrain aurait
+comblé la bande par interpolation : un relief lisse, plausible et inventé, sans végétation ni
+eau, et sans le moindre message. Le correctif et le contrôle qui l'accompagne sont décrits dans
+[`docs/lidar-roofer.md`](docs/lidar-roofer.md).
 
 ## Prérequis
 
 - Python 3.11 ou supérieur pour Windows ;
 - accès réseau à la Géoplateforme IGN et au CDN utilisé pour mettre Three.js en
-  cache dans le visualiseur.
+  cache dans le visualiseur ;
+- une exécution Roofer déjà présente dans `output*/run-*`. La produire relève de l’étape amont,
+  décrite dans [`docs/lidar-roofer.md`](docs/lidar-roofer.md) : c’est la seule partie de la
+  chaîne qui demande Docker, et `poc.py validate` vérifie désormais que son nuage couvre bien
+  l’emprise du terrain.
 
 ## Démarrage rapide
 
@@ -35,8 +113,6 @@ Depuis PowerShell :
 ```powershell
 cd C:\DEV_ALX\OpenDataVdA\poc\valleraugue-mairie-3d
 
-Copy-Item config\poc-200m.conf.example config\poc-200m.conf -ErrorAction SilentlyContinue
-
 py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 
@@ -44,6 +120,9 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe poc.py all
 .\.venv\Scripts\python.exe poc.py serve
 ```
+
+Aucune copie de configuration n’est nécessaire : `config/poc-200m.conf` est
+versionné et prêt à l’emploi.
 
 `all` sélectionne la dernière sortie Roofer complète, la valide, puis produit
 le terrain, l’orthophoto, le GLB et le visualiseur. Il ne relance ni
@@ -82,6 +161,8 @@ terrain.prj
 terrain.npy
 canopy.npy
 surface.npy
+water.npy
+bridge.npy
 trees.json
 orthophoto.jpg
 orthophoto.json
@@ -96,20 +177,30 @@ web/
 ├── assets/
 │   ├── scene.glb
 │   ├── scene.json
-│   └── buildings.json
+│   ├── buildings.json
+│   ├── scenes.json
+│   └── scenes/
+│       └── <autre emprise>/
 └── vendor/
 ```
 
 Le fichier principal pour un rendu web est `render/scene.glb`. Il contient :
 
-- le terrain issu des points LiDAR classés comme sol, fermé par une jupe de bord ;
+- le terrain issu des points LiDAR classés comme sol, fermé par une **tranche** en matériau
+  minéral distinct, qui descend d’une profondeur constante sous le bord qu’elle longe ;
 - l’orthophotographie IGN appliquée au terrain ;
 - les bâtiments LoD2.2, **un nœud par bâtiment** nommé par son `cleabs` BD TOPO et
   regroupé sous un nœud parent `Batiments` ;
 - des toitures **texturées depuis l’orthophotographie** (≈ 11 cm/pixel), recalée, et des murs
   en coordonnées de texture métriques prêts pour un matériau tuilé en aval ;
-- une palette de tons clairs pour les murs, attribuée de façon stable à chaque bâtiment ;
-- les **proxys de végétation haute** sous un nœud `Vegetation` ;
+- une palette de tons clairs pour les murs, attribuée de façon stable à chaque bâtiment.
+  Les teintes sont **écrites en sRGB et converties en linéaire** à l’écriture du GLB :
+  `baseColorFactor` étant interprété en espace linéaire, y porter directement la valeur lue
+  dans un sélecteur de couleur éclaircissait tout d’un cran — un mur choisi à 0,86 s’affichait
+  à 239/255, d’où l’ancien aspect de maquette en polystyrène ;
+- les **proxys de végétation haute** sous un nœud `Vegetation`, teintés arbre par arbre ;
+- la **nappe d’eau** sous un nœud `Eau` et les **tabliers de pont** sous un nœud `Ponts`,
+  reconstruits depuis les classes LiDAR 9 et 17 ;
 - l’**occlusion ambiante cuite** en `COLOR_0` sur le terrain, le bâti et la végétation.
 
 ## Terrain à 0,5 m
@@ -122,6 +213,23 @@ lissés. La maille de 0,25 m n’est pas soutenue par la donnée (0,8 point par 
 interpolerait du vide.
 
 Coût : `scene.glb` passe d’environ 6 à 20 Mo, sans conséquence en service local.
+
+## Tranche du terrain
+
+La nappe est fermée sur son contour, faute de quoi elle se lit comme une dalle découpée dès
+que la caméra approche de l’horizon. Deux points comptent ici.
+
+La tranche descend d’une profondeur **constante sous le bord qu’elle longe**, et non jusqu’à
+une altitude commune. Un fond unique paraît anodin sur un site plat ; sur les 57 m de
+dénivelé de l’emprise, il creusait au bord amont une falaise de près de 70 m — plus haute que
+tout le bâti réuni, et occupant le quart de l’image.
+
+Elle porte un matériau propre, `Tranche`, en teinte minérale unie. Lui appliquer
+l’orthophotographie revenait à reprendre les coordonnées de texture du bord : le sampler
+étant en `CLAMP_TO_EDGE`, le dernier pixel de l’image s’étirait vers le bas en traînées
+verticales. Une coupe n’a pas de photographie aérienne à porter.
+
+Réglage : `TERRAIN_EDGE_SKIRT_M` (6 m par défaut).
 
 ## Végétation haute
 
@@ -138,8 +246,88 @@ stable. Sur le run 200 m : **358 arbres**, hauteur médiane 8,0 m, maximum 29,8 
 L’approche est délibérément grossière — pas de segmentation individuelle, pas d’essence, pas
 de panneau orienté caméra. À 200 m, l’enjeu est la présence, pas le réalisme botanique.
 
+Une limite subsiste, assumée : l’orthophotographie sert de couleur de base au terrain et
+**contient déjà les arbres, peints à plat**. Chaque proxy se pose donc sur sa propre image.
+Effacer la canopée peinte demanderait de repeindre le terrain sous couvert, hors du prix d’un
+POC ; le plafond de couronne est en revanche assez large (8 m) pour que le houppier recouvre
+la tache qui lui correspond.
+
+**Chaque houppier prend la couleur réelle de son arbre**, moyennée dans l’orthophotographie
+sous sa couronne : châtaigniers, chênes verts et résineux ne se ressemblent pas, et une
+palette de quatre teintes fixes se lisait comme un damier. La couleur voyage dans `COLOR_0`,
+canal déjà écrit pour l’occlusion ambiante — elle ne coûte donc **aucun octet** et remplace
+les quatre matériaux de feuillage par un seul.
+
+Deux précautions accompagnent cet échantillonnage. L’orthophotographie porte les ombres de la
+prise de vue : la teinte est ramenée à une luminance constante, sinon un arbre photographié à
+l’ombre ressortirait noir alors que l’éclairement de la scène est déjà calculé par ailleurs.
+Et elle est mélangée à un tiers de vert de référence, pour qu’une cime mal détectée tombée sur
+une toiture ne produise pas un arbre orange.
+
+Enfin, chaque houppier reçoit une rotation et une ovalité de ±15 %, tirées de façon stable de
+sa position. Aucune prétention botanique : il s’agit de rompre la répétition d’un solide
+identique recopié 358 fois, que l’œil repère immédiatement sur un couvert dense.
+
 Réglages : `VEGETATION`, `VEGETATION_MIN_HEIGHT_M`, `VEGETATION_PEAK_WINDOW_M`,
-`VEGETATION_MAX_CROWN_M`.
+`VEGETATION_MAX_CROWN_M`, `VEGETATION_TINT_FROM_ORTHO`.
+
+## Eau et ponts
+
+Les deux manquaient à la scène alors que la donnée était déjà là : `lidar_subset.laz`, déjà
+téléchargé pour le terrain, porte **23 206 points de classe 9 (eau)** et **4 037 de classe 17
+(tablier de pont)**. Ils sont extraits par `poc.py terrain`, qui lit déjà ce nuage, et écrits
+en `water.npy` et `bridge.npy` sur la grille du MNT.
+
+**L’eau tient sur un seul plan incliné.** Ce n’est pas une commodité mais une mesure :
+l’ajustement aux moindres carrés sur les 243 m de cours traversant l’emprise laisse un résidu
+d’écart-type de **0,14 m** pour une pente de 1,8 %. Mailler la surface au demi-mètre
+décrirait du bruit. L’ajustement est repris une fois après rejet des points à plus de trois
+écarts-types : le laser rebondit mal sur l’eau, et quelques reflets suffiraient à faire
+basculer toute la nappe.
+
+Seule l’emprise est rasterisée, car la rivière serpente et ne remplit pas son rectangle
+englobant. Le masque est refermé par dilatation puis érosion — une classe LiDAR rasterisée est
+toujours trouée, un tir sur deux ne revenant pas de l’eau.
+
+La nappe n’est **pas** recalée sur le terrain, et c’est délibéré. Les deux s’entrecroisent :
+la moitié des points d’eau passent sous le MNT interpolé, un dixième au-dessus. Cette
+intersection produit gratuitement les bancs de galets émergents d’un étiage cévenol, ceux
+qu’on voit en clair sur l’orthophotographie.
+
+Elle est en revanche relevée de 20 cm au-dessus de l’altitude mesurée, faute de quoi le
+raccord se lit en damier là où les deux surfaces se frôlent. `water.npy` conserve la mesure
+LiDAR intacte : le relèvement s’applique au maillage, ce qui permet d’en essayer un autre avec
+un simple `poc.py glb`, sans relire le nuage.
+
+**Le tablier est plat à 0,13 m près** sur ses 10 × 20 m, et se tient 4,2 m au-dessus du lit —
+le MNT passait dessous, il ne double donc aucune géométrie existante. Son altitude vient
+directement des cellules, contrairement à l’eau, car la classe y est vingt fois plus dense. Il
+est extrudé d’un mètre pour se voir aussi par en dessous, depuis la rivière.
+
+Ses piles et ses garde-corps ne sont dans aucune classe LiDAR. Les inventer serait de la
+fiction, pas de la donnée : le POC s’en abstient.
+
+Réglages : `WATER`, `WATER_LIFT_M`, `BRIDGES`, `BRIDGE_THICKNESS_M`.
+
+## Reprendre la taille des houppiers
+
+Le rayon de couronne est mesuré par retombée du profil radial de la canopée. Ce critère
+**surestime les houppiers d’un couvert continu** : entre deux arbres qui se touchent, le
+profil ne retombe jamais sous le seuil, et c’est le plafond `VEGETATION_MAX_CROWN_M` qui
+tranche — sur le run 200 m, il mord sur 153 des 358 arbres.
+
+Le visualiseur permet donc de reprendre la mesure à l’œil, par trois facteurs indépendants :
+largeur est-ouest, hauteur, largeur nord-sud. Chaque houppier est redimensionné **autour de
+son propre centre**, sans déplacer l’arbre ; les fûts ne bougent pas. « Rétablir la mesure »
+revient toujours à ce que dit la donnée.
+
+Les houppiers étant fusionnés en une seule primitive, le GLB expose sous
+`extras.crownVertices` le nombre de sommets par arbre — 60, soit les vingt faces de
+l’icosaèdre. C’est ce pas qui permet au visualiseur de les segmenter ; un test vérifie qu’il
+reste cohérent avec la géométrie produite.
+
+Ces facteurs ne sont **pas** enregistrés : ils servent à trouver la bonne valeur, qu’on fige
+ensuite dans `VEGETATION_MAX_CROWN_M`.
 
 ## Occlusion ambiante cuite
 
@@ -201,10 +389,33 @@ individuel atteignant plusieurs mètres.
                  "source": "recalage sur 178 emprises" }
 ```
 
+## Sélecteur de scènes
+
+Le panneau porte un sélecteur d'emprise dès que plusieurs scènes sont disponibles. `poc.py web`
+les recense dans les configurations de `config/` : pour chacune, l'exécution la plus récente
+portant un `render/scene.glb`. L'exécution préparée vient en tête, les autres sont recopiées
+sous `web/assets/scenes/<configuration>/` — le serveur local ne sert que `web/`, il ne peut donc
+pas atteindre le `render/` d'une autre exécution. Une emprise sans scène assemblée est
+simplement absente, et avec une seule scène le sélecteur se masque.
+
+Changer d'emprise décharge la précédente — géométries, matériaux et textures — avant de charger
+la suivante : sans cela, passer du 200 m au 600 m cumulerait 80 Mo de mémoire graphique. Les
+réglages continus (opacité du terrain, exagération verticale, houppiers) sont réappliqués à la
+scène qui arrive, tandis que les bascules de couches suivent ce que cette scène contient
+réellement.
+
+Le changement d'emprise a rendu visible un réglage jusque-là figé sur le 200 m : le frustum
+d'ombre du soleil, arrêté à ±120 m, coupait les ombres aux deux tiers d'une scène de 630 m, et
+la butée d'orbite à 900 m ramenait la caméra vers le sol dès qu'on demandait la vue générale.
+Les deux se déduisent désormais de la scène chargée.
+
 Le visualiseur propose deux modes :
 
 - **diagnostic** (défaut) — fond clair neutre, brouillard quasi nul, lumière non interprétée.
-  Fait pour repérer les défauts de contact entre terrain et bâtiments, pas pour être beau ;
+  Fait pour repérer les défauts de contact entre terrain et bâtiments, pas pour être beau.
+  L’environnement de studio n’y compte plus que pour 35 % : à pleine intensité il s’ajoutait
+  à l’hémisphérique et au directionnel, et trois sources ambiantes cumulées effaçaient les
+  ombres portées — le bâti ne posait plus ;
 - **rendu réaliste** — ciel physique (modèle de Preetham) servant à la fois de fond et
   d’éclairement ambiant, occlusion ambiante GTAO, tone mapping ACES, soleil calé par défaut
   sur `orthoSun`. S’écarter de ce calage est signalé dans le panneau.
@@ -212,6 +423,67 @@ Le visualiseur propose deux modes :
 Le mode diagnostic rend en direct ; le mode réaliste passe par une chaîne de post-traitement
 (`EffectComposer`). Les dépendances Three.js correspondantes sont téléchargées et servies
 localement par `poc.py web`, sans appel à un CDN à l’exécution.
+
+### Interface du panneau
+
+Le panneau est organisé en deux niveaux. L’analyse qui a conduit à cette organisation, ses
+sources et les défauts qu’elle corrige sont dans [`docs/ux-visualiseur.md`](docs/ux-visualiseur.md).
+
+Le **premier niveau** porte l’état du chargement, les trois mesures de la scène, les couches, les
+points de vue et les deux dialogues de documentation. Ce sont les commandes dont on se sert à
+chaque ouverture.
+
+- l’état du chargement porte une **barre de progression en octets** du GLB et une pastille dont
+  la couleur suit l’état — ambre pendant le chargement, vert une fois la scène prête, rouge en
+  cas d’erreur. Le reste du panneau reste inactif tant que la scène n’est pas là, faute de quoi
+  l’on règle ce qui va être remplacé ;
+- les couches terrain, bâtiments, végétation, eau et ponts se masquent séparément, dans un
+  accordéon replié à la demande — elles sont cinq et on n’y revient pas à chaque ouverture. Une
+  couche absente de la scène chargée désactive sa bascule plutôt que de la laisser sans effet ;
+- **POV** aligne sur une seule ligne, à côté de son titre, trois boutons carrés : vue générale,
+  mairie, vue des toitures. Chacun déplace la caméra par interpolation d’environ une
+  demi-seconde, interrompue dès qu’on reprend la souris — un saut instantané faisait perdre le
+  repère, une animation qu’on ne peut pas interrompre est pire encore ;
+- **Informations sur les données** documente sources, dates disponibles, emprise Lambert-93,
+  résolutions, méthode et limites. Une date absente du flux est explicitement signalée comme
+  non publiée plutôt que supposée ;
+- **Navigation et raccourcis** rassemble souris, gestes tactiles, raccourcis clavier et méthode
+  de contrôle d’un défaut. Ces informations tenaient auparavant dans une ligne de texte en pied
+  de panneau, masquée sur écran étroit.
+
+Le **second niveau**, replié sous « Réglages avancés », porte le mode de rendu, l’emprise, la
+recherche par identifiant, les textures et le maillage, l’opacité du terrain, l’éclairage et les
+houppiers. Ses sections sont indépendantes : ouvrir l’éclairage ne referme plus les textures
+qu’on vient de régler. Tout l’état du panneau — réglages, sections ouvertes, emprise, panneau
+masqué ou non — est conservé dans le navigateur d’une session à l’autre, ce qui évite de tout
+rétablir à la main après chaque nouvelle exécution du pipeline.
+
+- les modes **Orthophoto**, **Modèle** et **Qualité** passent respectivement de la photographie
+  IGN au volume simplifié puis à une carte vert/orange/rouge de la reconstruction. Le mode de
+  rendu n’est qu’un préréglage des bascules de texture — c’est ce qui le place à ce niveau : en
+  reprendre une à la main affiche « textures reprises à la main », plutôt que de laisser croire
+  au préréglage ;
+- en mode **Qualité**, une légende donne le décompte réel des trois niveaux, et un clic sur une
+  pastille **isole** ce niveau — le décompte devient une sélection ;
+
+**Rechercher un bâtiment** accepte un `cleabs` avec autocomplétion, et « Bâtiment à contrôler
+suivant » parcourt un à un ceux que Roofer signale. C’est le chemin qui manquait entre le rapport
+de validation, qui nomme les bâtiments dégradés, et la scène où ils se trouvent : un bâtiment
+masqué par une bascule ou par le filtre de qualité est rendu visible avant d’être cadré.
+
+Survoler un bâtiment le souligne et change le curseur ; le sélectionner trace un contour qui
+épouse son volume — une boîte englobante alignée sur les axes englobait les voisins sur un bâti
+en L. Un clic affiche l’identifiant BD TOPO, la hauteur, l’emprise projetée, l’altitude au sol et
+une qualité estimée à partir des indicateurs Roofer. Le lancer de rayon du survol est plafonné à
+un test par image : un test par événement de souris coûterait plus que le rendu.
+
+Les raccourcis `1`, `2` et `3` affichent respectivement le terrain seul, les bâtiments seuls et
+toutes les couches — végétation, eau et ponts décrivent le décor et suivent donc le même sort,
+puisque c’est le bâti qu’on cherche à isoler. `Échap` ferme la sélection.
+
+En bas de la fenêtre, la rose des vents suit la caméra et une **barre d’échelle** donne l’ordre de
+grandeur au point visé, arrondie à 1, 2 ou 5 × 10ⁿ mètres. Les deux s’écartent du panneau selon
+sa taille réelle, mesurée à chaque changement : elles ne passent plus dessous.
 
 `ORTHO_SUN_AZIMUTH_DEG` et `ORTHO_SUN_ELEVATION_DEG` forcent la position solaire si la date
 de prise de vue devient connue ; `ORTHO_OFFSET_EAST` et `ORTHO_OFFSET_NORTH` forcent le
@@ -232,9 +504,12 @@ léger.
 ```
 
 Les tests couvrent la configuration, le choix de la dernière exécution, la
-validation des artefacts, la séparation murs/toitures, l’écriture du conteneur
-GLB, la détection des cimes, le facteur de vue du ciel et le relevé des toitures
-dégradées.
+validation des artefacts, la couverture du nuage LiDAR sur l’emprise du terrain,
+le recensement des scènes du sélecteur, la séparation murs/toitures, l’écriture du conteneur
+GLB, la conversion sRGB des palettes, la tranche du terrain, la détection des
+cimes, la teinte et la silhouette des houppiers, l’ajustement du plan d’eau, la
+fermeture des masques, le maillage des nappes, le facteur de vue du ciel et le
+relevé des toitures dégradées.
 
 ## Données et composants externes
 

@@ -17,9 +17,56 @@ from poc3d.sun import (
     MAIRIE_LONGITUDE,
     elevation_for_azimuth,
     measure_ortho_offset,
+    measure_ortho_sun,
+    require_square_extent,
     shadow_azimuth,
     solar_position,
 )
+
+
+class SquareExtentTest(unittest.TestCase):
+    """La calibration raisonne en pixels carrés : sur une emprise large, elle mentirait."""
+
+    def _config(self, root: Path, bbox: str, extra: str = "") -> PocConfig:
+        config_file = root / "poc.conf"
+        config_file.write_text(
+            f'POC_BBOX="{bbox}"\nTERRAIN_MARGIN_M=15\n' + extra, encoding="utf-8"
+        )
+        return PocConfig.load(root, config_file)
+
+    def test_accepte_une_emprise_carree(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = self._config(root, "751256 6331451 751456 6331651")
+            self.assertIsNone(require_square_extent(config))
+
+    def test_refuse_une_emprise_rectangulaire(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = self._config(root, "751056 6331401 751656 6331701")
+            with self.assertRaises(RuntimeError) as raised:
+                require_square_extent(config)
+            self.assertIn("630", str(raised.exception))
+            self.assertIn("330", str(raised.exception))
+
+    def test_la_configuration_forcee_court_circuite_le_controle(self) -> None:
+        """Une emprise large reste exploitable si le calage est renseigné à la main."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = self._config(
+                root,
+                "751056 6331401 751656 6331701",
+                "ORTHO_SUN_AZIMUTH_DEG=95\nORTHO_SUN_ELEVATION_DEG=35\n"
+                "ORTHO_OFFSET_EAST=-0.34\nORTHO_OFFSET_NORTH=-2.58\n",
+            )
+            run_dir = root / "run-test"
+            run_dir.mkdir()
+            sun = measure_ortho_sun(config, run_dir)
+            self.assertEqual(sun.source, "configuration")
+            self.assertAlmostEqual(sun.azimuth_deg, 95.0)
+            offset = measure_ortho_offset(config, run_dir)
+            self.assertEqual(offset.source, "configuration")
+            self.assertAlmostEqual(offset.north_m, -2.58)
 
 
 class SolarPositionTest(unittest.TestCase):

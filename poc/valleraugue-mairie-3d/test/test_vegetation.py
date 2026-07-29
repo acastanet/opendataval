@@ -14,12 +14,16 @@ from poc3d.config import PocConfig
 from poc3d.vegetation import (
     CROWN_CENTRE_FRACTION,
     CROWN_HALF_HEIGHT_FRACTION,
+    CROWN_VERTICES,
+    REFERENCE_FOLIAGE,
     Tree,
     create_vegetation,
     crown_triangles,
     detect_trees,
     load_trees,
+    sample_foliage_tints,
     tree_geometry,
+    tree_shape,
 )
 
 
@@ -148,6 +152,139 @@ class TreeGeometryTest(unittest.TestCase):
         points = [point for triangle in triangles for point in triangle]
         for axis, extent in ((0, 4.0), (1, 2.0), (2, 4.0)):
             self.assertAlmostEqual(max(abs(p[axis]) for p in points), extent, places=5)
+
+    def test_la_rotation_conserve_la_hauteur_et_le_volume(self) -> None:
+        """Tourner un houppier ne doit ni le rallonger ni l'enfoncer dans le terrain."""
+        droit = crown_triangles((0.0, 0.0, 0.0), 4.0, 2.0)
+        tourne = crown_triangles((0.0, 0.0, 0.0), 4.0, 2.0, rotation=math.pi / 3)
+        for triangles in (droit, tourne):
+            points = [point for triangle in triangles for point in triangle]
+            self.assertAlmostEqual(max(abs(p[1]) for p in points), 2.0, places=5)
+        self.assertEqual(len(droit), len(tourne))
+
+    def test_l_ovalite_etire_un_axe_et_comprime_l_autre(self) -> None:
+        points = [
+            point
+            for triangle in crown_triangles((0.0, 0.0, 0.0), 4.0, 2.0, ovality=1.25)
+            for point in triangle
+        ]
+        self.assertAlmostEqual(max(abs(p[0]) for p in points), 5.0, places=5)
+        self.assertAlmostEqual(max(abs(p[2]) for p in points), 3.2, places=5)
+
+
+class CrownVerticesTest(unittest.TestCase):
+    """Le visualiseur segmente la primitive fusionnée avec ce pas pour retrouver chaque arbre.
+
+    Si la géométrie du houppier change sans que la constante suive, les curseurs de taille
+    redimensionneraient des morceaux d'arbres voisins — sans la moindre erreur visible.
+    """
+
+    def test_correspond_a_la_geometrie_produite(self) -> None:
+        triangles = crown_triangles((0.0, 0.0, 0.0), 3.0, 2.0)
+        self.assertEqual(sum(len(triangle) for triangle in triangles), CROWN_VERTICES)
+
+    def test_decoupe_exactement_les_houppiers_d_une_scene(self) -> None:
+        trees = [
+            Tree(x=float(index) * 10, y=0.0, ground=0.0, height=8.0, crown=3.0)
+            for index in range(4)
+        ]
+        sommets = sum(
+            len(triangle)
+            for tree in trees
+            for triangle in tree_geometry(tree, (0.0, 0.0), 0.0)[0]
+        )
+        self.assertEqual(sommets, len(trees) * CROWN_VERTICES)
+
+
+class TreeShapeTest(unittest.TestCase):
+    def test_est_stable_pour_un_meme_arbre(self) -> None:
+        """Un arbre doit garder sa silhouette d'une génération de la scène à l'autre."""
+        tree = Tree(x=12.34, y=56.78, ground=100.0, height=9.0, crown=3.0)
+        self.assertEqual(tree_shape(tree), tree_shape(tree))
+
+    def test_differe_d_un_arbre_a_l_autre(self) -> None:
+        first = tree_shape(Tree(x=10.0, y=10.0, ground=0.0, height=8.0, crown=3.0))
+        second = tree_shape(Tree(x=20.0, y=30.0, ground=0.0, height=8.0, crown=3.0))
+        self.assertNotEqual(first, second)
+
+    def test_borne_l_ovalite(self) -> None:
+        for offset in range(60):
+            _, ovality = tree_shape(
+                Tree(x=offset * 1.7, y=offset * 2.3, ground=0.0, height=8.0, crown=3.0)
+            )
+            self.assertGreaterEqual(ovality, 0.85)
+            self.assertLessEqual(ovality, 1.15)
+
+
+class FoliageTintTest(unittest.TestCase):
+    """La teinte vient de l'orthophotographie : elle porte la couleur réelle de chaque arbre."""
+
+    def _uv(self):
+        return lambda x, y: (x / 100.0, y / 100.0)
+
+    def _ortho(self, colour) -> np.ndarray:
+        return np.tile(np.array(colour, dtype=np.float64), (100, 100, 1))
+
+    def test_suit_la_teinte_echantillonnee(self) -> None:
+        tints = sample_foliage_tints(
+            [Tree(x=50.0, y=50.0, ground=0.0, height=8.0, crown=3.0)],
+            self._ortho((0.10, 0.45, 0.12)),
+            self._uv(),
+        )
+        red, green, blue = tints[0]
+        self.assertGreater(green, red)
+        self.assertGreater(green, blue)
+
+    def test_normalise_la_luminance_d_une_zone_d_ombre(self) -> None:
+        """L'ortho porte les ombres de la prise de vue ; un arbre à l'ombre serait noir."""
+        clair = sample_foliage_tints(
+            [Tree(x=50.0, y=50.0, ground=0.0, height=8.0, crown=3.0)],
+            self._ortho((0.20, 0.60, 0.24)),
+            self._uv(),
+        )[0]
+        sombre = sample_foliage_tints(
+            [Tree(x=50.0, y=50.0, ground=0.0, height=8.0, crown=3.0)],
+            self._ortho((0.05, 0.15, 0.06)),
+            self._uv(),
+        )[0]
+        for a, b in zip(clair, sombre):
+            self.assertAlmostEqual(a, b, places=6)
+
+    def test_reste_dans_l_intervalle_affichable(self) -> None:
+        for colour in ((1.0, 1.0, 1.0), (0.0, 0.0, 0.0), (0.9, 0.1, 0.1)):
+            for channel in sample_foliage_tints(
+                [Tree(x=50.0, y=50.0, ground=0.0, height=8.0, crown=3.0)],
+                self._ortho(colour),
+                self._uv(),
+            )[0]:
+                self.assertGreaterEqual(channel, 0.0)
+                self.assertLessEqual(channel, 1.0)
+
+    def test_retombe_sur_le_vert_de_reference_dans_le_noir_absolu(self) -> None:
+        """Une cime mal détectée ne doit pas produire un arbre noir."""
+        tint = sample_foliage_tints(
+            [Tree(x=50.0, y=50.0, ground=0.0, height=8.0, crown=3.0)],
+            self._ortho((0.0, 0.0, 0.0)),
+            self._uv(),
+        )[0]
+        self.assertEqual(tint, REFERENCE_FOLIAGE)
+
+    def test_borne_une_teinte_aberrante_par_le_melange(self) -> None:
+        """Un arbre tombé sur une toiture rouge ne doit pas ressortir orange vif."""
+        rouge = sample_foliage_tints(
+            [Tree(x=50.0, y=50.0, ground=0.0, height=8.0, crown=3.0)],
+            self._ortho((0.70, 0.20, 0.15)),
+            self._uv(),
+        )[0]
+        self.assertGreater(rouge[1], REFERENCE_FOLIAGE[1] * 0.5)
+
+    def test_echantillonne_sous_la_couronne_et_non_ailleurs(self) -> None:
+        ortho = self._ortho((0.10, 0.10, 0.10))
+        ortho[45:56, 45:56] = (0.10, 0.50, 0.10)
+        tint = sample_foliage_tints(
+            [Tree(x=50.0, y=50.0, ground=0.0, height=8.0, crown=3.0)], ortho, self._uv()
+        )[0]
+        self.assertGreater(tint[1], tint[0] * 1.5)
 
 
 if __name__ == "__main__":

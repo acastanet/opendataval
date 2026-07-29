@@ -146,8 +146,12 @@ réserver à l'étape 2, si elle le demande.
 **Réparer les toitures ratées.** Les signaler et les remplacer par un volume simple coûte une
 fraction du prix et ne ment pas sur la donnée.
 
-**Tout travail sur le visualiseur.** Le mode réaliste est abandonné ; le mode diagnostic
-remplit son office.
+**Tout travail sur le visualiseur.** ~~Le mode réaliste est abandonné ; le mode diagnostic
+remplit son office.~~ **Périmé.** Cette conclusion valait tant que le mode réaliste était
+écarté ; il a depuis été réintroduit (ciel de Preetham, occlusion GTAO), et les réglages livrés
+par les pistes A à E ont chargé le panneau au point de nuire à sa lecture. Le travail
+d'interface qui en découle est traité à part, dans
+[`ux-visualiseur.md`](ux-visualiseur.md).
 
 ---
 
@@ -173,6 +177,12 @@ Les étapes 1 à 3 suffisent à obtenir l'essentiel de l'effet ; elles sont livr
 
 Le pipeline complet s'exécute en moins de dix secondes et `scene.glb` pèse 20 Mo — le
 surcoût de la maille fine et de l'occlusion reste sans conséquence en service local.
+
+Ces mesures portent sur l'emprise 200 m. L'emprise 600 m, exécutée depuis, les confirme à neuf
+fois la surface : toitures dégradées **9,0 %** contre 8,5 %, calage de l'orthophotographie
+**2,92 m vers le sud** sur 484 emprises contre 2,58 m sur 178. Elle déplace en revanche
+l'enjeu de la végétation, qui passe de 27 % à **63 % de l'emprise sous canopée** — voir la
+section « Emprise 600 m » du README.
 
 Écarts assumés par rapport aux mesures du rapport : 358 cimes au lieu de 443, la fenêtre de
 suppression des doublons valant ici 5,5 m et non 5 m ; le compromis retenu supprime les

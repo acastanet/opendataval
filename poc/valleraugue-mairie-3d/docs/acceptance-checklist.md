@@ -6,6 +6,8 @@
 - [x] Les bâtiments BD TOPO sont récupérés sans erreur.
 - [x] Au moins une dalle LiDAR HD intersecte la zone tamponnée.
 - [x] Le nuage extrait contient des points de sol et de bâtiment.
+- [x] Le nuage extrait couvre toute l'emprise du terrain, marge comprise — section
+  « Couverture LiDAR » de `poc-validation.md`.
 - [x] L'orthophotographie confirme l'alignement général des emprises.
 
 ## Reconstruction
@@ -93,6 +95,46 @@
 - [ ] Les ombres sont cohérentes avec l'azimut solaire affiché.
 - [ ] Le visualiseur fonctionne via `python poc.py serve`.
 - [ ] Le visualiseur reste utilisable sur un écran mobile.
+
+## Sélecteur de scènes
+
+- [ ] Le sélecteur liste chaque emprise disposant d'une scène, l'exécution servie en tête, et
+  se masque quand il n'y en a qu'une.
+- [ ] Changer d'emprise recharge la scène, recadre la caméra et met à jour les trois mesures
+  du panneau ainsi que le nom de l'exécution.
+- [ ] Les bascules de couches suivent ce que la nouvelle scène contient : une couche absente
+  se désactive au lieu de rester sans effet.
+- [ ] Opacité du terrain, exagération verticale et facteurs de houppier restent appliqués
+  après le changement.
+- [ ] Les ombres portées couvrent toute l'emprise, y compris ses bords, sur le 630 m comme
+  sur le 200 m.
+- [ ] « Vue générale » cadre la scène entière sans que la caméra soit ramenée vers le sol.
+- [ ] Enchaîner rapidement deux changements d'emprise n'affiche jamais la scène abandonnée,
+  et la mémoire graphique ne croît pas d'un aller-retour à l'autre.
+
+## Interface du visualiseur
+
+Points de contrôle de la refonte décrite dans [`ux-visualiseur.md`](ux-visualiseur.md), à passer
+sur l'emprise 200 m puis 600 m.
+
+- [ ] La barre de progression avance en octets pendant le chargement du GLB ; la pastille passe
+  d'ambre à vert, et le reste du panneau reste inactif jusqu'à la scène prête.
+- [ ] Serveur coupé en cours de chargement : pastille rouge et bandeau d'erreur.
+- [ ] Deux sections de « Réglages avancés » restent ouvertes en même temps.
+- [ ] Survoler un bâtiment change le curseur et le souligne ; le contour de sélection épouse le
+  volume au lieu d'une boîte alignée sur les axes.
+- [ ] « Mairie » et « Toitures » déplacent la caméra progressivement, et l'animation s'interrompt
+  dès qu'on reprend la souris.
+- [ ] Rallumer une texture après le mode « Modèle » signale que l'affichage ne suit plus le
+  préréglage.
+- [ ] En mode « Qualité », la légende compte les trois niveaux conformément à `roofQuality`, et un
+  clic isole le niveau choisi.
+- [ ] Saisir le `cleabs` d'un bâtiment signalé par le rapport de validation le sélectionne et le
+  cadre, même si une bascule ou le filtre de qualité le masquait.
+- [ ] Les réglages sont retrouvés après rechargement de la page et après changement d'emprise.
+- [ ] La barre d'échelle reste cohérente d'un niveau de zoom à l'autre.
+- [ ] À 380 × 700 : les trois mesures restent affichées, l'aide est atteignable, et ni la rose des
+  vents ni la barre d'échelle ne passent sous le panneau, ouvert comme fermé.
 
 ## Reproductibilité
 

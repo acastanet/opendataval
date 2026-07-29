@@ -141,6 +141,36 @@ def dilate(mask: np.ndarray) -> np.ndarray:
     return grown
 
 
+def erode(mask: np.ndarray) -> np.ndarray:
+    """Érosion en 4-connexité. Le bord de grille compte comme extérieur au masque."""
+    kept = mask.copy()
+    kept[1:, :] &= mask[:-1, :]
+    kept[:-1, :] &= mask[1:, :]
+    kept[:, 1:] &= mask[:, :-1]
+    kept[:, :-1] &= mask[:, 1:]
+    kept[0, :] = kept[-1, :] = False
+    kept[:, 0] = kept[:, -1] = False
+    return kept
+
+
+def close_mask(mask: np.ndarray, passes: int) -> np.ndarray:
+    """Fermeture morphologique : comble les trous sans faire grossir l'emprise.
+
+    Une classe LiDAR rasterisée est toujours trouée — sur l'eau, un tir sur deux ne revient
+    pas. Dilater puis éroder du même nombre de passes rebouche ces manques en restituant à
+    peu près le contour d'origine.
+    """
+    if passes < 1:
+        return mask.copy()
+    grown = mask
+    for _ in range(passes):
+        grown = dilate(grown)
+    for _ in range(passes):
+        grown = erode(grown)
+    # L'érosion mord les bords de grille : les cellules mesurées ne doivent jamais disparaître.
+    return grown | mask
+
+
 def nearest_outward(values: np.ndarray, known: np.ndarray) -> np.ndarray:
     """Valeur minimale des voisines connues, pour prolonger un champ d'un cran."""
     source = np.where(known, values, np.inf)

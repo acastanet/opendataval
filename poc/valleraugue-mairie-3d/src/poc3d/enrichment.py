@@ -128,6 +128,42 @@ def _surface_models(
     return canopy, surface
 
 
+def _save_nappes(
+    config: PocConfig,
+    run_dir: Path,
+    x: np.ndarray,
+    y: np.ndarray,
+    z: np.ndarray,
+    classification: np.ndarray,
+    within: np.ndarray,
+    xmin: float,
+    ymax: float,
+    resolution: float,
+    shape: tuple[int, int],
+) -> None:
+    """Écrit les nappes d'eau et de pont, tirées du nuage déjà chargé pour le terrain.
+
+    Les deux classes voyagent depuis toujours dans ``lidar_subset.laz`` sans être exploitées.
+    Les extraire ici évite une seconde lecture du LAZ pour la même information, comme pour la
+    canopée et le modèle de surface.
+    """
+    from .surfaces import bridge_surface, water_surface
+
+    for name, builder, enabled in (
+        ("water", water_surface, config.get_bool("WATER", True)),
+        ("bridge", bridge_surface, config.get_bool("BRIDGES", True)),
+    ):
+        destination = run_dir / f"{name}.npy"
+        if not enabled:
+            destination.unlink(missing_ok=True)
+            continue
+        nappe = builder(x, y, z, classification, within, xmin, ymax, resolution, shape)
+        if nappe.is_empty():
+            destination.unlink(missing_ok=True)
+            continue
+        np.save(destination, nappe.elevations)
+
+
 def create_terrain(config: PocConfig, run_dir: Path | None = None) -> tuple[Path, Path]:
     run_dir = run_dir or latest_run(config, require_complete=True)
     source = run_dir / "lidar_subset.laz"
@@ -211,6 +247,7 @@ def create_terrain(config: PocConfig, run_dir: Path | None = None) -> tuple[Path
     )
     np.save(run_dir / "canopy.npy", canopy)
     np.save(run_dir / "surface.npy", surface)
+    _save_nappes(config, run_dir, x, y, z, classification, within, xmin, ymax, resolution, grid.shape)
 
     Image.fromarray(grid.astype(np.float32), mode="F").save(
         terrain_tif, compression="tiff_lzw"
@@ -240,9 +277,12 @@ def create_terrain(config: PocConfig, run_dir: Path | None = None) -> tuple[Path
     for artifact in (terrain_tif, terrain_grid):
         if not artifact.is_file() or artifact.stat().st_size == 0:
             raise RuntimeError(f"Terrain non produit : {artifact}")
+    # Le taux de cellules mesurées dit si la donnée soutient la maille : le reste est
+    # interpolé, et une chute sous couvert boisé se lit ici avant de se voir à l'écran.
     print(
         f"Terrain généré : {terrain_tif} "
         f"({width} × {height} cellules à {resolution:g} m, "
+        f"{measured.mean():.1%} mesurées, "
         f"{seated} assises sous les bâtiments)"
     )
     print(

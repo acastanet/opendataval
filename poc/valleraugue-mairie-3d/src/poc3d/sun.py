@@ -130,6 +130,28 @@ def elevation_for_azimuth(latitude: float, azimuth_deg: float, declination_deg: 
     return math.degrees(math.asin(ratio) - math.atan2(math.cos(phi) * math.cos(azimuth), math.sin(phi)))
 
 
+def require_square_extent(config: PocConfig) -> None:
+    """Refuse une mesure sur une emprise non carrée, plutôt que d'en rendre une fausse.
+
+    Toute la calibration raisonne en pixels avec une résolution unique, déduite de la seule
+    largeur : la requête WMS est carrée, et le masque bâti l'est aussi. Sur une emprise
+    rectangulaire, les lignes couvriraient la même distance que les colonnes — le masque
+    déborderait de tout le rapport d'aspect, et le recalage sortirait un chiffre plausible
+    et faux, sans rien signaler.
+
+    Le rendu, lui, reste correct : les coordonnées de texture sont normalisées sur la bbox
+    et compensent exactement l'anamorphose de l'image.
+    """
+    xmin, ymin, xmax, ymax = config.terrain_bbox
+    width, height = xmax - xmin, ymax - ymin
+    if abs(width - height) > 0.01:
+        raise RuntimeError(
+            f"Emprise non carrée ({width:g} × {height:g} m) : la calibration de "
+            "l'orthophotographie n'est pas applicable. Renseigner ORTHO_SUN_AZIMUTH_DEG, "
+            "ORTHO_SUN_ELEVATION_DEG, ORTHO_OFFSET_EAST et ORTHO_OFFSET_NORTH."
+        )
+
+
 def footprint_mask(config: PocConfig, run_dir: Path, size: int) -> tuple[np.ndarray, int]:
     """Rastérise les emprises bâties sur la grille de l'orthophotographie."""
     xmin, _, xmax, ymax = config.terrain_bbox
@@ -199,6 +221,7 @@ def measure_ortho_sun(config: PocConfig, run_dir: Path | None = None) -> OrthoSu
     if forced_azimuth and forced_elevation:
         return OrthoSun(float(forced_azimuth), float(forced_elevation), "configuration")
 
+    require_square_extent(config)
     ortho_path = run_dir / "orthophoto.jpg"
     if not ortho_path.is_file():
         raise FileNotFoundError(f"Orthophotographie absente : {ortho_path}")
@@ -266,6 +289,7 @@ def measure_ortho_offset(config: PocConfig, run_dir: Path | None = None) -> Orth
     if forced_east and forced_north:
         return OrthoOffset(float(forced_east), float(forced_north), "configuration")
 
+    require_square_extent(config)
     ortho_path = run_dir / "orthophoto.jpg"
     if not ortho_path.is_file():
         raise FileNotFoundError(f"Orthophotographie absente : {ortho_path}")

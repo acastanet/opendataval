@@ -14,21 +14,37 @@ from .roofs import is_degraded
 from .triangulate import is_convex, triangulate
 
 
+def srgb_to_linear(value: float) -> float:
+    """Applique la fonction de transfert sRGB inverse à un canal dans [0, 1]."""
+    return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+
+
+def _srgb(hexadecimal: str, alpha: float = 1.0) -> tuple[float, float, float, float]:
+    """Convertit une teinte sRGB hexadécimale en ``baseColorFactor`` glTF.
+
+    ``baseColorFactor`` est interprété en espace **linéaire**. Y écrire directement la
+    valeur qu'on lit dans un sélecteur de couleur éclaircit tout d'un cran : 0,86 linéaire
+    s'affiche à 239/255, soit un mur quasi blanc. Les palettes restent donc écrites en sRGB,
+    parce que c'est ainsi qu'on les choisit et qu'on les relit, et la conversion a lieu ici.
+    """
+    digits = hexadecimal.lstrip("#")
+    if len(digits) != 6:
+        raise ValueError(f"Teinte sRGB attendue au format #RRGGBB : {hexadecimal!r}")
+    try:
+        channels = [int(digits[offset : offset + 2], 16) / 255.0 for offset in (0, 2, 4)]
+    except ValueError:
+        raise ValueError(f"Teinte sRGB attendue au format #RRGGBB : {hexadecimal!r}") from None
+    red, green, blue = (srgb_to_linear(channel) for channel in channels)
+    return (red, green, blue, alpha)
+
+
 # Une teinte unique pour tous les murs et une autre pour toutes les toitures aplatissaient
 # le bâti : la légère variation ci-dessous redonne de la lecture aux volumes voisins.
-WALL_COLORS = (
-    (0.86, 0.83, 0.75, 1.0),
-    (0.82, 0.78, 0.70, 1.0),
-    (0.88, 0.86, 0.80, 1.0),
-    (0.79, 0.76, 0.71, 1.0),
-    (0.84, 0.80, 0.72, 1.0),
+WALL_COLORS = tuple(
+    _srgb(tint) for tint in ("#D8CFBE", "#CEC3AE", "#E0D9CA", "#C6BCA9", "#D2C7B2")
 )
-ROOF_COLORS = (
-    (0.50, 0.26, 0.19, 1.0),
-    (0.46, 0.24, 0.18, 1.0),
-    (0.54, 0.30, 0.22, 1.0),
-    (0.43, 0.25, 0.20, 1.0),
-    (0.51, 0.28, 0.16, 1.0),
+ROOF_COLORS = tuple(
+    _srgb(tint) for tint in ("#A85B3C", "#9C5236", "#B36641", "#94513E", "#AD5F30")
 )
 
 
@@ -41,13 +57,21 @@ def _palette_index(name: str, size: int) -> int:
     return zlib.crc32(name.encode("utf-8")) % size
 
 
-FOLIAGE_COLORS = (
-    (0.29, 0.42, 0.22, 1.0),
-    (0.24, 0.36, 0.19, 1.0),
-    (0.34, 0.46, 0.25, 1.0),
-    (0.27, 0.39, 0.27, 1.0),
-)
-TRUNK_COLOR = (0.32, 0.26, 0.20, 1.0)
+# Le feuillage tient en un seul groupe : sa couleur vient de COLOR_0, pas du matériau.
+FOLIAGE_GROUP = 0
+TRUNK_GROUP = 1
+# Teinte de repli, appliquée quand l'échantillonnage de l'orthophotographie est désactivé.
+FOLIAGE_FALLBACK = _srgb("#4E6B3A")
+TRUNK_COLOR = _srgb("#4A3A2C")
+# Roche et terre de la tranche du terrain : neutre et mate, pour se lire comme une coupe
+# et non comme une falaise naturelle.
+SKIRT_COLOR = _srgb("#8C8377")
+# L'eau doit d'abord se lire comme de l'eau : un bleu clair la sépare du terrain plus
+# sûrement que sa seule rugosité, qui ne se voit qu'au soleil rasant. La teinte reste tirée
+# vers le vert, en rivière et non en mer.
+WATER_COLOR = _srgb("#6396B8")
+# Béton et pierre du tablier, plus froid que les enduits de façade pour s'en distinguer.
+BRIDGE_COLOR = _srgb("#9A968E")
 
 
 FLOAT = 5126
@@ -268,6 +292,17 @@ class GlbBuilder:
 
 
 @dataclass
+class SurfaceGroup:
+    """Triangles d'un même matériau, avec des sommets dédupliqués par face."""
+
+    positions: list[tuple[float, float, float]] = field(default_factory=list)
+    normals: list[tuple[float, float, float]] = field(default_factory=list)
+    uvs: list[tuple[float, float]] = field(default_factory=list)
+    indices: list[int] = field(default_factory=list)
+    colors: list[tuple[float, float, float, float]] = field(default_factory=list)
+
+
+@dataclass
 class TerrainMesh:
     positions: list[tuple[float, float, float]]
     normals: list[tuple[float, float, float]]
@@ -277,6 +312,9 @@ class TerrainMesh:
     min_elevation: float
     max_elevation: float
     colors: list[tuple[float, float, float, float]] = field(default_factory=list)
+    # La tranche est un groupe distinct : elle n'a pas d'orthophotographie à porter et
+    # relève d'un matériau propre.
+    skirt: SurfaceGroup = field(default_factory=SurfaceGroup)
 
 
 def load_terrain(
@@ -337,7 +375,7 @@ def load_terrain(
         ]
         mesh = _terrain_mesh(positions, uvs, indices, base, elevations)
         _append_terrain_skirt(
-            mesh, width, height, config.get_float("TERRAIN_EDGE_SKIRT_M", 12.0)
+            mesh, width, height, config.get_float("TERRAIN_EDGE_SKIRT_M", 6.0)
         )
         return mesh
 
@@ -404,35 +442,35 @@ def _terrain_edges(width: int, height: int) -> list[tuple[int, int, tuple[float,
 
 
 def _append_terrain_skirt(mesh: TerrainMesh, width: int, height: int, depth: float) -> None:
-    """Ferme le terrain par une jupe verticale sur tout son contour.
+    """Ferme le terrain par une tranche verticale sur tout son contour.
 
-    Sans elle, la nappe se lit comme une dalle découpée dont on voit la tranche dès que la
-    caméra s'approche de l'horizon. Toutes les arêtes descendent au même niveau afin que
-    les quads voisins restent jointifs.
+    Sans elle, la nappe se lit comme une dalle découpée dont on voit le dessous dès que la
+    caméra s'approche de l'horizon.
+
+    Chaque arête descend de ``depth`` **sous le terrain qu'elle borde**, et non jusqu'à une
+    altitude absolue commune : sur les 57 m de dénivelé du site, un fond unique produisait
+    une falaise de près de 70 m au bord amont, plus haute que tout le bâti réuni. Les quads
+    voisins restent jointifs puisqu'ils partagent leurs sommets hauts.
     """
     if depth <= 0 or width < 2 or height < 2:
         return
-    bottom = mesh.min_elevation - mesh.base_elevation - depth
     for first, second, outward in _terrain_edges(width, height):
         top_a, top_b = mesh.positions[first], mesh.positions[second]
         quad = [
             top_a,
             top_b,
-            (top_b[0], bottom, top_b[2]),
-            (top_a[0], bottom, top_a[2]),
+            (top_b[0], top_b[1] - depth, top_b[2]),
+            (top_a[0], top_a[1] - depth, top_a[2]),
         ]
-        start = len(mesh.positions)
-        mesh.positions.extend(quad)
-        # Le sampler est en CLAMP_TO_EDGE : reprendre les UV du haut étire le dernier
-        # pixel de l'orthophotographie vers le bas, sans matériau supplémentaire.
-        mesh.uvs.extend((mesh.uvs[first], mesh.uvs[second], mesh.uvs[second], mesh.uvs[first]))
-        mesh.normals.extend([outward] * 4)
+        start = len(mesh.skirt.positions)
+        mesh.skirt.positions.extend(quad)
+        mesh.skirt.normals.extend([outward] * 4)
         for corners in ((0, 1, 2), (0, 2, 3)):
             left, middle, right = corners
             normal = _cross(quad[left], quad[middle], quad[right])
             if sum(normal[axis] * outward[axis] for axis in range(3)) < 0:
                 middle, right = right, middle
-            mesh.indices.extend((start + left, start + middle, start + right))
+            mesh.skirt.indices.extend((start + left, start + middle, start + right))
 
 
 def _terrain_mesh(
@@ -466,17 +504,6 @@ def _terrain_mesh(
         min(elevations),
         max(elevations),
     )
-
-
-@dataclass
-class SurfaceGroup:
-    """Triangles d'un même matériau, avec des sommets dédupliqués par face."""
-
-    positions: list[tuple[float, float, float]] = field(default_factory=list)
-    normals: list[tuple[float, float, float]] = field(default_factory=list)
-    uvs: list[tuple[float, float]] = field(default_factory=list)
-    indices: list[int] = field(default_factory=list)
-    colors: list[tuple[float, float, float, float]] = field(default_factory=list)
 
 
 def _planar_uv(
@@ -800,23 +827,135 @@ def load_vegetation(
     trees: list,
     base_elevation: float,
     centre: tuple[float, float],
+    tints: list[tuple[float, float, float]] | None = None,
 ) -> dict[int, SurfaceGroup]:
-    """Assemble les proxys d'arbres, groupés par teinte de feuillage.
+    """Assemble les proxys d'arbres : le feuillage sous l'index 0, les fûts sous l'index 1.
 
-    Un nœud par arbre serait ingérable dans la scène ; une teinte unique aplatirait le
-    couvert. Le compromis est le même que pour le bâti : une petite palette, choisie de
-    façon stable pour qu'un arbre garde sa couleur d'une génération à l'autre.
+    Un nœud par arbre serait ingérable dans la scène, et une teinte unique aplatirait le
+    couvert. La couleur passe donc par ``COLOR_0``, sommet par sommet — canal déjà présent
+    pour l'occlusion ambiante, donc gratuit en octets — et non par un matériau par nuance :
+    chaque arbre peut ainsi porter sa propre teinte sans multiplier les primitives.
     """
     from .vegetation import tree_geometry
 
     groups: dict[int, SurfaceGroup] = {}
-    for tree in trees:
+    for index, tree in enumerate(trees):
         crown, trunk = tree_geometry(tree, centre, base_elevation)
-        palette = _palette_index(f"{tree.x:.2f}:{tree.y:.2f}", len(FOLIAGE_COLORS))
-        for index, triangles in ((palette, crown), (len(FOLIAGE_COLORS), trunk)):
-            group = groups.setdefault(index, SurfaceGroup())
+        tint = tints[index] if tints else None
+        colour = (
+            (srgb_to_linear(tint[0]), srgb_to_linear(tint[1]), srgb_to_linear(tint[2]), 1.0)
+            if tint
+            else None
+        )
+        for key, triangles, vertex_colour in (
+            (FOLIAGE_GROUP, crown, colour),
+            (TRUNK_GROUP, trunk, None),
+        ):
+            group = groups.setdefault(key, SurfaceGroup())
             for triangle in triangles:
                 _append_triangle(group, list(triangle))
+                if vertex_colour is not None:
+                    group.colors.extend([vertex_colour] * 3)
+    # Un groupe partiellement coloré produirait un accesseur plus court que les positions :
+    # mieux vaut renoncer à la teinte que d'écrire un GLB incohérent.
+    for group in groups.values():
+        if group.colors and len(group.colors) != len(group.positions):
+            group.colors = []
+    return groups
+
+
+def _combine_colors(
+    tints: list[tuple[float, float, float, float]],
+    occlusion: list[tuple[float, float, float, float]],
+) -> list[tuple[float, float, float, float]]:
+    """Multiplie une teinte par sommet par l'occlusion cuite, dans le seul canal COLOR_0.
+
+    Les deux informations partagent le même attribut et doivent donc se composer plutôt que
+    s'écraser : la teinte dit de quelle couleur est l'objet, l'occlusion combien de ciel il
+    voit.
+    """
+    if not tints:
+        return occlusion
+    if not occlusion:
+        return tints
+    return [
+        (tint[0] * shade[0], tint[1] * shade[1], tint[2] * shade[2], 1.0)
+        for tint, shade in zip(tints, occlusion)
+    ]
+
+
+def _foliage_tints(
+    config: PocConfig,
+    run_dir: Path,
+    trees: list,
+    ortho_path: Path,
+    ortho_offset: tuple[float, float],
+) -> list[tuple[float, float, float]] | None:
+    """Teinte de chaque houppier, échantillonnée dans l'orthophotographie.
+
+    Un échec de lecture d'image ne doit pas empêcher la production de la scène : la
+    végétation retombe alors sur la teinte de repli du matériau.
+    """
+    import numpy as np
+    from PIL import Image
+
+    from .vegetation import sample_foliage_tints
+
+    if not trees or not config.get_bool("VEGETATION_TINT_FROM_ORTHO", True):
+        return None
+    try:
+        with Image.open(ortho_path) as image:
+            pixels = np.asarray(image.convert("RGB"), dtype=np.float64) / 255.0
+    except (OSError, ValueError) as error:
+        print(f"AVERTISSEMENT : feuillage non teinté depuis l'orthophotographie ({error}).")
+        return None
+    return sample_foliage_tints(trees, pixels, ortho_uv(config, ortho_offset))
+
+
+def _load_nappes(
+    config: PocConfig,
+    run_dir: Path,
+    base_elevation: float,
+    centre: tuple[float, float],
+) -> dict[str, SurfaceGroup]:
+    """Assemble la nappe d'eau et le tablier de pont, s'ils ont été produits par le terrain.
+
+    Leur absence n'est pas une erreur : une exécution antérieure à leur introduction, ou une
+    emprise sans cours d'eau, reste parfaitement exploitable.
+    """
+    from .surfaces import load_nappe, surface_triangles
+
+    xmin, _, _, ymax = config.terrain_bbox
+    resolution = config.get_float("TERRAIN_RESOLUTION_M", 1.0)
+    # Le relèvement ne corrige pas la mesure : `water.npy` conserve l'altitude ajustée sur le
+    # LiDAR. C'est un décalage de raccord, appliqué ici pour qu'un essai coûte un `poc.py glb`
+    # et non une relecture complète du nuage.
+    lift = {
+        "water": config.get_float("WATER_LIFT_M", 0.2),
+        "bridge": 0.0,
+    }
+    groups: dict[str, SurfaceGroup] = {}
+    for name, enabled, thickness in (
+        ("water", config.get_bool("WATER", True), 0.0),
+        ("bridge", config.get_bool("BRIDGES", True), config.get_float("BRIDGE_THICKNESS_M", 1.0)),
+    ):
+        if not enabled:
+            continue
+        nappe = load_nappe(run_dir / f"{name}.npy")
+        if nappe is None or nappe.is_empty():
+            continue
+        group = SurfaceGroup()
+        for triangle in surface_triangles(
+            nappe.elevations + lift[name],
+            xmin,
+            ymax,
+            resolution,
+            centre,
+            base_elevation,
+            thickness,
+        ):
+            _append_triangle(group, list(triangle))
+        groups[name] = group
     return groups
 
 
@@ -861,7 +1000,7 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
     from .raster import TerrainSampler
     from .roofs import read_roof_quality
     from .sun import measure_ortho_offset, measure_ortho_sun
-    from .vegetation import load_trees
+    from .vegetation import CROWN_VERTICES, load_trees
 
     run_dir = run_dir or latest_run(config, require_complete=True)
     xyz_path = run_dir / "terrain.xyz"
@@ -901,7 +1040,9 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
     )
     scene_centre = (sum(config.bbox[::2]) / 2, sum(config.bbox[1::2]) / 2)
     trees = load_trees(run_dir) if config.get_bool("VEGETATION", True) else []
-    vegetation = load_vegetation(config, trees, terrain.base_elevation, scene_centre)
+    tints = _foliage_tints(config, run_dir, trees, ortho_path, ortho_offset)
+    vegetation = load_vegetation(config, trees, terrain.base_elevation, scene_centre, tints)
+    nappes = _load_nappes(config, run_dir, terrain.base_elevation, scene_centre)
 
     occlusion = _load_occlusion(config, run_dir, grid)
     if occlusion is not None:
@@ -909,17 +1050,26 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
             terrain.positions, occlusion, scene_centre, terrain.base_elevation
         )
         for group in (
+            terrain.skirt,
             *(group for building in buildings for group in (building.walls, building.roofs)),
             *vegetation.values(),
+            *nappes.values(),
         ):
-            group.colors = bake_colors(
-                group.positions, occlusion, scene_centre, terrain.base_elevation
+            group.colors = _combine_colors(
+                group.colors,
+                bake_colors(group.positions, occlusion, scene_centre, terrain.base_elevation),
             )
 
     builder = GlbBuilder()
     texture = builder.add_texture(ortho_path.read_bytes())
     terrain_material = builder.add_material(
         "Orthophoto IGN", (1.0, 1.0, 1.0, 1.0), roughness=1.0, texture=texture
+    )
+    # La tranche ne porte pas l'orthophotographie : reprendre les UV du bord y étirait le
+    # dernier pixel de l'image sur toute la hauteur, en traînées verticales. Une teinte
+    # minérale unie se lit comme une coupe, ce qu'elle est.
+    skirt_material = builder.add_material(
+        "Tranche", SKIRT_COLOR, roughness=1.0, double_sided=False
     )
     wall_materials = [
         builder.add_material(f"Murs {index + 1}", color, roughness=0.9, double_sided=False)
@@ -945,27 +1095,49 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
             for index, color in enumerate(ROOF_COLORS)
         ]
     )
-    # Les proxys de végétation sont dépourvus d'UV : le feuillage reste en aplat teinté, seule
-    # l'occlusion cuite lui donne du volume. Un houppier n'est pas fermé au sens strict, d'où
-    # le rendu double face.
-    foliage_materials = [
-        builder.add_material(f"Feuillage {index + 1}", color, roughness=0.95)
-        for index, color in enumerate(FOLIAGE_COLORS)
-    ] + [builder.add_material("Troncs", TRUNK_COLOR, roughness=0.95, double_sided=False)]
-
-    builder.add_mesh(
-        "Terrain",
-        [
-            builder.primitive(
-                terrain.positions,
-                terrain.normals,
-                terrain.indices,
-                terrain_material,
-                terrain.uvs,
-                terrain.colors,
-            )
-        ],
+    # Les proxys de végétation sont dépourvus d'UV. Un seul matériau suffit désormais : la
+    # couleur de chaque arbre voyage dans COLOR_0, échantillonnée sur l'orthophotographie.
+    # Le facteur reste blanc pour ne pas teinter deux fois. Un houppier n'est pas fermé au
+    # sens strict, d'où le rendu double face.
+    foliage_materials = {
+        FOLIAGE_GROUP: builder.add_material(
+            "Feuillage",
+            (1.0, 1.0, 1.0, 1.0) if tints else FOLIAGE_FALLBACK,
+            roughness=0.95,
+        ),
+        TRUNK_GROUP: builder.add_material(
+            "Troncs", TRUNK_COLOR, roughness=0.95, double_sided=False
+        ),
+    }
+    # L'eau reste peu rugueuse : c'est ce qui la distingue du terrain sous un même éclairage.
+    # Sa nappe n'est pas fermée et se voit par en dessous depuis l'aval, d'où le double face.
+    water_material = builder.add_material("Eau", WATER_COLOR, roughness=0.12)
+    bridge_material = builder.add_material(
+        "Pont", BRIDGE_COLOR, roughness=0.9, double_sided=False
     )
+
+    terrain_primitives = [
+        builder.primitive(
+            terrain.positions,
+            terrain.normals,
+            terrain.indices,
+            terrain_material,
+            terrain.uvs,
+            terrain.colors,
+        )
+    ]
+    if terrain.skirt.positions:
+        terrain_primitives.append(
+            builder.primitive(
+                terrain.skirt.positions,
+                terrain.skirt.normals,
+                terrain.skirt.indices,
+                skirt_material,
+                None,
+                terrain.skirt.colors,
+            )
+        )
+    builder.add_mesh("Terrain", terrain_primitives)
     building_nodes = []
     for building in buildings:
         primitives = [
@@ -991,15 +1163,34 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
                     group.positions,
                     group.normals,
                     group.indices,
-                    foliage_materials[palette],
+                    foliage_materials[key],
                     None,
                     group.colors,
                 )
-                for palette, group in sorted(vegetation.items())
+                for key, group in sorted(vegetation.items())
                 if group.positions
             ],
-            extras={"trees": len(trees)},
+            # Les houppiers sont fusionnés en une primitive unique : sans ce pas, le
+            # visualiseur ne saurait pas où commence et finit chaque arbre, et ne pourrait
+            # donc pas les redimensionner autour de leur propre centre.
+            extras={"trees": len(trees), "crownVertices": CROWN_VERTICES},
         )
+    # Eau et ponts forment deux nœuds distincts : le visualiseur doit pouvoir les masquer
+    # séparément, comme le terrain et le bâti, pour isoler un défaut de contact.
+    for name, node, material in (
+        ("water", "Eau", water_material),
+        ("bridge", "Ponts", bridge_material),
+    ):
+        group = nappes.get(name)
+        if group and group.positions:
+            builder.add_mesh(
+                node,
+                [
+                    builder.primitive(
+                        group.positions, group.normals, group.indices, material, None, group.colors
+                    )
+                ],
+            )
 
     render_dir = run_dir / "render"
     scene_path = render_dir / "scene.glb"
@@ -1017,6 +1208,11 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
         "roofQuality": roof_quality.as_metadata(),
         "trees": len(trees),
         "bakedOcclusion": occlusion is not None,
+        # Le visualiseur active ses bascules d'après ces clés : une emprise sans cours d'eau
+        # ne doit pas afficher une case à cocher sans effet.
+        "water": "water" in nappes,
+        "bridges": "bridge" in nappes,
+        "foliageTinted": bool(tints),
     }
     if roof_quality.degraded:
         print(

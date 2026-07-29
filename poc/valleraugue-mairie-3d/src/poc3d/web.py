@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -53,6 +54,133 @@ VENDOR_FILES = {
 }
 
 
+# Sous-dossier des scènes autres que celle de l'exécution préparée. Cette dernière reste en
+# `assets/scene.glb` : c'est le chemin documenté, et le sélecteur n'a pas à le déplacer.
+ALTERNATE_SCENES_DIR = "scenes"
+SCENE_FILES = ("scene.glb", "scene.json", "buildings.json")
+
+
+@dataclass(frozen=True)
+class SceneEntry:
+    """Une scène proposable au sélecteur du visualiseur."""
+
+    identifier: str
+    label: str
+    run: str
+    render_dir: Path
+    prefix: str
+    configuration: dict[str, object]
+
+    def as_manifest(self) -> dict[str, object]:
+        return {
+            "id": self.identifier,
+            "label": self.label,
+            "run": self.run,
+            "scene": f"{self.prefix}/scene.glb",
+            "metadata": f"{self.prefix}/scene.json",
+            "configuration": self.configuration,
+        }
+
+
+def _scene_label(config: PocConfig) -> str:
+    width, height = config.expected_size
+    return f"{width:g} × {height:g} m"
+
+
+def _viewer_configuration(config: PocConfig) -> dict[str, object]:
+    """Réglages documentaires dont le GLB historique ne garde pas toujours la trace."""
+    xmin, ymin, xmax, ymax = config.terrain_bbox
+    ortho_size = config.get_int("ORTHO_SIZE_PX", 1024)
+    orthophoto_resolution = max(xmax - xmin, ymax - ymin) / ortho_size
+    details: dict[str, object] = {
+        "terrainBbox": [xmin, ymin, xmax, ymax],
+        "orthophotoLayer": config.get("ORTHO_LAYER", "ORTHOIMAGERY.ORTHOPHOTOS"),
+        "orthophotoSizePx": ortho_size,
+        "orthophotoResolutionM": orthophoto_resolution,
+    }
+    orthophoto_date = config.get("ORTHO_DATE", "").strip()
+    if orthophoto_date:
+        details["orthophotoDate"] = orthophoto_date
+    return details
+
+
+def latest_scene_run(config: PocConfig) -> Path | None:
+    """Exécution la plus récente portant une scène assemblée, ou ``None``.
+
+    Le critère diffère de ``latest_run`` : une exécution Roofer complète peut très bien
+    n'avoir jamais été enrichie, et le sélecteur ne doit proposer que ce qui se charge.
+    """
+    candidates = sorted(
+        (
+            path
+            for path in config.output_dir.glob("run-*")
+            if (path / "render" / "scene.glb").is_file()
+            and (path / "render" / "scene.json").is_file()
+        ),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0] if candidates else None
+
+
+def available_scenes(config: PocConfig, run_dir: Path) -> list[SceneEntry]:
+    """Scènes du sélecteur : l'exécution préparée d'abord, puis une par autre emprise.
+
+    Les emprises se lisent dans les configurations versionnées de `config/`. Celle qui n'a
+    encore aucune scène est simplement absente de la liste ; avec une seule scène, le
+    sélecteur se masque.
+    """
+    entries = [
+        SceneEntry(
+            identifier=config.source.stem,
+            label=_scene_label(config),
+            run=run_dir.name,
+            render_dir=run_dir / "render",
+            prefix="assets",
+            configuration=_viewer_configuration(config),
+        )
+    ]
+    seen = {(run_dir / "render").resolve()}
+    # Les identifiants servent de valeurs au sélecteur : deux entrées homonymes rendraient un
+    # choix ambigu, ce qui arrive dès qu'on prépare une exécution plus ancienne que la dernière.
+    claimed = {entries[0].identifier}
+    for source in sorted((config.root / "config").glob("*.conf")):
+        try:
+            other = PocConfig.load(config.root, source)
+            other_run = latest_scene_run(other)
+        except (OSError, ValueError):
+            continue
+        if other_run is None:
+            continue
+        render_dir = (other_run / "render").resolve()
+        identifier = source.stem
+        if render_dir in seen or identifier in claimed:
+            continue
+        seen.add(render_dir)
+        claimed.add(identifier)
+        entries.append(
+            SceneEntry(
+                identifier=identifier,
+                label=_scene_label(other),
+                run=other_run.name,
+                render_dir=render_dir,
+                prefix=f"assets/{ALTERNATE_SCENES_DIR}/{identifier}",
+                configuration=_viewer_configuration(other),
+            )
+        )
+    return entries
+
+
+def _copy_if_changed(source: Path, destination: Path) -> None:
+    """Copie une scène volumineuse seulement si elle a bougé : `poc.py web` reste rapide."""
+    if destination.is_file():
+        current, previous = source.stat(), destination.stat()
+        if current.st_size == previous.st_size and current.st_mtime <= previous.st_mtime:
+            return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+
+
 def _download(url: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     request = urllib.request.Request(
@@ -83,6 +211,22 @@ def prepare_viewer(config: PocConfig, run_dir: Path | None = None) -> Path:
     if attributes.is_file():
         shutil.copy2(attributes, assets_dir / "buildings.json")
 
+    # Les autres emprises sont recopiées dans le dossier servi : le serveur local ne sert que
+    # `web/`, il ne peut donc pas atteindre le `render/` d'une autre exécution.
+    scenes = available_scenes(config, run_dir)
+    for entry in scenes[1:]:
+        for name in SCENE_FILES:
+            source = entry.render_dir / name
+            if source.is_file():
+                _copy_if_changed(source, assets_dir / ALTERNATE_SCENES_DIR / entry.identifier / name)
+    (assets_dir / "scenes.json").write_text(
+        json.dumps([entry.as_manifest() for entry in scenes], indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    if len(scenes) > 1:
+        others = ", ".join(entry.label for entry in scenes[1:])
+        print(f"Scènes proposées au sélecteur : {scenes[0].label} (courante), {others}")
+
     vendor_dir = web_dir / "vendor"
     for relative, url in VENDOR_FILES.items():
         destination = vendor_dir / relative
@@ -94,6 +238,7 @@ def prepare_viewer(config: PocConfig, run_dir: Path | None = None) -> Path:
         "threeVersion": THREE_VERSION,
         "entrypoint": "index.html",
         "scene": "assets/scene.glb",
+        "scenes": "assets/scenes.json",
         "localOnly": True,
     }
     (web_dir / "viewer-manifest.json").write_text(

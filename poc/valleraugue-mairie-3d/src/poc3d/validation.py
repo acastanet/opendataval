@@ -23,6 +23,106 @@ REQUIRED_ARTIFACTS = (
     "buildings_cleaned.gpkg",
 )
 
+SIDES = ("ouest", "sud", "est", "nord")
+
+
+def coverage_margins(
+    bounds: tuple[float, float, float, float],
+    terrain_bbox: tuple[float, float, float, float],
+) -> dict[str, float]:
+    """Débordement du nuage LiDAR au-delà de l'emprise du terrain, côté par côté, en mètres.
+
+    Une valeur négative est un manque. L'étape amont extrait l'emprise demandée élargie d'un
+    buffer : un buffer plus étroit que ``TERRAIN_MARGIN_M`` laisse le terrain déborder du
+    nuage, et rien d'autre ne le signalerait.
+    """
+    cloud_xmin, cloud_ymin, cloud_xmax, cloud_ymax = bounds
+    xmin, ymin, xmax, ymax = terrain_bbox
+    return {
+        "ouest": xmin - cloud_xmin,
+        "sud": ymin - cloud_ymin,
+        "est": cloud_xmax - xmax,
+        "nord": cloud_ymax - ymax,
+    }
+
+
+def coverage_deficit(
+    bounds: tuple[float, float, float, float],
+    terrain_bbox: tuple[float, float, float, float],
+    tolerance: float,
+) -> dict[str, float]:
+    """Manque de couverture par côté, en mètres, tolérance déduite.
+
+    La tolérance vaut une maille du MNT : en dessous, aucune cellule ne change de valeur.
+    """
+    margins = coverage_margins(bounds, terrain_bbox)
+    return {side: -margin for side, margin in margins.items() if margin < -tolerance}
+
+
+def _cloud_bounds(lidar: Path) -> tuple[float, float, float, float]:
+    """Emprise planimétrique du nuage, lue dans l'en-tête : le nuage n'est jamais chargé."""
+    import laspy
+
+    with laspy.open(lidar) as reader:
+        header = reader.header
+    return (
+        float(header.mins[0]),
+        float(header.mins[1]),
+        float(header.maxs[0]),
+        float(header.maxs[1]),
+    )
+
+
+def _coverage_section(config: PocConfig, run_dir: Path) -> tuple[list[str], bool]:
+    """Confronte l'emprise du nuage à celle du terrain, que rien ne vérifiait jusqu'ici.
+
+    Sans ce contrôle, un nuage trop court passe inaperçu : ``create_terrain`` comble les
+    cellules vides par propagation de la moyenne des voisines, et rend un relief lisse,
+    plausible et inventé sur toute la bande non couverte.
+    """
+    lines = ["", "## Couverture LiDAR"]
+    lidar = run_dir / "lidar_subset.laz"
+    if not lidar.is_file() or lidar.stat().st_size == 0:
+        # L'absence est déjà comptée par la section des artefacts : ne pas la compter deux fois.
+        lines.append("- Non mesurée : le nuage est absent ou vide.")
+        return lines, True
+    try:
+        bounds = _cloud_bounds(lidar)
+    except ImportError:
+        lines.append("- Non mesurée : le module `laspy` est absent.")
+        return lines, True
+    except Exception as error:  # laspy lève des exceptions propres à son format
+        lines.append(f"- [ ] Nuage illisible : {error}")
+        return lines, False
+
+    terrain_bbox = config.terrain_bbox
+    tolerance = config.get_float("TERRAIN_RESOLUTION_M", 1.0)
+    margins = coverage_margins(bounds, terrain_bbox)
+    deficit = coverage_deficit(bounds, terrain_bbox, tolerance)
+    lines.extend(
+        [
+            # Les coordonnées Lambert-93 tiennent sur sept chiffres : `%g` les rendrait en
+            # notation scientifique, illisible pour une comparaison de bornes.
+            "- Emprise du terrain : `{:.1f} {:.1f} {:.1f} {:.1f}`".format(*terrain_bbox),
+            "- Emprise du nuage : `{:.1f} {:.1f} {:.1f} {:.1f}`".format(*bounds),
+        ]
+    )
+    if not deficit:
+        tightest = min(SIDES, key=lambda side: margins[side])
+        lines.append(
+            f"- [x] Le nuage couvre le terrain — marge la plus faible : "
+            f"{margins[tightest]:.1f} m ({tightest})."
+        )
+        return lines, True
+
+    lines.append("- [ ] Le nuage ne couvre pas le terrain :")
+    lines.extend(f"  - {side} : {deficit[side]:.1f} m manquants" for side in SIDES if side in deficit)
+    lines.append(
+        "- Le MNT comblerait cette bande par interpolation sans rien signaler : relancer "
+        "l'étape LiDAR + Roofer avec un `--buffer` plus large."
+    )
+    return lines, False
+
 
 def _roof_quality_section(cityjson: list[Path]) -> list[str]:
     """Remonte le verdict que Roofer porte déjà sur chacune de ses toitures.
@@ -82,6 +182,9 @@ def validate_run(config: PocConfig, run_dir: Path | None = None) -> Path:
         details = f"{path.stat().st_size} octets" if valid else "absent ou vide"
         lines.append(f"- [{status}] `{relative}` — {details}")
 
+    coverage_lines, covered = _coverage_section(config, run_dir)
+    lines.extend(coverage_lines)
+
     cityjson = sorted((run_dir / "roofer_output").glob("*.city.jsonl"))
     success &= bool(cityjson)
     lines.extend(
@@ -93,20 +196,27 @@ def validate_run(config: PocConfig, run_dir: Path | None = None) -> Path:
     )
     if cityjson:
         lines.extend(_roof_quality_section(cityjson))
+
+    problems: list[str] = []
+    if not success:
+        problems.append("des artefacts sont absents")
+    if not covered:
+        problems.append("le nuage LiDAR ne couvre pas l'emprise du terrain")
     lines.extend(
         [
             "",
             "## Décision",
             (
-                "**PASS technique** — tous les artefacts minimaux sont présents."
-                if success
-                else "**FAIL technique** — des artefacts sont absents."
+                "**PASS technique** — tous les artefacts minimaux sont présents et le nuage "
+                "couvre l'emprise."
+                if not problems
+                else "**FAIL technique** — " + ", ".join(problems) + "."
             ),
         ]
     )
     report = run_dir / "poc-validation.md"
     report.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(report.read_text(encoding="utf-8"))
-    if not success:
+    if problems:
         raise RuntimeError(f"Validation en échec : {report}")
     return report
