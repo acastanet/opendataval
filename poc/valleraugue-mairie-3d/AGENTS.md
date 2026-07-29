@@ -29,7 +29,9 @@ un nouveau clone les perd en silence.
 - `test/` : tests unitaires Python ;
 - `viewer/` : sources HTML, CSS et JavaScript du visualiseur ;
 - `config/` : exemples de configuration 100 m, 200 m et 600 m ;
-- `docs/` : grille d’acceptation, analyse UX du visualiseur et procédure de l’étape amont ;
+- `docs/` : grille d’acceptation, analyse UX du visualiseur, procédure de l’étape
+  amont et brief de mise en ligne
+  ([`publication-visualiseur.md`](docs/publication-visualiseur.md)) ;
 - `patches/` : correctifs à appliquer au clone du workflow LiDAR + Roofer ;
 - `output*/run-*/` : entrées Roofer et résultats générés, jamais versionnés.
 

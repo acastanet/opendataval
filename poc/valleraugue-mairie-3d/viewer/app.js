@@ -1068,6 +1068,20 @@ function updateDataInformation(metadata, entry) {
     ],
     { list: true, wide: true },
   );
+  // Obligation de la Licence Ouverte 2.0, sous laquelle l'IGN diffuse ces trois jeux : la
+  // mention de paternité doit accompagner la réutilisation, donc la publication en ligne.
+  // La révision de Three.js est lue dans la bibliothèque et non recopiée : la version servie
+  // est celle que `web.py` a téléchargée, pas celle qu'un littéral aurait figée ici.
+  addDataSection(
+    sections,
+    "Licence et attribution",
+    [
+      "LiDAR HD, BD TOPO® et ORTHOPHOTOS® — © IGN, diffusés sous Licence Ouverte 2.0 (Etalab) : réutilisation libre sous réserve de mentionner la source et sa date de mise à jour.",
+      "Reconstruction des volumes de toiture : Roofer, 3D Geoinformation, TU Delft.",
+      `Affichage 3D : Three.js r${THREE.REVISION}, licence MIT.`,
+    ],
+    { list: true, wide: true },
+  );
   content.append(sections);
 }
 

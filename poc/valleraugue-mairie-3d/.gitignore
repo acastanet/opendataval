@@ -3,6 +3,9 @@
 .venv/
 output/
 output-*/
+# Dossier servi par Caddy : copie précompressée d'un `web/`, reproductible en une commande
+# (cf. docs/publication-visualiseur.md). Ses GLB n'ont rien à faire dans l'historique Git.
+publication/
 *.log
 .DS_Store
 __pycache__/
