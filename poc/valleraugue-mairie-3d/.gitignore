@@ -1,5 +1,11 @@
 .work/
+.work-python/
+.venv/
 output/
+output-*/
 config/poc.conf
+config/poc-200m.conf
 *.log
 .DS_Store
+__pycache__/
+*.pyc

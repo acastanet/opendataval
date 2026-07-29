@@ -1,24 +1,34 @@
-SHELL := /usr/bin/env bash
+PYTHON ?= .venv/Scripts/python.exe
+CONFIG ?= config/poc-200m.conf
 
-.PHONY: check run run-clean validate clean
+.PHONY: check test validate terrain ortho glb web enhance all serve
 
 check:
-	@command -v docker >/dev/null
-	@command -v git >/dev/null
-	@command -v python3 >/dev/null
-	@docker info >/dev/null
-	@python3 -m json.tool config/area.geojson >/dev/null
-	@bash -n run-poc.sh validate.sh
-	@echo "Pré-requis et configuration valides."
+	$(PYTHON) poc.py --config $(CONFIG) check
 
-run: check
-	bash run-poc.sh
-
-run-clean: check
-	CLEAN=1 bash run-poc.sh
+test:
+	$(PYTHON) -m unittest discover -s test -v
 
 validate:
-	bash validate.sh
+	$(PYTHON) poc.py --config $(CONFIG) validate
 
-clean:
-	rm -rf output .work
+terrain:
+	$(PYTHON) poc.py --config $(CONFIG) terrain
+
+ortho:
+	$(PYTHON) poc.py --config $(CONFIG) ortho
+
+glb:
+	$(PYTHON) poc.py --config $(CONFIG) glb
+
+web:
+	$(PYTHON) poc.py --config $(CONFIG) web
+
+enhance:
+	$(PYTHON) poc.py --config $(CONFIG) enhance
+
+all:
+	$(PYTHON) poc.py --config $(CONFIG) all
+
+serve:
+	$(PYTHON) poc.py --config $(CONFIG) serve

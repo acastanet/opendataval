@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101815" />
+    <title>Valleraugue — POC 3D</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.js",
+          "three/addons/": "./vendor/addons/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main id="viewport" aria-label="Scène 3D de Valleraugue"></main>
+
+    <header class="brand">
+      <span class="brand__eyebrow">Val-d’Aigoual · IGN LiDAR HD</span>
+      <h1>Valleraugue en relief</h1>
+      <p>Terrain, orthophotographie et bâtiments LoD2.2</p>
+    </header>
+
+    <aside class="panel" aria-label="Contrôles de la scène">
+      <div class="panel__status">
+        <span class="pulse" aria-hidden="true"></span>
+        <span id="status">Chargement de la scène…</span>
+      </div>
+
+      <dl class="metrics">
+        <div>
+          <dt>Bâtiments</dt>
+          <dd id="buildingCount">—</dd>
+        </div>
+        <div>
+          <dt>Emprise</dt>
+          <dd id="extent">—</dd>
+        </div>
+        <div>
+          <dt>Relief</dt>
+          <dd id="elevationRange">—</dd>
+        </div>
+      </dl>
+
+      <section class="controls">
+        <h2>Affichage</h2>
+        <label class="switch-row">
+          <span>Terrain IGN</span>
+          <input id="terrainToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Bâtiments 3D</span>
+          <input id="buildingsToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Maillage</span>
+          <input id="wireframeToggle" type="checkbox" />
+        </label>
+        <label class="range-row">
+          <span>Opacité du terrain</span>
+          <output id="opacityValue">100 %</output>
+          <input id="terrainOpacity" type="range" min="15" max="100" value="100" />
+        </label>
+        <label class="range-row">
+          <span>Hauteur du soleil</span>
+          <output id="sunValue">35°</output>
+          <input id="sunHeight" type="range" min="10" max="75" value="35" />
+        </label>
+        <label class="range-row">
+          <span>Azimut du soleil</span>
+          <output id="azimuthValue">230°</output>
+          <input id="sunAzimuth" type="range" min="0" max="359" value="230" />
+        </label>
+        <label class="range-row">
+          <span>Exagération verticale</span>
+          <output id="verticalValue">×1,0</output>
+          <input id="verticalScale" type="range" min="100" max="250" value="100" />
+        </label>
+      </section>
+
+      <button id="resetCamera" type="button">Recentrer la vue</button>
+      <p class="hint">Glisser pour tourner · molette pour zoomer · clic droit pour déplacer</p>
+    </aside>
+
+    <div class="north" aria-label="Nord">
+      <span>N</span>
+      <i></i>
+    </div>
+
+    <div id="error" class="error" hidden></div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
