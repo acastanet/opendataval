@@ -11,7 +11,22 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from poc3d.config import PocConfig
-from poc3d.glb import GlbBuilder, _append_skirt, _newell_normal, load_buildings, load_terrain
+from poc3d.glb import (
+    GlbBuilder,
+    SurfaceGroup,
+    _append_skirt,
+    _face_triangles,
+    _newell_normal,
+    _palette_index,
+    _skirt_depth,
+    bake_colors,
+    load_buildings,
+    load_terrain,
+    load_vegetation,
+    ortho_uv,
+    ortho_uv_projector,
+)
+from poc3d.raster import TerrainSampler
 
 
 class GlbTest(unittest.TestCase):
@@ -70,10 +85,12 @@ class GlbTest(unittest.TestCase):
                 json.dumps(header) + "\n" + json.dumps(feature) + "\n",
                 encoding="utf-8",
             )
-            groups, count = load_buildings(config, cityjson, 0)
-            self.assertEqual(count, 1)
-            self.assertEqual(len(groups["walls"][2]), 3)
-            self.assertEqual(len(groups["roofs"][2]), 3)
+            buildings = load_buildings(config, cityjson, 0)
+            self.assertEqual(len(buildings), 1)
+            self.assertEqual(len(buildings[0].walls.indices), 3)
+            self.assertEqual(len(buildings[0].roofs.indices), 3)
+            # Sans UV, aucun matériau tuilé n'est applicable au bâti en aval.
+            self.assertEqual(len(buildings[0].roofs.uvs), 3)
 
     def test_charge_plusieurs_cityjsonseq_et_ignore_un_lod_inferieur(self) -> None:
         with TemporaryDirectory() as directory:
@@ -91,15 +108,17 @@ class GlbTest(unittest.TestCase):
             write_model(first, "2.2")
             write_model(second, "2.2")
             write_model(ignored, "1.3")
-            groups, count = load_buildings(PocConfig.load(root, config_file), [first, second, ignored], 0)
-            self.assertEqual(count, 2)
-            self.assertEqual(len(groups["walls"][2]), 6)
+            buildings = load_buildings(PocConfig.load(root, config_file), [first, second, ignored], 0)
+            self.assertEqual(len(buildings), 2)
+            self.assertEqual(sum(len(building.walls.indices) for building in buildings), 6)
 
     def test_charge_directement_la_grille_numpy(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
             config_file = root / "poc.conf"
-            config_file.write_text('POC_BBOX="0 0 2 2"\n', encoding="utf-8")
+            config_file.write_text(
+                'POC_BBOX="0 0 2 2"\nTERRAIN_EDGE_SKIRT_M=0\n', encoding="utf-8"
+            )
             terrain = load_terrain(PocConfig.load(root, config_file), grid=np.array([[10.0, 11.0], [12.0, 13.0]]))
             self.assertEqual(len(terrain.positions), 4)
             self.assertEqual(len(terrain.indices), 6)
@@ -114,7 +133,8 @@ class GlbTest(unittest.TestCase):
             root = Path(directory)
             config_file = root / "poc.conf"
             config_file.write_text(
-                'POC_BBOX="0 0 2 2"\nTERRAIN_MARGIN_M=0\n', encoding="utf-8"
+                'POC_BBOX="0 0 2 2"\nTERRAIN_MARGIN_M=0\nTERRAIN_EDGE_SKIRT_M=0\n',
+                encoding="utf-8",
             )
             config = PocConfig.load(root, config_file)
             grid = np.array([[10.0, 11.0], [12.0, 13.0]])
@@ -132,7 +152,7 @@ class GlbTest(unittest.TestCase):
             (1.0, 0.0, 3.0), (1.0, 0.0, 1.0), (0.0, 0.0, 1.0),
         ]
         ring = [0, 1, 2, 3, 4, 5]
-        group: tuple[list, list, list] = ([], [], [])
+        group = SurfaceGroup()
         _append_skirt(group, vertices, ring, 2.0)
         normal = _newell_normal(vertices, ring)
         for edge_index, (first, second) in enumerate(zip(ring, ring[1:] + ring[:1])):
@@ -142,8 +162,247 @@ class GlbTest(unittest.TestCase):
                 edge[2] * normal[0] - edge[0] * normal[2],
                 edge[0] * normal[1] - edge[1] * normal[0],
             )
-            emitted = group[1][edge_index * 6]
+            emitted = group.normals[edge_index * 6]
             self.assertGreater(sum(emitted[axis] * expected[axis] for axis in range(3)), 0)
+
+
+class TerrainSkirtTest(unittest.TestCase):
+    def _terrain(self, skirt: str) -> object:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_file = root / "poc.conf"
+            config_file.write_text(
+                f'POC_BBOX="0 0 3 3"\nTERRAIN_MARGIN_M=0\nTERRAIN_EDGE_SKIRT_M={skirt}\n',
+                encoding="utf-8",
+            )
+            grid = np.array([[10.0, 11.0, 12.0], [13.0, 14.0, 15.0], [16.0, 17.0, 18.0]])
+            return load_terrain(PocConfig.load(root, config_file), grid=grid)
+
+    def test_ferme_le_contour_du_terrain(self) -> None:
+        """La tranche de la dalle doit être masquée par une jupe verticale continue."""
+        plain = self._terrain("0")
+        skirted = self._terrain("12")
+        # Quatre arêtes de contour par côté d'une grille 3 × 3, quatre sommets chacune.
+        self.assertEqual(len(skirted.positions), len(plain.positions) + 8 * 4)
+        self.assertEqual(len(skirted.indices), len(plain.indices) + 8 * 6)
+        self.assertEqual(len(skirted.normals), len(skirted.positions))
+        self.assertEqual(len(skirted.uvs), len(skirted.positions))
+        bottom = min(position[1] for position in skirted.positions)
+        self.assertAlmostEqual(bottom, skirted.min_elevation - skirted.base_elevation - 12)
+
+    def test_ignore_une_jupe_nulle_ou_negative(self) -> None:
+        self.assertEqual(len(self._terrain("-4").positions), len(self._terrain("0").positions))
+
+
+class SkirtDepthTest(unittest.TestCase):
+    def _config(self, root: Path) -> PocConfig:
+        config_file = root / "poc.conf"
+        config_file.write_text(
+            'POC_BBOX="0 0 10 10"\nTERRAIN_MARGIN_M=0\n'
+            "BUILDING_SKIRT_MIN_M=1\nBUILDING_SKIRT_MAX_M=8\n",
+            encoding="utf-8",
+        )
+        return PocConfig.load(root, config_file)
+
+    def _depth(self, ground: float) -> float:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = self._config(root)
+            sampler = TerrainSampler(np.full((10, 10), ground), 0.0, 10.0, 1.0)
+            # Contour de 2 m de côté au centre de l'emprise, plancher à 20 m.
+            vertices = [(-1.0, 20.0, -1.0), (1.0, 20.0, -1.0), (1.0, 20.0, 1.0), (-1.0, 20.0, 1.0)]
+            return _skirt_depth(config, sampler, vertices, [0, 1, 2, 3], 0.0, (5.0, 5.0))
+
+    def test_allonge_la_jupe_avec_la_denivelee(self) -> None:
+        """Une jupe fixe laisse le bâtiment flotter dès que le terrain décroche."""
+        self.assertLess(self._depth(19.0), self._depth(16.0))
+
+    def test_borne_la_jupe_par_le_minimum_et_le_maximum(self) -> None:
+        self.assertEqual(self._depth(20.0), 1.0)
+        self.assertEqual(self._depth(0.0), 8.0)
+
+    def test_retombe_sur_la_valeur_fixe_sans_terrain(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = self._config(root)
+            vertices = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.0, 1.0)]
+            self.assertEqual(_skirt_depth(config, None, vertices, [0, 1, 2], 0.0, (5.0, 5.0)), 2.0)
+
+
+class RoofTextureTest(unittest.TestCase):
+    """L'orthophotographie contient déjà les toitures réelles : mieux vaut les y projeter."""
+
+    def _load(self, root: Path, extra: str) -> list:
+        config_file = root / "poc.conf"
+        config_file.write_text(
+            f'POC_BBOX="0 0 10 10"\nTERRAIN_MARGIN_M=0\n{extra}', encoding="utf-8"
+        )
+        cityjson = root / "model.city.jsonl"
+        header = {"type": "CityJSON", "transform": {"scale": [1, 1, 1], "translate": [0, 0, 0]}}
+        feature = {
+            # Sommets Lambert-93 : nord-ouest, nord-est puis sud-est de l'emprise.
+            "vertices": [[0, 10, 5], [10, 10, 5], [10, 0, 5]],
+            "CityObjects": {
+                "part": {
+                    "geometry": [
+                        {
+                            "type": "MultiSurface",
+                            "lod": "2.2",
+                            "boundaries": [[[0, 1, 2]], [[0, 1, 2]]],
+                            "semantics": {
+                                "surfaces": [{"type": "RoofSurface"}, {"type": "WallSurface"}],
+                                "values": [0, 1],
+                            },
+                        }
+                    ]
+                }
+            },
+        }
+        cityjson.write_text(
+            json.dumps(header) + "\n" + json.dumps(feature) + "\n", encoding="utf-8"
+        )
+        return load_buildings(PocConfig.load(root, config_file), cityjson, 0)
+
+    def test_projette_les_toitures_sur_l_orthophoto(self) -> None:
+        with TemporaryDirectory() as directory:
+            buildings = self._load(Path(directory), "")
+            uvs = buildings[0].roofs.uvs
+            # glTF place l'origine des UV au nord-ouest, comme pour le terrain.
+            self.assertEqual(uvs[0], (0.0, 0.0))
+            self.assertEqual(uvs[1], (1.0, 0.0))
+            self.assertEqual(uvs[2], (1.0, 1.0))
+
+    def test_conserve_des_uv_metriques_sur_les_murs(self) -> None:
+        with TemporaryDirectory() as directory:
+            buildings = self._load(Path(directory), "")
+            # Une unité UV vaut un mètre : l'emprise de 10 m dépasse largement [0, 1].
+            self.assertGreater(max(uv[0] for uv in buildings[0].walls.uvs), 1.0)
+
+    def test_applique_le_meme_calage_au_terrain_et_aux_toitures(self) -> None:
+        """Un signe divergent entre les deux passerait inaperçu : ils partagent la fonction."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_file = root / "poc.conf"
+            config_file.write_text(
+                'POC_BBOX="0 0 10 10"\nTERRAIN_MARGIN_M=0\n', encoding="utf-8"
+            )
+            config = PocConfig.load(root, config_file)
+            # Emprise de 10 m : un calage de 2 m vers le sud vaut 0,2 en UV.
+            offset = (1.0, -2.0)
+            terrain_uv = ortho_uv(config, offset)
+            roof_uv = ortho_uv_projector(config, (5.0, 5.0), offset)
+            # Même point Lambert-93 (5, 5), atteint par les deux chemins.
+            self.assertEqual(roof_uv((0.0, 12.0, 0.0), (0.0, 1.0, 0.0)), terrain_uv(5.0, 5.0))
+            # Un calage vers le sud fait croître v, vers l'est fait croître u.
+            self.assertAlmostEqual(terrain_uv(5.0, 5.0)[0] - ortho_uv(config)(5.0, 5.0)[0], 0.1)
+            self.assertAlmostEqual(terrain_uv(5.0, 5.0)[1] - ortho_uv(config)(5.0, 5.0)[1], 0.2)
+
+    def test_la_projection_des_toitures_ignore_la_hauteur(self) -> None:
+        """Le calage mesuré est constant : il ne doit pas dépendre de l'altitude du sommet."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_file = root / "poc.conf"
+            config_file.write_text(
+                'POC_BBOX="0 0 10 10"\nTERRAIN_MARGIN_M=0\n', encoding="utf-8"
+            )
+            project = ortho_uv_projector(PocConfig.load(root, config_file), (5.0, 5.0), (1.0, -2.0))
+            normal = (0.0, 1.0, 0.0)
+            self.assertEqual(project((2.0, 0.0, 3.0), normal), project((2.0, 25.0, 3.0), normal))
+
+    def test_repli_en_uv_planaires_si_la_texture_est_desactivee(self) -> None:
+        with TemporaryDirectory() as directory:
+            buildings = self._load(Path(directory), "ROOF_TEXTURE_FROM_ORTHO=0\n")
+            self.assertGreater(max(uv[0] for uv in buildings[0].roofs.uvs), 1.0)
+
+
+class FaceTriangulationTest(unittest.TestCase):
+    """Le repli en éventail était silencieux : on ignorait s'il faussait des toitures."""
+
+    def test_ne_signale_rien_sur_une_face_saine(self) -> None:
+        points = [(0, 0, 0), (3, 0, 0), (3, 3, 0), (1, 3, 0), (1, 1, 0), (0, 1, 0)]
+        triangles, degraded = _face_triangles(points, [[0, 1, 2, 3, 4, 5]])
+        self.assertFalse(degraded)
+        self.assertEqual(len(triangles), 4)
+
+    def test_abandonne_et_signale_une_face_concave_intriangulable(self) -> None:
+        # Contour concave replié sur lui-même : le découpage d'oreilles échoue.
+        points = [(0, 0, 0), (2, 0, 0), (0, 1, 0), (2, 1, 0)]
+        triangles, degraded = _face_triangles(points, [[0, 1, 2, 3]])
+        self.assertTrue(degraded)
+        self.assertEqual(triangles, [])
+
+    def test_signale_une_face_degeneree(self) -> None:
+        triangles, degraded = _face_triangles([(0, 0, 0), (1, 0, 0)], [[0, 1]])
+        self.assertTrue(degraded)
+        self.assertEqual(triangles, [])
+
+
+class BakedOcclusionTest(unittest.TestCase):
+    """L'occlusion voyage dans la géométrie : tout moteur glTF la restitue sans passe dédiée."""
+
+    def test_ecrit_color_0_quand_des_couleurs_sont_fournies(self) -> None:
+        builder = GlbBuilder()
+        material = builder.add_material("Test", (1, 1, 1, 1))
+        primitive = builder.primitive(
+            [(0, 0, 0), (1, 0, 0), (0, 1, 0)],
+            [(0, 1, 0)] * 3,
+            [0, 1, 2],
+            material,
+            colors=[(0.5, 0.5, 0.5, 1.0)] * 3,
+        )
+        self.assertIn("COLOR_0", primitive["attributes"])
+
+    def test_n_ecrit_rien_sans_occlusion(self) -> None:
+        builder = GlbBuilder()
+        material = builder.add_material("Test", (1, 1, 1, 1))
+        primitive = builder.primitive(
+            [(0, 0, 0), (1, 0, 0), (0, 1, 0)], [(0, 1, 0)] * 3, [0, 1, 2], material
+        )
+        self.assertNotIn("COLOR_0", primitive["attributes"])
+
+    def test_convertit_les_sommets_glb_vers_le_repere_lambert(self) -> None:
+        """X vers l'est, Z vers le sud, Y au-dessus de la base : trois conventions à croiser."""
+
+        class Recorder:
+            def at(self, x, y, elevation):
+                self.seen = (float(x[0]), float(y[0]), float(elevation[0]))
+                return np.array([0.5])
+
+        recorder = Recorder()
+        colors = bake_colors([(10.0, 5.0, 4.0)], recorder, (751000.0, 6331000.0), 300.0)
+        self.assertEqual(recorder.seen, (751010.0, 6330996.0, 305.0))
+        self.assertEqual(colors, [(0.5, 0.5, 0.5, 1.0)])
+
+
+class VegetationNodeTest(unittest.TestCase):
+    def test_groupe_les_arbres_par_teinte_de_feuillage(self) -> None:
+        from poc3d.vegetation import Tree
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_file = root / "poc.conf"
+            config_file.write_text('POC_BBOX="0 0 100 100"\n', encoding="utf-8")
+            config = PocConfig.load(root, config_file)
+            trees = [Tree(x=10.0 * index, y=20.0, ground=0.0, height=9.0, crown=2.0) for index in range(6)]
+            groups = load_vegetation(config, trees, 0.0, (50.0, 50.0))
+            # Un groupe de troncs, plus autant de groupes que de teintes effectivement tirées.
+            self.assertGreaterEqual(len(groups), 2)
+            self.assertEqual(sum(len(group.indices) for group in groups.values()), 6 * (20 + 8) * 3)
+
+    def test_ne_produit_aucun_groupe_sans_arbre(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_file = root / "poc.conf"
+            config_file.write_text('POC_BBOX="0 0 100 100"\n', encoding="utf-8")
+            self.assertEqual(load_vegetation(PocConfig.load(root, config_file), [], 0.0, (50.0, 50.0)), {})
+
+
+class PaletteTest(unittest.TestCase):
+    def test_attribue_une_teinte_stable(self) -> None:
+        """Un bâtiment doit garder sa couleur d'une génération de scène à l'autre."""
+        self.assertEqual(_palette_index("BATIMENT0000000314552737", 5),
+                         _palette_index("BATIMENT0000000314552737", 5))
+        self.assertLess(_palette_index("BATIMENT0000000314552737", 5), 5)
 
 
 if __name__ == "__main__":

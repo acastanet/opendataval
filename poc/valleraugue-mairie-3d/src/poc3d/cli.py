@@ -29,6 +29,8 @@ def parser() -> ArgumentParser:
         ("validate", "Valide la dernière exécution."),
         ("terrain", "Génère un MNT à partir des points LiDAR de classe sol."),
         ("ortho", "Télécharge l'orthophotographie IGN sur l'emprise."),
+        ("vegetation", "Détecte les cimes de la classe LiDAR 5 et écrit trees.json."),
+        ("sun", "Retrouve la position solaire de l'orthophotographie par ses ombres."),
         ("glb", "Assemble terrain, orthophoto et bâtiments dans scene.glb."),
         ("web", "Prépare le visualiseur web local et ses dépendances."),
         ("enhance", "Enrichit la dernière sortie Roofer : terrain, ortho, GLB et web."),
@@ -43,9 +45,12 @@ def parser() -> ArgumentParser:
 
 def _enhance(config: PocConfig, run_dir: Path) -> None:
     from .enrichment import create_terrain, download_orthophoto
+    from .vegetation import create_vegetation
 
     validate_run(config, run_dir)
     create_terrain(config, run_dir)
+    if config.get_bool("VEGETATION", True):
+        create_vegetation(config, run_dir)
     download_orthophoto(config, run_dir)
     create_scene_glb(config, run_dir)
     prepare_viewer(config, run_dir)
@@ -65,6 +70,14 @@ def execute(args: Namespace) -> None:
         from .enrichment import download_orthophoto
 
         download_orthophoto(config)
+    elif args.command == "vegetation":
+        from .vegetation import create_vegetation
+
+        create_vegetation(config)
+    elif args.command == "sun":
+        from .sun import report_ortho_sun
+
+        report_ortho_sun(config)
     elif args.command == "glb":
         create_scene_glb(config)
     elif args.command == "web":

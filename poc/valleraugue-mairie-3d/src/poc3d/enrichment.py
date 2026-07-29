@@ -12,25 +12,47 @@ from PIL import Image
 
 from .config import PocConfig, latest_run
 from .footprints import iter_ground_footprints
+from .raster import (
+    cell_centers,
+    dilate,
+    inside_polygon,
+    maximum_by_cell,
+    nearest_outward,
+    polygon_window,
+)
 
 
-def _inside_polygon(
-    polygon_x: np.ndarray, polygon_y: np.ndarray, x: np.ndarray, y: np.ndarray
-) -> np.ndarray:
-    """Test d'appartenance par lancer de rayon, vectorisé sur une grille de centres."""
-    inside = np.zeros(x.shape, dtype=bool)
-    for current in range(len(polygon_x)):
-        previous = current - 1
-        y_current, y_previous = polygon_y[current], polygon_y[previous]
-        straddles = (y_current > y) != (y_previous > y)
-        if not straddles.any():
-            continue
-        with np.errstate(divide="ignore", invalid="ignore"):
-            crossing = (polygon_x[previous] - polygon_x[current]) * (y - y_current) / (
-                y_previous - y_current
-            ) + polygon_x[current]
-        inside ^= straddles & (x < crossing)
-    return inside
+# Classes ASPRS retenues pour le modèle de surface : sol, végétation haute et bâti. C'est ce
+# relief-là — celui qui masque le ciel — que l'occlusion cuite et la canopée interrogent.
+VEGETATION_CLASS = 5
+BUILDING_CLASS = 6
+GROUND_CLASS = 2
+
+
+def _blend_seating(
+    config: PocConfig, grid: np.ndarray, target: np.ndarray, resolution: float
+) -> None:
+    """Applique l'assise en la raccordant progressivement au relief naturel.
+
+    Abaisser le terrain sous la seule emprise laisse une marche verticale d'une cellule
+    au ras du mur, d'autant plus visible que la pente est forte. Le fondu sur
+    ``TERRAIN_BLEND_M`` transforme cette marche en talus, comme le ferait un décaissement.
+    """
+    reached = np.isfinite(target)
+    weight = reached.astype(np.float64)
+    filled = target.copy()
+    steps = max(0, round(config.get_float("TERRAIN_BLEND_M", 3.0) / resolution))
+    for step in range(1, steps + 1):
+        grown = dilate(reached)
+        ring = grown & ~reached
+        if not ring.any():
+            break
+        neighbour = nearest_outward(filled, reached)
+        filled[ring] = neighbour[ring]
+        weight[ring] = 1.0 - step / (steps + 1)
+        reached = grown
+    seated = np.minimum(grid, np.where(np.isfinite(filled), filled, grid))
+    grid += (seated - grid) * weight
 
 
 def _seat_buildings(config: PocConfig, grid: np.ndarray, run_dir: Path) -> int:
@@ -44,28 +66,66 @@ def _seat_buildings(config: PocConfig, grid: np.ndarray, run_dir: Path) -> int:
         return 0
     resolution = config.get_float("TERRAIN_RESOLUTION_M", 1.0)
     xmin, _, _, ymax = config.terrain_bbox
-    height, width = grid.shape
-    seated = 0
+    # Les emprises sont d'abord accumulées : deux bâtiments mitoyens doivent s'accorder sur
+    # une assise commune plutôt que s'écraser l'un l'autre au fil de l'itération.
+    target = np.full(grid.shape, np.inf)
     for polygon, elevation in iter_ground_footprints(cityjson):
         polygon_x = np.array([point[0] for point in polygon])
         polygon_y = np.array([point[1] for point in polygon])
-        first = max(0, int((ymax - polygon_y.max()) // resolution))
-        last = min(height - 1, int((ymax - polygon_y.min()) // resolution))
-        left = max(0, int((polygon_x.min() - xmin) // resolution))
-        right = min(width - 1, int((polygon_x.max() - xmin) // resolution))
-        if last < first or right < left:
+        window = polygon_window(polygon_x, polygon_y, xmin, ymax, resolution, grid.shape)
+        if window is None:
             continue
-        x, y = np.meshgrid(
-            xmin + (np.arange(left, right + 1) + 0.5) * resolution,
-            ymax - (np.arange(first, last + 1) + 0.5) * resolution,
-        )
-        inside = _inside_polygon(polygon_x, polygon_y, x, y)
+        first, last, left, right = window
+        x, y = cell_centers(window, xmin, ymax, resolution)
+        inside = inside_polygon(polygon_x, polygon_y, x, y)
         if not inside.any():
             continue
-        block = grid[first : last + 1, left : right + 1]
-        block[inside] = np.minimum(block[inside], elevation)
-        seated += int(inside.sum())
+        block = target[first : last + 1, left : right + 1]
+        np.minimum(block, elevation, out=block, where=inside)
+    seated = int(np.isfinite(target).sum())
+    if seated:
+        _blend_seating(config, grid, target, resolution)
     return seated
+
+
+def _surface_models(
+    x: np.ndarray,
+    y: np.ndarray,
+    z: np.ndarray,
+    classification: np.ndarray,
+    within: np.ndarray,
+    terrain: np.ndarray,
+    xmin: float,
+    ymax: float,
+    resolution: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Modèle de hauteur de canopée et modèle numérique de surface, sur la grille du MNT.
+
+    Les deux se déduisent du nuage déjà chargé pour le terrain : les recalculer ailleurs
+    imposerait une seconde lecture du LAZ pour exactement la même information.
+
+    La canopée est une **hauteur au-dessus du sol** — c'est elle qui décide qu'un point est
+    un arbre — alors que la surface reste une **altitude absolue**, comparable au terrain
+    par le balayage d'horizon.
+    """
+    shape = terrain.shape
+    highest = {
+        klass: maximum_by_cell(
+            x[within & (classification == klass)],
+            y[within & (classification == klass)],
+            z[within & (classification == klass)],
+            xmin,
+            ymax,
+            resolution,
+            shape,
+        )
+        for klass in (VEGETATION_CLASS, BUILDING_CLASS)
+    }
+    canopy = highest[VEGETATION_CLASS] - terrain
+    # Une cime sous le niveau du sol n'existe pas : c'est le signe d'un point mal classé.
+    canopy[~np.isfinite(canopy) | (canopy <= 0)] = np.nan
+    surface = np.fmax(terrain, np.fmax(highest[VEGETATION_CLASS], highest[BUILDING_CLASS]))
+    return canopy, surface
 
 
 def create_terrain(config: PocConfig, run_dir: Path | None = None) -> tuple[Path, Path]:
@@ -87,13 +147,8 @@ def create_terrain(config: PocConfig, run_dir: Path | None = None) -> tuple[Path
     y = np.asarray(cloud.y)
     z = np.asarray(cloud.z)
     classification = np.asarray(cloud.classification)
-    selected = (
-        (classification == 2)
-        & (x >= xmin)
-        & (x <= xmax)
-        & (y >= ymin)
-        & (y <= ymax)
-    )
+    within = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax)
+    selected = (classification == GROUND_CLASS) & within
     if not np.any(selected):
         raise RuntimeError("Aucun point LiDAR de classe sol (2) dans l'emprise")
 
@@ -151,6 +206,11 @@ def create_terrain(config: PocConfig, run_dir: Path | None = None) -> tuple[Path
         grid[interpolated] = average[interpolated]
 
     seated = _seat_buildings(config, grid, run_dir)
+    canopy, surface = _surface_models(
+        x, y, z, classification, within, grid, xmin, ymax, resolution
+    )
+    np.save(run_dir / "canopy.npy", canopy)
+    np.save(run_dir / "surface.npy", surface)
 
     Image.fromarray(grid.astype(np.float32), mode="F").save(
         terrain_tif, compression="tiff_lzw"
@@ -182,7 +242,12 @@ def create_terrain(config: PocConfig, run_dir: Path | None = None) -> tuple[Path
             raise RuntimeError(f"Terrain non produit : {artifact}")
     print(
         f"Terrain généré : {terrain_tif} "
-        f"({width} × {height} cellules, {seated} assises sous les bâtiments)"
+        f"({width} × {height} cellules à {resolution:g} m, "
+        f"{seated} assises sous les bâtiments)"
+    )
+    print(
+        f"Modèles dérivés : canopée sur {int(np.isfinite(canopy).sum())} cellules, "
+        "surface pour l'occlusion ambiante"
     )
     return terrain_tif, terrain_grid
 

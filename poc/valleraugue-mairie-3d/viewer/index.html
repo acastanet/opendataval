@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#101815" />
+    <meta name="theme-color" content="#c8d2d8" />
     <title>Valleraugue — POC 3D</title>
     <link rel="stylesheet" href="./styles.css" />
     <script type="importmap">
@@ -59,6 +59,10 @@
           <span>Maillage</span>
           <input id="wireframeToggle" type="checkbox" />
         </label>
+        <label class="switch-row">
+          <span>Rendu réaliste</span>
+          <input id="realisticToggle" type="checkbox" />
+        </label>
         <label class="range-row">
           <span>Opacité du terrain</span>
           <output id="opacityValue">100 %</output>
@@ -74,6 +78,7 @@
           <output id="azimuthValue">230°</output>
           <input id="sunAzimuth" type="range" min="0" max="359" value="230" />
         </label>
+        <p id="sunNotice" class="notice"></p>
         <label class="range-row">
           <span>Exagération verticale</span>
           <output id="verticalValue">×1,0</output>
@@ -81,8 +86,20 @@
         </label>
       </section>
 
-      <button id="resetCamera" type="button">Recentrer la vue</button>
-      <p class="hint">Glisser pour tourner · molette pour zoomer · clic droit pour déplacer</p>
+      <section class="controls">
+        <h2>Points de vue</h2>
+        <div class="button-row">
+          <button id="viewOverview" type="button">Vue générale</button>
+          <button id="viewMairie" type="button">Mairie</button>
+          <button id="viewRoof" type="button">Toiture</button>
+        </div>
+        <button id="grazingLight" type="button">Lumière rasante</button>
+      </section>
+
+      <p class="hint">
+        Glisser pour tourner · molette pour zoomer · clic droit pour déplacer<br />
+        1 orthophoto seule · 2 bâtiments seuls · 3 scène complète
+      </p>
     </aside>
 
     <div class="north" aria-label="Nord">

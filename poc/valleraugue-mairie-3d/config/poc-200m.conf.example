@@ -2,10 +2,33 @@ POC_BBOX="751256 6331451 751456 6331651"
 EXPECTED_WIDTH_M=200
 EXPECTED_HEIGHT_M=200
 HTTP_USER_AGENT="OpenDataVdA-POC/2.0"
-TERRAIN_RESOLUTION_M=1
+# 0,5 m : 3 points sol par cellule, encore soutenu par la donnée. Le gain porte sur les
+# ruptures de pente — terrasses et murs de soutènement — où le 95e centile du résidu chute
+# de moitié par rapport à la maille métrique. En dessous, on interpolerait du vide.
+TERRAIN_RESOLUTION_M=0.5
 TERRAIN_MARGIN_M=15
+TERRAIN_BLEND_M=3
+TERRAIN_EDGE_SKIRT_M=12
 ORTHO_SIZE_PX=2048
 BUILDING_SKIRT_M=2
+BUILDING_SKIRT_MIN_M=1
+BUILDING_SKIRT_MAX_M=8
+# Proxys de végétation haute reconstruits depuis la classe LiDAR 5.
+VEGETATION=1
+VEGETATION_MIN_HEIGHT_M=4
+VEGETATION_PEAK_WINDOW_M=5
+VEGETATION_MAX_CROWN_M=6
+# Occlusion ambiante cuite en COLOR_0 : assombrit ruelles et pieds de murs dans tout moteur.
+AMBIENT_OCCLUSION=1
+OCCLUSION_AZIMUTHS=16
+OCCLUSION_RADIUS_M=30
+OCCLUSION_STRENGTH=0.6
+# Calibration de l'orthophotographie, mesurée sur l'image par `poc.py sun`.
+# Ne décommenter que pour forcer des valeurs connues par ailleurs.
+#ORTHO_SUN_AZIMUTH_DEG=95
+#ORTHO_SUN_ELEVATION_DEG=35
+#ORTHO_OFFSET_EAST=-0.34
+#ORTHO_OFFSET_NORTH=-2.58
 ORTHO_LAYER="ORTHOIMAGERY.ORTHOPHOTOS"
 ORTHO_WMS_URL="https://data.geopf.fr/wms-r/wms"
 OUTPUT_DIR="./output-200m"

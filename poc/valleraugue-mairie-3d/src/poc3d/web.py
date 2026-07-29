@@ -27,6 +27,29 @@ VENDOR_FILES = {
     "addons/environments/RoomEnvironment.js": (
         f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/examples/jsm/environments/RoomEnvironment.js"
     ),
+    "addons/objects/Sky.js": (
+        f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/examples/jsm/objects/Sky.js"
+    ),
+    # Chaîne de post-traitement de l'occlusion ambiante, active uniquement en rendu réaliste.
+    **{
+        f"addons/{relative}": (
+            f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/examples/jsm/{relative}"
+        )
+        for relative in (
+            "postprocessing/EffectComposer.js",
+            "postprocessing/Pass.js",
+            "postprocessing/RenderPass.js",
+            "postprocessing/ShaderPass.js",
+            "postprocessing/MaskPass.js",
+            "postprocessing/OutputPass.js",
+            "postprocessing/GTAOPass.js",
+            "shaders/CopyShader.js",
+            "shaders/OutputShader.js",
+            "shaders/GTAOShader.js",
+            "shaders/PoissonDenoiseShader.js",
+            "math/SimplexNoise.js",
+        )
+    },
 }
 
 
@@ -55,6 +78,10 @@ def prepare_viewer(config: PocConfig, run_dir: Path | None = None) -> Path:
         shutil.copy2(viewer_source / name, web_dir / name)
     shutil.copy2(scene_glb, assets_dir / "scene.glb")
     shutil.copy2(scene_json, assets_dir / "scene.json")
+    # Table des attributs BD TOPO par nœud : absente des scènes générées avant son ajout.
+    attributes = render_dir / "buildings.json"
+    if attributes.is_file():
+        shutil.copy2(attributes, assets_dir / "buildings.json")
 
     vendor_dir = web_dir / "vendor"
     for relative, url in VENDOR_FILES.items():

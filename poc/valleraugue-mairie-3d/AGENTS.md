@@ -15,7 +15,8 @@ Roofer est une étape amont distincte : les entrées attendues sont
 ## Structure
 
 - `poc.py` : point d’entrée en ligne de commande ;
-- `src/poc3d/` : configuration, validation, terrain, GLB et serveur local ;
+- `src/poc3d/` : configuration, validation, terrain, végétation, occlusion cuite,
+  qualité des toitures, GLB et serveur local ;
 - `test/` : tests unitaires Python ;
 - `viewer/` : sources HTML, CSS et JavaScript du visualiseur ;
 - `config/` : exemples de configuration 100 m et 200 m ;

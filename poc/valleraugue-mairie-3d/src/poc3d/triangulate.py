@@ -105,6 +105,25 @@ def _merge_hole(hole: list[int], outer: list[int], coordinates: dict[int, Point2
     return outer[: outer_position + 1] + rotated_hole + [rotated_hole[0], outer[outer_position]] + outer[outer_position + 1 :]
 
 
+def is_convex(points: list[Point3], ring: list[int]) -> bool:
+    """Indique si un contour est convexe, seul cas où un éventail naïf reste correct."""
+    cleaned = _clean(ring)
+    if len(cleaned) < 3:
+        return False
+    coordinates = _project(points, cleaned, set(cleaned))
+    area = _area(cleaned, coordinates)
+    if abs(area) <= 1e-10:
+        return False
+    winding = 1 if area > 0 else -1
+    for position, current in enumerate(cleaned):
+        previous = cleaned[position - 1]
+        following = cleaned[(position + 1) % len(cleaned)]
+        turn = _cross(coordinates[previous], coordinates[current], coordinates[following])
+        if turn * winding < -1e-10:
+            return False
+    return True
+
+
 def triangulate(points: list[Point3], rings: list[list[int]]) -> list[tuple[int, int, int]]:
     """Retourne des triangles orientés comme l'anneau extérieur.
 
