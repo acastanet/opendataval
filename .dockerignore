@@ -12,7 +12,7 @@ dist
 # jamais embarqués dans un contexte de build. Régénérables via go-pmtiles (cf. CLAUDE.md).
 apps/web/public/relief/*.pmtiles
 
-# Sorties du POC 3D : servies par un volume runtime, jamais dans le contexte de build.
+# Sorties du POC 3D (~1 Go) : servies par un volume runtime, jamais dans un contexte de build.
 poc/**/output*/
 poc/**/publication/
 poc/**/.venv/
