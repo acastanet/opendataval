@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import json
+import math
 
 from .config import PocConfig, latest_run
 from .roofs import read_roof_quality
@@ -160,19 +162,72 @@ def _roof_quality_section(cityjson: list[Path]) -> list[str]:
     return lines
 
 
+def _read_json(path: Path) -> dict[str, object] | None:
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _render_section(run_dir: Path) -> list[str]:
+    """Résumé lisible des résultats de rendu, lorsqu'une scène a déjà été assemblée."""
+    scene = _read_json(run_dir / "render" / "scene.json")
+    if scene is None:
+        return []
+
+    lines = ["", "## Rendu"]
+    roof_quality = scene.get("roofQuality")
+    if isinstance(roof_quality, dict):
+        degraded = roof_quality.get("degraded", [])
+        degraded_count = len(degraded) if isinstance(degraded, list) else int(degraded or 0)
+        total = int(roof_quality.get("total", scene.get("buildings", 0)) or 0)
+        lines.append(f"- Toitures dégradées : {degraded_count}/{total}.")
+
+    offset = scene.get("orthoOffset")
+    if isinstance(offset, dict):
+        east = float(offset.get("eastMetres", 0.0) or 0.0)
+        north = float(offset.get("northMetres", 0.0) or 0.0)
+        lines.append(
+            f"- Calage de l'orthophotographie : {math.hypot(east, north):.2f} m "
+            f"(est {east:+.2f} m, nord {north:+.2f} m)."
+        )
+
+    trees = _read_json(run_dir / "trees.json")
+    if trees is not None:
+        count = int(trees.get("count", 0) or 0)
+        foliage = trees.get("foliage")
+        typed = 0
+        if isinstance(foliage, dict):
+            typed = sum(
+                int(value or 0)
+                for kind, value in foliage.items()
+                if str(kind) != "generic"
+            )
+        lines.append(f"- Arbres : {count}, dont {typed} typés BD Forêt.")
+
+    median = scene.get("medianViewFactor")
+    if isinstance(median, (int, float)):
+        lines.append(f"- Facteur de vue du ciel médian : {float(median):.3f}.")
+    return lines
+
+
 def validate_run(config: PocConfig, run_dir: Path | None = None) -> Path:
     run_dir = run_dir or latest_run(config)
     width, height = config.expected_size
+    title = config.scene_title or "POC 3D"
     lines = [
-        "# Validation POC 3D — mairie de Valleraugue",
+        f"# Validation — {title}",
         "",
         f"- Exécution : `{run_dir.name}`",
         f"- Date : `{datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}`",
         f"- Emprise : {width:g} × {height:g} m, soit {width * height:g} m²",
         f"- Bbox EPSG:2154 : `{config.get('POC_BBOX', '')}`",
-        "",
-        "## Artefacts",
     ]
+    lines.extend(_render_section(run_dir))
+    lines.extend(["", "## Artefacts"])
     success = True
     for relative in REQUIRED_ARTIFACTS:
         path = run_dir / relative

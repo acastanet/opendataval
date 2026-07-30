@@ -20,6 +20,7 @@ from poc3d.vegetation import (
     Tree,
     classify_forest_types,
     create_vegetation,
+    crown_relief,
     crown_triangles,
     detect_trees,
     download_forest_types,
@@ -244,6 +245,53 @@ class TreeShapeTest(unittest.TestCase):
             )
             self.assertGreaterEqual(ovality, 0.85)
             self.assertLessEqual(ovality, 1.15)
+
+
+class CrownReliefTest(unittest.TestCase):
+    """Le relief casse la régularité d'un houppier sans toucher à ce qu'il mesure."""
+
+    def test_une_amplitude_nulle_rend_la_geometrie_reguliere(self) -> None:
+        tree = Tree(x=12.34, y=56.78, ground=100.0, height=9.0, crown=3.0)
+        self.assertEqual(set(crown_relief(tree, 0.0)), {1.0})
+        self.assertEqual(
+            tree_geometry(tree, (0.0, 0.0), 0.0),
+            tree_geometry(tree, (0.0, 0.0), 0.0, irregularity=0.0),
+        )
+
+    def test_est_stable_pour_un_meme_arbre_et_differe_d_un_arbre_a_l_autre(self) -> None:
+        first = Tree(x=12.34, y=56.78, ground=100.0, height=9.0, crown=3.0)
+        second = Tree(x=98.76, y=54.32, ground=100.0, height=9.0, crown=3.0)
+        self.assertEqual(crown_relief(first, 0.18), crown_relief(first, 0.18))
+        self.assertNotEqual(crown_relief(first, 0.18), crown_relief(second, 0.18))
+
+    def test_borne_le_relief_et_le_repartit_sur_les_sommets(self) -> None:
+        for offset in range(40):
+            relief = crown_relief(
+                Tree(x=offset * 1.7, y=offset * 2.3, ground=0.0, height=8.0, crown=3.0), 0.18
+            )
+            self.assertEqual(len(relief), 12)
+            for factor in relief:
+                self.assertGreaterEqual(factor, 0.82)
+                self.assertLessEqual(factor, 1.18)
+            # Un facteur unique appliqué aux douze sommets ne ferait que grossir la boule.
+            self.assertGreater(len(set(relief)), 6)
+
+    def test_ne_deplace_ni_la_cime_ni_l_assise(self) -> None:
+        """La hauteur mesurée par le LiDAR est le seul chiffre que le proxy restitue."""
+        tree = Tree(x=12.34, y=56.78, ground=100.0, height=9.0, crown=3.0)
+        regulier, _ = tree_geometry(tree, (0.0, 0.0), 100.0)
+        bosselé, _ = tree_geometry(tree, (0.0, 0.0), 100.0, irregularity=0.18)
+        for extremum in (max, min):
+            self.assertAlmostEqual(
+                extremum(point[1] for triangle in regulier for point in triangle),
+                extremum(point[1] for triangle in bosselé for point in triangle),
+                places=9,
+            )
+
+    def test_conserve_le_nombre_de_sommets_par_houppier(self) -> None:
+        tree = Tree(x=12.34, y=56.78, ground=0.0, height=9.0, crown=3.0)
+        crown, _ = tree_geometry(tree, (0.0, 0.0), 0.0, irregularity=0.18)
+        self.assertEqual(sum(len(triangle) for triangle in crown), CROWN_VERTICES)
 
 
 class FoliageTintTest(unittest.TestCase):

@@ -160,6 +160,10 @@
           <input id="vegetationToggle" type="checkbox" checked />
         </label>
         <label class="switch-row">
+          <span>Canopée dense</span>
+          <input id="canopyToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
           <span>Eau</span>
           <input id="waterToggle" type="checkbox" checked />
         </label>
@@ -240,15 +244,20 @@
 
           <details id="lightControls" class="controls accordion">
             <summary>Éclairage</summary>
+            <label class="switch-row">
+              <span>Caler le soleil sur la mesure de l’orthophoto</span>
+              <input id="sunLockToMeasure" type="checkbox" checked />
+            </label>
+            <p id="sunMeasureSource" class="notice"></p>
             <label class="range-row">
               <span>Hauteur du soleil</span>
               <output id="sunValue">35°</output>
-              <input id="sunHeight" type="range" min="10" max="75" value="35" />
+              <input id="sunHeight" type="range" min="10" max="75" step="0.1" value="35" />
             </label>
             <label class="range-row">
               <span>Azimut du soleil</span>
               <output id="azimuthValue">95°</output>
-              <input id="sunAzimuth" type="range" min="0" max="359" value="95" />
+              <input id="sunAzimuth" type="range" min="0" max="359" step="0.1" value="95" />
             </label>
             <label class="range-row">
               <span>Intensité du soleil</span>
@@ -285,6 +294,17 @@
                 step="0.01"
                 value="0.2"
               />
+            </label>
+            <!-- La courbe décide de ce que deviennent les hautes lumières : toitures de zinc
+                 et versants au soleil. Elle se compare à l'écran, d'où le sélecteur. -->
+            <label class="select-row">
+              <span>Courbe de rendu</span>
+              <select id="toneMapping">
+                <option value="neutral" selected>Neutre (référence)</option>
+                <option value="agx">AgX</option>
+                <option value="aces">ACES Filmic</option>
+                <option value="none">Aucune</option>
+              </select>
             </label>
             <label class="range-row">
               <span>Exposition</span>
@@ -323,6 +343,15 @@
 
           <details class="controls accordion" id="crownControls">
             <summary>Houppiers</summary>
+            <!-- Un proxy de douze sommets assume mieux ses facettes qu'il ne simule un volume :
+                 lissé, son intérieur se prétend rond alors que sa silhouette reste anguleuse. -->
+            <label class="select-row">
+              <span>Ombrage du feuillage</span>
+              <select id="foliageShading">
+                <option value="faceted" selected>Schématique (facettes)</option>
+                <option value="smooth">Lissé</option>
+              </select>
+            </label>
             <label class="range-row">
               <span>Largeur est-ouest</span>
               <output id="crownXValue">×1,00</output>
@@ -340,6 +369,7 @@
             </label>
             <button id="crownReset" class="button" type="button">Rétablir la mesure</button>
           </details>
+          <button id="exportPng" class="button" type="button">Exporter la vue en PNG</button>
         </div>
       </details>
 
@@ -444,6 +474,7 @@
               <li><kbd>2</kbd> bâtiments seuls.</li>
               <li><kbd>3</kbd> toutes les couches.</li>
               <li><kbd>P</kbd> copier la pose caméra et l’afficher dans la console.</li>
+              <li><kbd>Maj</kbd> + <kbd>P</kbd> rejouer la pose caméra du presse-papiers.</li>
               <li><kbd>Échap</kbd> désélectionner le bâtiment.</li>
             </ul>
           </section>

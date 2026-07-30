@@ -177,6 +177,60 @@ def bridge_surface(
     return Nappe(elevations)
 
 
+def _window_sum(values: np.ndarray, radius: int) -> np.ndarray:
+    """Somme locale carrée, bornée à la grille, par image intégrale."""
+    if radius < 1:
+        return values.astype(np.float64, copy=True)
+    padded = np.pad(values, radius, mode="constant", constant_values=0)
+    integral = np.pad(padded, ((1, 0), (1, 0)), mode="constant").cumsum(0).cumsum(1)
+    width = radius * 2 + 1
+    return (
+        integral[width:, width:]
+        - integral[:-width, width:]
+        - integral[width:, :-width]
+        + integral[:-width, :-width]
+    )
+
+
+def canopy_massif(
+    canopy: np.ndarray,
+    terrain: np.ndarray,
+    resolution: float,
+    *,
+    coverage: float,
+    minimum_height: float,
+    smoothing: float,
+) -> Nappe:
+    """Nappe de couvert continu sous les proxys individuels de végétation."""
+    if canopy.shape != terrain.shape:
+        raise ValueError("canopy.npy et terrain.npy ne partagent pas la même grille")
+    if resolution <= 0:
+        raise ValueError("La résolution de la canopée doit être positive")
+    if not 0.0 <= coverage <= 1.0:
+        raise ValueError("CANOPY_MASSIF_COVERAGE doit rester entre 0 et 1")
+    if minimum_height < 0 or smoothing < 0:
+        raise ValueError("Les hauteurs et le lissage de la canopée ne peuvent pas être négatifs")
+
+    radius = max(0, int(round(smoothing / resolution)))
+    covered = np.isfinite(canopy) & (canopy >= minimum_height)
+    covered_count = _window_sum(covered.astype(np.float64), radius)
+    available_count = _window_sum(np.ones(canopy.shape, dtype=np.float64), radius)
+    dense = (covered_count > 0) & (covered_count / available_count >= coverage)
+    if not dense.any():
+        return Nappe(np.full(canopy.shape, np.nan))
+
+    top = terrain + np.where(covered, canopy, 0.0)
+    smoothed = np.divide(
+        _window_sum(np.where(covered, top, 0.0), radius),
+        covered_count,
+        out=terrain.astype(np.float64, copy=True),
+        where=covered_count > 0,
+    )
+    elevations = np.full(canopy.shape, np.nan)
+    elevations[dense] = np.maximum(smoothed[dense], terrain[dense])
+    return Nappe(elevations)
+
+
 def surface_triangles(
     elevations: np.ndarray,
     xmin: float,

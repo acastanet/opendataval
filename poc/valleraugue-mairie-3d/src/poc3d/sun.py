@@ -28,13 +28,9 @@ import numpy as np
 
 from .config import PocConfig, latest_run
 from .footprints import iter_ground_footprints
+from .geodesy import bbox_centre, lambert93_to_wgs84
 from .raster import inside_polygon, polygon_window
 
-
-# Mairie de Val-d'Aigoual, bureau de Valleraugue. Valeurs reprises du monorepo
-# (packages/shared/src/localisationsMeteo.ts) et recopiées : le POC reste autonome.
-MAIRIE_LATITUDE = 44.081192
-MAIRIE_LONGITUDE = 3.641467
 
 # Distances d'échantillonnage autour des emprises. Trop près, on mord sur les toitures ;
 # trop loin, l'ombre s'est déjà dissipée.
@@ -128,6 +124,15 @@ def elevation_for_azimuth(latitude: float, azimuth_deg: float, declination_deg: 
     if abs(ratio) > 1:
         return 0.0
     return math.degrees(math.asin(ratio) - math.atan2(math.cos(phi) * math.cos(azimuth), math.sin(phi)))
+
+
+def scene_latitude(config: PocConfig) -> float:
+    """Latitude géographique de la scène, renseignée ou déduite de son emprise."""
+    centre = config.scene_centre_wgs84
+    if centre is not None:
+        return centre[0]
+    _, latitude = lambert93_to_wgs84(*bbox_centre(config.terrain_bbox))
+    return latitude
 
 
 def require_square_extent(config: PocConfig) -> None:
@@ -236,7 +241,7 @@ def measure_ortho_sun(config: PocConfig, run_dir: Path | None = None) -> OrthoSu
         raise RuntimeError("Aucune emprise bâtie pour calibrer le soleil")
     shadow = shadow_azimuth(luminance, mask, resolution)
     azimuth = (shadow + 180.0) % 360.0
-    elevation = elevation_for_azimuth(MAIRIE_LATITUDE, azimuth, ASSUMED_DECLINATION_DEG)
+    elevation = elevation_for_azimuth(scene_latitude(config), azimuth, ASSUMED_DECLINATION_DEG)
     return OrthoSun(azimuth, max(5.0, elevation), "mesure des ombres")
 
 

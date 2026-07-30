@@ -13,15 +13,17 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from poc3d.config import PocConfig
 from poc3d.sun import (
-    MAIRIE_LATITUDE,
-    MAIRIE_LONGITUDE,
     elevation_for_azimuth,
     measure_ortho_offset,
     measure_ortho_sun,
     require_square_extent,
+    scene_latitude,
     shadow_azimuth,
     solar_position,
 )
+
+REFERENCE_LATITUDE = 44.081192
+REFERENCE_LONGITUDE = 3.641467
 
 
 class SquareExtentTest(unittest.TestCase):
@@ -74,7 +76,7 @@ class SolarPositionTest(unittest.TestCase):
 
     def _noon(self, month: int, day: int) -> tuple[float, float]:
         moment = datetime(2024, month, day, 11, 45, tzinfo=timezone.utc)
-        return solar_position(MAIRIE_LATITUDE, MAIRIE_LONGITUDE, moment)
+        return solar_position(REFERENCE_LATITUDE, REFERENCE_LONGITUDE, moment)
 
     def test_hauteur_au_solstice_d_ete(self) -> None:
         azimuth, elevation = self._noon(6, 21)
@@ -92,7 +94,9 @@ class SolarPositionTest(unittest.TestCase):
     def test_l_azimut_croit_au_fil_de_la_journee(self) -> None:
         azimuths = [
             solar_position(
-                MAIRIE_LATITUDE, MAIRIE_LONGITUDE, datetime(2024, 7, 15, hour, tzinfo=timezone.utc)
+                REFERENCE_LATITUDE,
+                REFERENCE_LONGITUDE,
+                datetime(2024, 7, 15, hour, tzinfo=timezone.utc),
             )[0]
             for hour in range(6, 16)
         ]
@@ -101,9 +105,35 @@ class SolarPositionTest(unittest.TestCase):
     def test_recoupe_la_hauteur_a_partir_de_l_azimut(self) -> None:
         """La hauteur déduite de l'azimut doit rejoindre celle du calcul direct."""
         moment = datetime(2024, 7, 15, 8, tzinfo=timezone.utc)
-        azimuth, elevation = solar_position(MAIRIE_LATITUDE, MAIRIE_LONGITUDE, moment)
-        deduced = elevation_for_azimuth(MAIRIE_LATITUDE, azimuth, 21.5)
+        azimuth, elevation = solar_position(REFERENCE_LATITUDE, REFERENCE_LONGITUDE, moment)
+        deduced = elevation_for_azimuth(REFERENCE_LATITUDE, azimuth, 21.5)
         self.assertAlmostEqual(deduced, elevation, delta=1.5)
+
+
+class SceneLatitudeTest(unittest.TestCase):
+    def _config(self, root: Path, centre: str | None) -> PocConfig:
+        source = root / "poc.conf"
+        value = f'SCENE_CENTRE_WGS84="{centre}"\n' if centre else ""
+        source.write_text(
+            'POC_BBOX="700000 6600000 700200 6600200"\nTERRAIN_MARGIN_M=0\n' + value,
+            encoding="utf-8",
+        )
+        return PocConfig.load(root, source)
+
+    def test_deux_latitudes_donnent_deux_hauteurs_solaires(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            south = scene_latitude(self._config(root, "43.0 3.0"))
+            north = scene_latitude(self._config(root, "49.0 3.0"))
+            self.assertNotAlmostEqual(
+                elevation_for_azimuth(south, 100.0, 20.0),
+                elevation_for_azimuth(north, 100.0, 20.0),
+            )
+
+    def test_retombe_sur_le_centre_de_la_bbox(self) -> None:
+        with TemporaryDirectory() as directory:
+            latitude = scene_latitude(self._config(Path(directory), None))
+            self.assertAlmostEqual(latitude, 46.5009, places=3)
 
 
 class ShadowAzimuthTest(unittest.TestCase):
