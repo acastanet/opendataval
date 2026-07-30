@@ -30,10 +30,15 @@ Cavalier-Bénézet, 30570 Val-d’Aigoual.
 | `config/poc-200m.conf` | Valleraugue | 44,081089 / 3,641219 | 200 × 200 m | 0,5 m | 212 000 | 1 |
 | `config/poc-600m.conf` | Valleraugue | 44,081089 / 3,641219 | 600 × 600 m | 1,0 m | 397 000 | 1 |
 | `config/notre-dame-rouviere-200m.conf` | Notre-Dame-de-la-Rouvière | 44,048776 / 3,700904 | 200 × 200 m | 0,5 m | 212 000 | 2 |
+| `config/creyssensac-et-pissot-200m.conf` | Creyssensac-et-Pissot | 45,085021 / 0,658064 | 200 × 200 m | 0,5 m | 212 000 | 1 |
 
 Chaque `.conf` porte l’identité de sa scène — `SCENE_TITLE`, `SCENE_SUBTITLE`,
 `SCENE_CENTRE_LABEL` et `SCENE_CENTRE_WGS84` — qui alimente l’en-tête du visualiseur, son
 onglet et le sélecteur. Sans titre, une scène n’y apparaît que par sa taille.
+
+Creyssensac-et-Pissot est en Dordogne, hors du territoire de Val-d’Aigoual : elle vérifie que
+la chaîne ne dépend d’aucune particularité du site d’origine, à commencer par le relief
+cévenol et la dalle LiDAR unique.
 
 ### Ajouter une scène
 
@@ -294,8 +299,32 @@ Enfin, chaque houppier reçoit une rotation et une ovalité de ±15 %, tirées d
 sa position. Aucune prétention botanique : il s’agit de rompre la répétition d’un solide
 identique recopié 358 fois, que l’œil repère immédiatement sur un couvert dense.
 
+Cela cassait la répétition d’un arbre au suivant, mais pas la régularité de **chacun** : un
+icosaèdre de vingt faces reste une boule à facettes dès qu’on l’approche. Le rayon de chaque
+sommet est donc tiré autour de sa valeur nominale, toujours de façon stable pour un arbre
+donné. Le relief ne porte que sur le rayon horizontal : étirer aussi la verticale déplacerait
+la cime, alors qu’elle est le seul chiffre que le proxy restitue. Aucun triangle ni octet de
+plus, et `VEGETATION_CROWN_IRREGULARITY=0` rétablit à l’identique la géométrie régulière.
+
+Le houppier reste **facetté**, comme tout le reste du GLB, et c’est un choix de recette. Le
+lissage a été essayé — normales radiales depuis le centre du houppier — puis écarté : un solide
+de douze sommets dont l’intérieur se prétend rond mais dont la silhouette reste anguleuse se lit
+comme une bulle. Vingt faces éclairées distinctement se lisent au contraire comme une
+représentation, au même titre que les volumes LoD2.2 du bâti. Le lissage reste disponible dans
+le visualiseur, sous « Houppiers → Ombrage du feuillage », pour qui veut refaire la comparaison.
+
 Réglages : `VEGETATION`, `VEGETATION_MIN_HEIGHT_M`, `VEGETATION_PEAK_WINDOW_M`,
-`VEGETATION_MAX_CROWN_M`, `VEGETATION_TINT_FROM_ORTHO`.
+`VEGETATION_MAX_CROWN_M`, `VEGETATION_TINT_FROM_ORTHO`, `VEGETATION_CROWN_IRREGULARITY`.
+
+Sur l’emprise 600 m, où 63 % du sol est sous canopée, les proxys individuels ne suffisent
+pas à rendre un couvert continu. `CANOPY_MASSIF=1` ajoute sous eux une nappe lissée, limitée
+aux fenêtres dont la fraction de cellules végétalisées dépasse
+`CANOPY_MASSIF_COVERAGE`. Elle est calculée directement depuis `canopy.npy` et
+`terrain.npy` pendant `poc.py glb` : aucun nouvel artefact ni nouvelle lecture du LAZ.
+Le défaut reste désactivé sur toutes les autres scènes.
+
+Réglages : `CANOPY_MASSIF`, `CANOPY_MASSIF_COVERAGE`,
+`CANOPY_MASSIF_SMOOTHING_M`.
 
 ## Eau et ponts
 
@@ -415,6 +444,11 @@ individuel atteignant plusieurs mètres.
                  "source": "recalage sur 178 emprises" }
 ```
 
+Le visualiseur applique `orthoSun` à chaque changement de scène lorsque « Caler le soleil
+sur la mesure de l’orthophoto » est coché. Les curseurs sont alors verrouillés et la source
+de la valeur est affichée ; une scène sans calibration rend immédiatement la main aux
+curseurs.
+
 ## Sélecteur de scènes
 
 Le panneau porte un sélecteur de scène dès que plusieurs sont disponibles. `poc.py web`
@@ -446,20 +480,25 @@ d'ombre du soleil, arrêté à ±120 m, coupait les ombres aux deux tiers d'une 
 la butée d'orbite à 900 m ramenait la caméra vers le sol dès qu'on demandait la vue générale.
 Les deux se déduisent désormais de la scène chargée.
 
-Le visualiseur propose deux modes :
+Le visualiseur n’a **qu’une** chaîne de rendu, en direct, sans post-traitement : fond clair
+neutre, brouillard quasi nul, lumière non interprétée. Elle est faite pour repérer les défauts
+de contact entre terrain et bâtiments autant que pour montrer la scène. L’environnement de
+studio n’y compte que pour 0,08 : à pleine intensité il s’ajoutait à l’hémisphérique et au
+directionnel, et trois sources ambiantes cumulées effaçaient les ombres portées — le bâti ne
+posait plus. Le contraste vient donc du directionnel, calé sur `orthoSun`, et de l’occlusion
+cuite dans le GLB.
 
-- **diagnostic** (défaut) — fond clair neutre, brouillard quasi nul, lumière non interprétée.
-  Fait pour repérer les défauts de contact entre terrain et bâtiments, pas pour être beau.
-  L’environnement de studio n’y compte plus que pour 35 % : à pleine intensité il s’ajoutait
-  à l’hémisphérique et au directionnel, et trois sources ambiantes cumulées effaçaient les
-  ombres portées — le bâti ne posait plus ;
-- **rendu réaliste** — ciel physique (modèle de Preetham) servant à la fois de fond et
-  d’éclairement ambiant, occlusion ambiante GTAO, tone mapping ACES, soleil calé par défaut
-  sur `orthoSun`. S’écarter de ce calage est signalé dans le panneau.
+Un second mode a existé — ciel physique de Preetham, occlusion ambiante GTAO, tone mapping
+ACES, le tout derrière un `EffectComposer`. Il a été **retiré** après comparaison sur les
+emprises 200 et 600 m : il comprimait le contraste sans ajouter d’information, l’orthophoto
+portant déjà son propre éclairage. La courbe de rendu reste néanmoins réglable dans le panneau
+(voir plus bas), ce qui permet de rejouer la comparaison sans seconde chaîne de rendu.
 
-Le mode diagnostic rend en direct ; le mode réaliste passe par une chaîne de post-traitement
-(`EffectComposer`). Les dépendances Three.js correspondantes sont téléchargées et servies
-localement par `poc.py web`, sans appel à un CDN à l’exécution.
+Les modes **Orthophoto**, **Modèle** et **Qualité** décrits plus bas ne sont pas des chaînes de
+rendu : ce sont des préréglages des bascules de texture.
+
+Les dépendances Three.js sont téléchargées et servies localement par `poc.py web`, sans appel à
+un CDN à l’exécution.
 
 ### Interface du panneau
 
@@ -474,8 +513,9 @@ chaque ouverture.
   la couleur suit l’état — ambre pendant le chargement, vert une fois la scène prête, rouge en
   cas d’erreur. Le reste du panneau reste inactif tant que la scène n’est pas là, faute de quoi
   l’on règle ce qui va être remplacé ;
-- les couches terrain, bâtiments, végétation, eau et ponts se masquent séparément, dans un
-  accordéon replié à la demande — elles sont cinq et on n’y revient pas à chaque ouverture. Une
+- les couches terrain, bâtiments, végétation, canopée dense, eau et ponts se masquent
+  séparément, dans un accordéon replié à la demande — elles sont six et on n’y revient pas à
+  chaque ouverture. Une
   couche absente de la scène chargée désactive sa bascule plutôt que de la laisser sans effet ;
 - **POV** aligne sur une seule ligne, à côté de son titre, trois boutons carrés : vue générale,
   point central de la scène — dont l’intitulé vient de `SCENE_CENTRE_LABEL`, le modèle étant
@@ -504,6 +544,15 @@ rétablir à la main après chaque nouvelle exécution du pipeline.
   au préréglage ;
 - en mode **Qualité**, une légende donne le décompte réel des trois niveaux, et un clic sur une
   pastille **isole** ce niveau — le décompte devient une sélection ;
+- la section **Éclairage** porte une **courbe de rendu** — Neutre (référence), AgX, ACES Filmic
+  ou aucune —, en plus de l’exposition et du contraste d’affichage. La courbe décide de ce que
+  deviennent les hautes lumières : toitures de zinc et versants au soleil. Elle se compare à
+  l’écran plutôt que sur parole, et c’est ce que la seconde chaîne de rendu abandonnée
+  prétendait apporter, pour quatre lignes au lieu d’un `EffectComposer`. Le préréglage
+  contrasté la ramène à Neutre, faute de quoi deux postes annonçant les mêmes réglages
+  n’afficheraient pas la même image ;
+- le verrou solaire reprend automatiquement l’azimut et la hauteur propres à la scène
+  chargée ; déplacer un curseur le libère, et le préréglage contrasté le réactive.
 
 **Rechercher un bâtiment** accepte un `cleabs` avec autocomplétion, et « Bâtiment à contrôler
 suivant » parcourt un à un ceux que Roofer signale. C’est le chemin qui manquait entre le rapport
@@ -517,8 +566,12 @@ une qualité estimée à partir des indicateurs Roofer. Le lancer de rayon du su
 un test par image : un test par événement de souris coûterait plus que le rendu.
 
 Les raccourcis `1`, `2` et `3` affichent respectivement le terrain seul, les bâtiments seuls et
-toutes les couches — végétation, eau et ponts décrivent le décor et suivent donc le même sort,
-puisque c’est le bâti qu’on cherche à isoler. `Échap` ferme la sélection.
+toutes les couches — végétation, canopée dense, eau et ponts décrivent le décor et suivent donc
+le même sort, puisque c’est le bâti qu’on cherche à isoler. `Échap` ferme la sélection.
+
+`P` copie une pose caméra JSON ; `Maj+P` valide et rejoue celle du presse-papiers par la même
+transition que les points de vue. « Exporter la vue en PNG » rend puis capture immédiatement
+le canevas, sans conserver le tampon de dessin à chaque image.
 
 En bas de la fenêtre, la rose des vents suit la caméra et une **barre d’échelle** donne l’ordre de
 grandeur au point visé, arrondie à 1, 2 ou 5 × 10ⁿ mètres. Les deux s’écartent du panneau selon

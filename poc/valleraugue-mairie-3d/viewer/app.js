@@ -196,6 +196,14 @@ const optionalLayers = [
     object: null,
   },
   {
+    node: "Canopee",
+    toggle: "#canopyToggle",
+    absent: "La scène chargée ne contient pas de massif de canopée dense.",
+    castsShadow: true,
+    receivesShadow: false,
+    object: null,
+  },
+  {
     node: "Eau",
     toggle: "#waterToggle",
     absent: "Aucun point d’eau (classe LiDAR 9) dans cette emprise.",
@@ -269,10 +277,38 @@ function applyCrownScale() {
     }
   }
   positions.needsUpdate = true;
-  // Un redimensionnement inégal fausse les normales : sans ce recalcul, un houppier aplati
-  // continuerait de s'éclairer comme une sphère.
-  crowns.mesh.geometry.computeVertexNormals();
+  applyCrownNormals(positions);
   crowns.mesh.geometry.computeBoundingSphere();
+}
+
+// Un redimensionnement inégal déplace les sommets : sans reprise, un houppier aplati garderait
+// l'ombrage de sa forme d'origine. Les deux reprises possibles ne diffèrent que par ce qu'elles
+// donnent à voir, et la recette a tranché pour la première.
+//
+// **Schématique** — `computeVertexNormals` sur une primitive non indexée rend une normale par
+// face. C'est le rendu retenu : vingt facettes distinctes se lisent comme une représentation,
+// au même titre que les volumes LoD2.2 du bâti, et non comme un arbre manqué.
+//
+// **Lissé** — un houppier étant étoilé autour de son centre (celui-là même qui sert au
+// redimensionnement), la normale d'un sommet est la direction qui l'en éloigne. L'intérieur
+// devient continu, mais la silhouette d'un solide à douze sommets reste anguleuse : l'écart
+// entre les deux se lit comme une bulle. Conservé pour la comparaison, pas par défaut.
+function applyCrownNormals(positions) {
+  const normals = crowns.mesh.geometry.getAttribute("normal");
+  if (!normals) return;
+  if (document.querySelector("#foliageShading").value !== "smooth") {
+    crowns.mesh.geometry.computeVertexNormals();
+    return;
+  }
+  for (let vertex = 0; vertex < positions.count; vertex += 1) {
+    const crown = Math.floor(vertex / crowns.step) * 3;
+    const x = positions.getX(vertex) - crowns.centres[crown];
+    const y = positions.getY(vertex) - crowns.centres[crown + 1];
+    const z = positions.getZ(vertex) - crowns.centres[crown + 2];
+    const length = Math.hypot(x, y, z) || 1;
+    normals.setXYZ(vertex, x / length, y / length, z / length);
+  }
+  normals.needsUpdate = true;
 }
 
 const originalMaterials = new WeakMap();
@@ -611,6 +647,42 @@ function updateSun() {
   document.querySelector("#azimuthValue").textContent = `${azimuth}°`;
 }
 
+function orthoSunMeasure(metadata = currentMetadata) {
+  const source = metadata?.orthoSun;
+  if (!source || typeof source !== "object") return null;
+  const azimuth = Number(source.azimuthDeg ?? source.azimuth);
+  const elevation = Number(source.elevationDeg ?? source.elevation);
+  if (!Number.isFinite(azimuth) || !Number.isFinite(elevation)) return null;
+  return { azimuth, elevation, source: source.source || "mesure des ombres" };
+}
+
+function applySunMeasureLock(metadata = currentMetadata) {
+  const lock = document.querySelector("#sunLockToMeasure");
+  const height = document.querySelector("#sunHeight");
+  const azimuth = document.querySelector("#sunAzimuth");
+  const notice = document.querySelector("#sunMeasureSource");
+  const measure = orthoSunMeasure(metadata);
+  if (!measure) {
+    lock.checked = false;
+    lock.disabled = true;
+    height.disabled = false;
+    azimuth.disabled = false;
+    notice.textContent = "Calibration solaire indisponible pour cette scène.";
+    return;
+  }
+  lock.disabled = false;
+  height.disabled = lock.checked;
+  azimuth.disabled = lock.checked;
+  if (lock.checked) {
+    height.value = String(measure.elevation);
+    azimuth.value = String(measure.azimuth);
+    updateSun();
+    notice.textContent = `Soleil calé sur l’orthophoto — ${measure.source}.`;
+  } else {
+    notice.textContent = `Mesure disponible — ${measure.source}.`;
+  }
+}
+
 function applyLightingIntensities() {
   const sunIntensity = Number(document.querySelector("#sunIntensity").value);
   const environmentIntensity = Number(
@@ -634,9 +706,26 @@ function applyLightingIntensities() {
     hemisphereIntensity.toFixed(2).replace(".", ",");
 }
 
+// La courbe décide de ce que deviennent les hautes lumières — toitures de zinc, versants au
+// soleil. Le préréglage retenu est « Neutre » ; les autres sont là pour le comparer à l'écran
+// plutôt que sur parole. Three.js recompile les shaders de lui-même quand la courbe change :
+// aucun `needsUpdate` à propager sur les matériaux chargés.
+const TONE_MAPPINGS = {
+  neutral: THREE.NeutralToneMapping,
+  agx: THREE.AgXToneMapping,
+  aces: THREE.ACESFilmicToneMapping,
+  none: THREE.NoToneMapping,
+};
+const DEFAULT_TONE_MAPPING = "neutral";
+
 function applyDisplayTuning() {
   const exposure = Number(document.querySelector("#displayExposure").value);
   const contrast = Number(document.querySelector("#displayContrast").value);
+  const select = document.querySelector("#toneMapping");
+  // Une courbe retirée d'une version à l'autre laisserait le sélecteur vide après restauration :
+  // le rendu retomberait sur la référence sans que rien ne l'indique à l'écran.
+  if (!(select.value in TONE_MAPPINGS)) select.value = DEFAULT_TONE_MAPPING;
+  renderer.toneMapping = TONE_MAPPINGS[select.value];
   renderer.toneMappingExposure = exposure;
   renderer.domElement.style.filter = `contrast(${contrast})`;
   document.querySelector("#displayExposureValue").textContent =
@@ -652,12 +741,17 @@ function applyContrastLightingPreset() {
     sunIntensity: 3.2,
     environmentIntensity: 0.08,
     hemisphereIntensity: 0.2,
+    // Le préréglage est une référence reproductible : il ramène aussi la courbe de rendu,
+    // faute de quoi deux postes annonçant les mêmes réglages n'afficheraient pas la même image.
+    toneMapping: DEFAULT_TONE_MAPPING,
     displayExposure: 1.2,
     displayContrast: 1.12,
   };
   for (const [id, value] of Object.entries(values)) {
     document.querySelector(`#${id}`).value = String(value);
   }
+  document.querySelector("#sunLockToMeasure").checked = true;
+  applySunMeasureLock();
   updateSun();
   applyLightingIntensities();
   applyDisplayTuning();
@@ -1035,6 +1129,13 @@ function addDataSection(container, title, content, { wide = false, list = false 
   container.append(section);
 }
 
+function readableRun(run) {
+  const match = /^run-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/.exec(run ?? "");
+  if (!match) return run || "non renseignée";
+  const [, year, month, day, hour, minute, second] = match;
+  return `${day}/${month}/${year} à ${hour}:${minute}:${second}`;
+}
+
 function updateDataInformation(metadata, entry) {
   const content = document.querySelector("#dataInfoContent");
   content.replaceChildren();
@@ -1083,6 +1184,7 @@ function updateDataInformation(metadata, entry) {
     { list: true, wide: true },
   );
   addDataSection(sections, "Dates", sourceDates, { list: true });
+  addDataSection(sections, "Exécution", readableRun(entry.run));
   // Le centre en WGS84 est ce qui permet de retrouver le site sur n'importe quelle carte :
   // les coordonnées Lambert-93 seules n'y suffisent pas.
   const centre = Array.isArray(configuration.centreWgs84) ? configuration.centreWgs84 : null;
@@ -1176,6 +1278,8 @@ function focusRoofs() {
 }
 
 function setSunHeight(degrees) {
+  document.querySelector("#sunLockToMeasure").checked = false;
+  applySunMeasureLock();
   const slider = document.querySelector("#sunHeight");
   slider.value = String(degrees);
   updateSun();
@@ -1373,9 +1477,9 @@ function adopt(entry, metadata, gltf) {
   for (const entry of optionalLayers) {
     const toggle = document.querySelector(entry.toggle);
     toggle.disabled = !entry.object;
+    toggle.closest("label").title = entry.object ? "" : entry.absent;
     if (!entry.object) {
       toggle.checked = false;
-      toggle.closest("label").title = entry.absent;
     }
   }
   crowns = readCrowns(layer("Vegetation"));
@@ -1397,6 +1501,7 @@ function adopt(entry, metadata, gltf) {
   updateBuildingIndex();
   updateDataInformation(metadata, entry);
   fitCamera({ immediate: true });
+  applySunMeasureLock(metadata);
   fitSunToModel();
   setStatus("ready", "Scène prête");
 }
@@ -1484,20 +1589,24 @@ const PERSISTED_INPUTS = [
   "terrainToggle",
   "buildingsToggle",
   "vegetationToggle",
+  "canopyToggle",
   "waterToggle",
   "bridgeToggle",
   "terrainTextureToggle",
   "roofTextureToggle",
   "wireframeToggle",
   "terrainOpacity",
+  "sunLockToMeasure",
   "sunHeight",
   "sunAzimuth",
   "sunIntensity",
   "environmentIntensity",
   "hemisphereIntensity",
+  "toneMapping",
   "displayExposure",
   "displayContrast",
   "verticalScale",
+  "foliageShading",
   "crownX",
   "crownY",
   "crownZ",
@@ -1626,6 +1735,8 @@ for (const input of document.querySelectorAll('input[name="renderMode"]')) {
 for (const selector of ["#crownX", "#crownY", "#crownZ"]) {
   document.querySelector(selector).addEventListener("input", applyCrownScale);
 }
+// L'ombrage se reprend par le même chemin que les facteurs : il se règle sur les mêmes sommets.
+document.querySelector("#foliageShading").addEventListener("change", applyCrownScale);
 document.querySelector("#crownReset").addEventListener("click", () => {
   for (const selector of ["#crownX", "#crownY", "#crownZ"]) {
     document.querySelector(selector).value = "100";
@@ -1657,14 +1768,24 @@ document.querySelector("#buildingSearch").addEventListener("keydown", (event) =>
 document.querySelector("#searchDegraded").addEventListener("click", focusNextDegraded);
 
 for (const id of ["#sunHeight", "#sunAzimuth"]) {
-  document.querySelector(id).addEventListener("input", updateSun);
+  document.querySelector(id).addEventListener("input", () => {
+    document.querySelector("#sunLockToMeasure").checked = false;
+    applySunMeasureLock();
+    updateSun();
+  });
 }
+document.querySelector("#sunLockToMeasure").addEventListener("change", () => {
+  applySunMeasureLock();
+  updateSun();
+});
 for (const id of ["#sunIntensity", "#environmentIntensity", "#hemisphereIntensity"]) {
   document.querySelector(id).addEventListener("input", applyLightingIntensities);
 }
 for (const id of ["#displayExposure", "#displayContrast"]) {
   document.querySelector(id).addEventListener("input", applyDisplayTuning);
 }
+// L'enregistrement est pris en charge par l'écouteur unique du panneau, plus bas.
+document.querySelector("#toneMapping").addEventListener("change", applyDisplayTuning);
 document.querySelector("#contrastLighting").addEventListener("click", applyContrastLightingPreset);
 
 document.querySelector("#verticalScale").addEventListener("input", (event) => {
@@ -1683,6 +1804,7 @@ document.querySelector("#viewReset").addEventListener("click", () => {
 document.querySelector("#viewCentre").addEventListener("click", focusCentre);
 document.querySelector("#viewRoof").addEventListener("click", focusRoofs);
 document.querySelector("#grazingLight").addEventListener("click", () => setSunHeight(12));
+document.querySelector("#exportPng").addEventListener("click", exportPng);
 document.querySelector("#buildingClose").addEventListener("click", clearBuildingSelection);
 
 panelToggle.addEventListener("click", () => {
@@ -1781,6 +1903,33 @@ function showCameraPoseToast(message) {
   }, 2800);
 }
 
+function exportPng() {
+  if (!model) {
+    showCameraPoseToast("Aucune scène à exporter.");
+    return;
+  }
+  // Le tampon de dessin n'est pas conservé entre les images : la capture doit suivre ce
+  // rendu dans le même gestionnaire, sans attendre la boucle d'animation.
+  renderer.render(scene, camera);
+  renderer.domElement.toBlob((blob) => {
+    if (!blob) {
+      showCameraPoseToast("L’export PNG a échoué.");
+      return;
+    }
+    const sceneId = String(currentEntry?.id ?? "scene").replace(/[^a-z0-9_-]+/gi, "-");
+    const timestamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = `${sceneId}-${timestamp}.png`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    showCameraPoseToast(`Vue exportée · ${link.download}`);
+  }, "image/png");
+}
+
 async function logCameraPose() {
   const rounded = (vector) => vector.toArray().map((value) => Number(value.toFixed(3)));
   const pose = {
@@ -1801,8 +1950,50 @@ async function logCameraPose() {
   }
 }
 
+function poseVector(value) {
+  if (
+    !Array.isArray(value) ||
+    value.length !== 3 ||
+    value.some((coordinate) => !Number.isFinite(Number(coordinate)))
+  ) {
+    return null;
+  }
+  return new THREE.Vector3(...value.map(Number));
+}
+
+async function restoreCameraPose() {
+  try {
+    const text = await navigator.clipboard.readText();
+    const pose = JSON.parse(text);
+    const position = poseVector(pose?.position);
+    const target = poseVector(pose?.target);
+    if (!position || !target) {
+      showCameraPoseToast("Pose caméra invalide dans le presse-papiers.");
+      return;
+    }
+    if (pose.scene && pose.scene !== currentEntry?.id) {
+      showCameraPoseToast(`Pose ignorée : elle appartient à la scène « ${pose.scene} ».`);
+      return;
+    }
+    if (Number.isFinite(Number(pose.fov)) && Number(pose.fov) > 0) {
+      camera.fov = Number(pose.fov);
+    }
+    const near = Number.isFinite(Number(pose.near)) && Number(pose.near) > 0
+      ? Number(pose.near)
+      : undefined;
+    const far = Number.isFinite(Number(pose.far)) && Number(pose.far) > (near ?? 0)
+      ? Number(pose.far)
+      : undefined;
+    moveCamera(position, target, { near, far });
+    setActiveView(null);
+    showCameraPoseToast("Pose caméra restaurée depuis le presse-papiers.");
+  } catch {
+    showCameraPoseToast("Presse-papiers inaccessible ou pose caméra invalide.");
+  }
+}
+
 // 1/2/3 : alterner rapidement terrain seul, bâtiments seuls et scène complète pour
-// isoler l'origine d'un défaut de contact au sol. P imprime la pose pour rejouer une vue.
+// isoler l'origine d'un défaut de contact au sol. P copie la pose, Maj+P la rejoue.
 addEventListener("keydown", (event) => {
   const poseShortcutBlocked =
     event.target instanceof HTMLSelectElement ||
@@ -1812,7 +2003,8 @@ addEventListener("keydown", (event) => {
       !["checkbox", "range"].includes(event.target.type));
   if (event.key.toLowerCase() === "p" && !poseShortcutBlocked) {
     event.preventDefault();
-    logCameraPose();
+    if (event.shiftKey) restoreCameraPose();
+    else logCameraPose();
     return;
   }
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;

@@ -147,6 +147,32 @@ caméra, la cible et les paramètres de projection ; une confirmation apparaît 
 - [ ] Les volumes LoD1 des bâtiments signalés épousent leur emprise sans trou ni mur
   inversé, et leur hauteur reste crédible dans l'orthophotographie.
 
+## Vague 3 — relief des houppiers et courbe de rendu
+
+À passer sur l'emprise 200 m puis 600 m.
+
+- [ ] `VEGETATION_CROWN_IRREGULARITY=0` restitue exactement la scène précédente : même poids de
+  `scene.glb`, même nombre de triangles.
+- [ ] À la valeur par défaut, les houppiers perdent leur silhouette de boule sans se lire comme
+  des cailloux, et le couvert continu du 600 m reste lisible.
+- [x] L'ombrage du feuillage est facetté par défaut : le lissé, essayé puis écarté, donnait une
+  bulle — intérieur continu, silhouette anguleuse — sur un solide de douze sommets.
+- [ ] « Ombrage du feuillage » bascule les deux rendus sans recharger la scène, et le choix est
+  retrouvé après rechargement de la page.
+- [ ] Les facteurs de houppier reprennent l'ombrage avec eux : un houppier aplati ne garde pas
+  l'éclairement de sa forme d'origine, dans l'un comme dans l'autre mode.
+- [ ] Le relief ne déplace ni la cime ni l'assise : la hauteur des proxys correspond toujours
+  aux ombres portées sur l'orthophotographie.
+- [ ] `render/scene.json` porte `crownIrregularity` à la valeur employée par l'exécution.
+- [ ] Le sélecteur de courbe change l'image immédiatement, sur une scène déjà chargée comme
+  après un changement d'emprise.
+- [ ] La courbe choisie est retrouvée après rechargement de la page.
+- [ ] Le préréglage contrasté ramène la courbe à « Neutre » avec ses cinq autres valeurs.
+- [ ] Comparaison à l'écran des quatre courbes : décider si le contraste d'affichage CSS reste
+  nécessaire, et reporter la décision dans `ameliorations-3d.md`.
+- [ ] Après `poc.py web`, `vendor/addons/` ne contient plus `Sky.js`, `GTAOPass.js` ni
+  `EffectComposer.js`, et le visualiseur charge sans erreur de console.
+
 ## Sélecteur de scènes
 
 - [ ] Le sélecteur liste chaque emprise disposant d'une scène, l'exécution servie en tête, et
@@ -162,6 +188,26 @@ caméra, la cible et les paramètres de projection ; une confirmation apparaît 
 - [ ] « Vue générale » cadre la scène entière sans que la caméra soit ramenée vers le sol.
 - [ ] Enchaîner rapidement deux changements d'emprise n'affiche jamais la scène abandonnée,
   et la mémoire graphique ne croît pas d'un aller-retour à l'autre.
+
+## Lots cohérence solaire, publication et recette
+
+- [x] Les scènes 200 m et 600 m portent des mesures `orthoSun` distinctes, calculées avec
+  leur latitude propre ; une scène sans `SCENE_CENTRE_WGS84` retombe sur le centre Lambert-93.
+- [ ] Sur les trois sites, le verrou solaire place les ombres 3D dans le prolongement de
+  celles de l’orthophotographie ; décocher rend la main aux curseurs.
+- [x] `serve` refuse un `web/` dont l’un des quatre fichiers source a changé, tandis que
+  `check` ne signale cet état qu’en avertissement.
+- [x] Le rapport de validation s’intitule avec `SCENE_TITLE` et ouvre sur « Rendu » après
+  assemblage : toitures dégradées, calage, arbres typés et facteur de vue du ciel médian.
+- [x] Le visualiseur servi répond en HTTP 200, annonce quatre scènes et expose l’exécution
+  `run-20260729-225523` pour le 600 m.
+- [ ] L’export PNG correspond exactement à la vue courante.
+- [ ] `P`, déplacement de caméra, puis `Maj+P` revient exactement à la pose copiée ; une pose
+  d’une autre scène est refusée avec un message.
+- [x] Le GLB 600 m porte `canopy=true`, le 200 m `canopy=false`, et leur bascule est
+  persistée comme les autres couches facultatives.
+- [ ] En vue générale puis rasante, comparer le massif 600 m activé et désactivé ; s’il se
+  lit comme une bâche verte, remettre `CANOPY_MASSIF=0`.
 
 ## Interface du visualiseur
 

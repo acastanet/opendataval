@@ -135,6 +135,7 @@ class BakedOcclusion:
     terrain: GridSampler
     clearance: GridSampler
     strength: float
+    median_view_factor: float
 
     def at(self, x_l93: np.ndarray, y_l93: np.ndarray, elevation: np.ndarray) -> np.ndarray:
         view = self.view_factor.at(x_l93, y_l93)
@@ -161,4 +162,5 @@ def bake_occlusion(
         GridSampler(terrain, xmin, ymax, resolution),
         GridSampler(clearance(surface, terrain, resolution, radius_m), xmin, ymax, resolution),
         max(0.0, min(1.0, strength)),
+        float(np.median(view)),
     )

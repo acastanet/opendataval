@@ -14,10 +14,12 @@ complet et le contrat destiné à une interface de construction sont dans
 [`docs/construire-une-scene.md`](docs/construire-une-scene.md), qui est la
 référence à lire avant toute modification de la chaîne.
 
-La chaîne d’enrichissement doit rester native sous Windows. Ne pas introduire
-Docker, WSL, PDAL, GDAL ni une dépendance à un logiciel SIG. La reconstruction
-Roofer est une étape amont distincte : les entrées attendues sont
-`lidar_subset.laz` et `roofer_output/*.city.jsonl` dans un dossier `run-*`.
+La chaîne d’enrichissement doit rester native sous Windows. Ne pas y introduire
+Docker, WSL, PDAL, GDAL ni une dépendance à un logiciel SIG. L’interdit porte sur
+cette chaîne et sur elle seule : Docker est présent en amont, pour Roofer, et en
+aval, pour le Caddy qui sert le visualiseur. La reconstruction Roofer est une
+étape amont distincte : les entrées attendues sont `lidar_subset.laz` et
+`roofer_output/*.city.jsonl` dans un dossier `run-*`.
 
 Cette étape amont est décrite dans [`docs/lidar-roofer.md`](docs/lidar-roofer.md) :
 elle tourne dans un conteneur Docker, depuis un clone du dépôt
@@ -26,24 +28,39 @@ pas versionné, les correctifs qu’il exige vivent dans [`patches/`](patches/) 
 doivent y être mis à jour avec toute modification du workflow amont — sans quoi
 un nouveau clone les perd en silence.
 
+Un seul appel réseau de la chaîne d’enrichissement sort de la Géoplateforme :
+`vegetation` interroge le WFS BD Forêt V2 pour typer les houppiers. Il est **non
+bloquant** — hors couverture ou hors ligne, le profil générique subsiste, et
+aucune étape ne doit en faire une condition de succès.
+
 ## Structure
 
 - `poc.py` : point d’entrée en ligne de commande ;
 - `src/poc3d/` : CLI, géodésie, construction de scène, configuration, validation,
   terrain, végétation, surfaces d'eau et tabliers de pont, calibration solaire,
-  occlusion cuite, qualité des toitures, GLB et serveur local ;
+  occlusion cuite, qualité des toitures et repli LoD1, GLB et serveur local ;
 - `test/` : tests unitaires Python ;
-- `viewer/` : sources HTML, CSS et JavaScript du visualiseur ;
+- `viewer/` : sources du visualiseur — `index.html`, `styles.css`, `app.js` et
+  `favicon.svg`. Les quatre sont recopiés tels quels par `poc.py web` : modifier
+  un seul d’entre eux impose de régénérer le dossier servi ;
 - `config/` : une configuration par scène, plus son `.example` et son aperçu
   GeoJSON ;
 - `docs/` : construction d’une scène
   ([`construire-une-scene.md`](docs/construire-une-scene.md)), grille
-  d’acceptation, analyse UX du visualiseur, procédure de l’étape amont, brief de
+  d’acceptation, pistes de rendu mesurées
+  ([`ameliorations-3d.md`](docs/ameliorations-3d.md)), analyse UX du visualiseur,
+  procédure de l’étape amont, brief de
   mise en ligne ([`publication-visualiseur.md`](docs/publication-visualiseur.md))
   et transfert vers le serveur
   ([`publication-tailscale.md`](docs/publication-tailscale.md)) ;
 - `patches/` : correctifs à appliquer au clone du workflow LiDAR + Roofer ;
-- `output*/run-*/` : entrées Roofer et résultats générés, jamais versionnés.
+- `lancer.bat` : raccourci de démonstration sur l’emprise 200 m — il régénère le
+  visualiseur avant de le servir, faute de quoi il mettait en ligne une interface
+  périmée sans rien signaler ; `Makefile` : les mêmes sous-commandes que `poc.py`,
+  pour la ligne de commande ;
+- `output*/run-*/` : entrées Roofer et résultats générés, jamais versionnés ;
+- `publication/` : copie à chemin fixe du dernier `web/` préparé, précompressée,
+  montée en lecture seule dans le conteneur Caddy. Générée, jamais versionnée.
 
 Ajouter la logique Python dans `src/poc3d/` et les tests correspondants dans
 `test/`. Conserver `poc.py` comme lanceur léger. Les fichiers de configuration
@@ -112,18 +129,25 @@ changement :
 2. exécuter `poc.py check` ;
 3. pour une modification du pipeline, tester `poc.py all` sur les artefacts
    réels ;
-4. pour le visualiseur, vérifier `node --check viewer\app.js`, les deux modes de
-   rendu et le chargement HTTP du GLB ;
+4. pour le visualiseur, vérifier `node --check viewer\app.js`, puis le chargement
+   HTTP du GLB et le passage d’une scène à l’autre dans le sélecteur. Le
+   visualiseur n’a **qu’une** chaîne de rendu : le mode réaliste — ciel de
+   Preetham, GTAO, `EffectComposer` — a été retiré après comparaison, et les
+   modes « Orthophoto », « Modèle » et « Qualité » ne sont que des préréglages
+   des bascules de texture ;
 5. exécuter `git diff --check` et inspecter `git status`.
 
 ## Données générées et sécurité
 
-Ne jamais versionner `.venv/`, `.work*/`, `output*/`, les fichiers LAZ, TIFF,
-NPY, JPEG, GLB, `trees.json`, les caches Three.js ou les journaux. Les fichiers
-`config/*.conf` font exception depuis qu'ils sont suivis : ils n'accueillent que
-des réglages de traitement. Ne jamais écrire de mot de passe, jeton ou autre
-secret dans le code, les configurations, les commandes documentées, les rapports
-ou les commits.
+Ne jamais versionner `.venv/`, `.work*/`, `output*/`, `publication/`, les
+fichiers LAZ, TIFF, NPY, JPEG, GLB, `trees.json`, les caches Three.js ou les
+journaux. `publication/` mérite d'être nommé : c'est un dossier de sortie comme
+un autre, mais son chemin fixe et sa présence dans `docker-compose.yml` le font
+ressembler à une source. Il pèse une centaine de mégaoctets par publication, pour
+un artefact reproductible en une commande. Les fichiers `config/*.conf` font
+exception depuis qu'ils sont suivis : ils n'accueillent que des réglages de
+traitement. Ne jamais écrire de mot de passe, jeton ou autre secret dans le code,
+les configurations, les commandes documentées, les rapports ou les commits.
 
 Préserver les sorties Roofer existantes : les commandes d’enrichissement
 peuvent remplacer uniquement leurs propres produits (`terrain.*`, `canopy.npy`,
@@ -133,6 +157,26 @@ peuvent remplacer uniquement leurs propres produits (`terrain.*`, `canopy.npy`,
 `poc.py web` lit en outre le `render/` des autres emprises pour alimenter le
 sélecteur de scènes du visualiseur, et ne recopie ces scènes que dans son propre
 `web/assets/scenes/`. Il ne doit jamais écrire hors de l’exécution préparée.
+
+## Ce que la POC touche à la racine du dépôt
+
+Le visualiseur est en ligne, et c’est le seul endroit où la POC sort de son
+dossier. Trois fichiers versionnés de la racine portent son intégration :
+
+- [`Caddyfile`](../../Caddyfile) : la route `/valleraugue-3d` et le `blob:` de
+  `connect-src` dans la CSP, sans lequel les textures embarquées dans le GLB ne
+  se chargent pas ;
+- [`docker-compose.yml`](../../docker-compose.yml) : le montage
+  `./poc/valleraugue-mairie-3d/publication:/srv/valleraugue-3d:ro` ;
+- [`.dockerignore`](../../.dockerignore) : les exclusions `poc/**` qui gardent le
+  gigaoctet de sorties hors du contexte de build.
+
+Ces trois-là sont **posés une fois**. Une mise à jour de contenu ne les touche
+pas : le chemin `publication/` est fixe précisément pour cela. La procédure et
+ses pièges sont dans
+[`publication-visualiseur.md`](docs/publication-visualiseur.md) § 8 ; le plus
+coûteux d’entre eux est de transférer un `web/` qu’on n’a pas régénéré soi-même,
+qui remet en ligne une ancienne interface sans que rien ne le signale.
 
 ## Commits
 

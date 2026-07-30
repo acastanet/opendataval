@@ -975,17 +975,25 @@ def load_vegetation(
     pour l'occlusion ambiante, donc gratuit en octets — et non par un matériau par nuance :
     chaque arbre peut ainsi porter sa propre teinte sans multiplier les primitives.
     """
-    from .vegetation import tree_geometry
+    from .vegetation import CROWN_IRREGULARITY, tree_geometry
 
+    irregularity = max(
+        0.0, config.get_float("VEGETATION_CROWN_IRREGULARITY", CROWN_IRREGULARITY)
+    )
     groups: dict[int, SurfaceGroup] = {}
     for index, tree in enumerate(trees):
-        crown, trunk = tree_geometry(tree, centre, base_elevation)
+        crown, trunk = tree_geometry(tree, centre, base_elevation, irregularity)
         tint = tints[index] if tints else None
         colour = (
             (srgb_to_linear(tint[0]), srgb_to_linear(tint[1]), srgb_to_linear(tint[2]), 1.0)
             if tint
             else None
         )
+        # Une normale par face, ici comme partout ailleurs : la recette a retenu le houppier
+        # facetté, qui se lit comme une représentation. Le lissage radial essayé ensuite est
+        # resté au visualiseur, où il se compare sans réassembler la scène — un solide de douze
+        # sommets dont l'intérieur se prétend rond mais dont la silhouette reste anguleuse
+        # produit surtout une bulle.
         for key, triangles, vertex_colour in (
             (FOLIAGE_GROUP, crown, colour),
             (TRUNK_GROUP, trunk, None),
@@ -1056,13 +1064,16 @@ def _load_nappes(
     run_dir: Path,
     base_elevation: float,
     centre: tuple[float, float],
+    terrain_grid: object | None,
 ) -> dict[str, SurfaceGroup]:
-    """Assemble la nappe d'eau et le tablier de pont, s'ils ont été produits par le terrain.
+    """Assemble les nappes d'eau, de pont et de canopée disponibles.
 
     Leur absence n'est pas une erreur : une exécution antérieure à leur introduction, ou une
     emprise sans cours d'eau, reste parfaitement exploitable.
     """
-    from .surfaces import load_nappe, surface_triangles
+    import numpy as np
+
+    from .surfaces import canopy_massif, load_nappe, surface_triangles
 
     xmin, _, _, ymax = config.terrain_bbox
     resolution = config.get_float("TERRAIN_RESOLUTION_M", 1.0)
@@ -1095,6 +1106,36 @@ def _load_nappes(
         ):
             _append_triangle(group, list(triangle))
         groups[name] = group
+
+    if config.get_bool("CANOPY_MASSIF", False) and terrain_grid is not None:
+        canopy_path = run_dir / "canopy.npy"
+        if not canopy_path.is_file():
+            print("AVERTISSEMENT : canopy.npy absent, massif de canopée ignoré.")
+        else:
+            try:
+                nappe = canopy_massif(
+                    np.load(canopy_path),
+                    terrain_grid,  # type: ignore[arg-type]
+                    resolution,
+                    coverage=config.get_float("CANOPY_MASSIF_COVERAGE", 0.6),
+                    minimum_height=config.get_float("VEGETATION_MIN_HEIGHT_M", 4.0),
+                    smoothing=config.get_float("CANOPY_MASSIF_SMOOTHING_M", 5.0),
+                )
+            except ValueError as error:
+                print(f"AVERTISSEMENT : massif de canopée ignoré ({error}).")
+            else:
+                if not nappe.is_empty():
+                    group = SurfaceGroup()
+                    for triangle in surface_triangles(
+                        nappe.elevations,
+                        xmin,
+                        ymax,
+                        resolution,
+                        centre,
+                        base_elevation,
+                    ):
+                        _append_triangle(group, list(triangle))
+                    groups["massif"] = group
     return groups
 
 
@@ -1139,7 +1180,7 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
     from .raster import TerrainSampler
     from .roofs import read_roof_quality
     from .sun import measure_ortho_offset, measure_ortho_sun
-    from .vegetation import CROWN_VERTICES, load_trees
+    from .vegetation import CROWN_IRREGULARITY, CROWN_VERTICES, load_trees
 
     run_dir = run_dir or latest_run(config, require_complete=True)
     xyz_path = run_dir / "terrain.xyz"
@@ -1181,7 +1222,7 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
     trees = load_trees(run_dir) if config.get_bool("VEGETATION", True) else []
     tints = _foliage_tints(config, run_dir, trees, ortho_path, ortho_offset)
     vegetation = load_vegetation(config, trees, terrain.base_elevation, scene_centre, tints)
-    nappes = _load_nappes(config, run_dir, terrain.base_elevation, scene_centre)
+    nappes = _load_nappes(config, run_dir, terrain.base_elevation, scene_centre, grid)
 
     occlusion = _load_occlusion(config, run_dir, grid)
     if occlusion is not None:
@@ -1262,6 +1303,17 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
     bridge_material = builder.add_material(
         "Pont", BRIDGE_COLOR, roughness=0.9, double_sided=False
     )
+    if tints:
+        mean_tint = np.asarray(tints, dtype=np.float64).mean(axis=0)
+        canopy_color = (
+            srgb_to_linear(float(mean_tint[0])),
+            srgb_to_linear(float(mean_tint[1])),
+            srgb_to_linear(float(mean_tint[2])),
+            1.0,
+        )
+    else:
+        canopy_color = FOLIAGE_FALLBACK
+    canopy_material = builder.add_material("Canopée", canopy_color, roughness=0.95)
 
     terrain_primitives = [
         builder.primitive(
@@ -1322,11 +1374,12 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
             # donc pas les redimensionner autour de leur propre centre.
             extras={"trees": len(trees), "crownVertices": CROWN_VERTICES},
         )
-    # Eau et ponts forment deux nœuds distincts : le visualiseur doit pouvoir les masquer
+    # Les nappes forment des nœuds distincts : le visualiseur doit pouvoir les masquer
     # séparément, comme le terrain et le bâti, pour isoler un défaut de contact.
     for name, node, material in (
         ("water", "Eau", water_material),
         ("bridge", "Ponts", bridge_material),
+        ("massif", "Canopee", canopy_material),
     ):
         group = nappes.get(name)
         if group and group.positions:
@@ -1358,15 +1411,24 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
         ),
         "trees": len(trees),
         "bakedOcclusion": occlusion is not None,
+        "medianViewFactor": occlusion.median_view_factor if occlusion is not None else None,
         # Le visualiseur active ses bascules d'après ces clés : une emprise sans cours d'eau
         # ne doit pas afficher une case à cocher sans effet.
         "water": "water" in nappes,
         "bridges": "bridge" in nappes,
+        "canopy": "massif" in nappes,
         "foliageTinted": bool(tints),
         "foliageKinds": {
             kind: sum(1 for tree in trees if tree.foliage == kind)
             for kind in sorted({tree.foliage for tree in trees})
         },
+        # La valeur employée, et non celle par défaut : le relief des houppiers se règle à
+        # l'œil d'un run à l'autre, et la scène doit dire lequel elle porte.
+        "crownIrregularity": max(
+            0.0, config.get_float("VEGETATION_CROWN_IRREGULARITY", CROWN_IRREGULARITY)
+        )
+        if trees
+        else 0.0,
     }
     if roof_quality.degraded:
         print(

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import hashlib
 import json
 import shutil
 import urllib.request
@@ -44,6 +45,7 @@ VENDOR_FILES = {
 # `assets/scene.glb` : c'est le chemin documenté, et le sélecteur n'a pas à le déplacer.
 ALTERNATE_SCENES_DIR = "scenes"
 SCENE_FILES = ("scene.glb", "scene.json", "buildings.json")
+VIEWER_FILES = ("index.html", "app.js", "styles.css", "favicon.svg")
 
 
 class ViewerRequestHandler(SimpleHTTPRequestHandler):
@@ -225,6 +227,44 @@ def _copy_if_changed(source: Path, destination: Path) -> None:
     shutil.copy2(source, destination)
 
 
+def viewer_is_stale(config: PocConfig, web_dir: Path) -> list[str]:
+    """Fichiers du visualiseur servi absents ou différents de leurs sources."""
+    source_dir = config.root / "viewer"
+    divergent: list[str] = []
+    for name in VIEWER_FILES:
+        source = source_dir / name
+        served = web_dir / name
+        if not source.is_file() or not served.is_file():
+            divergent.append(name)
+            continue
+        if hashlib.sha256(source.read_bytes()).digest() != hashlib.sha256(served.read_bytes()).digest():
+            divergent.append(name)
+    return divergent
+
+
+def _prune_vendor(vendor_dir: Path) -> list[str]:
+    """Supprime les dépendances qui ne sont plus dans ``VENDOR_FILES``.
+
+    Le téléchargement ne prend que ce qui manque : sans ce ménage, un dossier `web/` garde
+    indéfiniment les addons d'une fonctionnalité retirée — le ciel, le GTAO et le composer
+    du mode réaliste abandonné y sont restés jusqu'à être mis en ligne.
+    """
+    if not vendor_dir.is_dir():
+        return []
+    expected = {(vendor_dir / relative).resolve() for relative in VENDOR_FILES}
+    removed = []
+    for path in sorted(vendor_dir.rglob("*")):
+        if path.is_file() and path.resolve() not in expected:
+            path.unlink()
+            removed.append(str(path.relative_to(vendor_dir)).replace("\\", "/"))
+    # Les dossiers vidés partiraient sinon avec leur nom d'origine, qui désigne encore la
+    # fonctionnalité retirée.
+    for path in sorted(vendor_dir.rglob("*"), reverse=True):
+        if path.is_dir() and not any(path.iterdir()):
+            path.rmdir()
+    return removed
+
+
 def _download(url: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     request = urllib.request.Request(
@@ -246,7 +286,7 @@ def prepare_viewer(config: PocConfig, run_dir: Path | None = None) -> Path:
     web_dir = run_dir / "web"
     assets_dir = web_dir / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
-    for name in ("index.html", "app.js", "styles.css", "favicon.svg"):
+    for name in VIEWER_FILES:
         shutil.copy2(viewer_source / name, web_dir / name)
     shutil.copy2(scene_glb, assets_dir / "scene.glb")
     shutil.copy2(scene_json, assets_dir / "scene.json")
@@ -277,6 +317,9 @@ def prepare_viewer(config: PocConfig, run_dir: Path | None = None) -> Path:
         if not destination.is_file() or destination.stat().st_size == 0:
             print(f"Téléchargement dépendance web : {relative}")
             _download(url, destination)
+    obsolete = _prune_vendor(vendor_dir)
+    if obsolete:
+        print(f"Dépendances web retirées : {', '.join(obsolete)}")
 
     manifest = {
         "threeVersion": THREE_VERSION,
@@ -303,6 +346,11 @@ def serve_viewer(
     web_dir = run_dir / "web"
     if not (web_dir / "index.html").is_file():
         raise FileNotFoundError("Exécuter d'abord la commande web")
+    stale = viewer_is_stale(config, web_dir)
+    if stale:
+        raise FileNotFoundError(
+            f"Visualiseur périmé ({', '.join(stale)}). Exécuter d'abord `poc.py web`"
+        )
     handler = partial(ViewerRequestHandler, directory=str(web_dir))
     server = ThreadingHTTPServer(("127.0.0.1", port), handler)
     url = f"http://127.0.0.1:{port}/"

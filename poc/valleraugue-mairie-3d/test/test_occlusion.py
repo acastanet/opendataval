@@ -97,6 +97,11 @@ class BakedOcclusionTest(unittest.TestCase):
             baked.at(np.array([30.0]), np.array([30.0]), np.array([0.0])), 1.0
         )
 
+    def test_expose_une_mediane_bornee(self) -> None:
+        baked = self._baked()
+        self.assertGreaterEqual(baked.median_view_factor, 0.0)
+        self.assertLessEqual(baked.median_view_factor, 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

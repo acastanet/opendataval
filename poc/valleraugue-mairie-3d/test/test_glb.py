@@ -1,6 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import json
+import math
 import struct
 import sys
 import unittest
@@ -558,6 +559,35 @@ class VegetationNodeTest(unittest.TestCase):
             config_file = root / "poc.conf"
             config_file.write_text('POC_BBOX="0 0 100 100"\n', encoding="utf-8")
             self.assertEqual(load_vegetation(PocConfig.load(root, config_file), [], 0.0, (50.0, 50.0)), {})
+
+    def test_cuit_un_ombrage_facette_pour_le_feuillage(self) -> None:
+        """La recette a retenu le houppier facetté : il se lit comme une représentation.
+
+        Le lissage radial essayé ensuite donnait une bulle — un solide de douze sommets dont
+        l'intérieur se prétend rond mais dont la silhouette reste anguleuse. Il est resté au
+        visualiseur, où il se compare sans réassembler la scène ; le GLB, lui, écrit une
+        normale par face, ici comme partout ailleurs.
+        """
+        from poc3d.glb import FOLIAGE_GROUP
+        from poc3d.vegetation import Tree
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_file = root / "poc.conf"
+            config_file.write_text('POC_BBOX="0 0 100 100"\n', encoding="utf-8")
+            tree = Tree(x=32.0, y=71.0, ground=4.0, height=9.0, crown=2.0)
+            groups = load_vegetation(
+                PocConfig.load(root, config_file), [tree], 0.0, (50.0, 50.0)
+            )
+            foliage = groups[FOLIAGE_GROUP]
+            self.assertEqual(len(foliage.positions), 60)
+            # Vingt faces, donc vingt directions : les trois sommets d'un triangle partagent
+            # la leur, et deux faces voisines ne la partagent pas.
+            self.assertEqual(len(set(foliage.normals)), 20)
+            for face in range(20):
+                self.assertEqual(len(set(foliage.normals[face * 3 : face * 3 + 3])), 1)
+            for normal in foliage.normals:
+                self.assertAlmostEqual(math.dist(normal, (0.0, 0.0, 0.0)), 1.0, places=6)
 
 
 class PaletteTest(unittest.TestCase):

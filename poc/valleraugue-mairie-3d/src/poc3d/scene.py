@@ -372,6 +372,17 @@ VEGETATION_TINT_FROM_ORTHO=1
 # Classe la silhouette en feuillu, conifère ou mixte depuis le WFS officiel BD Forêt V2.
 # Un échec du service conserve le profil générique et ne bloque pas la scène.
 VEGETATION_FOREST_TYPES=1
+# Relief du houppier, en fraction de son rayon : le rayon de chaque sommet est tiré autour de
+# sa valeur nominale, de façon stable pour un arbre donné. La rotation et l'ovalité cassaient
+# la répétition d'un arbre au suivant, pas la régularité de chacun — un icosaèdre reste une
+# boule à facettes dès qu'on l'approche. Aucun triangle ni octet de plus. 0 rétablit la
+# géométrie régulière.
+VEGETATION_CROWN_IRREGULARITY=0.18
+# Nappe de couvert continu sous les proxys individuels. Le défaut reste désactivé : elle est
+# réservée aux grandes emprises dont la densité rend les houppiers isolés insuffisants.
+CANOPY_MASSIF=0
+CANOPY_MASSIF_COVERAGE=0.6
+CANOPY_MASSIF_SMOOTHING_M=5
 # Eau (classe LiDAR 9) et tabliers de pont (classe 17), déjà présents dans lidar_subset.laz.
 WATER=1
 # Relèvement de la nappe au-dessus de l'altitude mesurée. La nappe et le terrain

@@ -205,6 +205,92 @@ en vagues réversibles :
    les contrôles solaires. Les petits écrans et GPU limités conservent le directionnel
    unique. Les toitures dégradées deviennent des extrusions LoD1 horizontales et portent
    `rf_lod1_fallback`, `rf_rendered_lod` et la provenance de leur hauteur.
+7. ✅ **Vague 3 — relief des houppiers et courbe de rendu** : voir ci-dessous.
+
+### Vague 3 — les deux dernières prises, à coût nul
+
+Une fois les pistes A à F closes, l'inventaire du rendu ne laissait que deux endroits où
+gagner sans rien construire. Aucune des deux n'ajoute de dépendance, de passe de rendu ni
+d'octet dans le GLB.
+
+**A′. Relief des houppiers, puis ombrage en volume.** La rotation et l'ovalité de ±15 %
+cassaient la répétition d'un arbre au suivant, mais pas la régularité de **chacun** :
+l'icosaèdre de vingt faces reste une boule à facettes dès qu'on l'approche. Le rayon de chaque
+sommet est donc tiré autour de sa valeur nominale, de façon stable pour un arbre donné — même
+CRC que les teintes de bâtiment, pour la même raison. Le relief ne porte que sur le rayon
+horizontal : étirer aussi la verticale déplacerait la cime, alors qu'elle est le seul chiffre
+que le proxy restitue.
+
+### L'ombrage du feuillage : une hypothèse, et sa réfutation
+
+Cette première version a d'abord été jugée facettée à l'excès — les houppiers se lisaient comme
+des cristaux taillés. Le diagnostic paraissait clair : tout le GLB s'écrit avec une normale par
+face, correcte pour un mur ou un pan de toiture, mais chaque facette de l'icosaèdre recevait
+alors un éclairement uniforme distinct. Le relief, en creusant l'écart d'orientation entre faces
+voisines, **renforçait ce contraste** au lieu de le masquer.
+
+Le lissage a donc été essayé : un houppier étant un solide étoilé autour de son centre, la
+normale lissée d'un sommet est la direction qui l'en éloigne. Cinq lignes, aucun triangle,
+aucun octet.
+
+**La recette l'a rejeté, et c'est le rejet qui est instructif.** Un houppier n'a que douze
+sommets : le lissage rend son intérieur continu, mais sa silhouette reste un polygone à arêtes
+franches. L'œil reçoit deux signaux contradictoires — un volume qui se prétend rond, un contour
+qui dit le contraire — et lit une bulle de gomme. Le facettage, lui, ne prétend rien : vingt
+faces éclairées distinctement se lisent comme une **représentation**, au même titre que les
+volumes LoD2.2 du bâti et les proxys d'arbres eux-mêmes.
+
+Le bon critère n'était donc pas « est-ce que ça ressemble à un arbre » mais « est-ce que ça se
+lit ». Le GLB reste facetté. Le lissage vit désormais dans le visualiseur, sous « Houppiers →
+Ombrage du feuillage », où il se compare à l'écran sans réassembler la scène — même principe
+que la courbe de rendu.
+
+> **Le piège technique, à connaître avant toute reprise.** Écrire des normales dans le GLB ne
+> suffisait pas : le visualiseur les **écrasait**. `applyCrownScale` appelle
+> `computeVertexNormals` après avoir déplacé les sommets — or la primitive du feuillage n'est
+> pas indexée, et Three.js y produit donc une normale par face. L'appel a lieu à chaque
+> chargement de scène et à chaque restauration d'état, **y compris avec les trois facteurs à
+> 100 %**. Le GLB a porté pendant toute une recette des normales que rien n'affichait jamais.
+> Cet appel est aujourd'hui la branche « schématique » du sélecteur, donc voulu — mais tout
+> ombrage qu'on voudrait cuire dans le GLB doit d'abord vérifier que le visualiseur ne le
+> reprend pas derrière.
+
+Réglage `VEGETATION_CROWN_IRREGULARITY`, `0.18` par défaut, `0` rétablissant à l'identique la
+géométrie des exécutions précédentes. Il se règle comme `VEGETATION_MAX_CROWN_M` : par
+comparaison de deux `poc.py glb`, puis on fige la valeur. Le visualiseur ne peut pas en faire
+un curseur — la déformation est cuite dans le GLB, contrairement aux trois facteurs de
+dimension des houppiers, qui agissent sur les sommets au chargement. La valeur employée est
+écrite dans `render/scene.json` sous `crownIrregularity`, faute de quoi une scène servie ne
+dirait pas lequel des deux rendus elle porte.
+
+> **Garde-fou** — si les houppiers se lisent comme des cailloux, ou si le couvert continu de
+> l'emprise 600 m devient bruité, revenir à `0`. Le réglage rend le retour gratuit. Ce
+> garde-fou a servi : c'est lui qui a fait remonter le facettage.
+
+**B′. Courbe de rendu réglable.** Le contraste passait — et passe encore — par un
+`filter: contrast()` CSS appliqué **après** le tone mapping et la conversion sRGB : il écrête
+les hautes lumières au lieu de les rouler. `NeutralToneMapping` avait été retenu sans
+comparaison documentée. Le panneau porte donc un sélecteur « Courbe de rendu » — Neutre
+(référence), AgX, ACES Filmic, Aucune — dans les réglages avancés, à côté de l'exposition et
+du contraste. Three.js recompile ses shaders de lui-même quand la courbe change : aucune
+propagation de `needsUpdate` sur les matériaux chargés.
+
+C'est l'outil de comparaison que la seconde chaîne de rendu abandonnée prétendait fournir, pour
+quatre lignes au lieu d'un `EffectComposer`. La courbe est persistée avec le reste du panneau,
+et le préréglage contrasté la ramène à Neutre : deux postes annonçant les mêmes réglages
+doivent afficher la même image.
+
+**Le retrait du `filter: contrast()` n'est pas décidé ici.** Le sélecteur est précisément ce
+qui permet de trancher à l'écran sur les emprises 200 et 600 m. Si une courbe rend le filtre
+inutile, il se retirera dans un second temps.
+
+> **Garde-fou** — si aucune courbe ne se distingue nettement de Neutre sur les deux emprises,
+> ne pas changer le défaut. Le sélecteur documente alors le choix plutôt qu'il ne l'ouvre.
+
+**Ménage associé.** `poc.py web` ne téléchargeait que les dépendances manquantes et n'en
+supprimait aucune : `vendor/addons/` servait encore `Sky.js`, `GTAOPass.js`, `EffectComposer.js`
+et leurs voisins, du code mort mis en ligne avec le reste. La préparation retire désormais
+tout fichier absent de `VENDOR_FILES`.
 
 ### Ce qui a été livré, mesuré sur le même run 200 m
 

@@ -13,6 +13,7 @@ présence, pas le réalisme botanique.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 import json
@@ -382,6 +383,34 @@ _ICOSAHEDRON_FACES = (
 # c'est ce qui permet au visualiseur de les redimensionner autour de leur propre centre.
 CROWN_VERTICES = len(_ICOSAHEDRON_FACES) * 3
 
+# Amplitude du relief d'un houppier, en fraction de son rayon. La rotation et l'ovalité
+# cassent la répétition d'un arbre au suivant, mais pas la régularité de chacun : un icosaèdre
+# reste une boule à facettes dès qu'on l'approche. Tirer le rayon de chaque sommet autour de
+# sa valeur nominale lui donne une silhouette, sans un triangle ni un octet de plus.
+CROWN_IRREGULARITY = 0.18
+
+
+def crown_relief(tree: Tree, irregularity: float = CROWN_IRREGULARITY) -> tuple[float, ...]:
+    """Facteur de rayon par sommet d'icosaèdre, stable pour un arbre donné.
+
+    Le relief ne porte que sur le rayon horizontal. Étirer aussi la verticale déplacerait la
+    cime, alors qu'elle doit rester exactement à la hauteur mesurée par le LiDAR — c'est le
+    seul chiffre que le proxy est censé restituer.
+
+    Comme pour les teintes de bâtiment, le CRC remplace ``hash`` : un arbre doit garder sa
+    silhouette d'une génération de la scène à l'autre.
+    """
+    if irregularity <= 0.0:
+        return tuple(1.0 for _ in _ICOSAHEDRON_VERTICES)
+    seed = zlib.crc32(f"relief:{tree.x:.2f}:{tree.y:.2f}".encode("utf-8"))
+    # Un CRC par sommet, et non douze décalages du même : des décalages successifs rejouent
+    # les mêmes bits d'un sommet au suivant, et le houppier se bosselle régulièrement —
+    # exactement la régularité qu'on cherche à casser.
+    return tuple(
+        1.0 + irregularity * ((zlib.crc32(bytes([index]), seed) % 2001) / 1000.0 - 1.0)
+        for index in range(len(_ICOSAHEDRON_VERTICES))
+    )
+
 
 def crown_triangles(
     centre: tuple[float, float, float],
@@ -390,22 +419,26 @@ def crown_triangles(
     rotation: float = 0.0,
     ovality: float = 1.0,
     profile: str = "generic",
+    relief: Sequence[float] | None = None,
 ) -> list[list[tuple[float, float, float]]]:
     """Houppier : icosaèdre étiré verticalement, dans le repère GLB (Y vers le haut).
 
     ``rotation`` et ``ovality`` cassent la répétition d'un solide identique recopié des
     centaines de fois. ``profile`` n'affine que la cime des plages classées conifères par
-    BD Forêt ; il ne prétend pas reconstruire l'essence d'un arbre individuel.
+    BD Forêt ; il ne prétend pas reconstruire l'essence d'un arbre individuel. ``relief``
+    donne le rayon de chaque sommet, mesuré par :func:`crown_relief` ; absent, le houppier
+    reste l'icosaèdre régulier des exécutions précédentes.
     """
     cosine, sine = math.cos(rotation), math.sin(rotation)
     scaled = []
-    for vertex in _ICOSAHEDRON_VERTICES:
+    for index, vertex in enumerate(_ICOSAHEDRON_VERTICES):
         if profile == "conifer":
             radial_profile = max(0.12, (1.0 - vertex[1]) / 2.0)
         elif profile == "mixed":
             radial_profile = 0.75 + 0.25 * max(0.12, (1.0 - vertex[1]) / 2.0)
         else:
             radial_profile = 1.0
+        radial_profile *= relief[index] if relief else 1.0
         east = vertex[0] * radius * ovality * radial_profile
         south = vertex[2] * radius / ovality * radial_profile
         scaled.append(
@@ -453,13 +486,36 @@ def tree_shape(tree: Tree) -> tuple[float, float]:
     return rotation, ovality
 
 
-def tree_geometry(
+def crown_centre(
     tree: Tree, centre: tuple[float, float], base_elevation: float
+) -> tuple[float, float, float]:
+    """Centre du houppier dans le repère de la scène GLB.
+
+    Il sert deux fois : à construire le solide, et à orienter ses normales — un houppier
+    étant étoilé autour de ce point. Le calculer à deux endroits l'aurait fait diverger dès
+    la première retouche des proportions.
+    """
+    centre_x, centre_y = centre
+    return (
+        tree.x - centre_x,
+        tree.ground - base_elevation + tree.height * CROWN_CENTRE_FRACTION,
+        centre_y - tree.y,
+    )
+
+
+def tree_geometry(
+    tree: Tree,
+    centre: tuple[float, float],
+    base_elevation: float,
+    irregularity: float = 0.0,
 ) -> tuple[list[list[tuple[float, float, float]]], list[list[tuple[float, float, float]]]]:
     """Houppier et fût d'un arbre, ramenés au repère de la scène GLB.
 
     Le repère suit celui des bâtiments : X vers l'est, Y vers le haut à partir de
     ``base_elevation``, Z vers le sud.
+
+    ``irregularity`` vaut zéro par défaut : la géométrie reste alors celle des exécutions
+    précédentes, et c'est la configuration de la scène qui décide d'y ajouter du relief.
     """
     centre_x, centre_y = centre
     x = tree.x - centre_x
@@ -467,12 +523,13 @@ def tree_geometry(
     ground = tree.ground - base_elevation
     rotation, ovality = tree_shape(tree)
     crown = crown_triangles(
-        (x, ground + tree.height * CROWN_CENTRE_FRACTION, z),
+        crown_centre(tree, centre, base_elevation),
         max(tree.crown, MINIMUM_CROWN_RADIUS_M),
         tree.height * CROWN_HALF_HEIGHT_FRACTION,
         rotation,
         ovality,
         tree.foliage,
+        crown_relief(tree, irregularity),
     )
     half_width = max(MINIMUM_TRUNK_HALF_WIDTH_M, tree.height * TRUNK_HALF_WIDTH_FRACTION)
     trunk = trunk_triangles((x, ground, z), half_width, tree.height * TRUNK_FRACTION)

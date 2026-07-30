@@ -5,12 +5,21 @@ from io import BytesIO
 import re
 import sys
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from poc3d.config import PocConfig
-from poc3d.web import VENDOR_FILES, ViewerRequestHandler, available_scenes, latest_scene_run
+from poc3d.web import (
+    VENDOR_FILES,
+    ViewerRequestHandler,
+    _prune_vendor,
+    available_scenes,
+    latest_scene_run,
+    serve_viewer,
+    viewer_is_stale,
+)
 
 
 class _InterfaceParser(HTMLParser):
@@ -276,6 +285,33 @@ class ViewerInterfaceTest(unittest.TestCase):
         for obsolete in ("Sky.js", "EffectComposer.js", "GTAOPass.js"):
             self.assertFalse(any(path.endswith(obsolete) for path in VENDOR_FILES))
 
+    def test_rend_l_ombrage_du_feuillage_reglable_et_facette_par_defaut(self) -> None:
+        """La recette a retenu le houppier facetté ; le lissé reste comparable à l'écran.
+
+        L'ombrage passe par le même chemin que les facteurs de houppier : ils portent sur les
+        mêmes sommets, et un redimensionnement doit reprendre les normales avec eux.
+        """
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("foliageShading", self.parser.ids)
+        # Le défaut est écrit dans le document, pas dans le script : c'est l'option marquée.
+        shading = self.document.split('id="foliageShading"', 1)[1].split("</select>", 1)[0]
+        self.assertRegex(shading, r'value="faceted"\s+selected')
+        self.assertIn('#foliageShading").value !== "smooth"', script)
+        self.assertIn("crowns.mesh.geometry.computeVertexNormals()", script)
+        self.assertIn("normals.setXYZ(vertex, x / length, y / length, z / length)", script)
+        self.assertRegex(script, r"PERSISTED_INPUTS = \[[^\]]*\"foliageShading\"")
+
+    def test_rend_la_courbe_de_tone_mapping_reglable(self) -> None:
+        """Comparer les courbes à l'écran remplace la seconde chaîne de rendu abandonnée."""
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("toneMapping", self.parser.ids)
+        self.assertIn("renderer.toneMapping = TONE_MAPPINGS[select.value]", script)
+        # La référence reste le rendu neutre : le préréglage contrasté doit y ramener.
+        self.assertIn('const DEFAULT_TONE_MAPPING = "neutral"', script)
+        self.assertIn("toneMapping: DEFAULT_TONE_MAPPING", script)
+        # Sans persistance, la courbe choisie serait perdue à chaque exécution du pipeline.
+        self.assertRegex(script, r"PERSISTED_INPUTS = \[[^\]]*\"toneMapping\"")
+
     def test_active_les_ombres_en_cascades_avec_un_repli_mobile(self) -> None:
         script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
         for dependency in ("CSM.js", "CSMFrustum.js", "CSMShader.js"):
@@ -344,6 +380,31 @@ class ViewerInterfaceTest(unittest.TestCase):
         ):
             self.assertIn(f'"{identifier}"', script)
 
+    def test_cale_le_soleil_sur_la_mesure_de_la_scene(self) -> None:
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("sunLockToMeasure", self.parser.ids)
+        self.assertIn("sunMeasureSource", self.parser.ids)
+        self.assertIn("metadata?.orthoSun", script)
+        self.assertIn("source.azimuthDeg ?? source.azimuth", script)
+        self.assertRegex(script, r"PERSISTED_INPUTS = \[[^\]]*\"sunLockToMeasure\"")
+
+    def test_expose_les_outils_de_recette_expert(self) -> None:
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("exportPng", self.parser.ids)
+        self.assertIn("renderer.domElement.toBlob", script)
+        self.assertIn("navigator.clipboard.readText", script)
+        self.assertIn("function restoreCameraPose()", script)
+        self.assertIn("readableRun(entry.run)", script)
+
+    def test_expose_la_nappe_de_canopee_facultative(self) -> None:
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("canopyToggle", self.parser.ids)
+        self.assertRegex(
+            script,
+            r'node: "Canopee",[\s\S]*?castsShadow: true,[\s\S]*?receivesShadow: false,',
+        )
+        self.assertRegex(script, r"PERSISTED_INPUTS = \[[^\]]*\"canopyToggle\"")
+
     def test_tire_l_identite_de_la_scene_et_non_du_document(self) -> None:
         """Le nom du lieu ne peut plus être écrit en dur : le sélecteur change de commune."""
         script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
@@ -378,6 +439,86 @@ class ViewerInterfaceTest(unittest.TestCase):
         """Une mise à jour du viewer doit retrouver l'orthophoto malgré un ancien état local."""
         script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
         self.assertIn('const STORAGE_KEY = "poc3d.viewer.v3"', script)
+
+
+class PruneVendorTest(unittest.TestCase):
+    """Le téléchargement ne prend que ce qui manque : sans ménage, rien ne part jamais."""
+
+    def _vendor(self, root: Path, *relatives: str) -> Path:
+        vendor = root / "vendor"
+        for relative in relatives:
+            path = vendor / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("// dépendance\n", encoding="utf-8")
+        return vendor
+
+    def test_retire_les_addons_d_une_fonctionnalite_abandonnee(self) -> None:
+        with TemporaryDirectory() as directory:
+            vendor = self._vendor(
+                Path(directory),
+                "three.module.js",
+                "addons/objects/Sky.js",
+                "addons/postprocessing/EffectComposer.js",
+            )
+            self.assertEqual(
+                sorted(_prune_vendor(vendor)),
+                ["addons/objects/Sky.js", "addons/postprocessing/EffectComposer.js"],
+            )
+            self.assertTrue((vendor / "three.module.js").is_file())
+            # Un dossier vide garderait le nom de la fonctionnalité retirée.
+            self.assertFalse((vendor / "addons" / "objects").exists())
+
+    def test_conserve_toutes_les_dependances_attendues(self) -> None:
+        with TemporaryDirectory() as directory:
+            vendor = self._vendor(Path(directory), *VENDOR_FILES)
+            self.assertEqual(_prune_vendor(vendor), [])
+            for relative in VENDOR_FILES:
+                self.assertTrue((vendor / relative).is_file(), relative)
+
+    def test_accepte_un_dossier_absent(self) -> None:
+        """Une première préparation n'a pas encore de `vendor/` à nettoyer."""
+        with TemporaryDirectory() as directory:
+            self.assertEqual(_prune_vendor(Path(directory) / "vendor"), [])
+
+
+class ViewerFreshnessTest(unittest.TestCase):
+    def _prepared(self, root: Path) -> tuple[PocConfig, Path, Path]:
+        source = _write_config(root, "poc", 100, "output")
+        run_dir = _write_run(root, "output", "run-1", scene=True)
+        viewer = root / "viewer"
+        web = run_dir / "web"
+        viewer.mkdir()
+        web.mkdir()
+        for name in ("index.html", "app.js", "styles.css", "favicon.svg"):
+            content = f"{name}\n"
+            (viewer / name).write_text(content, encoding="utf-8")
+            (web / name).write_text(content, encoding="utf-8")
+        return PocConfig.load(root, source), run_dir, web
+
+    def test_refuse_de_servir_une_copie_perimee(self) -> None:
+        with TemporaryDirectory() as directory:
+            config, run_dir, web = self._prepared(Path(directory))
+            (web / "app.js").write_text("ancienne version\n", encoding="utf-8")
+            self.assertEqual(viewer_is_stale(config, web), ["app.js"])
+            with self.assertRaisesRegex(FileNotFoundError, r"poc\.py web"):
+                serve_viewer(config, run_dir, open_browser=False)
+
+    def test_sert_une_copie_fidele(self) -> None:
+        class Server:
+            def __init__(self, *_args):
+                pass
+
+            def serve_forever(self):
+                return None
+
+            def server_close(self):
+                return None
+
+        with TemporaryDirectory() as directory:
+            config, run_dir, web = self._prepared(Path(directory))
+            self.assertEqual(viewer_is_stale(config, web), [])
+            with mock.patch("poc3d.web.ThreadingHTTPServer", Server):
+                serve_viewer(config, run_dir, open_browser=False)
 
 
 class ViewerCacheTest(unittest.TestCase):

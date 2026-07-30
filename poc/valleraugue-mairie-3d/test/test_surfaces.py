@@ -13,6 +13,7 @@ from poc3d.surfaces import (
     MINIMUM_CELLS,
     WATER_CLASS,
     bridge_surface,
+    canopy_massif,
     fit_plane,
     surface_triangles,
     water_surface,
@@ -174,6 +175,51 @@ class BridgeSurfaceTest(unittest.TestCase):
         )
         self.assertAlmostEqual(float(nappe.elevations[10, 10]), 351.5)
         self.assertEqual(nappe.cells, 25)
+
+
+class CanopyMassifTest(unittest.TestCase):
+    def test_produit_une_nappe_sur_une_plage_dense(self) -> None:
+        terrain = np.full((20, 20), 300.0)
+        canopy = np.full((20, 20), np.nan)
+        canopy[4:16, 4:16] = 12.0
+        nappe = canopy_massif(
+            canopy,
+            terrain,
+            1.0,
+            coverage=0.6,
+            minimum_height=4.0,
+            smoothing=2.0,
+        )
+        self.assertGreater(nappe.cells, 0)
+        self.assertTrue((nappe.elevations[np.isfinite(nappe.elevations)] >= 312.0).all())
+
+    def test_ignore_une_plage_eparse(self) -> None:
+        terrain = np.full((20, 20), 300.0)
+        canopy = np.full((20, 20), np.nan)
+        canopy[2::5, 2::5] = 10.0
+        nappe = canopy_massif(
+            canopy,
+            terrain,
+            1.0,
+            coverage=0.6,
+            minimum_height=4.0,
+            smoothing=2.0,
+        )
+        self.assertTrue(nappe.is_empty())
+
+    def test_ne_descend_jamais_sous_le_terrain(self) -> None:
+        terrain = np.arange(100, dtype=np.float64).reshape(10, 10) + 250.0
+        canopy = np.full((10, 10), 8.0)
+        nappe = canopy_massif(
+            canopy,
+            terrain,
+            1.0,
+            coverage=0.6,
+            minimum_height=4.0,
+            smoothing=2.0,
+        )
+        selected = np.isfinite(nappe.elevations)
+        self.assertTrue((nappe.elevations[selected] >= terrain[selected]).all())
 
 
 class SurfaceTrianglesTest(unittest.TestCase):

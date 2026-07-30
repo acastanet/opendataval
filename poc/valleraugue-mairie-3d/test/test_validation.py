@@ -1,6 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
+import json
 import sys
 import unittest
 
@@ -93,6 +94,60 @@ class ValidationTest(unittest.TestCase):
             content = report.read_text(encoding="utf-8")
             self.assertIn("PASS technique", content)
             self.assertIn("Le nuage couvre le terrain", content)
+
+    def test_titre_le_rapport_avec_le_nom_de_la_scene(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config, run_dir = _prepare_run(root, (-5.0, -5.0, 105.0, 105.0))
+            config.source.write_text(
+                config.source.read_text(encoding="utf-8")
+                + 'SCENE_TITLE="Creyssensac-et-Pissot"\n',
+                encoding="utf-8",
+            )
+            report = validate_run(PocConfig.load(root, config.source), run_dir)
+            content = report.read_text(encoding="utf-8")
+            self.assertIn("# Validation — Creyssensac-et-Pissot", content)
+            self.assertNotIn("mairie de Valleraugue", content)
+
+    def test_resume_le_rendu_quand_la_scene_existe(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config, run_dir = _prepare_run(root, (-5.0, -5.0, 105.0, 105.0))
+            render = run_dir / "render"
+            render.mkdir()
+            (render / "scene.json").write_text(
+                json.dumps(
+                    {
+                        "buildings": 12,
+                        "roofQuality": {"total": 12, "degraded": ["a", "b"]},
+                        "orthoOffset": {"eastMetres": 3.0, "northMetres": 4.0},
+                        "medianViewFactor": 0.625,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (run_dir / "trees.json").write_text(
+                json.dumps(
+                    {
+                        "count": 20,
+                        "foliage": {"deciduous": 7, "mixed": 5, "generic": 8},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            content = validate_run(config, run_dir).read_text(encoding="utf-8")
+            self.assertIn("## Rendu", content)
+            self.assertIn("Toitures dégradées : 2/12", content)
+            self.assertIn("5.00 m", content)
+            self.assertIn("20, dont 12 typés BD Forêt", content)
+            self.assertIn("0.625", content)
+
+    def test_omet_le_rendu_avant_l_assemblage_glb(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config, run_dir = _prepare_run(root, (-5.0, -5.0, 105.0, 105.0))
+            content = validate_run(config, run_dir).read_text(encoding="utf-8")
+            self.assertNotIn("## Rendu", content)
 
     def test_refuse_un_nuage_plus_court_que_le_terrain(self) -> None:
         """Le cas que rien ne détectait : le MNT y aurait inventé un relief plausible."""
