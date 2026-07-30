@@ -5,6 +5,16 @@
 # L'emprise reste carrée à dessein. La requête WMS l'est, et toute la calibration de
 # l'orthophotographie raisonne en pixels carrés : sur une bbox rectangulaire, le masque bâti
 # déborderait du rapport d'aspect et le recalage rendrait un chiffre faux sans rien signaler.
+# Identité de la scène : titre du visualiseur, surtitre de provenance et libellé du point de
+# vue centré. Ces trois valeurs alimentent le sélecteur de scènes et l'en-tête de la page ;
+# sans elles, deux emprises de même taille sur deux communes seraient indiscernables.
+SCENE_TITLE="Valleraugue"
+SCENE_SUBTITLE="Val-d'Aigoual · IGN LiDAR HD"
+SCENE_CENTRE_LABEL="Mairie"
+# Point de référence en WGS84, conservé pour la traçabilité : le pipeline travaille en
+# Lambert-93 et ne le relit pas.
+SCENE_CENTRE_WGS84="44.081089 3.641219"
+
 POC_BBOX="751056 6331251 751656 6331851"
 EXPECTED_WIDTH_M=600
 EXPECTED_HEIGHT_M=600

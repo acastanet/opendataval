@@ -4,8 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#c8d2d8" />
-    <title>Valleraugue — POC 3D</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <!-- Titre de repli : la scène chargée le remplace par le sien, lu dans `scenes.json`. -->
+    <title>Maquette du village</title>
+    <link rel="stylesheet" href="./styles.css?v=20260730-scenes" />
     <script type="importmap">
       {
         "imports": {
@@ -16,13 +17,15 @@
     </script>
   </head>
   <body>
-    <main id="viewport" aria-label="Scène 3D de Valleraugue"></main>
+    <main id="viewport" aria-label="Scène 3D"></main>
 
     <!-- Deux lignes : le surtitre porte la provenance, le titre la scène. Le détail des
-         couches est dans « Informations sur les données », pas dans l'en-tête. -->
+         couches est dans « Informations sur les données », pas dans l'en-tête. Les deux
+         textes viennent de la scène chargée : les figer ici afficherait le nom d'une commune
+         au-dessus d'une autre dès qu'on change d'entrée dans le sélecteur. -->
     <header class="brand">
-      <span class="brand__eyebrow">Val-d’Aigoual · IGN LiDAR HD</span>
-      <h1>Valleraugue en relief</h1>
+      <span class="brand__eyebrow" id="sceneSubtitle">IGN LiDAR HD</span>
+      <h1 id="sceneTitle">Maquette du village</h1>
     </header>
 
     <button
@@ -50,7 +53,79 @@
     </button>
 
     <aside id="controlPanel" class="panel" aria-label="Contrôles de la scène">
-      <div class="panel__status" data-state="loading">
+      <section class="controls controls--inline controls--views" aria-labelledby="viewsTitle">
+        <h2 id="viewsTitle" class="controls__title">Vues</h2>
+        <div class="pov-row">
+          <button
+            id="viewReset"
+            class="pov"
+            type="button"
+            aria-label="Vue générale"
+            aria-pressed="true"
+            title="Vue générale"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <!-- La scène est recentrée sur le milieu de son emprise : ce point de vue vise
+               toujours l'origine, seul son intitulé change d'un site à l'autre. -->
+          <button
+            id="viewCentre"
+            class="pov"
+            type="button"
+            aria-label="Point central"
+            aria-pressed="false"
+            title="Point central"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M3.5 11L12 4.5l8.5 6.5M6 10.2V19.5h12V10.2M10.4 19.5v-4.6h3.2v4.6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            id="viewRoof"
+            class="pov"
+            type="button"
+            aria-label="Vue des toitures"
+            aria-pressed="false"
+            title="Vue des toitures"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 3v6m-2.6-2.4L12 9.2l2.6-2.6M12 12.6l7 4.2-7 4.2-7-4.2z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- Après les vues, la scène reste un choix direct : un libellé et un seul contrôle
+           natif, sans accordéon ni second intitulé. -->
+      <div class="scene-control" id="sceneControls" hidden>
+        <label for="sceneSelect">Scène</label>
+        <select id="sceneSelect"></select>
+      </div>
+
+      <div class="panel__status" data-state="loading" role="status" aria-live="polite">
         <span class="pulse" aria-hidden="true"></span>
         <span id="status">Chargement de la scène…</span>
       </div>
@@ -58,20 +133,13 @@
            dès la première texture alors que la scène pèse une vingtaine de mégaoctets. -->
       <progress id="loadProgress" class="load-progress" max="1" value="0" hidden></progress>
 
-      <dl class="metrics">
-        <div>
-          <dt>Bâtiments</dt>
-          <dd id="buildingCount">—</dd>
-        </div>
-        <div>
-          <dt>Emprise</dt>
-          <dd id="extent">—</dd>
-        </div>
-        <div>
-          <dt>Relief</dt>
-          <dd id="elevationRange">—</dd>
-        </div>
-      </dl>
+      <p class="metrics" aria-label="Mesures de la scène">
+        <span><strong id="buildingCount">—</strong> bâtiments</span>
+        <span class="metrics__separator" aria-hidden="true">·</span>
+        <strong id="extent">—</strong>
+        <span class="metrics__separator" aria-hidden="true">·</span>
+        <span>relief <strong id="elevationRange">—</strong></span>
+      </p>
 
       <!-- Niveau 1 : ce dont on se sert à chaque ouverture de la scène. Les couches sont
            pliables — elles sont cinq et on ne les touche pas à chaque fois — mais les points de
@@ -100,62 +168,6 @@
         </label>
       </details>
 
-      <section class="controls controls--inline">
-        <h2 class="controls__title">POV</h2>
-        <div class="pov-row">
-          <button
-            id="viewReset"
-            class="pov"
-            type="button"
-            aria-label="Vue générale"
-            title="Vue générale"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.9"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
-          <button id="viewMairie" class="pov" type="button" aria-label="Mairie" title="Mairie">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M3.5 11L12 4.5l8.5 6.5M6 10.2V19.5h12V10.2M10.4 19.5v-4.6h3.2v4.6"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.9"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
-          <button
-            id="viewRoof"
-            class="pov"
-            type="button"
-            aria-label="Vue des toitures"
-            title="Vue des toitures"
-          >
-            <!-- Vue plongeante : la flèche dit d'où l'on regarde, le losange est le plan des
-                 toitures. Un losange seul se lisait comme un œil. -->
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M12 3v6m-2.6-2.4L12 9.2l2.6-2.6M12 12.6l7 4.2-7 4.2-7-4.2z"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.9"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-      </section>
-
       <!-- Niveau 2 : tout ce qui sert au contrôle fin, replié par défaut et mémorisé. Les
            sections internes sont indépendantes — régler l'éclairage ne doit pas refermer les
            textures qu'on vient d'ajuster. -->
@@ -182,15 +194,6 @@
               Photographie aérienne IGN drapée sur le relief et les toitures.
             </p>
             <div id="qualityLegend" class="quality-legend" hidden></div>
-          </details>
-
-          <details class="controls accordion" id="sceneControls" hidden>
-            <summary>Emprise</summary>
-            <label class="select-row">
-              <span>Scène chargée</span>
-              <select id="sceneSelect"></select>
-            </label>
-            <p id="sceneSource" class="source"></p>
           </details>
 
           <details class="controls accordion" id="searchControls" hidden>
@@ -412,6 +415,6 @@
 
     <div id="error" class="error" hidden></div>
 
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=20260730-scenes"></script>
   </body>
 </html>

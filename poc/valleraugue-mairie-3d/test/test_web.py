@@ -1,6 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from html.parser import HTMLParser
+from io import BytesIO
 import re
 import sys
 import unittest
@@ -9,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from poc3d.config import PocConfig
-from poc3d.web import available_scenes, latest_scene_run
+from poc3d.web import ViewerRequestHandler, available_scenes, latest_scene_run
 
 
 class _InterfaceParser(HTMLParser):
@@ -163,6 +164,40 @@ class AvailableScenesTest(unittest.TestCase):
             entries = available_scenes(PocConfig.load(root, active), run_dir)
             self.assertEqual(len(entries), 1)
 
+    def test_nomme_la_scene_quand_la_configuration_la_titre(self) -> None:
+        """La taille seule ne distingue pas deux communes modélisées au même format."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = _write_config(root, "ndr-200m", 200, "output-ndr")
+            source.write_text(
+                source.read_text(encoding="utf-8")
+                + 'SCENE_TITLE="Notre-Dame-de-la-Rouvière"\n'
+                + 'SCENE_SUBTITLE="Val-d\'Aigoual · IGN LiDAR HD"\n'
+                + 'SCENE_CENTRE_LABEL="Place Auguste Vidal"\n'
+                + 'SCENE_CENTRE_WGS84="44.048776 3.700904"\n',
+                encoding="utf-8",
+            )
+            run_dir = _write_run(root, "output-ndr", "run-1", scene=True)
+            manifest = available_scenes(PocConfig.load(root, source), run_dir)[0].as_manifest()
+            self.assertEqual(manifest["label"], "Notre-Dame-de-la-Rouvière · 200 m")
+            self.assertEqual(manifest["title"], "Notre-Dame-de-la-Rouvière")
+            self.assertEqual(manifest["subtitle"], "Val-d'Aigoual · IGN LiDAR HD")
+            self.assertEqual(manifest["centreLabel"], "Place Auguste Vidal")
+            self.assertEqual(manifest["configuration"]["centreWgs84"], [44.048776, 3.700904])
+
+    def test_omet_l_identite_absente_plutot_que_de_la_vider(self) -> None:
+        """Une exécution préparée avant `SCENE_TITLE` doit garder les textes par défaut du
+        visualiseur, et non afficher un en-tête vide."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = _write_config(root, "poc-200m", 200, "output-200m")
+            run_dir = _write_run(root, "output-200m", "run-200", scene=True)
+            manifest = available_scenes(PocConfig.load(root, source), run_dir)[0].as_manifest()
+            self.assertEqual(manifest["label"], "200 × 200 m")
+            self.assertNotIn("title", manifest)
+            self.assertNotIn("subtitle", manifest)
+            self.assertNotIn("centreWgs84", manifest["configuration"])
+
     def test_omet_une_emprise_sans_scene(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -176,15 +211,45 @@ class AvailableScenesTest(unittest.TestCase):
 
 class ViewerInterfaceTest(unittest.TestCase):
     def setUp(self) -> None:
+        self.document = (ROOT / "viewer" / "index.html").read_text(encoding="utf-8")
         self.parser = _InterfaceParser()
-        self.parser.feed((ROOT / "viewer" / "index.html").read_text(encoding="utf-8"))
+        self.parser.feed(self.document)
+
+    def test_commence_par_les_vues_puis_la_scene(self) -> None:
+        """Les commandes de cadrage précèdent la scène, son état puis les mesures compactes."""
+        panel = self.document.split('<aside id="controlPanel"', 1)[1].split("</aside>", 1)[0]
+        views = panel.index('id="viewsTitle"')
+        scene = panel.index('id="sceneControls"')
+        status = panel.index('class="panel__status"')
+        metrics = panel.index('class="metrics"')
+        self.assertLess(views, scene)
+        self.assertLess(scene, status)
+        self.assertLess(status, metrics)
+        self.assertIn(">Vues</h2>", panel)
+        self.assertIn('<label for="sceneSelect">Scène</label>', panel)
+        self.assertNotIn("<summary>Emprise</summary>", panel)
+        self.assertNotIn('<dl class="metrics">', panel)
+        self.assertEqual(panel.count('class="metrics__separator"'), 2)
+
+    def test_signale_la_vue_active_et_l_ecran_mobile_avance(self) -> None:
+        panel = self.document.split('<aside id="controlPanel"', 1)[1].split("</aside>", 1)[0]
+        styles = (ROOT / "viewer" / "styles.css").read_text(encoding="utf-8")
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('id="viewReset"', panel)
+        self.assertIn('aria-pressed="true"', panel)
+        self.assertIn('.pov[aria-pressed="true"]', styles)
+        self.assertIn(".panel:has(.expert[open])", styles)
+        self.assertIn("height: 100dvh", styles)
+        self.assertIn("function setActiveView(id)", script)
 
     def test_expose_les_commandes_prioritaires(self) -> None:
         self.assertTrue(
             {
                 "viewReset",
-                "viewMairie",
+                "viewCentre",
                 "viewRoof",
+                "sceneTitle",
+                "sceneSubtitle",
                 "panelToggle",
                 "controlPanel",
                 "buildingDetails",
@@ -211,6 +276,13 @@ class ViewerInterfaceTest(unittest.TestCase):
             }.issubset(self.parser.ids)
         )
 
+    def test_tire_l_identite_de_la_scene_et_non_du_document(self) -> None:
+        """Le nom du lieu ne peut plus être écrit en dur : le sélecteur change de commune."""
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("function applySceneIdentity(entry)", script)
+        self.assertIn("document.title", script)
+        self.assertNotIn("Valleraugue", self.document)
+
     def test_ne_cible_aucun_identifiant_absent_du_document(self) -> None:
         """Un `querySelector` sur un identifiant disparu rend `null` et casse le visualiseur
         au chargement, sans que rien ne le signale à la préparation. Le contrôle est ici."""
@@ -233,6 +305,23 @@ class ViewerInterfaceTest(unittest.TestCase):
         self.assertGreaterEqual(self.parser.expert_accordions, 5)
         # Un seul accordéon hors du bloc avancé : les couches.
         self.assertEqual(self.parser.accordions - self.parser.expert_accordions, 1)
+
+
+class ViewerCacheTest(unittest.TestCase):
+    def _headers_for(self, path: str) -> bytes:
+        handler = ViewerRequestHandler.__new__(ViewerRequestHandler)
+        handler.path = path
+        handler.request_version = "HTTP/1.1"
+        handler._headers_buffer = []
+        handler.wfile = BytesIO()
+        handler.end_headers()
+        return handler.wfile.getvalue()
+
+    def test_ne_met_pas_l_interface_en_cache(self) -> None:
+        self.assertIn(b"Cache-Control: no-store", self._headers_for("/app.js?v=nouvelle"))
+
+    def test_conserve_le_cache_des_scenes_lourdes(self) -> None:
+        self.assertNotIn(b"Cache-Control: no-store", self._headers_for("/assets/scene.glb"))
 
 
 if __name__ == "__main__":

@@ -51,12 +51,25 @@ canvas.is-pickable {
   top: 26px;
   left: 32px;
   max-width: min(680px, calc(100vw - 430px));
+  padding: 15px 20px 17px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(250, 252, 251, 0.72),
+    rgba(240, 245, 242, 0.56)
+  );
+  box-shadow:
+    0 10px 28px rgba(27, 36, 48, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.56);
   pointer-events: none;
-  text-shadow: 0 2px 18px rgba(255, 255, 255, 0.75);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  backdrop-filter: blur(8px) saturate(1.05);
 }
 
 .brand__eyebrow {
-  color: #3f6350;
+  color: #356047;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -65,6 +78,7 @@ canvas.is-pickable {
 
 .brand h1 {
   margin: 5px 0 0;
+  color: #17231d;
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(1.7rem, 2.9vw, 3.4rem);
   font-weight: 500;
@@ -175,12 +189,68 @@ canvas.is-pickable {
   transform: rotate(180deg);
 }
 
+/* Le libellé est au-dessus et non à côté : depuis que les scènes portent le nom de leur
+   commune, « Notre-Dame-de-la-Rouvière — 200 × 200 m » ne tient plus dans la moitié de
+   panneau que laissait la disposition en deux colonnes, et c'est la taille — la seule chose
+   qui distingue deux emprises du même lieu — qui disparaissait à la troncature. */
+.scene-control {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 8px;
+}
+
+.scene-control[hidden] {
+  display: none;
+}
+
+.scene-control label {
+  color: rgba(27, 36, 48, 0.62);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.scene-control select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--row);
+  padding: 8px 34px 8px 11px;
+  border: 1px solid rgba(63, 157, 104, 0.4);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #21402f;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.scene-control select:focus-visible {
+  outline: 2px solid #356f50;
+  outline-offset: 2px;
+}
+
+.scene-control select:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
 .panel__status {
   display: flex;
   align-items: center;
   gap: 9px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 2px;
   color: #33604a;
   font-size: 0.78rem;
+}
+
+.panel__status #status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pulse {
@@ -233,37 +303,27 @@ canvas.is-pickable {
 }
 
 .metrics {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  align-items: center;
   gap: 7px;
-  margin: 18px 0 0;
-}
-
-.metrics div {
-  min-width: 0;
-  padding: 10px 8px;
-  border-radius: 11px;
-  background: rgba(27, 36, 48, 0.06);
-}
-
-.metrics dt {
-  margin-bottom: 5px;
+  margin: 8px 0 10px;
+  padding: 9px 2px 13px;
   overflow: hidden;
-  color: rgba(27, 36, 48, 0.56);
-  font-size: 0.62rem;
-  letter-spacing: 0.04em;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* « 200 × 200 m » repliait sa dernière unité sur une seconde ligne et déséquilibrait les trois
-   cartes : la valeur ne se coupe plus, c'est la police qui cède. */
-.metrics dd {
-  margin: 0;
-  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(27, 36, 48, 0.11);
+  color: rgba(27, 36, 48, 0.68);
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.metrics strong {
+  color: #1b2430;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.metrics__separator {
+  color: rgba(27, 36, 48, 0.34);
 }
 
 /* Toutes les sections du panneau partagent une seule trame : un filet en tête, la même hauteur
@@ -345,6 +405,12 @@ canvas.is-pickable {
   min-height: 0;
 }
 
+.controls--views {
+  min-height: 42px;
+  padding-bottom: 8px;
+  border-top: 0;
+}
+
 .pov-row {
   display: flex;
   gap: 6px;
@@ -368,6 +434,13 @@ canvas.is-pickable {
 
 .pov:hover {
   background: rgba(63, 157, 104, 0.22);
+}
+
+.pov[aria-pressed="true"] {
+  border-color: #356f50;
+  background: #356f50;
+  box-shadow: 0 3px 10px rgba(53, 111, 80, 0.24);
+  color: #fff;
 }
 
 .pov:focus-visible {
@@ -922,7 +995,18 @@ kbd {
   .brand {
     top: 20px;
     left: 20px;
-    max-width: calc(100vw - 40px);
+    max-width: calc(100vw - 92px);
+    padding: 11px 14px 13px;
+    border-radius: 13px;
+  }
+
+  .brand__eyebrow {
+    font-size: 0.62rem;
+  }
+
+  .brand h1 {
+    font-size: clamp(1.35rem, 6.5vw, 1.8rem);
+    white-space: normal;
   }
 
   .panel {
@@ -962,18 +1046,58 @@ kbd {
     width: auto;
   }
 
-  /* Les mesures sont l'information, pas de l'habillage : elles restent, sur deux colonnes. */
+  /* Les mesures restent lisibles sans recréer les trois cartouches de bureau. */
   .metrics {
-    grid-template-columns: repeat(2, 1fr);
-    margin: 14px 0 2px;
+    gap: 5px;
+    margin-bottom: 8px;
+    font-size: 0.7rem;
   }
 
-  .metrics div:last-child {
-    grid-column: 1 / -1;
+  .metrics strong {
+    font-size: 0.72rem;
   }
 
-  .metrics div {
-    padding: 9px 10px;
+  /* Le détail avancé devient un écran dédié : le résumé, toujours visible en tête, le referme. */
+  body:has(.expert[open]) .panel-toggle {
+    display: none;
+  }
+
+  .panel:has(.expert[open]) {
+    inset: 0;
+    width: 100%;
+    max-height: none;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: #f7f9f8;
+    box-shadow: none;
+  }
+
+  .panel:has(.expert[open]) > :not(.expert) {
+    display: none;
+  }
+
+  .panel:has(.expert[open]) .expert {
+    height: 100dvh;
+    padding: 0 18px 28px;
+    overflow-y: auto;
+    border-top: 0;
+  }
+
+  .panel:has(.expert[open]) .expert > summary {
+    position: sticky;
+    z-index: 2;
+    top: 0;
+    min-height: 58px;
+    padding: 0 2px;
+    background: #f7f9f8;
+    border-bottom: 1px solid rgba(27, 36, 48, 0.11);
+  }
+
+  .panel:has(.expert[open]) .expert__body {
+    padding: 8px 0 0;
+    border-left: 0;
   }
 
   .viewport-marks {

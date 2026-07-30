@@ -3,10 +3,16 @@
 ## Périmètre
 
 Ce dossier est un POC Python autonome pour enrichir des sorties Roofer
-existantes autour de la mairie de Valleraugue. Il produit un terrain et des
+existantes sur le territoire de Val-d’Aigoual. Il produit un terrain et des
 proxys de végétation à partir du LiDAR, récupère et recale une
 orthophotographie IGN, convertit les bâtiments en GLB et prépare un visualiseur
-web local.
+web local proposant plusieurs scènes.
+
+Une scène se décrit par un point WGS84 et un côté en mètres : `poc.py scene` en
+déduit l’emprise, la maille, les dalles LiDAR et la commande amont. Le pipeline
+complet et le contrat destiné à une interface de construction sont dans
+[`docs/construire-une-scene.md`](docs/construire-une-scene.md), qui est la
+référence à lire avant toute modification de la chaîne.
 
 La chaîne d’enrichissement doit rester native sous Windows. Ne pas introduire
 Docker, WSL, PDAL, GDAL ni une dépendance à un logiciel SIG. La reconstruction
@@ -23,15 +29,19 @@ un nouveau clone les perd en silence.
 ## Structure
 
 - `poc.py` : point d’entrée en ligne de commande ;
-- `src/poc3d/` : CLI, configuration, validation, terrain, végétation, surfaces
-  d'eau et tabliers de pont, calibration solaire, occlusion cuite, qualité des
-  toitures, GLB et serveur local ;
+- `src/poc3d/` : CLI, géodésie, construction de scène, configuration, validation,
+  terrain, végétation, surfaces d'eau et tabliers de pont, calibration solaire,
+  occlusion cuite, qualité des toitures, GLB et serveur local ;
 - `test/` : tests unitaires Python ;
 - `viewer/` : sources HTML, CSS et JavaScript du visualiseur ;
-- `config/` : exemples de configuration 100 m, 200 m et 600 m ;
-- `docs/` : grille d’acceptation, analyse UX du visualiseur, procédure de l’étape
-  amont et brief de mise en ligne
-  ([`publication-visualiseur.md`](docs/publication-visualiseur.md)) ;
+- `config/` : une configuration par scène, plus son `.example` et son aperçu
+  GeoJSON ;
+- `docs/` : construction d’une scène
+  ([`construire-une-scene.md`](docs/construire-une-scene.md)), grille
+  d’acceptation, analyse UX du visualiseur, procédure de l’étape amont, brief de
+  mise en ligne ([`publication-visualiseur.md`](docs/publication-visualiseur.md))
+  et transfert vers le serveur
+  ([`publication-tailscale.md`](docs/publication-tailscale.md)) ;
 - `patches/` : correctifs à appliquer au clone du workflow LiDAR + Roofer ;
 - `output*/run-*/` : entrées Roofer et résultats générés, jamais versionnés.
 
@@ -52,12 +62,19 @@ py -3.11 -m venv .venv
 Ne pas installer les dépendances dans le Python global. `.venv/` et tous les
 résultats sont ignorés par Git.
 
-`config/poc.conf` et `config/poc-200m.conf` sont désormais **versionnés** : ce
-sont les configurations de référence du POC, pas des copies de travail. Elles ne
-contiennent aucun secret et ne doivent jamais en recevoir. Les avoir laissées
-hors du dépôt les avait fait diverger silencieusement de leurs `.example`, au
-point qu'une correction documentée restait sans effet à l'exécution. Toute
-modification d'un réglage doit donc porter sur le `.conf` **et** son `.example`.
+Les `config/*.conf` sont **versionnés** : ce sont les configurations de référence
+du POC, pas des copies de travail. Elles ne contiennent aucun secret et ne
+doivent jamais en recevoir. Les avoir laissées hors du dépôt les avait fait
+diverger silencieusement de leurs `.example`, au point qu'une correction
+documentée restait sans effet à l'exécution. Toute modification d'un réglage doit
+donc porter sur le `.conf` **et** son `.example` ; un test le vérifie.
+
+Une nouvelle scène s'ajoute avec `poc.py scene … --write`, qui écrit les deux
+fichiers d'un coup, plus un aperçu GeoJSON de l'emprise. Ne pas recopier un
+`.conf` existant à la main : le gabarit porte les réglages de traitement
+calibrés sur le terrain et leurs justifications. Toute scène versionnée doit
+porter un `SCENE_TITLE`, faute de quoi elle n'apparaît dans le sélecteur que par
+sa taille.
 
 ## Commandes de développement
 
@@ -74,7 +91,9 @@ ni télécharger à nouveau les données LiDAR sources ni lancer Roofer.
 
 Les commandes ciblées disponibles sont `validate`, `terrain`, `ortho`,
 `vegetation`, `sun`, `glb`, `web` et `enhance`. Passer une configuration
-différente avec `--config`, avant le nom de la sous-commande. `lancer.bat`
+différente avec `--config`, avant le nom de la sous-commande. `scene` fait
+exception : elle fabrique une configuration et ignore donc `--config`.
+`lancer.bat`
 contrôle l’environnement, protège les processus étrangers utilisant le port,
 puis lance uniquement le serveur local.
 

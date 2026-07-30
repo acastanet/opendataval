@@ -1,8 +1,14 @@
-# POC Python Windows — mairie de Valleraugue en 3D
+# POC Python Windows — maquettes 3D de Val-d’Aigoual
 
 Ce POC enrichit une sortie Roofer existante : il génère un terrain depuis le
 LiDAR HD, télécharge l’orthophotographie IGN, assemble une scène GLB avec des
 matériaux simples et prépare un visualiseur web local.
+
+Une scène se décrit désormais par **un point sur une carte et un côté en mètres** :
+`poc.py scene` en déduit l’emprise Lambert-93, la maille, les dalles LiDAR à mettre en
+cache et la commande de l’étape amont. Le pipeline complet et le contrat destiné à une
+future interface de construction sont dans
+[`docs/construire-une-scene.md`](docs/construire-une-scene.md).
 
 Toute la chaîne décrite ici s’exécute nativement avec Python sous Windows.
 Docker, WSL, PDAL, GDAL et un logiciel SIG ne sont pas requis. La reconstruction
@@ -12,24 +18,43 @@ présentes dans un dossier `run-*` :
 - `lidar_subset.laz` ;
 - `roofer_output/*.city.jsonl`.
 
-## Emprise
+## Scènes disponibles
 
-- centre : mairie de Val-d’Aigoual, bureau de Valleraugue ;
-- adresse : 1 place Francis Cavalier-Bénézet, 30570 Val-d’Aigoual ;
-- emprise par défaut : 200 × 200 m, soit 40 000 m² ;
-- bbox Lambert-93 : `751256 6331451 751456 6331651` ;
+L’emprise par défaut est celle de `config/poc-200m.conf` : 200 × 200 m, soit 40 000 m²,
+centrés sur la mairie de Val-d’Aigoual — bureau de Valleraugue, 1 place Francis
+Cavalier-Bénézet, 30570 Val-d’Aigoual.
 
-Deux autres emprises sont disponibles, toutes deux centrées sur le même point :
+| Configuration | Titre | Centre WGS84 | Emprise | Maille | Cellules | Dalles LiDAR |
+| --- | --- | --- | --- | --- | --- | --- |
+| `config/poc.conf` | Valleraugue | 44,081089 / 3,641219 | 100 × 100 m | 0,5 m | 68 000 | 1 |
+| `config/poc-200m.conf` | Valleraugue | 44,081089 / 3,641219 | 200 × 200 m | 0,5 m | 212 000 | 1 |
+| `config/poc-600m.conf` | Valleraugue | 44,081089 / 3,641219 | 600 × 600 m | 1,0 m | 397 000 | 1 |
+| `config/notre-dame-rouviere-200m.conf` | Notre-Dame-de-la-Rouvière | 44,048776 / 3,700904 | 200 × 200 m | 0,5 m | 212 000 | 2 |
 
-| Configuration | Emprise | Maille | Cellules |
-| --- | --- | --- | --- |
-| `config/poc.conf` | 100 × 100 m | 0,5 m | 68 000 |
-| `config/poc-200m.conf` | 200 × 200 m | 0,5 m | 212 000 |
-| `config/poc-600m.conf` | 600 × 600 m | 1,0 m | 397 000 |
+Chaque `.conf` porte l’identité de sa scène — `SCENE_TITLE`, `SCENE_SUBTITLE`,
+`SCENE_CENTRE_LABEL` et `SCENE_CENTRE_WGS84` — qui alimente l’en-tête du visualiseur, son
+onglet et le sélecteur. Sans titre, une scène n’y apparaît que par sa taille.
+
+### Ajouter une scène
+
+```powershell
+.\.venv\Scripts\python.exe poc.py scene `
+  --lat 44.048777 --lon 3.700903 --side 200 `
+  --title "Notre-Dame-de-la-Rouvière" `
+  --subtitle "Val-d'Aigoual · IGN LiDAR HD" `
+  --centre-label "Place Auguste Vidal" `
+  --id notre-dame-rouviere-200m --write
+```
+
+Sans `--write`, la commande affiche le plan et n’écrit rien : emprise Lambert-93, maille,
+taille de l’orthophotographie, dalles LiDAR à mettre en cache, volume estimé et commande de
+l’étape amont. `--json` rend le même plan en JSON. La procédure complète, les valeurs par
+défaut et les modes d’échec sont dans
+[`docs/construire-une-scene.md`](docs/construire-une-scene.md).
 
 ## Emprises carrées
 
-Les trois emprises sont carrées, et c'est une contrainte de la chaîne, pas une préférence.
+Toutes les emprises sont carrées, et c'est une contrainte de la chaîne, pas une préférence.
 
 La requête WMS est carrée, et toute la calibration de `poc.py sun` l'est aussi : le masque
 bâti est rastérisé avec une résolution unique, déduite de la seule largeur. Sur une bbox
@@ -132,6 +157,7 @@ l’acquisition LiDAR ni Roofer.
 
 | Commande | Effet |
 | --- | --- |
+| `python poc.py scene` | décrit une nouvelle emprise depuis un point WGS84 et écrit sa configuration |
 | `python poc.py check` | vérifie Python, les modules et les données d’entrée |
 | `python poc.py validate` | valide les artefacts de la dernière exécution |
 | `python poc.py terrain` | produit le terrain depuis le LiDAR sol avec `laspy` et NumPy |
@@ -391,12 +417,23 @@ individuel atteignant plusieurs mètres.
 
 ## Sélecteur de scènes
 
-Le panneau porte un sélecteur d'emprise dès que plusieurs scènes sont disponibles. `poc.py web`
+Le panneau porte un sélecteur de scène dès que plusieurs sont disponibles. `poc.py web`
 les recense dans les configurations de `config/` : pour chacune, l'exécution la plus récente
 portant un `render/scene.glb`. L'exécution préparée vient en tête, les autres sont recopiées
 sous `web/assets/scenes/<configuration>/` — le serveur local ne sert que `web/`, il ne peut donc
 pas atteindre le `render/` d'une autre exécution. Une emprise sans scène assemblée est
 simplement absente, et avec une seule scène le sélecteur se masque.
+
+Chaque entrée s'intitule « *titre* · *côté* m », par exemple
+« Notre-Dame-de-la-Rouvière · 200 m » : le titre distingue les communes, le côté distingue
+deux emprises du même lieu. Une seule dimension suffit, l'emprise étant carrée. Sans
+`SCENE_TITLE`, l'entrée retombe sur « 200 × 200 m » — ce qui était le comportement avant que
+plusieurs communes ne soient modélisées, et devenait indiscernable dès la deuxième.
+
+Changer de scène change aussi le titre de la page, le surtitre de l'en-tête, l'onglet du
+navigateur et l'intitulé du point de vue centré. Ces textes sont appliqués **avant** que le
+GLB ne commence à se charger : la scène pèse une vingtaine de mégaoctets, et laisser le nom
+de la précédente en tête pendant tout ce temps se lirait comme une erreur.
 
 Changer d'emprise décharge la précédente — géométries, matériaux et textures — avant de charger
 la suivante : sans cela, passer du 200 m au 600 m cumulerait 80 Mo de mémoire graphique. Les
@@ -441,7 +478,9 @@ chaque ouverture.
   accordéon replié à la demande — elles sont cinq et on n’y revient pas à chaque ouverture. Une
   couche absente de la scène chargée désactive sa bascule plutôt que de la laisser sans effet ;
 - **POV** aligne sur une seule ligne, à côté de son titre, trois boutons carrés : vue générale,
-  mairie, vue des toitures. Chacun déplace la caméra par interpolation d’environ une
+  point central de la scène — dont l’intitulé vient de `SCENE_CENTRE_LABEL`, le modèle étant
+  recentré sur le milieu de son emprise —, vue des toitures. Chacun déplace la caméra par
+  interpolation d’environ une
   demi-seconde, interrompue dès qu’on reprend la souris — un saut instantané faisait perdre le
   repère, une animation qu’on ne peut pas interrompre est pire encore ;
 - **Informations sur les données** documente sources, dates disponibles, emprise Lambert-93,
@@ -503,9 +542,10 @@ léger.
 .\.venv\Scripts\python.exe -m unittest discover -s test -v
 ```
 
-Les tests couvrent la configuration, le choix de la dernière exécution, la
+Les tests couvrent la configuration, la projection Lambert-93 et le nommage des dalles
+LiDAR, la construction d’une scène depuis un point WGS84, le choix de la dernière exécution, la
 validation des artefacts, la couverture du nuage LiDAR sur l’emprise du terrain,
-le recensement des scènes du sélecteur, la séparation murs/toitures, l’écriture du conteneur
+le recensement et le titrage des scènes du sélecteur, la séparation murs/toitures, l’écriture du conteneur
 GLB, la conversion sRGB des palettes, la tranche du terrain, la détection des
 cimes, la teinte et la silhouette des houppiers, l’ajustement du plan d’eau, la
 fermeture des masques, le maillage des nappes, le facteur de vue du ciel et le

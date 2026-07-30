@@ -679,6 +679,12 @@ function advanceTransition() {
   if (ratio === 1) transition = null;
 }
 
+function setActiveView(id) {
+  for (const button of document.querySelectorAll(".pov")) {
+    button.setAttribute("aria-pressed", String(button.id === id));
+  }
+}
+
 function fitCamera({ immediate = false } = {}) {
   if (!model) return;
   const box = new THREE.Box3().setFromObject(model);
@@ -693,6 +699,7 @@ function fitCamera({ immediate = false } = {}) {
     center,
     { near: Math.max(0.1, distance / 500), far: distance * 20, immediate },
   );
+  setActiveView("viewReset");
 }
 
 // La mairie est le centre de POC_BBOX, sur lequel load_buildings recentre la scène : elle
@@ -890,6 +897,7 @@ function frameBuilding(building) {
   heading.setLength(distance);
   if (heading.y < distance * 0.35) heading.y = distance * 0.35;
   moveCamera(center.clone().add(heading), center);
+  setActiveView(null);
 }
 
 function revealBuilding(building) {
@@ -1033,12 +1041,17 @@ function updateDataInformation(metadata, entry) {
     { list: true, wide: true },
   );
   addDataSection(sections, "Dates", sourceDates, { list: true });
+  // Le centre en WGS84 est ce qui permet de retrouver le site sur n'importe quelle carte :
+  // les coordonnées Lambert-93 seules n'y suffisent pas.
+  const centre = Array.isArray(configuration.centreWgs84) ? configuration.centreWgs84 : null;
   addDataSection(
     sections,
     "Emprise",
     `${width.toFixed(0)} × ${height.toFixed(0)} m en Lambert-93 (EPSG:2154) · ${xmin.toFixed(
       0,
-    )}, ${ymin.toFixed(0)} → ${xmax.toFixed(0)}, ${ymax.toFixed(0)}.`,
+    )}, ${ymin.toFixed(0)} → ${xmax.toFixed(0)}, ${ymax.toFixed(0)}${
+      centre ? ` · centre ${centre[0].toFixed(6)}, ${centre[1].toFixed(6)} en WGS84` : ""
+    }.`,
   );
   addDataSection(
     sections,
@@ -1093,13 +1106,16 @@ function groundHeightAt(x, z) {
   return hit ? hit.point.y : box.min.y;
 }
 
-function focusMairie() {
+// Le GLB est recentré sur le milieu de `POC_BBOX` : l'origine de la scène est le point
+// autour duquel l'emprise a été construite, quel qu'il soit.
+function focusCentre() {
   if (!model) return;
   const ground = groundHeightAt(0, 0);
   moveCamera(new THREE.Vector3(52, ground + 40, 52), new THREE.Vector3(0, ground + 6, 0), {
     near: 0.1,
     far: 3000,
   });
+  setActiveView("viewCentre");
 }
 
 function focusRoofs() {
@@ -1113,6 +1129,7 @@ function focusRoofs() {
     center,
     { near: 0.1, far: distance * 20 },
   );
+  setActiveView("viewRoof");
 }
 
 function setSunHeight(degrees) {
@@ -1176,6 +1193,29 @@ const IMPLICIT_SCENE = {
   metadata: "assets/scene.json",
 };
 
+// Textes de l'en-tête quand la scène n'en porte pas : une exécution préparée avant que
+// `SCENE_TITLE` n'existe ne doit pas afficher un titre vide.
+const DEFAULT_IDENTITY = {
+  title: "Maquette du village",
+  subtitle: "IGN LiDAR HD",
+  centreLabel: "Point central",
+};
+
+// Le titre appartient à la scène, pas à la page : changer d'entrée dans le sélecteur change
+// de commune, et l'onglet du navigateur doit suivre au même titre que l'en-tête.
+function applySceneIdentity(entry) {
+  const title = entry.title || DEFAULT_IDENTITY.title;
+  const subtitle = entry.subtitle || DEFAULT_IDENTITY.subtitle;
+  const centreLabel = entry.centreLabel || DEFAULT_IDENTITY.centreLabel;
+  document.title = entry.title ? `Maquette 3D — ${title}` : title;
+  document.querySelector("#sceneTitle").textContent = title;
+  document.querySelector("#sceneSubtitle").textContent = subtitle;
+  document.querySelector("#viewport").setAttribute("aria-label", `Scène 3D — ${title}`);
+  const centre = document.querySelector("#viewCentre");
+  centre.setAttribute("aria-label", centreLabel);
+  centre.title = centreLabel;
+}
+
 let sceneEntries = [IMPLICIT_SCENE];
 // Deux chargements peuvent se chevaucher si l'on change d'emprise avant la fin du précédent :
 // seul le dernier demandé a le droit d'entrer dans la scène.
@@ -1236,12 +1276,6 @@ function adopt(entry, metadata, gltf) {
   const relief = metadata.maxElevation - metadata.minElevation;
   document.querySelector("#elevationRange").textContent =
     `${relief.toFixed(1).replace(".", ",")} m`;
-  document.querySelector("#sceneSource").textContent = [
-    entry.run,
-    metadata.terrainResolutionM ? `maille ${metadata.terrainResolutionM} m` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
   // Position solaire retrouvée sur les ombres de l'orthophotographie par `poc.py sun`.
   orthoSun = metadata.orthoSun ?? null;
 
@@ -1324,6 +1358,9 @@ async function loadScene(entry) {
   const token = ++loadToken;
   const select = document.querySelector("#sceneSelect");
   select.disabled = true;
+  // Avant le chargement et non après : la scène demandée pèse une vingtaine de mégaoctets, et
+  // laisser le nom de la précédente en tête pendant tout ce temps se lit comme une erreur.
+  applySceneIdentity(entry);
   setStatus("loading", `Chargement de ${entry.label}…`);
   setBusy(true);
   errorBox.hidden = true;
@@ -1581,7 +1618,7 @@ document.querySelector("#viewReset").addEventListener("click", () => {
   clearBuildingSelection();
   fitCamera();
 });
-document.querySelector("#viewMairie").addEventListener("click", focusMairie);
+document.querySelector("#viewCentre").addEventListener("click", focusCentre);
 document.querySelector("#viewRoof").addEventListener("click", focusRoofs);
 document.querySelector("#grazingLight").addEventListener("click", () => setSunHeight(12));
 document.querySelector("#buildingClose").addEventListener("click", clearBuildingSelection);
@@ -1638,6 +1675,7 @@ renderer.domElement.addEventListener("pointerleave", () => {
 // interrompre est plus déroutante qu'un saut.
 controls.addEventListener("start", () => {
   transition = null;
+  setActiveView(null);
 });
 
 function updateHover() {

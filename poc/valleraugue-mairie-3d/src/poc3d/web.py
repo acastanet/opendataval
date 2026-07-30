@@ -60,6 +60,20 @@ ALTERNATE_SCENES_DIR = "scenes"
 SCENE_FILES = ("scene.glb", "scene.json", "buildings.json")
 
 
+class ViewerRequestHandler(SimpleHTTPRequestHandler):
+    """Empêche le navigateur de mélanger deux versions de l'interface.
+
+    Les scènes et les dépendances Three.js restent en cache : seuls les trois petits fichiers
+    recopiés à chaque `poc.py web` doivent toujours être relus.
+    """
+
+    def end_headers(self) -> None:
+        path = self.path.partition("?")[0]
+        if path in ("/", "/index.html", "/app.js", "/styles.css"):
+            self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+
 @dataclass(frozen=True)
 class SceneEntry:
     """Une scène proposable au sélecteur du visualiseur."""
@@ -70,9 +84,12 @@ class SceneEntry:
     render_dir: Path
     prefix: str
     configuration: dict[str, object]
+    title: str = ""
+    subtitle: str = ""
+    centre_label: str = ""
 
     def as_manifest(self) -> dict[str, object]:
-        return {
+        manifest: dict[str, object] = {
             "id": self.identifier,
             "label": self.label,
             "run": self.run,
@@ -80,11 +97,51 @@ class SceneEntry:
             "metadata": f"{self.prefix}/scene.json",
             "configuration": self.configuration,
         }
+        # Les scènes sans identité renseignée restent servies telles quelles : le visualiseur
+        # garde ses textes par défaut plutôt que d'afficher une chaîne vide en titre.
+        for key, value in (
+            ("title", self.title),
+            ("subtitle", self.subtitle),
+            ("centreLabel", self.centre_label),
+        ):
+            if value:
+                manifest[key] = value
+        return manifest
+
+
+def _scene_size(config: PocConfig) -> str:
+    width, height = config.expected_size
+    return f"{width:g} × {height:g} m"
 
 
 def _scene_label(config: PocConfig) -> str:
-    width, height = config.expected_size
-    return f"{width:g} × {height:g} m"
+    """Texte de l'option dans le sélecteur.
+
+    La taille seule ne suffit plus dès que deux sites sont modélisés : « 200 × 200 m » ne
+    dit pas lequel. Le titre passe donc devant, la taille reste derrière — c'est elle qui
+    distingue deux emprises du même lieu.
+
+    Derrière un titre, la taille est réduite à un seul côté : l'emprise est carrée par
+    construction, et « Notre-Dame-de-la-Rouvière · 200 × 200 m » débordait de la largeur du
+    panneau en tronquant précisément la partie qui distingue les emprises.
+    """
+    width, _ = config.expected_size
+    title = config.scene_title
+    return f"{title} · {width:g} m" if title else _scene_size(config)
+
+
+def _scene_entry(config: PocConfig, identifier: str, run: str, render_dir: Path, prefix: str) -> SceneEntry:
+    return SceneEntry(
+        identifier=identifier,
+        label=_scene_label(config),
+        run=run,
+        render_dir=render_dir,
+        prefix=prefix,
+        configuration=_viewer_configuration(config),
+        title=config.scene_title,
+        subtitle=config.scene_subtitle,
+        centre_label=config.scene_centre_label,
+    )
 
 
 def _viewer_configuration(config: PocConfig) -> dict[str, object]:
@@ -101,6 +158,9 @@ def _viewer_configuration(config: PocConfig) -> dict[str, object]:
     orthophoto_date = config.get("ORTHO_DATE", "").strip()
     if orthophoto_date:
         details["orthophotoDate"] = orthophoto_date
+    centre = config.scene_centre_wgs84
+    if centre is not None:
+        details["centreWgs84"] = list(centre)
     return details
 
 
@@ -131,13 +191,12 @@ def available_scenes(config: PocConfig, run_dir: Path) -> list[SceneEntry]:
     sélecteur se masque.
     """
     entries = [
-        SceneEntry(
+        _scene_entry(
+            config,
             identifier=config.source.stem,
-            label=_scene_label(config),
             run=run_dir.name,
             render_dir=run_dir / "render",
             prefix="assets",
-            configuration=_viewer_configuration(config),
         )
     ]
     seen = {(run_dir / "render").resolve()}
@@ -159,13 +218,12 @@ def available_scenes(config: PocConfig, run_dir: Path) -> list[SceneEntry]:
         seen.add(render_dir)
         claimed.add(identifier)
         entries.append(
-            SceneEntry(
+            _scene_entry(
+                other,
                 identifier=identifier,
-                label=_scene_label(other),
                 run=other_run.name,
                 render_dir=render_dir,
                 prefix=f"assets/{ALTERNATE_SCENES_DIR}/{identifier}",
-                configuration=_viewer_configuration(other),
             )
         )
     return entries
@@ -259,7 +317,7 @@ def serve_viewer(
     web_dir = run_dir / "web"
     if not (web_dir / "index.html").is_file():
         raise FileNotFoundError("Exécuter d'abord la commande web")
-    handler = partial(SimpleHTTPRequestHandler, directory=str(web_dir))
+    handler = partial(ViewerRequestHandler, directory=str(web_dir))
     server = ThreadingHTTPServer(("127.0.0.1", port), handler)
     url = f"http://127.0.0.1:{port}/"
     print(f"Visualiseur disponible sur {url}")

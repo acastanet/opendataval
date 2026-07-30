@@ -91,6 +91,45 @@ class PocConfig:
         return value.resolve() if value.is_absolute() else (self.root / value).resolve()
 
     @property
+    def scene_title(self) -> str:
+        """Nom du lieu représenté, tel qu'il s'affiche en tête du visualiseur.
+
+        Vide par défaut : le sélecteur retombe alors sur la taille de l'emprise, ce qui
+        suffisait tant qu'une seule commune était modélisée. Deux sites différents à 200 m
+        donneraient en revanche deux entrées « 200 × 200 m » indiscernables.
+        """
+        return self.get("SCENE_TITLE", "").strip()
+
+    @property
+    def scene_subtitle(self) -> str:
+        return self.get("SCENE_SUBTITLE", "").strip()
+
+    @property
+    def scene_centre_label(self) -> str:
+        """Libellé du point de vue centré sur l'origine de la scène.
+
+        La scène est recentrée sur le milieu de `POC_BBOX` : ce bouton vise toujours (0, 0),
+        seul son intitulé change d'un site à l'autre.
+        """
+        return self.get("SCENE_CENTRE_LABEL", "").strip()
+
+    @property
+    def scene_centre_wgs84(self) -> tuple[float, float] | None:
+        """Point de référence saisi à la création, en latitude puis longitude.
+
+        Documentaire : le pipeline travaille en Lambert-93 et ne s'en sert pas. Il permet de
+        retrouver le point sur une carte sans reprojeter l'emprise.
+        """
+        value = self.get("SCENE_CENTRE_WGS84", "").strip()
+        if not value:
+            return None
+        parts = value.replace(",", " ").split()
+        if len(parts) != 2:
+            raise ValueError("SCENE_CENTRE_WGS84 doit contenir une latitude et une longitude")
+        latitude, longitude = map(float, parts)
+        return latitude, longitude
+
+    @property
     def expected_size(self) -> tuple[float, float]:
         return (
             self.get_float("EXPECTED_WIDTH_M", 100.0),
@@ -110,6 +149,7 @@ class PocConfig:
         if self.get_float("TERRAIN_RESOLUTION_M", 1.0) <= 0:
             raise ValueError("TERRAIN_RESOLUTION_M doit être supérieur à zéro")
         self.terrain_margin
+        self.scene_centre_wgs84
 
 
 def latest_run(config: PocConfig, require_complete: bool = False) -> Path:

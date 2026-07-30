@@ -96,8 +96,12 @@ clone impose de le reprendre. Sans dalle en cache, l'exécution retombe sur les 
 plage — c'est-à-dire sur le blocage décrit plus haut dès que l'emprise dépasse quelques
 hectares.
 
-Les trois emprises du POC tiennent dans la seule dalle `LHD_FXX_0751_6332` (X 751000–752000,
-Y 6331000–6332000).
+Les trois emprises de Valleraugue tiennent dans la seule dalle `LHD_FXX_0751_6332`
+(X 751000–752000, Y 6331000–6332000). Ce n'est pas la règle : celle de
+Notre-Dame-de-la-Rouvière en franchit une par le nord et en demande deux,
+`LHD_FXX_0756_6328` et `LHD_FXX_0756_6329`, soit 600 Mo. Quinze mètres de marge suffisent à
+faire basculer une emprise d'une dalle à deux — `poc.py scene` les liste dans son plan, et
+c'est ce qu'il faut lire avant de lancer un téléchargement.
 
 ## Lancer une exécution
 
@@ -131,6 +135,10 @@ correctement de lui-même.
 | `config/poc.conf` | 100 m | `751306 6331501 751406 6331601` | `output` |
 | `config/poc-200m.conf` | 200 m | `751256 6331451 751456 6331651` | `output-200m` |
 | `config/poc-600m.conf` | 600 m | `751056 6331251 751656 6331851` | `output-600m` |
+| `config/notre-dame-rouviere-200m.conf` | 200 m | `756068 6327902 756268 6328102` | `output-notre-dame-rouviere-200m` |
+
+Cette table n'a pas à être tenue à jour à la main pour une nouvelle emprise :
+`poc.py scene` rend la commande complète, `--bbox` et `--out` compris, dans son plan.
 
 `--jobs` vaut par défaut le nombre de cœurs moins un. Chaque exécution écrit dans un
 sous-dossier horodaté et ne touche jamais les précédentes ; `--clean` efface les exécutions

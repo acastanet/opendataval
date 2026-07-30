@@ -36,6 +36,51 @@ class ConfigTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Emprise attendue"):
                 config.validate()
 
+    def test_lit_l_identite_de_la_scene(self) -> None:
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / "poc.conf"
+            source.write_text(
+                'SCENE_TITLE="Notre-Dame-de-la-Rouvière"\n'
+                'SCENE_SUBTITLE="Val-d\'Aigoual · IGN LiDAR HD"\n'
+                'SCENE_CENTRE_LABEL="Place Auguste Vidal"\n'
+                'SCENE_CENTRE_WGS84="44.048776 3.700904"\n',
+                encoding="utf-8",
+            )
+            config = PocConfig.load(Path(directory), source)
+            self.assertEqual(config.scene_title, "Notre-Dame-de-la-Rouvière")
+            self.assertEqual(config.scene_centre_label, "Place Auguste Vidal")
+            self.assertEqual(config.scene_centre_wgs84, (44.048776, 3.700904))
+
+    def test_refuse_un_centre_mal_forme(self) -> None:
+        """Le centre n'est que documentaire, mais un couple incomplet trahit une saisie
+        interrompue : mieux vaut le dire à la validation qu'au moment de le relire."""
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / "poc.conf"
+            source.write_text(
+                'POC_BBOX="0 0 100 100"\nEXPECTED_WIDTH_M=100\nEXPECTED_HEIGHT_M=100\n'
+                'SCENE_CENTRE_WGS84="44.048776"\n',
+                encoding="utf-8",
+            )
+            config = PocConfig.load(Path(directory), source)
+            with self.assertRaisesRegex(ValueError, "SCENE_CENTRE_WGS84"):
+                config.validate()
+
+    def test_toutes_les_configurations_versionnees_portent_un_titre(self) -> None:
+        """Sans titre, une scène n'apparaît dans le sélecteur que par sa taille — et deux
+        communes modélisées au même format y deviennent indiscernables."""
+        for source in sorted((ROOT / "config").glob("*.conf")):
+            with self.subTest(configuration=source.name):
+                config = PocConfig.load(ROOT, source)
+                config.validate()
+                self.assertTrue(config.scene_title, f"{source.name} sans SCENE_TITLE")
+                example = source.with_suffix(".conf.example")
+                self.assertTrue(example.is_file(), f"{source.name} sans .example")
+                self.assertEqual(
+                    source.read_text(encoding="utf-8"),
+                    example.read_text(encoding="utf-8"),
+                    f"{source.name} a divergé de son .example",
+                )
+
     def test_selectionne_la_derniere_execution_complete(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)

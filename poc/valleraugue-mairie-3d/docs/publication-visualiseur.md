@@ -7,16 +7,23 @@ Caddy d'OpenDataVdA. Le périmètre est le site web et lui seul : le visualiseur
 statique déjà produit par `poc.py web`, et la publication consiste à le servir, pas à le
 recalculer.
 
+Le **transfert** du dossier vers le serveur est traité à part, dans
+[`publication-tailscale.md`](publication-tailscale.md) : ce document-ci s'arrête à ce qu'il
+faut produire et à la façon de le servir.
+
 **Hors périmètre, à ne pas toucher :**
 
 - la chaîne d'enrichissement Python (`src/poc3d/`, `poc.py`) et ses tests — le dossier à
   publier est une **sortie** de cette chaîne ;
 - l'étape amont LiDAR + Roofer ([`lidar-roofer.md`](lidar-roofer.md)) ;
+- la construction d'une nouvelle scène ([`construire-une-scene.md`](construire-une-scene.md)) ;
 - les autres routes du [`Caddyfile`](../../../Caddyfile) et les services du
   [`docker-compose.yml`](../../../docker-compose.yml).
 
-Deux modifications du visualiseur lui-même sont en revanche **exigées avant la mise en ligne** :
-la mention de licence (§ 6) est une obligation de réutilisation, pas une finition.
+Les sections 1 à 5 décrivent une **première mise en ligne**. Pour une publication déjà en
+place — nouvelle scène, correction du visualiseur, scène régénérée — aller directement au
+**§ 8, mettre à jour une publication existante** : la plupart des étapes n'ont pas à être
+refaites, et refaire les mauvaises casse la route.
 
 ## 1. Ce qui est publié
 
@@ -36,18 +43,29 @@ web/
 │   ├── scene.glb         23 Mo   ← emprise 200 m, scène chargée par défaut
 │   ├── scene.json                  métadonnées de traçabilité
 │   ├── buildings.json   357 Ko     attributs BD TOPO par bâtiment
-│   ├── scenes.json                 manifeste du sélecteur d'emprise
-│   └── scenes/poc-600m/
-│       ├── scene.glb   57,5 Mo   ← emprise 600 m
-│       ├── scene.json
-│       └── buildings.json 979 Ko
+│   ├── scenes.json                 manifeste du sélecteur de scènes
+│   └── scenes/
+│       ├── poc-600m/
+│       │   ├── scene.glb   57,5 Mo   ← Valleraugue, emprise 600 m
+│       │   ├── scene.json
+│       │   └── buildings.json 979 Ko
+│       └── notre-dame-rouviere-200m/
+│           ├── scene.glb   18,7 Mo   ← Notre-Dame-de-la-Rouvière, emprise 200 m
+│           ├── scene.json
+│           └── buildings.json
 └── vendor/               2,3 Mo    Three.js 0.178.0 + addons (MIT)
 ```
 
-Total mesuré : **81 Mo**. Décision retenue pour cette publication : **les deux emprises**, la
-200 m en scène par défaut. L'ordre n'est pas cosmétique — la première scène du manifeste est
-celle que le navigateur télécharge au chargement, et 23 Mo contre 57,5 Mo change l'expérience
-du premier visiteur. La 600 m ne part que si l'on la choisit dans le sélecteur.
+Total mesuré : **81 Mo** pour les deux emprises de Valleraugue, auxquelles s'ajoutent
+18,7 Mo depuis que la scène 200 m de Notre-Dame-de-la-Rouvière existe. Décision retenue :
+**toutes les scènes assemblées**, une emprise 200 m en scène par défaut. L'ordre n'est pas
+cosmétique — la première scène du manifeste est celle que le navigateur télécharge au
+chargement, et 23 Mo contre 57,5 Mo change l'expérience du premier visiteur. Les autres ne
+partent que si on les choisit dans le sélecteur.
+
+Le décompte ci-dessus est celui d'un état donné : `poc.py web` publie **toute** scène dont la
+configuration porte un `render/scene.glb`, et le total croît d'une vingtaine de mégaoctets par
+scène 200 m ajoutée. Le vérifier avant chaque mise en ligne.
 
 Le seul état conservé côté client est un `localStorage` de réglages d'affichage. Aucun cookie,
 aucune mesure d'audience, aucune donnée personnelle : `buildings.json` ne porte que des
@@ -61,9 +79,9 @@ Depuis `poc/valleraugue-mairie-3d`, avec le `.venv` du POC :
 .\.venv\Scripts\python.exe poc.py --config config\poc-200m.conf web
 ```
 
-La configuration passée détermine la scène par défaut : `poc-200m.conf` place la 200 m en
-première entrée et la 600 m en seconde. Ne pas préparer depuis `poc-600m.conf`, qui inverserait
-les deux.
+La configuration passée détermine la scène par défaut : elle est la première entrée du
+manifeste, donc celle que le navigateur télécharge au chargement. Préparer depuis une emprise
+200 m. Ne pas préparer depuis `poc-600m.conf`, qui imposerait 57,5 Mo au premier visiteur.
 
 **Cette étape n'est pas facultative.** Les dossiers `web/` présents sur le poste peuvent
 précéder les dernières modifications du visualiseur : au 30 juillet 2026,
@@ -73,10 +91,11 @@ le signale.
 
 Contrôles à passer avant d'aller plus loin :
 
-1. `assets/scenes.json` contient **deux** entrées, la 200 m d'abord ;
+1. `assets/scenes.json` contient une entrée par scène assemblée, une 200 m d'abord ;
 2. `index.html`, `app.js` et `styles.css` du dossier `web/` sont identiques à ceux de
    `viewer/` (comparer les tailles ou les empreintes) ;
-3. les quatre `scene.glb` / `scene.json` référencés par le manifeste existent bien.
+3. tous les `scene.glb` / `scene.json` référencés par le manifeste existent bien ;
+4. chaque entrée porte un `title` — sans lui, deux scènes de même taille sont indiscernables.
 
 ## 3. Figer un chemin de déploiement stable
 
@@ -89,9 +108,9 @@ Remove-Item -Recurse -Force .\publication -ErrorAction SilentlyContinue
 Copy-Item -Recurse $source .\publication
 ```
 
-Ajouter `publication/` au [`.gitignore`](../.gitignore) du POC. Les GLB **ne sont jamais
-versionnés** : 81 Mo par publication dans l'historique Git, pour un artefact reproductible en
-une commande, ne se justifie pas. Git LFS n'est pas une solution de repli ici.
+`publication/` est déjà exclu par le [`.gitignore`](../.gitignore) du POC. Les GLB **ne sont
+jamais versionnés** : 81 Mo par publication dans l'historique Git, pour un artefact
+reproductible en une commande, ne se justifie pas. Git LFS n'est pas une solution de repli ici.
 
 ### Précompression
 
@@ -188,23 +207,26 @@ Ce point vaut d'être corrigé indépendamment de la publication : `poc/vallerau
 pèse **1,0 Go** aujourd'hui et rien ne l'exclut du contexte envoyé au démon Docker à chaque
 `docker compose build caddy`.
 
-## 6. Mention de licence — obligatoire avant mise en ligne
+## 6. Mention de licence — en place, à préserver
 
-Le dialogue « Informations sur les données » détaille les sources IGN, les dates, l'emprise, la
-méthode et les limites du modèle, mais **ne mentionne aucune licence**. En publication interne
-c'était sans conséquence ; en ligne, la Licence Ouverte 2.0 sous laquelle l'IGN diffuse ces
-données impose la mention de paternité.
+La Licence Ouverte 2.0 sous laquelle l'IGN diffuse ces données impose la mention de paternité.
+Elle est **déjà servie** : le dialogue « Informations sur les données » porte une section
+« Licence et attribution », construite par `addDataSection` dans `viewer/app.js`.
 
-À ajouter dans `viewer/app.js`, comme section supplémentaire du dialogue (suivre le style des
-appels à `addDataSection`, et non un bloc HTML ad hoc dans `index.html`) :
+Ce qu'elle annonce, et qui ne doit pas disparaître d'une refonte du dialogue :
 
-- **Données** : « LiDAR HD, BD TOPO® et ORTHOPHOTOS® — © IGN, sous Licence Ouverte 2.0
-  (Etalab). Réutilisation libre sous réserve de mention de la source. »
-- **Logiciels** : Three.js 0.178.0 et Roofer, avec leurs licences respectives. Les fichiers de
-  `vendor/` sont servis intacts, en-têtes de licence compris : ne pas les minifier.
+- **Données** : LiDAR HD, BD TOPO® et ORTHOPHOTOS® — © IGN, Licence Ouverte 2.0 (Etalab),
+  réutilisation libre sous réserve de mentionner la source et sa date de mise à jour ;
+- **Reconstruction** : Roofer, 3D Geoinformation, TU Delft ;
+- **Affichage** : Three.js, licence MIT. La révision est **lue dans la bibliothèque**
+  (`THREE.REVISION`) et non recopiée : la version annoncée est celle que `poc.py web` a
+  téléchargée, pas celle qu'un littéral aurait figée.
 
-Reprendre la préparation du § 2 après cette modification — le dossier `web/` embarque une copie
-d'`app.js`, pas un lien vers lui.
+Les fichiers de `vendor/` sont servis intacts, en-têtes de licence compris : ne pas les
+minifier.
+
+Toute modification d'`app.js` impose de reprendre la préparation du § 2 — le dossier `web/`
+embarque une **copie** d'`app.js`, pas un lien vers lui.
 
 ## 7. Recette
 
@@ -215,18 +237,77 @@ Après `docker compose up -d caddy`, sur le port publié (`8080` en local) :
 | `curl -I http://localhost:8080/valleraugue-3d` | `308` vers `/valleraugue-3d/` |
 | `curl -I http://localhost:8080/valleraugue-3d/` | `200`, `text/html` |
 | `curl -sI -H 'Accept-Encoding: gzip' .../assets/scene.glb` | `Content-Encoding: gzip`, `Content-Type: model/gltf-binary` |
-| `curl -I .../assets/scenes.json` | `200`, deux entrées dans le corps |
+| `curl -I .../assets/scenes.json` | `200`, autant d'entrées que de scènes publiées |
 | Navigateur, console ouverte | scène 200 m chargée, **aucune** erreur CSP ni 404 |
-| Sélecteur d'emprise | bascule vers la 600 m et retour, sans erreur |
+| Sélecteur de scènes | bascule vers chaque autre scène et retour, sans erreur ; le titre de l'en-tête et l'onglet suivent |
 | Dialogue « Informations sur les données » | section licence présente |
 | `curl -I .../assets/../index.html` | pas d'évasion hors de `/srv/valleraugue-3d` |
 
-Rendre compte de la publication en indiquant l'URL servie, le run publié (`run-AAAAMMJJ-HHMMSS`)
-et le volume monté, puis proposer le commit des seules modifications versionnées :
-`Caddyfile`, `docker-compose.yml`, `.dockerignore`, `.gitignore`, `viewer/app.js` et ce
-document. Le contenu de `publication/` ne fait pas partie du commit.
+Rendre compte de la publication en indiquant l'URL servie, les scènes publiées avec leur run
+(`run-AAAAMMJJ-HHMMSS`) et le volume monté, puis proposer le commit des seules modifications
+versionnées : `Caddyfile`, `docker-compose.yml`, `.dockerignore` et ce document. Le contenu de
+`publication/` ne fait **jamais** partie du commit.
 
-## 8. Interdits
+### État au 30 juillet 2026
+
+| Élément | État |
+| --- | --- |
+| Mention de licence dans le dialogue (§ 6) | **en place** |
+| `publication/` dans le `.gitignore` du POC (§ 3) | **en place** |
+| Route `/valleraugue-3d` dans le `Caddyfile` (§ 4) | à ajouter |
+| Volume dans le `docker-compose.yml` (§ 5) | à ajouter |
+| Entrées `poc/**` dans le `.dockerignore` (§ 5) | à ajouter |
+| Scènes assemblées | Valleraugue 200 m et 600 m, Notre-Dame-de-la-Rouvière 200 m |
+
+Le visualiseur n'a donc **jamais encore été mis en ligne** : les trois lignes manquantes sont
+ce qui reste à faire pour une première publication.
+
+## 8. Mettre à jour une publication existante
+
+La route Caddy, le volume monté et le `.dockerignore` sont posés une fois pour toutes. Une
+mise à jour ne rejoue que ce que le changement impose.
+
+| Ce qui a changé | Étapes à rejouer |
+| --- | --- |
+| Le visualiseur (`viewer/index.html`, `app.js`, `styles.css`) | § 2 → § 3 → transfert → § 7 |
+| Une scène existante réassemblée (`poc.py all`) | § 2 → § 3 → transfert → § 7 |
+| **Une scène ajoutée** (`poc.py scene` puis étape amont puis `poc.py all`) | § 2 → § 3 → transfert → § 7, en contrôlant le volume total et l'ordre du manifeste |
+| Le `Caddyfile` ou le `docker-compose.yml` | `docker compose up -d caddy`, puis § 7 |
+| Rien du tout, seulement les données amont | rien : le GLB publié ne change pas tant qu'il n'est pas réassemblé |
+
+Le **transfert** vers le serveur est décrit dans
+[`publication-tailscale.md`](publication-tailscale.md). En local, `docker compose up -d caddy`
+suffit puisque le volume pointe directement sur `publication/`.
+
+### Ajouter une scène au menu en ligne
+
+Une scène apparaît dans le sélecteur du seul fait que sa configuration existe et que son
+`OUTPUT_DIR` porte un `render/scene.glb`. Rien à déclarer ni côté Caddy, ni côté JavaScript.
+La séquence complète, depuis un point sur une carte, est dans
+[`construire-une-scene.md`](construire-une-scene.md) ; côté publication, trois points seulement :
+
+1. **Régénérer le dossier depuis une emprise 200 m** (§ 2). La configuration passée à
+   `poc.py web` devient la première entrée du manifeste, donc la scène que tout visiteur
+   télécharge à l'ouverture. Préparer depuis la nouvelle scène si on veut la mettre en avant,
+   depuis l'ancienne sinon — mais jamais depuis une 600 m.
+2. **Vérifier le volume.** Chaque scène 200 m ajoute une vingtaine de mégaoctets au dossier
+   publié, et autant à transférer. `du -sh publication` avant d'envoyer.
+3. **Vérifier les titres.** Chaque entrée de `assets/scenes.json` doit porter un `title` :
+   sans lui, deux scènes de même taille sont indiscernables dans le menu. Le titre vient de
+   `SCENE_TITLE` dans le `.conf` de la scène.
+
+### Ce qu'il ne faut pas refaire
+
+- **Ne pas remonter le volume ni retoucher le `Caddyfile`** pour une simple mise à jour de
+  contenu : le chemin `publication/` est stable précisément pour ça.
+- **Ne pas transférer un `web/` qu'on n'a pas régénéré soi-même** à l'étape § 2. C'est le
+  piège le plus coûteux du lot : un `web/` datant d'une exécution précédente remet en ligne
+  une ancienne interface, avec un `scenes.json` amputé des scènes ajoutées depuis, et **rien
+  ne le signale**.
+- **Ne pas effacer `publication/` sur le serveur** avant d'avoir reçu le remplaçant en entier :
+  la bascule se fait fichier par fichier, dossier d'attente à l'appui.
+
+## 9. Interdits
 
 - Aucune ressource externe : pas de CDN, pas de police distante, pas de mesure d'audience, pas
   de carte de fond en ligne. L'autonomie du dossier est ce qui rend la CSP tenable.
