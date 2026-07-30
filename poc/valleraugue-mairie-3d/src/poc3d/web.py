@@ -28,29 +28,15 @@ VENDOR_FILES = {
     "addons/environments/RoomEnvironment.js": (
         f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/examples/jsm/environments/RoomEnvironment.js"
     ),
-    "addons/objects/Sky.js": (
-        f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/examples/jsm/objects/Sky.js"
+    "addons/csm/CSM.js": (
+        f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/examples/jsm/csm/CSM.js"
     ),
-    # Chaîne de post-traitement de l'occlusion ambiante, active uniquement en rendu réaliste.
-    **{
-        f"addons/{relative}": (
-            f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/examples/jsm/{relative}"
-        )
-        for relative in (
-            "postprocessing/EffectComposer.js",
-            "postprocessing/Pass.js",
-            "postprocessing/RenderPass.js",
-            "postprocessing/ShaderPass.js",
-            "postprocessing/MaskPass.js",
-            "postprocessing/OutputPass.js",
-            "postprocessing/GTAOPass.js",
-            "shaders/CopyShader.js",
-            "shaders/OutputShader.js",
-            "shaders/GTAOShader.js",
-            "shaders/PoissonDenoiseShader.js",
-            "math/SimplexNoise.js",
-        )
-    },
+    "addons/csm/CSMFrustum.js": (
+        f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/examples/jsm/csm/CSMFrustum.js"
+    ),
+    "addons/csm/CSMShader.js": (
+        f"https://cdn.jsdelivr.net/npm/three@{THREE_VERSION}/examples/jsm/csm/CSMShader.js"
+    ),
 }
 
 
@@ -260,7 +246,7 @@ def prepare_viewer(config: PocConfig, run_dir: Path | None = None) -> Path:
     web_dir = run_dir / "web"
     assets_dir = web_dir / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
-    for name in ("index.html", "app.js", "styles.css"):
+    for name in ("index.html", "app.js", "styles.css", "favicon.svg"):
         shutil.copy2(viewer_source / name, web_dir / name)
     shutil.copy2(scene_glb, assets_dir / "scene.glb")
     shutil.copy2(scene_json, assets_dir / "scene.json")

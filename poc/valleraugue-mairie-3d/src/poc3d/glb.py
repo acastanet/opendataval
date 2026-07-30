@@ -38,11 +38,10 @@ def _srgb(hexadecimal: str, alpha: float = 1.0) -> tuple[float, float, float, fl
     return (red, green, blue, alpha)
 
 
-# Une teinte unique pour tous les murs et une autre pour toutes les toitures aplatissaient
-# le bâti : la légère variation ci-dessous redonne de la lecture aux volumes voisins.
-WALL_COLORS = tuple(
-    _srgb(tint) for tint in ("#D8CFBE", "#CEC3AE", "#E0D9CA", "#C6BCA9", "#D2C7B2")
-)
+# Une teinte unique pour tous les murs aplatissait le bâti. Les façades restent en aplat,
+# sans texture, mais leur légère nuance est désormais pilotée par le code BD TOPO
+# ``materiaux_des_murs`` plutôt que par l'identifiant arbitraire du bâtiment.
+WALL_BASE_SRGB = (211, 201, 183)
 ROOF_COLORS = tuple(
     _srgb(tint) for tint in ("#A85B3C", "#9C5236", "#B36641", "#94513E", "#AD5F30")
 )
@@ -57,6 +56,32 @@ def _palette_index(name: str, size: int) -> int:
     return zlib.crc32(name.encode("utf-8")) % size
 
 
+def _facade_code(attributes: dict[str, object]) -> str | None:
+    """Normalise le code façade BD TOPO porté par un bâtiment."""
+    value = attributes.get("materiaux_des_murs")
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple)):
+        parts = [str(part).strip() for part in value if str(part).strip()]
+        return ",".join(parts) or None
+    code = str(value).strip()
+    return code or None
+
+
+def _wall_color(code: str | None) -> tuple[float, float, float, float]:
+    """Produit une nuance minérale discrète, stable et exclusivement liée au code."""
+    if code is None:
+        red, green, blue = WALL_BASE_SRGB
+    else:
+        checksum = zlib.crc32(code.encode("utf-8"))
+        offsets = tuple(((checksum >> shift) & 0xFF) % 11 - 5 for shift in (0, 8, 16))
+        red, green, blue = (
+            max(0, min(255, channel + offset))
+            for channel, offset in zip(WALL_BASE_SRGB, offsets)
+        )
+    return _srgb(f"#{red:02X}{green:02X}{blue:02X}")
+
+
 # Le feuillage tient en un seul groupe : sa couleur vient de COLOR_0, pas du matériau.
 FOLIAGE_GROUP = 0
 TRUNK_GROUP = 1
@@ -69,7 +94,9 @@ SKIRT_COLOR = _srgb("#8C8377")
 # L'eau doit d'abord se lire comme de l'eau : un bleu clair la sépare du terrain plus
 # sûrement que sa seule rugosité, qui ne se voit qu'au soleil rasant. La teinte reste tirée
 # vers le vert, en rivière et non en mer.
-WATER_COLOR = _srgb("#6396B8")
+# L'eau laisse lire l'orthophotographie sous sa géométrie : la teinte gris-bleu signale la
+# nappe sans devenir le premier plan de l'image.
+WATER_COLOR = _srgb("#78939D", 0.58)
 # Béton et pierre du tablier, plus froid que les enduits de façade pour s'en distinguer.
 BRIDGE_COLOR = _srgb("#9A968E")
 
@@ -165,6 +192,8 @@ class GlbBuilder:
         *,
         roughness: float = 0.85,
         texture: int | None = None,
+        alpha_mode: str | None = None,
+        alpha_cutoff: float = 0.5,
         double_sided: bool = True,
     ) -> int:
         pbr: dict = {
@@ -174,24 +203,32 @@ class GlbBuilder:
         }
         if texture is not None:
             pbr["baseColorTexture"] = {"index": texture}
-        self.materials.append(
-            {"name": name, "pbrMetallicRoughness": pbr, "doubleSided": double_sided}
-        )
+        material = {"name": name, "pbrMetallicRoughness": pbr, "doubleSided": double_sided}
+        if alpha_mode:
+            material["alphaMode"] = alpha_mode
+            if alpha_mode == "MASK":
+                material["alphaCutoff"] = alpha_cutoff
+        self.materials.append(material)
         return len(self.materials) - 1
 
-    def add_texture(self, image_data: bytes, mime_type: str = "image/jpeg") -> int:
+    def add_texture(
+        self, image_data: bytes, mime_type: str = "image/jpeg", *, repeat: bool = False
+    ) -> int:
         image_view = self._view(image_data)
         self.images.append({"bufferView": image_view, "mimeType": mime_type})
-        if not self.samplers:
-            self.samplers.append(
-                {
-                    "magFilter": 9729,
-                    "minFilter": 9987,
-                    "wrapS": 33071,
-                    "wrapT": 33071,
-                }
-            )
-        self.textures.append({"sampler": 0, "source": len(self.images) - 1})
+        wrap = 10497 if repeat else 33071
+        sampler = {
+            "magFilter": 9729,
+            "minFilter": 9987,
+            "wrapS": wrap,
+            "wrapT": wrap,
+        }
+        try:
+            sampler_index = self.samplers.index(sampler)
+        except ValueError:
+            self.samplers.append(sampler)
+            sampler_index = len(self.samplers) - 1
+        self.textures.append({"sampler": sampler_index, "source": len(self.images) - 1})
         return len(self.textures) - 1
 
     def primitive(
@@ -679,6 +716,76 @@ def _skirt_depth(
     return min(maximum, max(minimum, floor - ground + minimum))
 
 
+def _lod1_height(
+    attributes: dict[str, object],
+    base_y: float,
+    vertices: list[tuple[float, float, float]],
+) -> tuple[float, str]:
+    """Retient une hauteur explicite, puis l'enveloppe Roofer comme dernier repli."""
+    try:
+        measured = float(attributes.get("hauteur", 0))
+    except (TypeError, ValueError):
+        measured = 0.0
+    if math.isfinite(measured) and measured > 0:
+        return measured, "hauteur"
+    envelope = max((vertex[1] for vertex in vertices), default=base_y) - base_y
+    return max(1.0, envelope), "enveloppe_roofer"
+
+
+def _append_lod1_geometry(
+    building: BuildingMesh,
+    geometry: dict[str, object],
+    vertices: list[tuple[float, float, float]],
+    roof_uv: UvFunction,
+    config: PocConfig,
+    terrain: object | None,
+    base_elevation: float,
+    center: tuple[float, float],
+) -> tuple[bool, str | None]:
+    """Extrude horizontalement l'emprise d'un bâtiment dont la toiture est incertaine."""
+    ground_faces = [
+        rings
+        for rings, surface_type in geometry_faces(geometry)
+        if surface_type == "GroundSurface" and rings
+    ]
+    if not ground_faces:
+        return False, None
+
+    generated = False
+    height_source: str | None = None
+    for rings in ground_faces:
+        indices = [index for ring in rings for index in ring]
+        if len(rings[0]) < 3 or not indices:
+            continue
+        base_y = min(vertices[index][1] for index in indices)
+        height, height_source = _lod1_height(building.attributes, base_y, vertices)
+        top_y = base_y + height
+        top_vertices = list(vertices)
+        for index in indices:
+            x, _y, z = top_vertices[index]
+            top_vertices[index] = (x, top_y, z)
+
+        triangles, degraded = _face_triangles(top_vertices, rings)
+        if not triangles:
+            continue
+        for ia, ib, ic in triangles:
+            triangle = [top_vertices[ia], top_vertices[ib], top_vertices[ic]]
+            if _cross(*triangle)[1] < 0:
+                triangle[1], triangle[2] = triangle[2], triangle[1]
+            _append_triangle(building.roofs, triangle, roof_uv)
+
+        contact_depth = _skirt_depth(
+            config, terrain, vertices, rings[0], base_elevation, center
+        )
+        wall_depth = height + contact_depth
+        for ring in rings:
+            _append_skirt(building.walls, top_vertices, ring, wall_depth)
+        generated = True
+        if degraded:
+            building.attributes["rf_lod1_triangulation_degraded"] = True
+    return generated, height_source
+
+
 @dataclass
 class BuildingMesh:
     """Géométrie et attributs d'un bâtiment, conservés séparément des autres.
@@ -746,7 +853,7 @@ def load_buildings(
                 # Verdict de Roofer sur sa propre toiture, remonté au nœud : un consommateur
                 # de la scène n'a pas à connaître le vocabulaire de `rf_roof_type`.
                 building.attributes["rf_degraded"] = is_degraded(building.attributes)
-                used_feature = False
+                usable_geometries: list[dict[str, object]] = []
                 for city_object in city_objects.values():
                     # Un Building délègue sa géométrie détaillée à ses BuildingPart et ne
                     # conserve qu'une enveloppe LoD 0 : l'ignorer sans avertir.
@@ -759,6 +866,38 @@ def load_buildings(
                         label = str(geometry.get("lod", "inconnu"))
                         ignored_lods[label] = ignored_lods.get(label, 0) + 1
                         continue
+                    usable_geometries.append(geometry)
+
+                used_feature = False
+                if (
+                    building.attributes["rf_degraded"]
+                    and config.get_bool("DEGRADED_ROOF_LOD1", True)
+                ):
+                    height_sources: set[str] = set()
+                    for geometry in usable_geometries:
+                        generated, height_source = _append_lod1_geometry(
+                            building,
+                            geometry,
+                            vertices,
+                            roof_uv,
+                            config,
+                            terrain,
+                            base_elevation,
+                            (center_x, center_y),
+                        )
+                        used_feature = used_feature or generated
+                        if height_source:
+                            height_sources.add(height_source)
+                    if used_feature:
+                        building.attributes["rf_rendered_lod"] = "1"
+                        building.attributes["rf_lod1_fallback"] = True
+                        building.attributes["rf_lod1_height_source"] = (
+                            next(iter(height_sources)) if len(height_sources) == 1 else "mixte"
+                        )
+                        buildings.append(building)
+                        continue
+
+                for geometry in usable_geometries:
                     # Le bâtiment est compté dès qu'il expose une géométrie exploitable :
                     # le faire au fil des triangles omettrait un volume réduit à sa jupe.
                     used_feature = True
@@ -1071,10 +1210,16 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
     skirt_material = builder.add_material(
         "Tranche", SKIRT_COLOR, roughness=1.0, double_sided=False
     )
-    wall_materials = [
-        builder.add_material(f"Murs {index + 1}", color, roughness=0.9, double_sided=False)
-        for index, color in enumerate(WALL_COLORS)
-    ]
+    facade_codes = {_facade_code(building.attributes) for building in buildings}
+    wall_materials = {
+        code: builder.add_material(
+            f"Murs — code {code}" if code is not None else "Murs — code non renseigné",
+            _wall_color(code),
+            roughness=0.9,
+            double_sided=False,
+        )
+        for code in sorted(facade_codes, key=lambda value: (value is None, value or ""))
+    }
     # Les toitures reprennent la texture de l'orthophotographie : même image, aucun octet
     # supplémentaire dans le binaire. Le repli en teintes unies reste disponible si le
     # décalage radial de l'ortho rectifiée au sol se révèle gênant.
@@ -1095,7 +1240,7 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
             for index, color in enumerate(ROOF_COLORS)
         ]
     )
-    # Les proxys de végétation sont dépourvus d'UV. Un seul matériau suffit désormais : la
+    # Les proxys de végétation sont dépourvus de texture. Un seul matériau suffit : la
     # couleur de chaque arbre voyage dans COLOR_0, échantillonnée sur l'orthophotographie.
     # Le facteur reste blanc pour ne pas teinter deux fois. Un houppier n'est pas fermé au
     # sens strict, d'où le rendu double face.
@@ -1109,9 +1254,11 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
             "Troncs", TRUNK_COLOR, roughness=0.95, double_sided=False
         ),
     }
-    # L'eau reste peu rugueuse : c'est ce qui la distingue du terrain sous un même éclairage.
+    # La transparence fond le masque LiDAR dans l'orthophoto et atténue son contour raster.
     # Sa nappe n'est pas fermée et se voit par en dessous depuis l'aval, d'où le double face.
-    water_material = builder.add_material("Eau", WATER_COLOR, roughness=0.12)
+    water_material = builder.add_material(
+        "Eau", WATER_COLOR, roughness=0.22, alpha_mode="BLEND"
+    )
     bridge_material = builder.add_material(
         "Pont", BRIDGE_COLOR, roughness=0.9, double_sided=False
     )
@@ -1145,7 +1292,7 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
                 group.positions, group.normals, group.indices, material, group.uvs, group.colors
             )
             for group, material in (
-                (building.walls, wall_materials[_palette_index(building.name, len(WALL_COLORS))]),
+                (building.walls, wall_materials[_facade_code(building.attributes)]),
                 (building.roofs, roof_materials[_palette_index(building.name, len(roof_materials))]),
             )
             if group.positions
@@ -1206,6 +1353,9 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
         # Roofer signale lui-même les toitures qu'il n'a pas su reconstruire : sans cette
         # clé, elles se lisent dans la scène comme n'importe quelle toiture mesurée.
         "roofQuality": roof_quality.as_metadata(),
+        "lod1Fallbacks": sum(
+            1 for building in buildings if building.attributes.get("rf_lod1_fallback") is True
+        ),
         "trees": len(trees),
         "bakedOcclusion": occlusion is not None,
         # Le visualiseur active ses bascules d'après ces clés : une emprise sans cours d'eau
@@ -1213,6 +1363,10 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
         "water": "water" in nappes,
         "bridges": "bridge" in nappes,
         "foliageTinted": bool(tints),
+        "foliageKinds": {
+            kind: sum(1 for tree in trees if tree.foliage == kind)
+            for kind in sorted({tree.foliage for tree in trees})
+        },
     }
     if roof_quality.degraded:
         print(

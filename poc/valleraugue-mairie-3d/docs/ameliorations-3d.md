@@ -4,8 +4,8 @@
 
 Le POC produit aujourd'hui une scène géométriquement saine : terrain MNT assis sous le bâti
 avec raccord progressif, jupes adaptatives, 176 bâtiments en nœuds distincts nommés par leur
-`cleabs`, toitures photo-texturées et orthophotographie recalée. Le mode de rendu réaliste du
-visualiseur est abandonné — hors périmètre d'un POC.
+`cleabs`, toitures photo-texturées et orthophotographie recalée. Le visualiseur conserve un
+rendu standard unique : le mode réaliste essayé pendant la vague 0 a été retiré après comparaison.
 
 Que reste-t-il à gagner en **effet visuel** et en **précision**, sans sur-ingénierie ?
 
@@ -33,6 +33,16 @@ interpolerait du vide.
 **Draco, KTX2, tuilage, niveaux de détail** : aucun intérêt sur 200 m servis en local. C'est
 de l'industrialisation, pas de la qualité.
 
+Les sources suivantes ont également été examinées et sont closes pour cette POC :
+
+| Source | Motif |
+| --- | --- |
+| Imagerie satellite Pléiades (30–50 cm) | résolution inférieure à l'orthophoto IGN à 20 cm |
+| `HR.ORTHOIMAGERY.ORTHOPHOTOS` | imagerie mesurée identique à la couche standard sur le site |
+| RGE ALTI | moins précis que le MNT reconstruit depuis le LiDAR HD |
+| Clichés PVA bruts IGN | façades visibles par endroits, mais orientations externes non publiées |
+| Obliques Google, Apple et Bing | licences incompatibles avec leur réemploi dans la POC |
+
 ---
 
 ## 2. Les pistes, mesurées
@@ -49,14 +59,19 @@ de l'industrialisation, pas de la qualité.
 Plus d'un quart de la scène est boisé et **n'existe pas en 3D** : les arbres ne sont que de la
 peinture plate sur le terrain. C'est ce qui trahit le plus le rendu.
 
-Approche sobre : modèle de hauteur de canopée (max classe 5 − MNT), maxima locaux pour les
-cimes, rayon de couronne par région connexe, puis un proxy simple par arbre — deux quads
-croisés ou une icosphère basse densité. Réutilise `src/poc3d/raster.py` et la mécanique de
-rastérisation déjà écrite pour `src/poc3d/sun.py`.
+Approche livrée : modèle de hauteur de canopée (max classe 5 − MNT), maxima locaux pour les
+cimes, rayon de couronne par profil radial et icosaèdre basse densité. La couleur de chaque
+arbre vient de l'orthophotographie, et le profil feuillu, conifère ou mixte vient de la
+[BD Forêt V2](https://cartes.gouv.fr/aide/fr/partenaires/ign/referentiels-description-territoire/foret/bd-foret-v2/).
+Sur le run 200 m, 115 des 358 cimes croisent une formation cartographiée ; les autres gardent
+le profil générique. Le masque alpha essayé en vague 2 a été retiré après contrôle visuel :
+son pointillé répétitif se lisait davantage que les trouées. Les arbres projettent toujours
+leur ombre au sol, mais ne reçoivent plus les ombres très noires de leurs voisins.
 
-> **Garde-fou** — pas de segmentation individuelle sophistiquée, pas de modèles d'essences,
-> pas de billboards orientés caméra. À 200 m, des proxys grossiers suffisent largement :
-> l'enjeu est la présence, pas le réalisme botanique.
+> **Garde-fou** — la BD Forêt décrit des plages d'au moins 5 000 m², pas chaque arbre. Elle
+> ne pilote donc qu'une silhouette de famille, jamais un modèle botanique individuel. Le WFS
+> est un enrichissement non bloquant : hors couverture ou hors ligne, le proxy générique
+> subsiste.
 
 ### B. Bâtiments mal reconstruits — le meilleur rapport précision/effort
 
@@ -80,9 +95,9 @@ Deux niveaux d'action, du moins cher au plus utile :
 
 1. remonter `rf_roof_type` dans le rapport de validation et dans `buildings.json` (déjà écrit,
    il suffit de lire l'attribut) ;
-2. pour les 15 cas dégradés, substituer une extrusion LoD1 depuis l'emprise et la hauteur
-   médiane des points LiDAR classe 6 — un volume franc est plus honnête qu'une toiture
-   inventée.
+2. pour les 15 cas dégradés, substituer une extrusion LoD1 depuis l'emprise et l'attribut
+   `hauteur`, avec l'enveloppe Roofer comme repli si la hauteur manque — un volume franc est
+   plus honnête qu'une toiture inventée.
 
 > **Garde-fou** — ne pas chercher à réparer les toitures. Les signaler et les simplifier
 > suffit.
@@ -122,15 +137,23 @@ unique. Rendue aujourd'hui comme du terrain caillouteux.
 Le pont (4 037 points classe 17) est plus délicat : il n'est ni terrain ni bâtiment, et le MNT
 passe sous lui. À traiter seulement si l'eau est faite.
 
+Après contrôle visuel, l'eau bleue opaque dominait la scène et son bord raster se lisait trop.
+Elle est désormais gris-bleu, translucide (`alphaMode=BLEND`), et ne projette ni ne reçoit
+d'ombre ; l'orthophotographie sous-jacente reste donc visible.
+
 ### F. Textures de murs — la seule voie restante côté texture
 
 Les murs sont en aplat, et **aucune imagerie de façade n'existe** en prise de vue nadir. La
-seule option est de générer albédo et carte de normales tuilables directement en Python (bruit
-procédural, sans dépendance ni téléchargement). Les UV métriques des murs sont déjà en place,
-une unité UV valant un mètre.
+vague 1 a essayé sept familles procédurales pilotées par `materiaux_des_murs`, avec albédo,
+normale et repli neutre. La comparaison a montré que l'affectation fonctionnait, mais
+n'apportait que de légères nuances sans gain perceptuel suffisant. Les textures et leur
+générateur ont donc été **retirés**.
 
-> **Garde-fou** — une seule texture générique de crépi. Pas de variantes par bâtiment, pas
-> d'atlas, pas de matériau par époque.
+Les codes BD TOPO restent affichés dans la fiche bâtiment : ils gardent leur valeur
+documentaire sans prétendre remplacer une photographie de façade. Les légères nuances
+minérales sont déterminées par le code `materiaux_des_murs` (et non par l'identifiant du
+bâtiment) ; une teinte neutre unique sert de repli quand le code manque. Ces aplats
+historiques restent le rendu neutre des murs.
 
 ---
 
@@ -146,25 +169,42 @@ réserver à l'étape 2, si elle le demande.
 **Réparer les toitures ratées.** Les signaler et les remplacer par un volume simple coûte une
 fraction du prix et ne ment pas sur la donnée.
 
-**Tout travail sur le visualiseur.** ~~Le mode réaliste est abandonné ; le mode diagnostic
-remplit son office.~~ **Périmé.** Cette conclusion valait tant que le mode réaliste était
-écarté ; il a depuis été réintroduit (ciel de Preetham, occlusion GTAO), et les réglages livrés
-par les pistes A à E ont chargé le panneau au point de nuire à sa lecture. Le travail
-d'interface qui en découle est traité à part, dans
-[`ux-visualiseur.md`](ux-visualiseur.md).
+**Ajouter une seconde chaîne de rendu.** Le mode réaliste essayé pendant la vague 0 — ciel de
+Preetham, environnement lumineux et GTAO — a été retiré après comparaison sur les emprises 200
+et 600 m : il comprimait le contraste sans ajouter d'information, alors que l'orthophotographie
+porte déjà son propre éclairage. Le travail d'interface utile reste documenté dans
+[`ux-visualiseur.md`](ux-visualiseur.md), indépendamment de cette expérimentation.
 
 ---
 
 ## 4. Ordre recommandé et état
 
-1. ✅ **C — terrain à 0,5 m** et ✅ **B niveau 1 — signalement des toitures dégradées** : deux
-   gains quasi gratuits, faits en premier.
-2. ✅ **A — végétation** : le seul poste qui change vraiment l'allure de la scène.
-3. ✅ **D — occlusion cuite** : donne du corps à l'ensemble, et sert l'étape 2.
-4. ⬜ **B niveau 2 — extrusion LoD1 des 15 cas dégradés**.
-5. ⬜ **E — eau**, puis ⬜ **F — textures de murs**, selon l'appétit.
+Les pistes géométriques C, B niveau 1, A et D sont livrées. La suite est désormais organisée
+en vagues réversibles :
 
-Les étapes 1 à 3 suffisent à obtenir l'essentiel de l'effet ; elles sont livrées.
+1. ✅ **Vague 0 — correctifs sûrs et décision de rendu** : ombres 4096² avec repli 2048² sur
+   petit écran ou GPU limité, attributs matériau/étages dans la fiche bâtiment et touche `P`
+   pour copier la pose caméra avec confirmation à l'écran. Le préréglage contrasté combine
+   directionnel `3.2`, environnement `0.08`, hémisphérique `0.20`, exposition `1.20` et contraste
+   d'affichage `1.12`, avec le soleil mesuré à 35°/95°. L'essai MSAA/GTAO/ciel a rempli son rôle
+   de comparaison puis a été retiré : l'antialiasing natif suffit et l'occlusion cuite reste
+   l'unique occlusion.
+2. ✅ **Porte 1 — validation comparative** : la recette a confirmé l'affichage des attributs et
+   rejeté le mode réaliste, trop fade face au rendu standard. La vague 1 reste donc possible
+   sans dépendre d'une seconde chaîne de rendu.
+3. ↩️ **Vague 1 — textures de murs évaluées puis retirées** : l'affectation par code était
+   correcte, mais le gain se limitait à de faibles nuances. Le coût visuel et logiciel ne
+   justifiait pas de conserver le module.
+4. ✅ **Porte 2 — gain insuffisant** : les murs reviennent aux teintes neutres et la vague 2
+   est ouverte.
+5. ✅ **Vague 2A — végétation** : couleur réelle de l'orthophoto et silhouette
+   feuillu/conifère/mixte issue de BD Forêt V2, avec repli hors ligne. Le masque alpha
+   expérimental a été retiré après la recette visuelle.
+6. ✅ **Vague 2B — ombres et toitures dégradées** : trois cascades 2048² en mode
+   `practical` sur les postes compatibles, avec fondu entre cascades et direction calée sur
+   les contrôles solaires. Les petits écrans et GPU limités conservent le directionnel
+   unique. Les toitures dégradées deviennent des extrusions LoD1 horizontales et portent
+   `rf_lod1_fallback`, `rf_rendered_lod` et la provenance de leur hauteur.
 
 ### Ce qui a été livré, mesuré sur le même run 200 m
 
@@ -172,11 +212,11 @@ Les étapes 1 à 3 suffisent à obtenir l'essentiel de l'effet ; elles sont livr
 | --- | --- | --- |
 | C | `TERRAIN_RESOLUTION_M=0.5`, dérivés `canopy.npy` et `surface.npy` | 460 × 460 cellules, 53 356 assises |
 | B1 | `src/poc3d/roofs.py`, section du rapport, `roofQuality`, `rf_degraded` | 15 dégradés sur 176 (8,5 %) |
-| A | `src/poc3d/vegetation.py`, `trees.json`, nœud `Vegetation` | 358 arbres, médiane 8,0 m, max 29,8 m |
+| B2 | extrusion de l'emprise, hauteur BD TOPO puis enveloppe Roofer en repli | 15 volumes LoD1 explicites sur le 200 m |
+| A | `src/poc3d/vegetation.py`, `trees.json`, nœud `Vegetation` | 358 arbres, 115 typés BD Forêt, médiane 8,0 m, max 29,8 m |
 | D | `src/poc3d/occlusion.py`, `COLOR_0` sur terrain, bâti et végétation | facteur de vue du ciel médian 0,65 |
 
-Le pipeline complet s'exécute en moins de dix secondes et `scene.glb` pèse 20 Mo — le
-surcoût de la maille fine et de l'occlusion reste sans conséquence en service local.
+`scene.glb` pèse environ 23,1 Mo sans texture de feuillage ni de mur.
 
 Ces mesures portent sur l'emprise 200 m. L'emprise 600 m, exécutée depuis, les confirme à neuf
 fois la surface : toitures dégradées **9,0 %** contre 8,5 %, calage de l'orthophotographie

@@ -70,18 +70,15 @@
 ## Éclairage
 
 - [ ] `python poc.py sun` retrouve un azimut cohérent avec les ombres visibles sur l'image.
-- [ ] En mode réaliste, les ombres calculées **prolongent** celles de l'orthophotographie,
+- [ ] Les ombres calculées **prolongent** celles de l'orthophotographie,
   sans angle perceptible entre les deux.
 - [ ] `python poc.py sun` mesure un calage d'orthophotographie stable entre exécutions.
 - [ ] Le terrain n'apparaît plus décalé par rapport aux bâtiments, sous tous les angles.
 - [ ] Les toitures photo-texturées et le terrain sont décalés du **même** vecteur : aucune
   discontinuité de texture au pied des murs.
-- [ ] Écarter l'azimut de ±40° rend la contradiction manifeste, et le panneau la signale.
-- [ ] Le mode diagnostic reste strictement inchangé après bascule aller-retour.
-- [ ] Le ciel s'affiche réellement en fond, sous tous les points de vue et à tout niveau
-  de zoom — un fond uni signale une boîte de ciel détourée par le plan éloigné.
-- [ ] L'occlusion ambiante assombrit les angles rentrants et le pied des murs, sans halo
-  ni scintillement au déplacement de la caméra.
+- [ ] Écarter l'azimut de ±40° rend la contradiction avec les ombres de l'orthophoto manifeste.
+- [ ] Le préréglage contrasté sépare les faces sans sous-exposer les tons moyens : soleil `3.2`,
+  environnement `0.08`, hémisphérique `0.20`, exposition `1.20` et contraste `1.12`.
 
 ## Diffusion web
 
@@ -95,6 +92,60 @@
 - [ ] Les ombres sont cohérentes avec l'azimut solaire affiché.
 - [ ] Le visualiseur fonctionne via `python poc.py serve`.
 - [ ] Le visualiseur reste utilisable sur un écran mobile.
+
+## Vague 0 — correctifs retenus
+
+La touche `P` copie dans le presse-papiers et imprime dans la console la scène, la position de
+caméra, la cible et les paramètres de projection ; une confirmation apparaît au centre de l'écran.
+
+- [x] Le mode réaliste expérimental, jugé plus fade sans ajouter d'information, est retiré avec
+  son ciel, son GTAO, son composer et sa bascule d'interface.
+- [ ] Les silhouettes de toiture restent nettes avec l'antialiasing natif du rendu standard.
+- [ ] Sur un affichage confortable et un GPU acceptant 4096 px, la carte d'ombres est en 4096²
+  et les avant-toits restent nets sur l'emprise 630 m.
+- [ ] À 380 × 700, ou avec une texture maximale inférieure à 4096 px, la carte d'ombres repasse
+  en 2048² et le visualiseur reste utilisable.
+- [ ] La fiche d'un bâtiment affiche les codes BD TOPO des murs et de la toiture ainsi que le
+  nombre d'étages ; toute valeur absente apparaît comme « Non disponible ».
+- [ ] Sur dix bâtiments tirés au hasard, les codes matériau annoncés sont cohérents avec
+  l'orthophotographie ; ce contrôle décide de l'engagement de la vague 1.
+
+## Vagues 1 et 2A — décision et végétation
+
+- [x] Les textures murales évaluées en vague 1 sont absentes du GLB ; les matériaux
+  `Murs — code …` ne portent aucune `baseColorTexture`.
+- [x] Les légères nuances murales sont stables pour un même code `materiaux_des_murs` et ne
+  dépendent plus de l'identifiant du bâtiment ; un code absent reçoit la teinte neutre.
+- [x] Les codes BD TOPO des murs restent disponibles dans la fiche bâtiment.
+- [x] `trees.json` documente la source BD Forêt, le nombre de formations croisées, l'essence
+  mesurée et les décomptes `deciduous`, `conifer`, `mixed` et `generic`.
+- [x] Une indisponibilité du WFS ne bloque pas la génération et conserve le profil générique.
+- [x] Le matériau `Feuillage` ne porte plus de texture ni de masque alpha ; la couleur reste
+  mesurée dans l'orthophotographie.
+- [x] Le motif pointillé répétitif constaté pendant la recette visuelle a été retiré.
+- [ ] Les profils conifères se lisent plus effilés que les feuillus sans caricature botanique.
+- [x] La végétation projette ses ombres au sol sans recevoir les ombres noires des arbres voisins.
+- [x] L'eau est translucide, gris-bleu, et ne projette ni ne reçoit d'ombre.
+- [ ] Les curseurs de dimensions des houppiers continuent de redimensionner chaque arbre autour
+  de son propre centre.
+- [x] `poc.py all` régénère la scène sans relancer Roofer ni retélécharger le LiDAR.
+
+## Vague 2B — ombres en cascades et repli LoD1
+
+- [x] Le visualiseur embarque `CSM.js`, `CSMFrustum.js` et `CSMShader.js` localement.
+- [x] Trois cascades 2048² suivent la caméra et le soleil sur un écran d'au moins
+  720 × 600 disposant d'une texture maximale de 4096 px.
+- [x] Le directionnel unique reste actif sur un petit écran ou un GPU limité.
+- [x] Chaque matériau chargé est préparé pour les cascades et libéré lors d'un changement
+  de scène.
+- [x] Une toiture dégradée disposant d'une emprise devient un volume LoD1 horizontal ; une
+  toiture fiable conserve sa géométrie LoD2.2.
+- [x] `rf_lod1_fallback`, `rf_rendered_lod` et `rf_lod1_height_source` rendent le repli
+  explicite dans le GLB et la fiche qualité.
+- [ ] Les transitions entre cascades sont invisibles et les ombres ne nagent pas pendant
+  une orbite sur les scènes 200 et 600 m.
+- [ ] Les volumes LoD1 des bâtiments signalés épousent leur emprise sans trou ni mur
+  inversé, et leur hauteur reste crédible dans l'orthophotographie.
 
 ## Sélecteur de scènes
 

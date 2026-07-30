@@ -13,8 +13,9 @@ chaque nouvelle scène ou correction du visualiseur. Tailscale est ce qui permet
 sans exposer SSH sur Internet, sans ouvrir de port sur la box, et sans passer par un dépôt
 de fichiers intermédiaire.
 
-**Hors périmètre :** la chaîne d'enrichissement, l'étape amont, la route Caddy et la CSP.
-Ce document ne déplace que des octets.
+**Hors périmètre :** la chaîne d'enrichissement et l'étape amont. Ce document déplace les
+octets et vérifie que les deux points d'entrée — Caddy sur le tailnet et Nginx en public —
+lisent ensuite la même publication.
 
 ## 1. Prérequis
 
@@ -65,6 +66,10 @@ find . \( -name '*.glb' -o -name '*.js' -o -name '*.css' -o -name '*.html' -o -n
 **Ne jamais transférer `output*/`, `.work-python/` ni `.venv/`.** Le premier pèse près d'un
 gigaoctet, les deux autres n'ont aucun sens sur le serveur.
 
+Le dossier contient aussi `favicon.svg`. Il n'est pas précompressé, mais doit être transféré
+avec le reste : `index.html` le référence explicitement afin d'éviter la requête implicite
+et erronée vers `/favicon.ico`.
+
 ## 3. Méthode retenue — archive par SSH sur le tailnet
 
 Une seule connexion, un seul flux, aucun outil à installer : `tar` est dans Git Bash, `ssh`
@@ -112,11 +117,16 @@ un effacement automatique se tromperait un jour de dossier.
 ### Recharger Caddy
 
 Le contenu est statique et servi depuis un volume : **aucun redémarrage n'est nécessaire**.
-Ne relancer le conteneur que si le `Caddyfile` a changé.
+Ne reconstruire le conteneur que si le `Caddyfile` a changé. Le fichier est copié dans
+l'image, donc un simple `up` réutiliserait l'ancienne CSP :
 
 ```bash
-ssh <utilisateur>@<serveur> 'cd ~/OpenDataVdA && docker compose up -d caddy'
+ssh <utilisateur>@<serveur> 'cd ~/OpenDataVdA && docker compose up -d --build caddy'
 ```
+
+Le point d'entrée public Nginx doit être un proxy vers ce Caddy, jamais une copie statique
+distincte. La configuration et sa validation sont décrites au § 5 de
+[`publication-visualiseur.md`](publication-visualiseur.md).
 
 ## 4. Variante — `rsync`, quand il est disponible
 
@@ -181,14 +191,17 @@ téléphone compris. Refermer ensuite :
 
 ## 7. Recette
 
-Depuis une machine du tailnet, en remplaçant `<site>` par l'hôte servi :
+Depuis une machine du tailnet, en remplaçant `<site-tailnet>` et `<site-public>` par les
+hôtes servis :
 
 | Vérification | Attendu |
 | --- | --- |
-| `ssh <utilisateur>@<serveur> 'ls ~/OpenDataVdA/poc/valleraugue-mairie-3d/publication'` | `index.html`, `app.js`, `assets/`, `vendor/` |
-| `curl -I http://<site>/valleraugue-3d` | `308` vers `/valleraugue-3d/` |
-| `curl -sI -H 'Accept-Encoding: gzip' http://<site>/valleraugue-3d/assets/scene.glb` | `Content-Encoding: gzip`, `Content-Type: model/gltf-binary` |
-| `curl -s http://<site>/valleraugue-3d/assets/scenes.json` | autant d'entrées que de scènes publiées, la plus légère en premier |
+| `ssh <utilisateur>@<serveur> 'ls ~/OpenDataVdA/poc/valleraugue-mairie-3d/publication'` | `index.html`, `app.js`, `favicon.svg`, `assets/`, `vendor/` |
+| `curl -I http://<site-tailnet>/valleraugue-3d` | `308` vers `/valleraugue-3d/` |
+| `curl -sI -H 'Accept-Encoding: gzip' http://<site-tailnet>/valleraugue-3d/assets/scene.glb` | `Content-Encoding: gzip`, `Content-Type: model/gltf-binary` |
+| `curl -s http://<site-tailnet>/valleraugue-3d/assets/scenes.json` | autant d'entrées que de scènes publiées, la plus légère en premier |
+| `curl -sI https://<site-public>/valleraugue-3d/` | même CSP que Caddy, avec `connect-src 'self' blob:` |
+| `curl -sI https://<site-public>/valleraugue-3d/favicon.svg` | `200`, `Content-Type: image/svg+xml` |
 | Navigateur, console ouverte | scène chargée, sélecteur fonctionnel, aucune 404 ni erreur CSP |
 
 Contrôler l'intégrité d'un GLB plutôt que sa seule taille — un transfert coupé peut rendre
@@ -201,6 +214,19 @@ sha256sum publication/assets/scene.glb
 ssh <utilisateur>@<serveur> 'sha256sum ~/OpenDataVdA/poc/valleraugue-mairie-3d/publication/assets/scene.glb'
 ```
 
+Enfin, comparer les deux chemins de service. Les quatre empreintes doivent être identiques ;
+sinon Nginx sert encore une ancienne copie sous `/var/www` :
+
+```bash
+for site in "https://<site-public>/valleraugue-3d" \
+            "http://<site-tailnet>/valleraugue-3d"; do
+  echo "$site"
+  for fichier in index.html app.js assets/scenes.json assets/scene.glb; do
+    curl -fsS "$site/$fichier" | sha256sum
+  done
+done
+```
+
 ## 8. Sécurité
 
 - **Aucune clé d'authentification Tailscale dans le dépôt.** Ni `tskey-…` dans un script, ni
@@ -209,8 +235,8 @@ ssh <utilisateur>@<serveur> 'sha256sum ~/OpenDataVdA/poc/valleraugue-mairie-3d/p
 - **Restreindre l'accès par ACL** plutôt que par obscurité : le poste de publication n'a
   besoin que du port 22 du serveur. Une ACL Tailscale le dit mieux qu'un pare-feu local.
 - **Ne pas ouvrir le site avec `tailscale funnel`.** Funnel expose une machine du tailnet
-  sur l'Internet public, court-circuitant Caddy, ses en-têtes de sécurité et sa CSP. Le site
-  se publie par Caddy, un point c'est tout.
+  sur l'Internet public, court-circuitant le frontal Nginx. Le chemin public retenu est
+  Nginx → Caddy → volume `publication/`.
 - **Ne pas mettre d'adresse `100.x.y.z` ni de nom `*.ts.net` dans le `Caddyfile`**, le
   `docker-compose.yml` ou ce dépôt : le tailnet est un chemin d'administration, pas une
   dépendance du service.
@@ -225,4 +251,6 @@ ssh <utilisateur>@<serveur> 'sha256sum ~/OpenDataVdA/poc/valleraugue-mairie-3d/p
   suit l'inode, et le conteneur continuerait de servir l'ancien contenu (§ 3).
 - Ne pas copier directement dans `publication/` sans dossier d'attente : un visiteur
   récupérerait un GLB tronqué pendant les quelques minutes du transfert.
+- Ne pas maintenir une seconde copie sous `/var/www` : elle divergerait du volume Caddy dès
+  la publication suivante.
 - Ne pas synchroniser `output*/`, `.work-python/` ni `.venv/`.

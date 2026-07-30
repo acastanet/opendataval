@@ -354,6 +354,8 @@ ORTHO_SIZE_PX={plan.ortho_size_px}
 BUILDING_SKIRT_M=2
 BUILDING_SKIRT_MIN_M=1
 BUILDING_SKIRT_MAX_M=8
+# Remplace les toitures signalées comme dégradées par Roofer par une extrusion LoD1 franche.
+DEGRADED_ROOF_LOD1=1
 # Proxys de végétation haute reconstruits depuis la classe LiDAR 5.
 VEGETATION=1
 VEGETATION_MIN_HEIGHT_M=4
@@ -367,6 +369,9 @@ VEGETATION_PEAK_WINDOW_M=5
 VEGETATION_MAX_CROWN_M=6.4
 # Teinte chaque houppier avec la couleur réelle de l'arbre, lue dans l'orthophotographie.
 VEGETATION_TINT_FROM_ORTHO=1
+# Classe la silhouette en feuillu, conifère ou mixte depuis le WFS officiel BD Forêt V2.
+# Un échec du service conserve le profil générique et ne bloque pas la scène.
+VEGETATION_FOREST_TYPES=1
 # Eau (classe LiDAR 9) et tabliers de pont (classe 17), déjà présents dans lidar_subset.laz.
 WATER=1
 # Relèvement de la nappe au-dessus de l'altitude mesurée. La nappe et le terrain

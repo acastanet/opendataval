@@ -35,9 +35,10 @@ est déjà cuite dans le GLB.
 
 ```
 web/
-├── index.html            16 Ko
-├── app.js                64 Ko
-├── styles.css            20 Ko
+├── index.html
+├── app.js
+├── styles.css
+├── favicon.svg
 ├── viewer-manifest.json
 ├── assets/
 │   ├── scene.glb         23 Mo   ← emprise 200 m, scène chargée par défaut
@@ -49,19 +50,22 @@ web/
 │       │   ├── scene.glb   57,5 Mo   ← Valleraugue, emprise 600 m
 │       │   ├── scene.json
 │       │   └── buildings.json 979 Ko
-│       └── notre-dame-rouviere-200m/
-│           ├── scene.glb   18,7 Mo   ← Notre-Dame-de-la-Rouvière, emprise 200 m
+│       ├── notre-dame-rouviere-200m/
+│       │   ├── scene.glb   18,7 Mo   ← Notre-Dame-de-la-Rouvière, emprise 200 m
+│       │   ├── scene.json
+│       │   └── buildings.json
+│       └── creyssensac-et-pissot-200m/
+│           ├── scene.glb   17,9 Mo   ← Creyssensac-et-Pissot, emprise 200 m
 │           ├── scene.json
 │           └── buildings.json
 └── vendor/               2,3 Mo    Three.js 0.178.0 + addons (MIT)
 ```
 
-Total mesuré : **81 Mo** pour les deux emprises de Valleraugue, auxquelles s'ajoutent
-18,7 Mo depuis que la scène 200 m de Notre-Dame-de-la-Rouvière existe. Décision retenue :
-**toutes les scènes assemblées**, une emprise 200 m en scène par défaut. L'ordre n'est pas
-cosmétique — la première scène du manifeste est celle que le navigateur télécharge au
-chargement, et 23 Mo contre 57,5 Mo change l'expérience du premier visiteur. Les autres ne
-partent que si on les choisit dans le sélecteur.
+Total mesuré au 30 juillet 2026 : **155,4 Mio**, fichiers précompressés compris, pour quatre
+scènes. Décision retenue : **toutes les scènes assemblées**, une emprise 200 m en scène par
+défaut. L'ordre n'est pas cosmétique — la première scène du manifeste est celle que le
+navigateur télécharge au chargement, et 23 Mo contre 57,5 Mo change l'expérience du premier
+visiteur. Les autres ne partent que si on les choisit dans le sélecteur.
 
 Le décompte ci-dessus est celui d'un état donné : `poc.py web` publie **toute** scène dont la
 configuration porte un `render/scene.glb`, et le total croît d'une vingtaine de mégaoctets par
@@ -92,8 +96,8 @@ le signale.
 Contrôles à passer avant d'aller plus loin :
 
 1. `assets/scenes.json` contient une entrée par scène assemblée, une 200 m d'abord ;
-2. `index.html`, `app.js` et `styles.css` du dossier `web/` sont identiques à ceux de
-   `viewer/` (comparer les tailles ou les empreintes) ;
+2. `index.html`, `app.js`, `styles.css` et `favicon.svg` du dossier `web/` sont identiques à
+   ceux de `viewer/` (comparer les tailles ou les empreintes) ;
 3. tous les `scene.glb` / `scene.json` référencés par le manifeste existent bien ;
 4. chaque entrée porte un `title` — sans lui, deux scènes de même taille sont indiscernables.
 
@@ -150,9 +154,10 @@ Ajouter ce bloc au [`Caddyfile`](../../../Caddyfile), **avant** le `handle` fina
 		header /vendor/* Cache-Control "public, max-age=86400"
 		header Cache-Control "public, max-age=0, must-revalidate"
 
-		precompressed zstd gzip
 		encode zstd gzip
-		file_server
+		file_server {
+			precompressed zstd gzip
+		}
 	}
 ```
 
@@ -164,17 +169,26 @@ Points à ne pas simplifier :
 - **`Content-Type` du GLB.** La table MIME de Caddy ignore `.glb` et renverrait
   `application/octet-stream`. `GLTFLoader` lit un `ArrayBuffer` et s'en accommode, mais l'entête
   correct coûte deux lignes.
-- **`precompressed` avant `encode`.** Caddy ne recompresse pas une réponse dont le
-  `Content-Encoding` est déjà posé ; `encode` ne prend donc le relais que pour ce qui n'a pas de
-  `.gz` sur disque.
+- **`precompressed` dans `file_server`, avec `encode`.** Caddy sert d'abord le `.zst` ou le
+  `.gz` déjà produit ; `encode` ne prend le relais que pour ce qui n'a pas de version
+  précompressée sur disque.
 
-### CSP : rien à élargir
+### CSP : autoriser les textures GLB en `blob:`
 
-Contrairement à ce qui pouvait être craint, la `Content-Security-Policy` du site couvre le
-visualiseur en l'état. Vérifié ligne à ligne : les modules ES viennent de `vendor/` (`script-src
-'self'`), l'`importmap` inline est couvert par `'unsafe-inline'`, les textures extraites du GLB
-passent par des URL `blob:` déjà autorisées en `img-src`, le `fetch` des scènes reste en
-`connect-src 'self'`, et le visualiseur n'instancie aucun `Worker`. **Ne pas modifier la CSP.**
+`GLTFLoader` extrait le JPEG embarqué dans le GLB sous forme d'URL `blob:`, puis Three.js le
+charge avec `FileLoader`, donc avec `fetch`. Autoriser `blob:` dans `img-src` **ne suffit pas** :
+il doit aussi être présent dans `connect-src`. Sans lui, la géométrie se charge mais le terrain
+et les toitures restent sans orthophotographie, avec l'erreur
+`Fetch API cannot load blob:... violates connect-src` dans la console.
+
+La directive minimale requise est :
+
+```caddy
+connect-src 'self' blob: https://data.geopf.fr https://unpkg.com;
+```
+
+Les modules ES viennent de `vendor/` (`script-src 'self'`) et l'`importmap` inline est couvert
+par `'unsafe-inline'`. Ne pas élargir davantage la CSP pour corriger un autre défaut.
 
 Conséquence à connaître : `frame-ancestors 'none'` et `X-Frame-Options: DENY` interdisent tout
 affichage en `iframe`. Si la commune demande un embarquement dans son site, c'est une décision
@@ -207,6 +221,27 @@ Ce point vaut d'être corrigé indépendamment de la publication : `poc/vallerau
 pèse **1,0 Go** aujourd'hui et rien ne l'exclut du contexte envoyé au démon Docker à chaque
 `docker compose build caddy`.
 
+### Une seule source, y compris derrière Nginx
+
+Sur le serveur public, Nginx termine HTTPS mais ne doit pas servir une seconde copie sous
+`/var/www`. Cette copie divergerait dès la publication suivante. La route publique transmet
+le chemin inchangé au port Caddy publié :
+
+```nginx
+location /valleraugue-3d/ {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Après modification : `nginx -t` puis `systemctl reload nginx`. Les URL publique et tailnet
+doivent alors rendre les mêmes empreintes pour `index.html`, `app.js`, `assets/scenes.json`
+et `assets/scene.glb`.
+
 ## 6. Mention de licence — en place, à préserver
 
 La Licence Ouverte 2.0 sous laquelle l'IGN diffuse ces données impose la mention de paternité.
@@ -238,6 +273,8 @@ Après `docker compose up -d caddy`, sur le port publié (`8080` en local) :
 | `curl -I http://localhost:8080/valleraugue-3d/` | `200`, `text/html` |
 | `curl -sI -H 'Accept-Encoding: gzip' .../assets/scene.glb` | `Content-Encoding: gzip`, `Content-Type: model/gltf-binary` |
 | `curl -I .../assets/scenes.json` | `200`, autant d'entrées que de scènes publiées |
+| `curl -I .../favicon.svg` | `200`, `Content-Type: image/svg+xml` |
+| `curl -I .../` puis lecture de `Content-Security-Policy` | `connect-src 'self' blob:` |
 | Navigateur, console ouverte | scène 200 m chargée, **aucune** erreur CSP ni 404 |
 | Sélecteur de scènes | bascule vers chaque autre scène et retour, sans erreur ; le titre de l'en-tête et l'onglet suivent |
 | Dialogue « Informations sur les données » | section licence présente |
@@ -254,13 +291,15 @@ versionnées : `Caddyfile`, `docker-compose.yml`, `.dockerignore` et ce document
 | --- | --- |
 | Mention de licence dans le dialogue (§ 6) | **en place** |
 | `publication/` dans le `.gitignore` du POC (§ 3) | **en place** |
-| Route `/valleraugue-3d` dans le `Caddyfile` (§ 4) | à ajouter |
-| Volume dans le `docker-compose.yml` (§ 5) | à ajouter |
-| Entrées `poc/**` dans le `.dockerignore` (§ 5) | à ajouter |
-| Scènes assemblées | Valleraugue 200 m et 600 m, Notre-Dame-de-la-Rouvière 200 m |
+| Route `/valleraugue-3d` dans le `Caddyfile` (§ 4) | **en place** |
+| Volume dans le `docker-compose.yml` (§ 5) | **en place** |
+| Entrées `poc/**` dans le `.dockerignore` (§ 5) | **en place** |
+| Nginx public en proxy vers Caddy (§ 5) | **en place** |
+| CSP `connect-src ... blob:` et favicon | **en place** |
+| Scènes assemblées | Valleraugue 200 m et 600 m, Notre-Dame-de-la-Rouvière 200 m, Creyssensac-et-Pissot 200 m |
 
-Le visualiseur n'a donc **jamais encore été mis en ligne** : les trois lignes manquantes sont
-ce qui reste à faire pour une première publication.
+Le visualiseur est en ligne. Caddy est l'unique source des fichiers ; Nginx ne fait que
+relayer la route publique.
 
 ## 8. Mettre à jour une publication existante
 
@@ -269,10 +308,11 @@ mise à jour ne rejoue que ce que le changement impose.
 
 | Ce qui a changé | Étapes à rejouer |
 | --- | --- |
-| Le visualiseur (`viewer/index.html`, `app.js`, `styles.css`) | § 2 → § 3 → transfert → § 7 |
+| Le visualiseur (`viewer/index.html`, `app.js`, `styles.css`, `favicon.svg`) | § 2 → § 3 → transfert → § 7 |
 | Une scène existante réassemblée (`poc.py all`) | § 2 → § 3 → transfert → § 7 |
 | **Une scène ajoutée** (`poc.py scene` puis étape amont puis `poc.py all`) | § 2 → § 3 → transfert → § 7, en contrôlant le volume total et l'ordre du manifeste |
-| Le `Caddyfile` ou le `docker-compose.yml` | `docker compose up -d caddy`, puis § 7 |
+| Le `Caddyfile` ou le `docker-compose.yml` | `docker compose up -d --build caddy`, puis § 7 |
+| La route Nginx publique | `nginx -t`, `systemctl reload nginx`, puis comparaison des empreintes publique/tailnet |
 | Rien du tout, seulement les données amont | rien : le GLB publié ne change pas tant qu'il n'est pas réassemblé |
 
 Le **transfert** vers le serveur est décrit dans
@@ -306,13 +346,15 @@ La séquence complète, depuis un point sur une carte, est dans
   ne le signale**.
 - **Ne pas effacer `publication/` sur le serveur** avant d'avoir reçu le remplaçant en entier :
   la bascule se fait fichier par fichier, dossier d'attente à l'appui.
+- **Ne pas recopier le visualiseur sous `/var/www`** : Nginx relaie Caddy, qui doit rester
+  l'unique source de vérité.
 
 ## 9. Interdits
 
 - Aucune ressource externe : pas de CDN, pas de police distante, pas de mesure d'audience, pas
   de carte de fond en ligne. L'autonomie du dossier est ce qui rend la CSP tenable.
 - Ne pas versionner les GLB, les `.gz`, ni le dossier `publication/`.
-- Ne pas assouplir la CSP ni les entêtes de sécurité du site pour faire passer le visualiseur :
-  s'il en a besoin, c'est le visualiseur qu'il faut corriger.
+- Ne pas assouplir la CSP au-delà du contrat documenté au § 4. `blob:` est requis dans
+  `img-src` **et** `connect-src` pour les textures embarquées ; le reste doit rester fermé.
 - Ne pas altérer les mentions de traçabilité existantes du dialogue, hors ajout de la licence.
 - Ne pas déployer un `web/` que l'on n'a pas régénéré soi-même à l'étape § 2.
