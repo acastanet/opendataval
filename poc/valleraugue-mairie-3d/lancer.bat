@@ -41,6 +41,15 @@ if errorlevel 1 (
 )
 
 echo.
+echo Mise a jour de l'interface du visualiseur...
+"%POC_LAUNCH_PYTHON%" "%POC_LAUNCH_SCRIPT%" --config "%POC_LAUNCH_CONFIG%" web
+if errorlevel 1 (
+  echo.
+  echo ERREUR : la mise a jour de l'interface a echoue. Les anciennes instances sont conservees.
+  exit /b 1
+)
+
+echo.
 echo Arret des anciennes instances du visualiseur...
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference = 'Stop';" ^
