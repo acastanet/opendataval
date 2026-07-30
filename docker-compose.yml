@@ -317,6 +317,7 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+      - ./poc/valleraugue-mairie-3d/publication:/srv/valleraugue-3d:ro
 
 volumes:
   db_data:
