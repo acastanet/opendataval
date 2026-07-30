@@ -18,8 +18,10 @@ from poc3d.glb import (
     _face_triangles,
     _newell_normal,
     _palette_index,
+    _facade_code,
     _skirt_depth,
     _srgb,
+    _wall_color,
     bake_colors,
     load_buildings,
     load_terrain,
@@ -48,6 +50,23 @@ class GlbTest(unittest.TestCase):
             self.assertEqual(magic, b"glTF")
             self.assertEqual(version, 2)
             self.assertEqual(length, destination.stat().st_size)
+
+    def test_declare_une_eau_translucide_sans_seuil_alpha(self) -> None:
+        builder = GlbBuilder()
+        ortho = builder.add_texture(b"ortho")
+        material = builder.add_material(
+            "Eau",
+            (0.2, 0.3, 0.4, 0.58),
+            alpha_mode="BLEND",
+        )
+        self.assertEqual(builder.textures[ortho]["sampler"], 0)
+        self.assertEqual(builder.samplers[0]["wrapS"], 33071)
+        self.assertEqual(builder.materials[material]["alphaMode"], "BLEND")
+        self.assertNotIn("alphaCutoff", builder.materials[material])
+        self.assertEqual(
+            builder.materials[material]["pbrMetallicRoughness"]["baseColorFactor"][3],
+            0.58,
+        )
 
     def test_distingue_murs_et_toiture(self) -> None:
         with TemporaryDirectory() as directory:
@@ -167,6 +186,81 @@ class GlbTest(unittest.TestCase):
             self.assertGreater(sum(emitted[axis] * expected[axis] for axis in range(3)), 0)
 
 
+class DegradedRoofLod1Test(unittest.TestCase):
+    def _load(self, root: Path, roof_type: str, extra: str = "") -> object:
+        config_file = root / "poc.conf"
+        config_file.write_text(
+            f'POC_BBOX="0 0 10 10"\nTERRAIN_MARGIN_M=0\n{extra}', encoding="utf-8"
+        )
+        cityjson = root / "model.city.jsonl"
+        header = {
+            "type": "CityJSON",
+            "transform": {"scale": [1, 1, 1], "translate": [0, 0, 0]},
+        }
+        feature = {
+            "type": "CityJSONFeature",
+            "id": "batiment-test",
+            "vertices": [
+                [2, 2, 0],
+                [8, 2, 0],
+                [8, 8, 0],
+                [2, 8, 0],
+                [2, 2, 4],
+                [8, 2, 8],
+                [8, 8, 8],
+                [2, 8, 4],
+            ],
+            "CityObjects": {
+                "part": {
+                    "attributes": {"rf_roof_type": roof_type, "hauteur": 6},
+                    "geometry": [
+                        {
+                            "type": "MultiSurface",
+                            "lod": "2.2",
+                            "boundaries": [
+                                [[0, 1, 2, 3]],
+                                [[0, 4, 5, 1]],
+                                [[4, 5, 6, 7]],
+                            ],
+                            "semantics": {
+                                "surfaces": [
+                                    {"type": "GroundSurface"},
+                                    {"type": "WallSurface"},
+                                    {"type": "RoofSurface"},
+                                ],
+                                "values": [0, 1, 2],
+                            },
+                        }
+                    ],
+                }
+            },
+        }
+        cityjson.write_text(
+            json.dumps(header) + "\n" + json.dumps(feature) + "\n", encoding="utf-8"
+        )
+        return load_buildings(PocConfig.load(root, config_file), cityjson, 0)[0]
+
+    def test_remplace_une_toiture_degradee_par_un_volume_lod1(self) -> None:
+        with TemporaryDirectory() as directory:
+            building = self._load(Path(directory), "unknown")
+            self.assertEqual({point[1] for point in building.roofs.positions}, {6.0})
+            self.assertTrue(building.attributes["rf_lod1_fallback"])
+            self.assertEqual(building.attributes["rf_rendered_lod"], "1")
+            self.assertEqual(building.attributes["rf_lod1_height_source"], "hauteur")
+
+    def test_conserve_le_lod22_d_une_toiture_fiable(self) -> None:
+        with TemporaryDirectory() as directory:
+            building = self._load(Path(directory), "slanted")
+            self.assertEqual({point[1] for point in building.roofs.positions}, {4.0, 8.0})
+            self.assertNotIn("rf_lod1_fallback", building.attributes)
+
+    def test_permet_de_desactiver_le_repli_lod1(self) -> None:
+        with TemporaryDirectory() as directory:
+            building = self._load(Path(directory), "unknown", "DEGRADED_ROOF_LOD1=0\n")
+            self.assertEqual({point[1] for point in building.roofs.positions}, {4.0, 8.0})
+            self.assertNotIn("rf_lod1_fallback", building.attributes)
+
+
 class SrgbTest(unittest.TestCase):
     """``baseColorFactor`` est linéaire : une conversion inversée délave toute la scène."""
 
@@ -190,6 +284,25 @@ class SrgbTest(unittest.TestCase):
         for invalid in ("#FFF", "#GGGGGG", ""):
             with self.assertRaises(ValueError):
                 _srgb(invalid)
+
+
+class WallColorTest(unittest.TestCase):
+    def test_normalise_le_code_facade(self) -> None:
+        self.assertEqual(_facade_code({"materiaux_des_murs": " 20 "}), "20")
+        self.assertEqual(_facade_code({"materiaux_des_murs": ["10", "20"]}), "10,20")
+        self.assertIsNone(_facade_code({"materiaux_des_murs": None}))
+        self.assertIsNone(_facade_code({}))
+
+    def test_lie_la_nuance_au_code_et_non_au_batiment(self) -> None:
+        self.assertEqual(_wall_color("20"), _wall_color("20"))
+        self.assertNotEqual(_wall_color("20"), _wall_color("10"))
+        self.assertNotEqual(_wall_color("20"), _wall_color(None))
+
+    def test_garde_des_ecarts_discrets_autour_de_la_teinte_neutre(self) -> None:
+        neutral = _wall_color(None)
+        for code in ("01", "02", "10", "13", "14", "20", "30", "50"):
+            for channel, reference in zip(_wall_color(code)[:3], neutral[:3]):
+                self.assertLess(abs(channel - reference), 0.04)
 
 
 class TerrainSkirtTest(unittest.TestCase):

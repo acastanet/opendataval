@@ -4,6 +4,7 @@ import json
 import math
 import sys
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -17,9 +18,11 @@ from poc3d.vegetation import (
     CROWN_VERTICES,
     REFERENCE_FOLIAGE,
     Tree,
+    classify_forest_types,
     create_vegetation,
     crown_triangles,
     detect_trees,
+    download_forest_types,
     load_trees,
     sample_foliage_tints,
     tree_geometry,
@@ -117,6 +120,20 @@ class CreateVegetationTest(unittest.TestCase):
             self.assertEqual(payload["count"], 1)
             self.assertEqual(len(load_trees(run_dir)), 1)
 
+    def test_retombe_sur_le_profil_generique_si_bd_foret_est_indisponible(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = _config(root, "VEGETATION_FOREST_TYPES=1\n")
+            run_dir = root / "run-test"
+            run_dir.mkdir()
+            np.save(run_dir / "canopy.npy", _cone((40, 40), 10, 25, 14.0, 4.0))
+            np.save(run_dir / "terrain.npy", np.full((40, 40), 300.0))
+            with patch("poc3d.vegetation.download_forest_types", side_effect=OSError("hors ligne")):
+                destination = create_vegetation(config, run_dir)
+            payload = json.loads(destination.read_text(encoding="utf-8"))
+            self.assertEqual(payload["foliage"], {"generic": 1})
+            self.assertNotIn("forestSource", payload)
+
     def test_echoue_sans_modele_de_canopee(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -170,6 +187,19 @@ class TreeGeometryTest(unittest.TestCase):
         ]
         self.assertAlmostEqual(max(abs(p[0]) for p in points), 5.0, places=5)
         self.assertAlmostEqual(max(abs(p[2]) for p in points), 3.2, places=5)
+
+    def test_affine_la_cime_d_un_conifere_sans_changer_sa_hauteur(self) -> None:
+        generic = crown_triangles((0.0, 0.0, 0.0), 4.0, 2.0)
+        conifer = crown_triangles((0.0, 0.0, 0.0), 4.0, 2.0, profile="conifer")
+        generic_top = [point for triangle in generic for point in triangle if point[1] == 2.0]
+        conifer_top = [point for triangle in conifer for point in triangle if point[1] == 2.0]
+        generic_radius = max(math.hypot(point[0], point[2]) for point in generic_top)
+        conifer_radius = max(math.hypot(point[0], point[2]) for point in conifer_top)
+        self.assertLess(conifer_radius, generic_radius * 0.2)
+        self.assertEqual(
+            max(point[1] for triangle in generic for point in triangle),
+            max(point[1] for triangle in conifer for point in triangle),
+        )
 
 
 class CrownVerticesTest(unittest.TestCase):
@@ -285,6 +315,74 @@ class FoliageTintTest(unittest.TestCase):
             [Tree(x=50.0, y=50.0, ground=0.0, height=8.0, crown=3.0)], ortho, self._uv()
         )[0]
         self.assertGreater(tint[1], tint[0] * 1.5)
+
+
+class ForestTypeTest(unittest.TestCase):
+    def _payload(self) -> dict:
+        return {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "MultiPolygon",
+                        "coordinates": [[[[0, 0], [20, 0], [20, 20], [0, 20], [0, 0]]]],
+                    },
+                    "properties": {
+                        "essence": "Conifères",
+                        "tfv": "Forêt fermée de conifères purs",
+                    },
+                }
+            ],
+        }
+
+    def test_classe_seulement_les_cimes_dans_une_plage_mesuree(self) -> None:
+        trees = [
+            Tree(10.0, 10.0, 0.0, 8.0, 3.0),
+            Tree(30.0, 30.0, 0.0, 8.0, 3.0),
+        ]
+        classified = classify_forest_types(trees, self._payload())
+        self.assertEqual(classified[0].foliage, "conifer")
+        self.assertEqual(classified[0].essence, "Conifères")
+        self.assertEqual(classified[1].foliage, "generic")
+        self.assertIsNone(classified[1].essence)
+
+    def test_construit_une_requete_wfs_lambert_93(self) -> None:
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return json.dumps(self.payload).encode("utf-8")
+
+            payload = self._payload()
+
+        with TemporaryDirectory() as directory:
+            with patch("poc3d.vegetation.urllib.request.urlopen", return_value=Response()) as mocked:
+                payload = download_forest_types(_config(Path(directory)))
+        self.assertEqual(len(payload["features"]), 1)
+        request = mocked.call_args.args[0]
+        self.assertIn("LANDCOVER.FORESTINVENTORY.V2%3Aformation_vegetale", request.full_url)
+        self.assertIn("EPSG%3A%3A2154", request.full_url)
+
+    def test_refuse_une_reponse_wfs_inattendue(self) -> None:
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b'{"type":"FeatureCollection","features":"invalide"}'
+
+        with TemporaryDirectory() as directory:
+            with patch("poc3d.vegetation.urllib.request.urlopen", return_value=Response()):
+                with self.assertRaises(RuntimeError):
+                    download_forest_types(_config(Path(directory)))
 
 
 if __name__ == "__main__":

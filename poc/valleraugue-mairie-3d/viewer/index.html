@@ -239,10 +239,6 @@
 
           <details id="lightControls" class="controls accordion">
             <summary>Éclairage</summary>
-            <label class="switch-row">
-              <span>Rendu réaliste</span>
-              <input id="realisticToggle" type="checkbox" />
-            </label>
             <label class="range-row">
               <span>Hauteur du soleil</span>
               <output id="sunValue">35°</output>
@@ -250,10 +246,72 @@
             </label>
             <label class="range-row">
               <span>Azimut du soleil</span>
-              <output id="azimuthValue">230°</output>
-              <input id="sunAzimuth" type="range" min="0" max="359" value="230" />
+              <output id="azimuthValue">95°</output>
+              <input id="sunAzimuth" type="range" min="0" max="359" value="95" />
             </label>
-            <p id="sunNotice" class="notice"></p>
+            <label class="range-row">
+              <span>Intensité du soleil</span>
+              <output id="sunIntensityValue">3,2</output>
+              <input
+                id="sunIntensity"
+                type="range"
+                min="0.5"
+                max="4"
+                step="0.1"
+                value="3.2"
+              />
+            </label>
+            <label class="range-row">
+              <span>Éclairage d’environnement</span>
+              <output id="environmentIntensityValue">0,08</output>
+              <input
+                id="environmentIntensity"
+                type="range"
+                min="0"
+                max="0.8"
+                step="0.01"
+                value="0.08"
+              />
+            </label>
+            <label class="range-row">
+              <span>Lumière hémisphérique</span>
+              <output id="hemisphereIntensityValue">0,20</output>
+              <input
+                id="hemisphereIntensity"
+                type="range"
+                min="0"
+                max="1.2"
+                step="0.01"
+                value="0.2"
+              />
+            </label>
+            <label class="range-row">
+              <span>Exposition</span>
+              <output id="displayExposureValue">×1,20</output>
+              <input
+                id="displayExposure"
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.05"
+                value="1.2"
+              />
+            </label>
+            <label class="range-row">
+              <span>Contraste d’affichage</span>
+              <output id="displayContrastValue">×1,12</output>
+              <input
+                id="displayContrast"
+                type="range"
+                min="0.8"
+                max="1.4"
+                step="0.01"
+                value="1.12"
+              />
+            </label>
+            <button id="contrastLighting" class="button" type="button">
+              Préréglage contrasté
+            </button>
             <button id="grazingLight" class="button" type="button">Lumière rasante (12°)</button>
             <label class="range-row">
               <span>Exagération verticale</span>
@@ -329,6 +387,14 @@
       <p id="buildingQualityDetail" class="quality-detail"></p>
     </section>
 
+    <output
+      id="cameraPoseToast"
+      class="camera-pose-toast"
+      role="status"
+      aria-live="polite"
+      hidden
+    ></output>
+
     <dialog id="dataInfoDialog" class="data-dialog" aria-labelledby="dataInfoTitle">
       <form method="dialog">
         <div class="dialog-heading">
@@ -376,6 +442,7 @@
               <li><kbd>1</kbd> terrain seul.</li>
               <li><kbd>2</kbd> bâtiments seuls.</li>
               <li><kbd>3</kbd> toutes les couches.</li>
+              <li><kbd>P</kbd> copier la pose caméra et l’afficher dans la console.</li>
               <li><kbd>Échap</kbd> désélectionner le bâtiment.</li>
             </ul>
           </section>

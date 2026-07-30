@@ -45,9 +45,10 @@ Une scène traverse quatre étages, dont un seul demande Docker.
 ```
 
 L'étage ② est le seul à sortir de l'environnement Python natif : il embarque GDAL, PDAL et
-Roofer dans le conteneur `3dgi/3dbag-pipeline-tools`. C'est aussi le seul à télécharger des
-données. Les étages ①, ③ et ④ ne lisent que le disque, sauf l'orthophotographie de ③, qui
-fait une requête WMS.
+Roofer dans le conteneur `3dgi/3dbag-pipeline-tools`. C'est aussi le seul à télécharger les
+données lourdes. À l'étage ③, l'orthophotographie fait une requête WMS et la végétation une
+requête WFS légère vers BD Forêt V2 ; cette dernière est facultative et retombe sur un profil
+générique si le service est indisponible.
 
 ## 2. Étage ① — décrire la scène
 
@@ -165,9 +166,9 @@ enchaîne, sur la dernière exécution complète du `OUTPUT_DIR` :
 | --- | --- | --- | --- |
 | `validate` | `lidar_subset.laz`, `roofer_output/` | `poc-validation.md` | nuage plus court que l'emprise du terrain |
 | `terrain` | points LiDAR de classe 2 | `terrain.tif/.tfw/.prj/.npy`, `canopy.npy`, `surface.npy`, `water.npy`, `bridge.npy` | taux de mailles mesurées faible sous couvert boisé |
-| `vegetation` | classe LiDAR 5 | `trees.json` | — |
+| `vegetation` | classe LiDAR 5, WFS BD Forêt V2 facultatif | `trees.json` | repli générique si le WFS est indisponible |
 | `ortho` | WMS Géoplateforme | `orthophoto.jpg`, `orthophoto.json` | service indisponible, emprise hors couverture |
-| `glb` | tout ce qui précède | `render/scene.glb`, `scene.json`, `buildings.json` | — |
+| `glb` | tout ce qui précède | `render/scene.glb`, `scene.json`, `buildings.json` | toiture dégradée sans emprise : conservation signalée de la géométrie Roofer |
 | `web` | `render/` de toutes les emprises | `web/` complet | — |
 
 La validation est bloquante et c'est voulu : `create_terrain` comble les cellules vides par

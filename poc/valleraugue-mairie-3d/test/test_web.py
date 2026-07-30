@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from poc3d.config import PocConfig
-from poc3d.web import ViewerRequestHandler, available_scenes, latest_scene_run
+from poc3d.web import VENDOR_FILES, ViewerRequestHandler, available_scenes, latest_scene_run
 
 
 class _InterfaceParser(HTMLParser):
@@ -263,6 +263,38 @@ class ViewerInterfaceTest(unittest.TestCase):
         )
         self.assertEqual(self.parser.render_modes, {"ortho", "model", "quality"})
 
+    def test_ne_reintroduit_pas_le_mode_realiste_rejete(self) -> None:
+        """La recette comparative a retenu un rendu direct unique, plus contrasté."""
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertNotIn("realisticToggle", self.parser.ids)
+        self.assertNotIn("composer.render", script)
+        self.assertIn("renderer.render(scene, camera)", script)
+        for obsolete in ("Sky.js", "EffectComposer.js", "GTAOPass.js"):
+            self.assertFalse(any(path.endswith(obsolete) for path in VENDOR_FILES))
+
+    def test_active_les_ombres_en_cascades_avec_un_repli_mobile(self) -> None:
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        for dependency in ("CSM.js", "CSMFrustum.js", "CSMShader.js"):
+            self.assertTrue(any(path.endswith(dependency) for path in VENDOR_FILES))
+        self.assertIn('import { CSM } from "three/addons/csm/CSM.js"', script)
+        self.assertIn("cascades: 3", script)
+        self.assertIn("csm.setupMaterial(material)", script)
+        self.assertIn("csm.update()", script)
+        self.assertIn("csm?.dispose()", script)
+        self.assertIn("csm?.shaders.delete(material)", script)
+        self.assertIn("sun.visible = !csm", script)
+
+    def test_eclaircit_la_vegetation_et_ne_projette_pas_l_eau(self) -> None:
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertRegex(
+            script,
+            r'node: "Vegetation",[\s\S]*?castsShadow: true,[\s\S]*?receivesShadow: false,',
+        )
+        self.assertRegex(
+            script,
+            r'node: "Eau",[\s\S]*?castsShadow: false,[\s\S]*?receivesShadow: false,',
+        )
+
     def test_expose_les_reperes_et_la_progression(self) -> None:
         """Chargement, aide, échelle et recherche sont des éléments d'interface, pas du texte."""
         self.assertTrue(
@@ -273,8 +305,40 @@ class ViewerInterfaceTest(unittest.TestCase):
                 "buildingSearch",
                 "searchDegraded",
                 "scaleBar",
+                "cameraPoseToast",
             }.issubset(self.parser.ids)
         )
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("navigator.clipboard.writeText", script)
+
+    def test_expose_les_intensites_d_eclairage_contraste(self) -> None:
+        self.assertTrue(
+            {
+                "sunIntensity",
+                "sunIntensityValue",
+                "environmentIntensity",
+                "environmentIntensityValue",
+                "hemisphereIntensity",
+                "hemisphereIntensityValue",
+                "displayExposure",
+                "displayExposureValue",
+                "displayContrast",
+                "displayContrastValue",
+                "contrastLighting",
+            }.issubset(self.parser.ids)
+        )
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("function applyLightingIntensities()", script)
+        self.assertIn("function applyDisplayTuning()", script)
+        self.assertIn("function applyContrastLightingPreset()", script)
+        for identifier in (
+            "sunIntensity",
+            "environmentIntensity",
+            "hemisphereIntensity",
+            "displayExposure",
+            "displayContrast",
+        ):
+            self.assertIn(f'"{identifier}"', script)
 
     def test_tire_l_identite_de_la_scene_et_non_du_document(self) -> None:
         """Le nom du lieu ne peut plus être écrit en dur : le sélecteur change de commune."""

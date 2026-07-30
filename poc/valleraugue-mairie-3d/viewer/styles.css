@@ -731,6 +731,29 @@ input[type="checkbox"]:disabled {
   display: none;
 }
 
+.camera-pose-toast {
+  position: fixed;
+  z-index: 5;
+  top: 24px;
+  left: 50%;
+  max-width: min(620px, calc(100vw - 40px));
+  padding: 11px 16px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(24, 42, 32, 0.92);
+  box-shadow: 0 12px 34px rgba(24, 42, 32, 0.24);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-align: center;
+  pointer-events: none;
+}
+
+.camera-pose-toast[hidden] {
+  display: none;
+}
+
 .card-heading,
 .dialog-heading {
   display: flex;

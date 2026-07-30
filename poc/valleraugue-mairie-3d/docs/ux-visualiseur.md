@@ -20,8 +20,9 @@ La réponse retenue est **deux niveaux d'interface** : une vue de découverte, c
 courte, et un bloc expert dépliable dont l'état est mémorisé.
 
 Ce rapport rectifie au passage la conclusion de `ameliorations-3d.md` § 3 (« tout travail sur le
-visualiseur » déconseillé) : elle datait de l'abandon du mode réaliste, lequel a depuis été
-réintroduit (ciel de Preetham, occlusion GTAO).
+visualiseur » déconseillé). L'expérimentation ultérieure d'un mode réaliste — ciel de Preetham
+et GTAO — a finalement été retirée après recette comparative, sans remettre en cause les gains
+d'interface décrits ici.
 
 L'accessibilité (WCAG 2.2 AA) est **hors périmètre** de ce lot, par décision explicite.
 
@@ -104,8 +105,8 @@ les cas signalés — est précisément l'usage de contrôle que l'outil revendi
 ### Niveau 2 — bloc expert replié, état mémorisé
 
 Sections **non exclusives** : Mode de rendu · Emprise · Rechercher un bâtiment · Textures et
-maillage · Opacité du terrain · Éclairage (rendu réaliste, hauteur, azimut, lumière rasante,
-exagération verticale) · Houppiers.
+maillage · Opacité du terrain · Éclairage (hauteur, azimut, lumière rasante, exagération
+verticale) · Houppiers.
 
 Deux déplacements de section méritent leur justification :
 

@@ -3,11 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { Sky } from "three/addons/objects/Sky.js";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { CSM } from "three/addons/csm/CSM.js";
 
 const viewport = document.querySelector("#viewport");
 const status = document.querySelector("#status");
@@ -18,19 +14,37 @@ const compass = document.querySelector(".north");
 const scaleBar = document.querySelector("#scaleBar");
 const scaleLabel = document.querySelector("#scaleLabel");
 const buildingDetails = document.querySelector("#buildingDetails");
+const cameraPoseToast = document.querySelector("#cameraPoseToast");
 const dataInfoDialog = document.querySelector("#dataInfoDialog");
 const helpDialog = document.querySelector("#helpDialog");
 const controlPanel = document.querySelector("#controlPanel");
 const panelToggle = document.querySelector("#panelToggle");
 const expertControls = document.querySelector("#expertControls");
 
-// Mode diagnostic : fond clair neutre et brouillard quasi nul, pour ne masquer aucun défaut
-// géométrique. Le mode réaliste lui substitue un ciel physique (voir setRealistic).
-const DIAGNOSTIC_SKY = 0xc8d2d8;
+const buildingMetrics = buildingDetails.querySelector(".building-metrics");
+const buildingAttributeFields = new Map();
+for (const [id, label] of [
+  ["buildingWallMaterial", "Murs (code BD TOPO)"],
+  ["buildingRoofMaterial", "Toiture (code BD TOPO)"],
+  ["buildingFloorCount", "Nombre d’étages"],
+]) {
+  const metric = document.createElement("div");
+  const term = document.createElement("dt");
+  const description = document.createElement("dd");
+  term.textContent = label;
+  description.id = id;
+  description.textContent = "—";
+  metric.append(term, description);
+  buildingMetrics.append(metric);
+  buildingAttributeFields.set(id, description);
+}
+
+// Fond clair neutre et brouillard quasi nul, pour ne masquer aucun défaut géométrique.
+const BACKGROUND_COLOR = 0xc8d2d8;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(DIAGNOSTIC_SKY);
-scene.fog = new THREE.FogExp2(DIAGNOSTIC_SKY, 0.0002);
+scene.background = new THREE.Color(BACKGROUND_COLOR);
+scene.fog = new THREE.FogExp2(BACKGROUND_COLOR, 0.0002);
 
 const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 4000);
 camera.position.set(180, 155, 210);
@@ -46,37 +60,11 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 viewport.append(renderer.domElement);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
-// RoomEnvironment est une boîte de studio d'intérieur : correcte pour lire une géométrie,
-// fausse pour de l'extérieur. Le mode réaliste lui substitue l'éclairement du ciel.
+// Un environnement neutre très atténué conserve les reflets rasants sans laver les ombres.
 const roomEnvironment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environment = roomEnvironment;
-// À pleine intensité, elle s'ajoutait à l'hémisphérique et au directionnel : trois sources
-// ambiantes cumulées noyaient les ombres portées et le bâti ne posait plus. Réduite, elle
-// ne sert plus qu'aux reflets rasants.
-const DIAGNOSTIC_ENVIRONMENT_INTENSITY = 0.35;
-scene.environmentIntensity = DIAGNOSTIC_ENVIRONMENT_INTENSITY;
-
-const sky = new Sky();
-const skyScene = new THREE.Scene();
-// La caméra cube du PMREM porte un plan éloigné de 100 : la boîte du ciel doit y tenir,
-// sinon elle est détourée et l'environnement ressort vide.
-const SKY_ENVIRONMENT_SCALE = 10;
-let skyTarget = null;
-let realistic = false;
-let orthoSun = null;
-
-// L'occlusion ambiante est ce qui fait *poser* les bâtiments au sol. Elle n'est appliquée
-// qu'en rendu réaliste : le mode diagnostic doit rester direct, lisible et fluide.
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-const ambientOcclusion = new GTAOPass(scene, camera, innerWidth, innerHeight);
-// Le rayon se mesure en unités de scène, ici en mètres : une ruelle étroite fait 3 à 5 m.
-ambientOcclusion.updateGtaoMaterial({ radius: 4, distanceExponent: 1, thickness: 1 });
-ambientOcclusion.blendIntensity = 0.85;
-composer.addPass(ambientOcclusion);
-// La conversion colorimétrique et le tone mapping n'ont plus lieu à l'écriture du canevas
-// quand on rend dans une cible : c'est OutputPass qui s'en charge.
-composer.addPass(new OutputPass());
+const ENVIRONMENT_INTENSITY = 0.08;
+scene.environmentIntensity = ENVIRONMENT_INTENSITY;
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -87,15 +75,30 @@ controls.maxDistance = 900;
 
 // L'ambiant ayant baissé, le contraste vient du directionnel : c'est lui qui fait lire les
 // décrochements de toiture et les ombres portées sur le terrain.
-const DIAGNOSTIC_SUN_INTENSITY = 2.2;
-const hemisphere = new THREE.HemisphereLight(0xdfe8f0, 0x8b8578, 0.85);
+const SUN_INTENSITY = 3.2;
+const hemisphere = new THREE.HemisphereLight(0xdfe8f0, 0x8b8578, 0.2);
 scene.add(hemisphere);
-const sun = new THREE.DirectionalLight(0xfff6e2, DIAGNOSTIC_SUN_INTENSITY);
+const sun = new THREE.DirectionalLight(0xfff6e2, SUN_INTENSITY);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.05;
 scene.add(sun);
+
+function updateShadowMapResolution() {
+  if (csm) return;
+  const supportsLargeShadowMap = renderer.capabilities.maxTextureSize >= 4096;
+  const isComfortableDisplay = devicePixelRatio <= 1.5 && innerWidth >= 720 && innerHeight >= 600;
+  const size = supportsLargeShadowMap && isComfortableDisplay ? 4096 : 2048;
+  if (sun.shadow.mapSize.x === size) return;
+  sun.shadow.mapSize.set(size, size);
+  // Three.js alloue la cible au premier rendu. Après un redimensionnement, il faut libérer
+  // l'ancienne pour que la nouvelle résolution soit prise en compte.
+  if (sun.shadow.map) {
+    sun.shadow.map.dispose();
+    sun.shadow.map = null;
+  }
+}
+
 // Le soleil vise le centre de la scène chargée, et son frustum d'ombre en épouse la taille :
 // une valeur figée conviendrait à une seule emprise et couperait les ombres de toutes les
 // autres. Les valeurs d'attente correspondent à l'emprise 200 m.
@@ -104,6 +107,35 @@ scene.add(sunTarget);
 sun.target = sunTarget;
 const sceneCentre = new THREE.Vector3();
 let sceneRadius = 135;
+// Trois cascades concentrent les texels près de la caméra sur les postes capables de les
+// porter. Les petits écrans conservent le directionnel unique : le repli est moins coûteux
+// et reste compatible avec les GPU limités à de petites cartes d'ombre.
+const csmEnabled =
+  renderer.capabilities.maxTextureSize >= 4096 && innerWidth >= 720 && innerHeight >= 600;
+const csm = csmEnabled
+  ? new CSM({
+      camera,
+      parent: scene,
+      cascades: 3,
+      mode: "practical",
+      maxFar: 700,
+      shadowMapSize: 2048,
+      shadowBias: -0.0005,
+      lightNear: 1,
+      lightFar: 1400,
+      lightMargin: 120,
+      lightIntensity: SUN_INTENSITY,
+    })
+  : null;
+if (csm) {
+  csm.fade = true;
+  for (const light of csm.lights) {
+    light.color.set(0xfff6e2);
+    light.shadow.normalBias = 0.05;
+  }
+}
+sun.visible = !csm;
+updateShadowMapResolution();
 
 function sunDistance() {
   return Math.max(300, sceneRadius * 2.5);
@@ -124,6 +156,15 @@ function fitSunToModel() {
   shadow.near = 1;
   shadow.far = sunDistance() + sceneRadius * 2 + size.y;
   shadow.updateProjectionMatrix();
+  if (csm) {
+    csm.maxFar = Math.min(camera.far, Math.max(400, sceneRadius * 4));
+    csm.lightFar = csm.maxFar + size.y + 120;
+    for (const light of csm.lights) {
+      light.shadow.camera.far = csm.lightFar;
+      light.shadow.camera.updateProjectionMatrix();
+    }
+    csm.updateFrustums();
+  }
   updateSun();
 }
 
@@ -150,18 +191,24 @@ const optionalLayers = [
     node: "Vegetation",
     toggle: "#vegetationToggle",
     absent: "La scène chargée ne contient pas de couche de végétation.",
+    castsShadow: true,
+    receivesShadow: false,
     object: null,
   },
   {
     node: "Eau",
     toggle: "#waterToggle",
     absent: "Aucun point d’eau (classe LiDAR 9) dans cette emprise.",
+    castsShadow: false,
+    receivesShadow: false,
     object: null,
   },
   {
     node: "Ponts",
     toggle: "#bridgeToggle",
     absent: "Aucun tablier de pont (classe LiDAR 17) dans cette emprise.",
+    castsShadow: true,
+    receivesShadow: true,
     object: null,
   },
 ];
@@ -336,6 +383,14 @@ function numericAttribute(attributes, ...keys) {
 function reconstructionQuality(attributes) {
   const rmse = numericAttribute(attributes, "rf_rmse_lod22");
   const missing = numericAttribute(attributes, "rf_nodata_frac");
+  if (attributes?.rf_lod1_fallback) {
+    return {
+      level: "low",
+      label: "LoD1 de repli",
+      detail:
+        "Roofer a signalé cette toiture comme dégradée : elle est affichée comme une extrusion horizontale de son emprise.",
+    };
+  }
   if (attributes?.rf_degraded || attributes?.rf_success === false) {
     return {
       level: "low",
@@ -368,7 +423,10 @@ function setQualityColors(enabled) {
   if (!enabled) {
     for (const [mesh, state] of qualityMaterialState) {
       mesh.material = state.original;
-      state.replacements.forEach((material) => material.dispose());
+      state.replacements.forEach((material) => {
+        csm?.shaders.delete(material);
+        material.dispose();
+      });
     }
     qualityMaterialState.clear();
     return;
@@ -385,6 +443,7 @@ function setQualityColors(enabled) {
         replacement.color?.copy(color);
         replacement.roughness = 0.88;
         replacement.needsUpdate = true;
+        csm?.setupMaterial(replacement);
         return replacement;
       });
       qualityMaterialState.set(object, { original, replacements });
@@ -539,106 +598,75 @@ function sunDirection(height, azimuth) {
   );
 }
 
-function applyAtmosphere(direction, height) {
-  const uniforms = sky.material.uniforms;
-  uniforms.turbidity.value = 4;
-  uniforms.rayleigh.value = 2;
-  uniforms.mieCoefficient.value = 0.005;
-  uniforms.mieDirectionalG.value = 0.8;
-  uniforms.sunPosition.value.copy(direction);
-  // Extinction atmosphérique : un soleil bas traverse plus d'air, il s'affaiblit et se réchauffe.
-  const altitude = THREE.MathUtils.clamp(height / 45, 0, 1);
-  sun.color.setHSL(0.09 + 0.03 * altitude, 0.62 - 0.46 * altitude, 0.55 + 0.4 * altitude);
-  sun.intensity = THREE.MathUtils.lerp(0.9, 3.4, altitude);
-  scene.fog.color.setHSL(0.58, 0.22, THREE.MathUtils.lerp(0.62, 0.82, altitude));
-}
-
-function fitSkyToCamera() {
-  // La boîte du ciel doit envelopper la caméra sans dépasser son plan éloigné : trop grande,
-  // elle est détourée et le fond retombe sur la couleur d'effacement — une image toute grise.
-  sky.scale.setScalar(camera.far * 0.5);
-}
-
-function refreshSkyEnvironment() {
-  if (!realistic) return;
-  // Coûteux : à ne déclencher qu'au relâchement d'un curseur, jamais à chaque pixel.
-  skyTarget?.dispose();
-  skyScene.add(sky);
-  sky.scale.setScalar(SKY_ENVIRONMENT_SCALE);
-  skyTarget = pmrem.fromScene(skyScene);
-  scene.add(sky);
-  fitSkyToCamera();
-  scene.environment = skyTarget.texture;
-}
-
-function describeCalibration(height, azimuth) {
-  const notice = document.querySelector("#sunNotice");
-  if (!realistic || !orthoSun) {
-    notice.textContent = "";
-    return;
-  }
-  const drift = Math.abs(((azimuth - orthoSun.azimuthDeg + 540) % 360) - 180);
-  notice.textContent =
-    drift < 3 && Math.abs(height - orthoSun.elevationDeg) < 3
-      ? "Soleil calé sur les ombres de l’orthophotographie."
-      : `Écart de ${drift.toFixed(0)}° avec les ombres de l’orthophotographie : le terrain et les bâtiments s’éclairent différemment.`;
-}
-
 function updateSun() {
   const height = Number(document.querySelector("#sunHeight").value);
   const azimuth = Number(document.querySelector("#sunAzimuth").value);
+  const direction = sunDirection(height, azimuth);
   sun.position
-    .copy(sunDirection(height, azimuth))
+    .copy(direction)
     .multiplyScalar(sunDistance())
     .add(sceneCentre);
+  if (csm) csm.lightDirection.copy(direction).multiplyScalar(-1);
   document.querySelector("#sunValue").textContent = `${height}°`;
   document.querySelector("#azimuthValue").textContent = `${azimuth}°`;
-  if (realistic) {
-    applyAtmosphere(sunDirection(height, azimuth), height);
-    describeCalibration(height, azimuth);
-  }
 }
 
-function setRealistic(enabled) {
-  realistic = enabled;
-  hemisphere.visible = !enabled;
-  // Le ciel de Preetham rend en grandes valeurs : l'appairage ACES + exposition 0,5 est celui
-  // des exemples Three.js pour ce modèle, plus sûr qu'une exposition devinée.
-  renderer.toneMapping = enabled ? THREE.ACESFilmicToneMapping : THREE.NeutralToneMapping;
-  renderer.toneMappingExposure = enabled ? 0.5 : 1.0;
-  if (enabled) {
-    if (orthoSun) {
-      // Les ombres cuites dans l'orthophotographie commandent : s'en écarter fait diverger
-      // l'éclairement du terrain de celui des bâtiments.
-      document.querySelector("#sunHeight").value = String(Math.round(orthoSun.elevationDeg));
-      document.querySelector("#sunAzimuth").value = String(Math.round(orthoSun.azimuthDeg));
-    }
-    scene.background = null;
-    scene.fog = new THREE.FogExp2(0xa8bfd0, 0.0016);
-    // Le ciel de Preetham *est* l'éclairement ambiant du mode réaliste : contrairement à
-    // RoomEnvironment il n'a pas à être atténué.
-    scene.environmentIntensity = 1.0;
-    scene.add(sky);
-    updateSun();
-    refreshSkyEnvironment();
-  } else {
-    sky.removeFromParent();
-    scene.background = new THREE.Color(DIAGNOSTIC_SKY);
-    scene.fog = new THREE.FogExp2(DIAGNOSTIC_SKY, 0.0002);
-    scene.environment = roomEnvironment;
-    scene.environmentIntensity = DIAGNOSTIC_ENVIRONMENT_INTENSITY;
-    sun.color.set(0xfff6e2);
-    sun.intensity = DIAGNOSTIC_SUN_INTENSITY;
-    updateSun();
-  }
-  document.querySelector("#realisticToggle").checked = enabled;
-  describeCalibration(
-    Number(document.querySelector("#sunHeight").value),
-    Number(document.querySelector("#sunAzimuth").value),
+function applyLightingIntensities() {
+  const sunIntensity = Number(document.querySelector("#sunIntensity").value);
+  const environmentIntensity = Number(
+    document.querySelector("#environmentIntensity").value,
   );
+  const hemisphereIntensity = Number(
+    document.querySelector("#hemisphereIntensity").value,
+  );
+  sun.intensity = sunIntensity;
+  if (csm) {
+    csm.lightIntensity = sunIntensity;
+    for (const light of csm.lights) light.intensity = sunIntensity;
+  }
+  scene.environmentIntensity = environmentIntensity;
+  hemisphere.intensity = hemisphereIntensity;
+  document.querySelector("#sunIntensityValue").textContent =
+    sunIntensity.toFixed(1).replace(".", ",");
+  document.querySelector("#environmentIntensityValue").textContent =
+    environmentIntensity.toFixed(2).replace(".", ",");
+  document.querySelector("#hemisphereIntensityValue").textContent =
+    hemisphereIntensity.toFixed(2).replace(".", ",");
+}
+
+function applyDisplayTuning() {
+  const exposure = Number(document.querySelector("#displayExposure").value);
+  const contrast = Number(document.querySelector("#displayContrast").value);
+  renderer.toneMappingExposure = exposure;
+  renderer.domElement.style.filter = `contrast(${contrast})`;
+  document.querySelector("#displayExposureValue").textContent =
+    `×${exposure.toFixed(2).replace(".", ",")}`;
+  document.querySelector("#displayContrastValue").textContent =
+    `×${contrast.toFixed(2).replace(".", ",")}`;
+}
+
+function applyContrastLightingPreset() {
+  const values = {
+    sunHeight: 35,
+    sunAzimuth: 95,
+    sunIntensity: 3.2,
+    environmentIntensity: 0.08,
+    hemisphereIntensity: 0.2,
+    displayExposure: 1.2,
+    displayContrast: 1.12,
+  };
+  for (const [id, value] of Object.entries(values)) {
+    document.querySelector(`#${id}`).value = String(value);
+  }
+  updateSun();
+  applyLightingIntensities();
+  applyDisplayTuning();
+  saveState();
 }
 
 updateSun();
+applyLightingIntensities();
+applyDisplayTuning();
 
 // Déplacement de caméra interpolé. Un saut instantané fait perdre le repère : on ne sait plus
 // si l'on regarde la même scène. L'animation est interrompue à la première prise en main.
@@ -653,7 +681,6 @@ function moveCamera(position, target, { near, far, immediate = false } = {}) {
   if (near !== undefined) camera.near = near;
   if (far !== undefined) camera.far = far;
   camera.updateProjectionMatrix();
-  fitSkyToCamera();
   if (immediate || !model) {
     transition = null;
     camera.position.copy(position);
@@ -856,6 +883,20 @@ function selectBuilding(building) {
     footprint === null ? "Non disponible" : `≈ ${Math.round(footprint).toLocaleString("fr-FR")} m²`;
   document.querySelector("#buildingAltitude").textContent =
     altitude === null ? "Non disponible" : `${altitude.toFixed(1).replace(".", ",")} m NGF`;
+  buildingAttributeFields.get("buildingWallMaterial").textContent =
+    displayAttribute(attributes.materiaux_des_murs);
+  buildingAttributeFields.get("buildingRoofMaterial").textContent =
+    displayAttribute(attributes.materiaux_de_la_toiture);
+  const rawFloorCount = attributes.nombre_d_etages;
+  const parsedFloorCount =
+    rawFloorCount === null || rawFloorCount === undefined || rawFloorCount === ""
+      ? null
+      : Number(rawFloorCount);
+  const floorCount = Number.isFinite(parsedFloorCount) ? parsedFloorCount : null;
+  buildingAttributeFields.get("buildingFloorCount").textContent =
+    floorCount === null
+      ? "Non disponible"
+      : `${floorCount.toLocaleString("fr-FR")} ${floorCount > 1 ? "étages" : "étage"}`;
   const qualityBadge = document.querySelector("#buildingQuality");
   qualityBadge.textContent = quality.label;
   qualityBadge.dataset.level = quality.level;
@@ -1020,6 +1061,7 @@ function updateDataInformation(metadata, entry) {
     numericAttribute(metadata, "orthophotoResolutionM") ??
     numericAttribute(configuration, "orthophotoResolutionM");
   const degraded = metadata.roofQuality?.degraded?.length ?? 0;
+  const lod1Fallbacks = metadata.lod1Fallbacks ?? 0;
   const total = metadata.roofQuality?.total ?? metadata.buildings ?? 0;
   const sourceDates = [
     `LiDAR HD : ${lidarYears.length ? lidarYears.join(", ") : "millésime non renseigné"}`,
@@ -1075,6 +1117,7 @@ function updateDataInformation(metadata, entry) {
       `${degraded} bâtiment${degraded > 1 ? "s" : ""} sur ${total} ${
         degraded > 1 ? "sont signalés" : "est signalé"
       } à contrôler par Roofer.`,
+      `${lod1Fallbacks} toiture${lod1Fallbacks > 1 ? "s dégradées sont remplacées" : " dégradée est remplacée"} par une extrusion LoD1 explicite.`,
       "Les hauteurs, altitudes et surfaces affichées sont des estimations issues du modèle.",
       "L’orthophoto est rectifiée au sol : un décalage peut subsister sur les toitures hautes.",
       "La végétation est représentée par des volumes simplifiés, sans branches individuelles.",
@@ -1136,7 +1179,6 @@ function setSunHeight(degrees) {
   const slider = document.querySelector("#sunHeight");
   slider.value = String(degrees);
   updateSun();
-  refreshSkyEnvironment();
   saveState();
 }
 
@@ -1241,6 +1283,7 @@ function disposeModel() {
   setHovered(null);
   setQualityColors(false);
   qualityFilter = null;
+  csm?.dispose();
   scene.remove(model);
   disposeObject(model);
   model = null;
@@ -1250,6 +1293,20 @@ function disposeModel() {
   currentMetadata = null;
   currentEntry = null;
   for (const entry of optionalLayers) entry.object = null;
+}
+
+function setupCsmMaterials(root) {
+  if (!csm) return;
+  const configured = new Set();
+  root.traverse((object) => {
+    if (!object.isMesh) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials.filter(Boolean)) {
+      if (configured.has(material)) continue;
+      configured.add(material);
+      csm.setupMaterial(material);
+    }
+  });
 }
 
 function applyTerrainOpacity() {
@@ -1276,9 +1333,6 @@ function adopt(entry, metadata, gltf) {
   const relief = metadata.maxElevation - metadata.minElevation;
   document.querySelector("#elevationRange").textContent =
     `${relief.toFixed(1).replace(".", ",")} m`;
-  // Position solaire retrouvée sur les ombres de l'orthophotographie par `poc.py sun`.
-  orthoSun = metadata.orthoSun ?? null;
-
   model = gltf.scene;
   terrain = model.getObjectByName("Terrain") || model.children[0];
   buildings = model.getObjectByName("Batiments") || model.children.find((child) => child !== terrain);
@@ -1300,17 +1354,19 @@ function adopt(entry, metadata, gltf) {
       object.receiveShadow = true;
     }
   });
-  // Sans ombre portée, les arbres flottent au-dessus du terrain et le tablier de pont ne
-  // se distingue plus de la rive qu'il enjambe.
+  // Les arbres continuent de projeter leur présence au sol mais ne reçoivent plus les ombres
+  // très noires de leurs voisins. L'eau ne projette ni ne reçoit d'ombre : sa transparence
+  // doit laisser parler l'orthophotographie. Le pont conserve les deux.
   for (const entry of optionalLayers) {
     entry.object = model.getObjectByName(entry.node);
     entry.object?.traverse((object) => {
       if (object.isMesh) {
-        object.castShadow = true;
-        object.receiveShadow = true;
+        object.castShadow = entry.castsShadow;
+        object.receiveShadow = entry.receivesShadow;
       }
     });
   }
+  setupCsmMaterials(model);
   rememberMaterials(model);
   configureTextureToggle("#terrainTextureToggle", terrain, isTerrainMaterial);
   configureTextureToggle("#roofTextureToggle", buildings, isRoofMaterial);
@@ -1342,9 +1398,6 @@ function adopt(entry, metadata, gltf) {
   updateDataInformation(metadata, entry);
   fitCamera({ immediate: true });
   fitSunToModel();
-  // La calibration solaire n'arrive qu'avec les métadonnées : réappliquer le mode si
-  // l'utilisateur l'a activé avant la fin du chargement.
-  if (realistic) setRealistic(true);
   setStatus("ready", "Scène prête");
 }
 
@@ -1434,9 +1487,13 @@ const PERSISTED_INPUTS = [
   "roofTextureToggle",
   "wireframeToggle",
   "terrainOpacity",
-  "realisticToggle",
   "sunHeight",
   "sunAzimuth",
+  "sunIntensity",
+  "environmentIntensity",
+  "hemisphereIntensity",
+  "displayExposure",
+  "displayContrast",
   "verticalScale",
   "crownX",
   "crownY",
@@ -1508,6 +1565,8 @@ function restoreState() {
   const scale = Number(document.querySelector("#verticalScale").value) / 100;
   document.querySelector("#verticalValue").textContent = `×${scale.toFixed(1).replace(".", ",")}`;
   updateSun();
+  applyLightingIntensities();
+  applyDisplayTuning();
   describeRenderMode();
   const radio = document.querySelector(`input[name="renderMode"][value="${renderMode}"]`);
   if (radio) radio.checked = true;
@@ -1524,7 +1583,6 @@ async function start() {
   const restored = sceneEntries.find((entry) => entry.id === state?.sceneId);
   const entry = restored ?? sceneEntries[0];
   document.querySelector("#sceneSelect").value = entry.id;
-  if (document.querySelector("#realisticToggle").checked) setRealistic(true);
   await loadScene(entry);
 }
 
@@ -1597,14 +1655,15 @@ document.querySelector("#searchDegraded").addEventListener("click", focusNextDeg
 
 for (const id of ["#sunHeight", "#sunAzimuth"]) {
   document.querySelector(id).addEventListener("input", updateSun);
-  // Le PMREM du ciel ne se recalcule qu'au relâchement : le faire à chaque pixel de
-  // curseur écroulerait la fréquence d'images.
-  document.querySelector(id).addEventListener("change", refreshSkyEnvironment);
 }
+for (const id of ["#sunIntensity", "#environmentIntensity", "#hemisphereIntensity"]) {
+  document.querySelector(id).addEventListener("input", applyLightingIntensities);
+}
+for (const id of ["#displayExposure", "#displayContrast"]) {
+  document.querySelector(id).addEventListener("input", applyDisplayTuning);
+}
+document.querySelector("#contrastLighting").addEventListener("click", applyContrastLightingPreset);
 
-document.querySelector("#realisticToggle").addEventListener("change", (event) => {
-  setRealistic(event.target.checked);
-});
 document.querySelector("#verticalScale").addEventListener("input", (event) => {
   const scale = Number(event.target.value) / 100;
   document.querySelector("#verticalValue").textContent = `×${scale.toFixed(1).replace(".", ",")}`;
@@ -1703,9 +1762,56 @@ function showLayers(terrainVisible, buildingsVisible, sceneryVisible) {
   saveState();
 }
 
+function displayAttribute(value) {
+  if (value === null || value === undefined || value === "") return "Non disponible";
+  return String(value);
+}
+
+let cameraPoseToastTimer = null;
+
+function showCameraPoseToast(message) {
+  clearTimeout(cameraPoseToastTimer);
+  cameraPoseToast.textContent = message;
+  cameraPoseToast.hidden = false;
+  cameraPoseToastTimer = setTimeout(() => {
+    cameraPoseToast.hidden = true;
+  }, 2800);
+}
+
+async function logCameraPose() {
+  const rounded = (vector) => vector.toArray().map((value) => Number(value.toFixed(3)));
+  const pose = {
+    scene: currentEntry?.id ?? null,
+    position: rounded(camera.position),
+    target: rounded(controls.target),
+    fov: camera.fov,
+    near: camera.near,
+    far: camera.far,
+  };
+  const json = JSON.stringify(pose, null, 2);
+  console.info("Pose caméra reproductible :\n", json);
+  try {
+    await navigator.clipboard.writeText(json);
+    showCameraPoseToast(`Pose caméra copiée · ${pose.position.join(", ")}`);
+  } catch {
+    showCameraPoseToast(`Pose caméra affichée dans la console · ${pose.position.join(", ")}`);
+  }
+}
+
 // 1/2/3 : alterner rapidement terrain seul, bâtiments seuls et scène complète pour
-// isoler l'origine d'un défaut de contact au sol.
+// isoler l'origine d'un défaut de contact au sol. P imprime la pose pour rejouer une vue.
 addEventListener("keydown", (event) => {
+  const poseShortcutBlocked =
+    event.target instanceof HTMLSelectElement ||
+    event.target instanceof HTMLTextAreaElement ||
+    event.target?.isContentEditable ||
+    (event.target instanceof HTMLInputElement &&
+      !["checkbox", "range"].includes(event.target.type));
+  if (event.key.toLowerCase() === "p" && !poseShortcutBlocked) {
+    event.preventDefault();
+    logCameraPose();
+    return;
+  }
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
   if (event.key === "1") showLayers(true, false, false);
   if (event.key === "2") showLayers(false, true, false);
@@ -1717,8 +1823,8 @@ addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
-  composer.setSize(innerWidth, innerHeight);
-  ambientOcclusion.setSize(innerWidth, innerHeight);
+  updateShadowMapResolution();
+  csm?.updateFrustums();
   publishPanelSize();
 });
 
@@ -1735,8 +1841,11 @@ renderer.setAnimationLoop(() => {
   }
   updateCompass();
   updateScaleBar();
-  if (realistic) composer.render();
-  else renderer.render(scene, camera);
+  if (csm) {
+    camera.updateMatrixWorld();
+    csm.update();
+  }
+  renderer.render(scene, camera);
 });
 
 start();
