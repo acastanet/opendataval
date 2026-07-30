@@ -262,6 +262,10 @@ class ViewerInterfaceTest(unittest.TestCase):
             }.issubset(self.parser.ids)
         )
         self.assertEqual(self.parser.render_modes, {"ortho", "model", "quality"})
+        self.assertIn(
+            '<link rel="icon" href="./favicon.svg" type="image/svg+xml" />',
+            self.document,
+        )
 
     def test_ne_reintroduit_pas_le_mode_realiste_rejete(self) -> None:
         """La recette comparative a retenu un rendu direct unique, plus contrasté."""
@@ -369,6 +373,11 @@ class ViewerInterfaceTest(unittest.TestCase):
         self.assertGreaterEqual(self.parser.expert_accordions, 5)
         # Un seul accordéon hors du bloc avancé : les couches.
         self.assertEqual(self.parser.accordions - self.parser.expert_accordions, 1)
+
+    def test_invalide_les_sessions_qui_masquaient_les_textures(self) -> None:
+        """Une mise à jour du viewer doit retrouver l'orthophoto malgré un ancien état local."""
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('const STORAGE_KEY = "poc3d.viewer.v3"', script)
 
 
 class ViewerCacheTest(unittest.TestCase):

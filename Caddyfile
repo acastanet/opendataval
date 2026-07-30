@@ -5,7 +5,7 @@
 http://:80 {
 	# En-têtes de sécurité appliqués aux réponses publiques.
 	header {
-		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://data.geopf.fr https://unpkg.com https://tile.openstreetmap.org; connect-src 'self' https://data.geopf.fr https://unpkg.com; worker-src 'self' blob:; child-src 'self' blob:; font-src 'self' data:;"
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://data.geopf.fr https://unpkg.com https://tile.openstreetmap.org; connect-src 'self' blob: https://data.geopf.fr https://unpkg.com; worker-src 'self' blob:; child-src 'self' blob:; font-src 'self' data:;"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(self)"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Content-Type-Options "nosniff"
@@ -43,6 +43,27 @@ http://:80 {
 	# du corps et de ses en-têtes.
 	handle /api/* {
 		reverse_proxy api:3000
+	}
+
+	# Visualiseur 3D du POC Valleraugue : dossier statique monté au runtime, hors du bundle
+	# Astro (cf. poc/valleraugue-mairie-3d/docs/publication-visualiseur.md).
+	redir /valleraugue-3d /valleraugue-3d/ 308
+	handle_path /valleraugue-3d/* {
+		root * /srv/valleraugue-3d
+
+		@glb path *.glb
+		header @glb Content-Type "model/gltf-binary"
+
+		# Les scènes gardent le même nom d'une publication à l'autre : la revalidation par
+		# ETag est ce qui évite de servir une géométrie périmée pendant un an.
+		header /assets/* Cache-Control "public, max-age=86400"
+		header /vendor/* Cache-Control "public, max-age=86400"
+		header Cache-Control "public, max-age=0, must-revalidate"
+
+		encode zstd gzip
+		file_server {
+			precompressed zstd gzip
+		}
 	}
 
 	# Seuls les fichiers statiques sont compressés par Caddy.

@@ -1476,7 +1476,10 @@ function populateScenes(entries) {
 
 // Le visualiseur se recharge à chaque nouvelle exécution du pipeline : sans mémoire, chaque
 // aller-retour imposait de rétablir à la main l'éclairage, les couches et l'opacité.
-const STORAGE_KEY = "poc3d.viewer";
+// La version fait partie du contrat de l'interface : une ancienne session pouvait mémoriser
+// les deux textures désactivées, puis masquer silencieusement l'orthophoto après une mise à
+// jour du visualiseur. Une nouvelle version repart une fois sur le préréglage Orthophoto.
+const STORAGE_KEY = "poc3d.viewer.v3";
 const PERSISTED_INPUTS = [
   "terrainToggle",
   "buildingsToggle",

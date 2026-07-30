@@ -246,7 +246,7 @@ def prepare_viewer(config: PocConfig, run_dir: Path | None = None) -> Path:
     web_dir = run_dir / "web"
     assets_dir = web_dir / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
-    for name in ("index.html", "app.js", "styles.css"):
+    for name in ("index.html", "app.js", "styles.css", "favicon.svg"):
         shutil.copy2(viewer_source / name, web_dir / name)
     shutil.copy2(scene_glb, assets_dir / "scene.glb")
     shutil.copy2(scene_json, assets_dir / "scene.json")
