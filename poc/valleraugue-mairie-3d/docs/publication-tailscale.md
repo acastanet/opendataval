@@ -76,15 +76,51 @@ Une seule connexion, un seul flux, aucun outil à installer : `tar` est dans Git
 dans Windows. Le dossier est empaqueté à la volée et déballé dans un dossier d'attente sur
 le serveur, puis basculé.
 
+### Le chemin cible se lit, il ne se devine pas
+
+Le dossier à remplacer est celui que le conteneur Caddy monte sur `/srv/valleraugue-3d`, et
+son emplacement dépend de l'installation : nom du dépôt cloné, compte qui l'héberge, casse
+retenue. **Se tromper de chemin ne se voit pas.** Le transfert réussit, `du -sh` affiche un
+volume plausible, la recette locale passe — et le site continue de servir l'ancienne
+publication depuis un dossier que l'on n'a jamais touché, pendant qu'une arborescence
+fantôme s'accumule à côté. Relever le chemin sur le montage, une fois par session :
+
 ```bash
 # Git Bash, depuis poc/valleraugue-mairie-3d
-tar -cf - -C publication . | ssh <utilisateur>@<serveur> \
-  'set -e
-   cible=~/OpenDataVdA/poc/valleraugue-mairie-3d
-   rm -rf "$cible/publication.incoming"
-   mkdir -p "$cible/publication.incoming"
-   tar -xf - -C "$cible/publication.incoming"
-   echo "reçu : $(du -sh "$cible/publication.incoming" | cut -f1)"'
+serveur=<utilisateur>@<serveur>
+cible=$(ssh "$serveur" 'docker inspect -f "{{range .Mounts}}{{if eq .Destination \"/srv/valleraugue-3d\"}}{{.Source}}{{end}}{{end}}" $(docker ps -q --filter name=caddy)')
+cible=${cible%/publication}
+[ -n "$cible" ] || echo 'montage /srv/valleraugue-3d introuvable : Caddy tourne-t-il ?' >&2
+echo "cible : $cible"
+```
+
+Un résultat vide est un arrêt, pas un détail : il signifie que le conteneur ne tourne pas ou
+que le volume a disparu du `docker-compose.yml`, et publier dans ces conditions ne mettrait
+rien en ligne. Les commandes qui suivent supposent `$serveur` et `$cible` renseignés.
+
+### Transfert
+
+```bash
+tar -cf - -C publication . \
+  | ssh "$serveur" "cible=\"$cible\"; "'set -e
+       rm -rf "$cible/publication.incoming"
+       mkdir -p "$cible/publication.incoming"
+       tar -xf - -C "$cible/publication.incoming"
+       echo "reçu : $(du -sh "$cible/publication.incoming" | cut -f1)"'
+```
+
+Le mélange de guillemets est délibéré : la portion entre guillemets doubles interpole `$cible`
+**sur le poste**, celle entre guillemets simples est transmise telle quelle au shell distant,
+qui la relit avec sa propre valeur. Tout mettre entre guillemets doubles ferait évaluer
+`$(du -sh …)` en local, sur un chemin qui n'y existe pas.
+
+Sur une mise à jour qui n'ajoute qu'une scène, remplacer le `.` par la liste des seuls
+chemins concernés évite d'envoyer les scènes déjà en ligne — quelques dizaines de mégaoctets
+au lieu de la publication entière. La bascule ci-dessous n'efface rien et s'en accommode :
+
+```bash
+tar -cf - -C publication assets/scenes.json assets/scenes.json.gz \
+                         assets/scenes/<identifiant-de-la-scene> | …
 ```
 
 L'archive n'est **pas** compressée par `tar` : les GLB et leurs `.gz` le sont déjà, et
@@ -97,13 +133,28 @@ Le dossier `publication/` est monté en volume dans le conteneur Caddy. **Le rem
 démarrage du conteneur, et le conteneur continuerait de voir l'ancien. Il faut donc déplacer
 les *fichiers*, pas le dossier.
 
+Contrôler d'abord ce qui a été reçu, pendant que c'est encore à l'écart : un GLB tronqué se
+rattrape dans le dossier d'attente, pas après la bascule.
+
 ```bash
-ssh <utilisateur>@<serveur> \
-  'set -e
-   cible=~/OpenDataVdA/poc/valleraugue-mairie-3d
+# Poste — les mêmes chemins que ceux passés à `tar` ; `.` pour une publication entière
+(cd publication && find assets/scenes.json* assets/scenes/<identifiant-de-la-scene> \
+   -type f -exec sha256sum {} +) | cut -d' ' -f1 | sort > /tmp/poste.sha
+# Serveur
+ssh "$serveur" "cd \"$cible/publication.incoming\" && find . -type f -exec sha256sum {} +" \
+  | cut -d' ' -f1 | sort > /tmp/serveur.sha
+diff /tmp/poste.sha /tmp/serveur.sha && echo "intégrité vérifiée : $(wc -l < /tmp/poste.sha) fichiers"
+```
+
+Ne comparer que la colonne des empreintes : `sha256sum` de Git Bash préfixe le nom d'un `*`
+en mode binaire là où celui du serveur met deux espaces, et un `diff` sur les lignes entières
+signale une divergence qui n'existe pas.
+
+```bash
+ssh "$serveur" "cible=\"$cible\"; "'set -e
    mkdir -p "$cible/publication"
    # Le rename est atomique dans un même système de fichiers : aucun visiteur ne peut
-   # récupérer un GLB tronqué, seulement l'ancien ou le nouveau.
+   # récupérer un GLB tronqué, seulement la version précédente ou la nouvelle.
    (cd "$cible/publication.incoming" && find . -type d -exec mkdir -p "$cible/publication/{}" \;)
    (cd "$cible/publication.incoming" && find . -type f -exec mv -f {} "$cible/publication/{}" \;)
    rm -rf "$cible/publication.incoming"
@@ -121,8 +172,12 @@ Ne reconstruire le conteneur que si le `Caddyfile` a changé. Le fichier est cop
 l'image, donc un simple `up` réutiliserait l'ancienne CSP :
 
 ```bash
-ssh <utilisateur>@<serveur> 'cd ~/OpenDataVdA && docker compose up -d --build caddy'
+ssh "$serveur" "cd \"${cible%/poc/*}\" && docker compose up -d --build caddy"
 ```
+
+La racine du dépôt se déduit du chemin relevé plus haut : c'est ce qui précède `poc/`. La
+déduire plutôt que la saisir évite de reconstruire le conteneur depuis un clone voisin, qui
+remonterait le volume sur un tout autre dossier.
 
 Le point d'entrée public Nginx doit être un proxy vers ce Caddy, jamais une copie statique
 distincte. La configuration et sa validation sont décrites au § 5 de
@@ -137,7 +192,7 @@ routine où seul `app.js` a bougé, le transfert tombe de 81 Mo à quelques kilo
 ```bash
 rsync -av --delete --delay-updates \
   --partial-dir=.rsync-partial \
-  publication/ <utilisateur>@<serveur>:~/OpenDataVdA/poc/valleraugue-mairie-3d/publication/
+  publication/ "$serveur:$cible/publication/"
 ```
 
 - `--delay-updates` garde les fichiers reçus de côté et ne les met en place qu'à la fin :
@@ -161,7 +216,7 @@ Puis, sur le serveur, récupérer et déballer comme au § 3 :
 
 ```bash
 tailscale file get ~/incoming/
-tar -xf ~/incoming/publication.tar -C ~/OpenDataVdA/poc/valleraugue-mairie-3d/publication.incoming
+tar -xf ~/incoming/publication.tar -C "$cible/publication.incoming"
 ```
 
 Taildrop dépose le fichier en entier ou pas du tout, mais il n'a ni reprise ni progression
@@ -196,7 +251,7 @@ hôtes servis :
 
 | Vérification | Attendu |
 | --- | --- |
-| `ssh <utilisateur>@<serveur> 'ls ~/OpenDataVdA/poc/valleraugue-mairie-3d/publication'` | `index.html`, `app.js`, `favicon.svg`, `assets/`, `vendor/` |
+| `ssh "$serveur" "ls \"$cible/publication\""` | `index.html`, `app.js`, `favicon.svg`, `assets/`, `vendor/` |
 | `curl -I http://<site-tailnet>/valleraugue-3d` | `308` vers `/valleraugue-3d/` |
 | `curl -sI -H 'Accept-Encoding: gzip' http://<site-tailnet>/valleraugue-3d/assets/scene.glb` | `Content-Encoding: gzip`, `Content-Type: model/gltf-binary` |
 | `curl -s http://<site-tailnet>/valleraugue-3d/assets/scenes.json` | autant d'entrées que de scènes publiées, la plus légère en premier |
@@ -211,7 +266,7 @@ un fichier de la bonne longueur si la reprise s'est mal passée :
 # Poste
 sha256sum publication/assets/scene.glb
 # Serveur
-ssh <utilisateur>@<serveur> 'sha256sum ~/OpenDataVdA/poc/valleraugue-mairie-3d/publication/assets/scene.glb'
+ssh "$serveur" "sha256sum \"$cible/publication/assets/scene.glb\""
 ```
 
 Enfin, comparer les deux chemins de service. Les quatre empreintes doivent être identiques ;
@@ -247,6 +302,9 @@ done
 
 - Ne pas transférer un `web/` qu'on n'a pas régénéré soi-même — un dossier périmé met en
   ligne une ancienne interface sans que rien ne le signale.
+- Ne pas supposer le chemin de `publication/` sur le serveur, ni le recopier d'une session
+  précédente : le lire sur le montage du conteneur Caddy (§ 3). Une erreur de chemin publie
+  dans le vide en rendant compte d'un succès.
 - Ne pas remplacer le dossier `publication/` par un `mv` sur le serveur : le montage Docker
   suit l'inode, et le conteneur continuerait de servir l'ancien contenu (§ 3).
 - Ne pas copier directement dans `publication/` sans dossier d'attente : un visiteur
