@@ -1,0 +1,83 @@
+{
+  "type": "FeatureCollection",
+  "name": "col-de-perjuret-600m",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "col-de-perjuret-600m-centre",
+        "name": "Col de Perjuret",
+        "role": "scene_centre",
+        "requested_wgs84": [
+          3.514811287766762,
+          44.20473309570348
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.51480553,
+          44.2047302
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "col-de-perjuret-600m-emprise",
+        "name": "Emprise 600 × 600 m — Col de Perjuret",
+        "role": "processing_bbox",
+        "crs_processing": "EPSG:2154",
+        "bbox_l93": [
+          740842.0,
+          6344914.0,
+          741442.0,
+          6345514.0
+        ],
+        "width_m": 600,
+        "height_m": 600,
+        "area_m2": 360000,
+        "buffer_m": 15.0,
+        "lidar_tiles": [
+          "LHD_FXX_0740_6346",
+          "LHD_FXX_0741_6346",
+          "LHD_FXX_0740_6345",
+          "LHD_FXX_0741_6345"
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              3.51102747,
+              44.20204753
+            ],
+            [
+              3.51853464,
+              44.20201232
+            ],
+            [
+              3.51858394,
+              44.20741275
+            ],
+            [
+              3.51107606,
+              44.20744796
+            ],
+            [
+              3.51102747,
+              44.20204753
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
