@@ -1,0 +1,36 @@
+{
+  "site": {
+    "nom": "Le Mouretou",
+    "commune": "Val-d'Aigoual",
+    "departement": "Gard",
+    "code_site": "030002043"
+  },
+  "classement": {
+    "annee": 2025,
+    "libelle": "Insuffisant",
+    "methode": "Directive 2006/7/CE, calcul pluriannuel"
+  },
+  "prelevements": [
+    { "date": "2025-06-17", "escherichia_coli": 30, "enterocoques_intestinaux": 15, "resultat": "Bon" },
+    { "date": "2025-07-01", "escherichia_coli": 234, "enterocoques_intestinaux": 324, "resultat": "Moyen" },
+    { "date": "2025-07-09", "escherichia_coli": 15, "enterocoques_intestinaux": 109, "resultat": "Moyen" },
+    { "date": "2025-07-15", "escherichia_coli": 15, "enterocoques_intestinaux": 93, "resultat": "Bon" },
+    { "date": "2025-07-23", "escherichia_coli": 15, "enterocoques_intestinaux": 30, "resultat": "Bon" },
+    { "date": "2025-08-01", "escherichia_coli": 30, "enterocoques_intestinaux": 30, "resultat": "Bon" },
+    { "date": "2025-08-08", "escherichia_coli": 61, "enterocoques_intestinaux": 15, "resultat": "Bon" },
+    { "date": "2025-08-12", "escherichia_coli": 30, "enterocoques_intestinaux": 30, "resultat": "Bon" },
+    { "date": "2025-08-18", "escherichia_coli": 110, "enterocoques_intestinaux": 110, "resultat": "Moyen" },
+    { "date": "2025-08-25", "escherichia_coli": 46, "enterocoques_intestinaux": 30, "resultat": "Bon" }
+  ],
+  "historique_classements": [
+    { "annee": 2022, "libelle": "Bon" },
+    { "annee": 2023, "libelle": "Bon" },
+    { "annee": 2024, "libelle": "Insuffisant" },
+    { "annee": 2025, "libelle": "Insuffisant" }
+  ],
+  "source": {
+    "producteur": "Ministère chargé de la Santé",
+    "url": "https://baignades.sante.gouv.fr/baignades/consultSite.do?annee=2025&dptddass=030&site=030002043",
+    "date_verification": "2026-08-02"
+  }
+}

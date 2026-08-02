@@ -1,8 +1,7 @@
 ---
-// Tableau de bord expert « L'eau à Valleraugue » servi à /eau/tableau-de-bord/ (même origine que
-// l'API → pas de CORS). La page grand public didactique vit à /eau/ (index.astro).
-// Les assets (style.css, graphe.js, eau-commun.js, app.js, data/) restent dans public/eau/ et sont
-// chargés en absolu depuis /eau/. is:inline empêche Astro de bundler les scripts.
+// Tableau de bord expert « Les données de l'eau à Val-d'Aigoual » servi à
+// /eau/tableau-de-bord/. Les blocs historiques (hydrométrie et piézométrie)
+// restent pilotés par app.js ; qualite.js ajoute ONDE, ADES et baignade.
 import BoutonAccueil from "../../components/BoutonAccueil.astro";
 ---
 <!doctype html>
@@ -10,29 +9,52 @@ import BoutonAccueil from "../../components/BoutonAccueil.astro";
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tableau de bord — L'eau à Valleraugue</title>
+  <title>Données de l'eau — Val-d'Aigoual</title>
   <link rel="stylesheet" href="/eau/style.css" />
-  <style>
-    /* Dégage la place du chevron « retour accueil » flottant en haut à gauche. */
-    .page { padding-top: 2.6rem; }
-  </style>
+  <link rel="stylesheet" href="/eau/qualite.css" />
 </head>
 <body>
   <BoutonAccueil />
   <main class="page">
     <header class="entete">
-      <a class="retour-didactique" href="/eau/">← Comprendre l'eau à Valleraugue</a>
-      <h1>Tableau de bord de l'eau</h1>
-      <p class="sous-titre">Hérault à Valleraugue · crues &amp; nappe · données Vigicrues &amp; Hub'Eau en direct</p>
+      <a class="retour-didactique" href="/eau/">← Comprendre l'eau à Val-d'Aigoual</a>
+      <h1>Les données de l'eau à Val-d'Aigoual</h1>
+      <p class="sous-titre">Quantité, crues, étiages, nappes, qualité physico-chimique et baignade</p>
       <button type="button" id="bouton-theme" class="bouton-theme">🌙 Sombre</button>
     </header>
 
     <div class="bandeau-sante" id="bandeau-sante" hidden></div>
 
-    <!-- Bloc 1 : Rivière (principal) -->
+    <section class="bloc panorama-intro" id="bloc-panorama">
+      <h2>Un panorama, plusieurs réseaux de mesure</h2>
+      <p>Chaque réseau répond à une question différente. Une hauteur d'eau, un assec, une analyse chimique et un contrôle de baignade ne doivent pas être confondus.</p>
+      <div class="panorama-grille">
+        <article class="panorama-carte">
+          <h3>Quantité en rivière</h3>
+          <p>Hauteurs et débits de l'Hérault, en direct ou en historique.</p>
+          <span class="source-badge">Vigicrues · Hub'Eau Hydrométrie</span>
+        </article>
+        <article class="panorama-carte">
+          <h3>Étiages des petits cours d'eau</h3>
+          <p>Observations visuelles d'écoulement, d'écoulement faible ou d'assec.</p>
+          <span class="source-badge">OFB · réseau ONDE</span>
+        </article>
+        <article class="panorama-carte">
+          <h3>Eaux souterraines</h3>
+          <p>Niveau de nappe et résultats d'analyses physico-chimiques.</p>
+          <span class="source-badge">ADES · Hub'Eau</span>
+        </article>
+        <article class="panorama-carte">
+          <h3>Qualité et usages</h3>
+          <p>Contrôle sanitaire du plan d'eau du Mouretou et accès aux sources officielles.</p>
+          <span class="source-badge">Ministère de la Santé</span>
+        </article>
+      </div>
+    </section>
+
     <section class="bloc" id="bloc-riviere">
-      <h2>L'Hérault à Valleraugue</h2>
-      <p class="riviere-note">Valleraugue n'étant pas télésuivie en direct, cet indicateur montre la station de St-André-de-Majencoules (la plus proche en aval).</p>
+      <h2>L'Hérault en direct</h2>
+      <p class="riviere-note">Valleraugue n'étant pas télésuivie en direct, cet indicateur montre la station de Saint-André-de-Majencoules, la plus proche en aval.</p>
       <p class="chargement" id="riviere-etat">Chargement…</p>
       <div id="riviere-contenu" hidden>
         <div class="cartouche" id="riviere-cartouche">
@@ -42,19 +64,16 @@ import BoutonAccueil from "../../components/BoutonAccueil.astro";
           </div>
           <div class="cartouche-meta">
             <span id="riviere-date"></span>
-            <a id="riviere-source" href="https://www.vigicrues.gouv.fr/fr/station/Y200002701/" target="_blank" rel="noopener">Source Vigicrues — St-André-de-Majencoules →</a>
+            <a id="riviere-source" href="https://www.vigicrues.gouv.fr/fr/station/Y200002701/" target="_blank" rel="noopener">Source Vigicrues — Saint-André-de-Majencoules →</a>
           </div>
         </div>
-
         <div class="periode" id="riviere-periode" role="group" aria-label="Période affichée">
           <button type="button" data-jours="1">24 h</button>
           <button type="button" data-jours="7">7 j</button>
           <button type="button" data-jours="30" class="actif">30 j</button>
         </div>
-
         <div class="graphe-cont" id="riviere-graphe"></div>
         <p class="legende-graphe" id="riviere-legende"></p>
-
         <div id="riviere-episodes" class="episodes" hidden>
           <h3>Épisodes de crue détectés</h3>
           <ul id="riviere-list-episodes"></ul>
@@ -62,7 +81,6 @@ import BoutonAccueil from "../../components/BoutonAccueil.astro";
       </div>
     </section>
 
-    <!-- Bloc 2 : Grandes crues passées -->
     <section class="bloc" id="bloc-crues">
       <h2>Les plus fortes crues depuis 2008</h2>
       <p class="chargement" id="crues-etat">Chargement…</p>
@@ -72,19 +90,33 @@ import BoutonAccueil from "../../components/BoutonAccueil.astro";
       </div>
     </section>
 
-    <!-- Bloc 3 : Fleuve amont → aval -->
+    <section class="bloc" id="bloc-onde">
+      <h2>Étiages des petits cours d'eau — réseau ONDE</h2>
+      <p>Les agents de l'OFB observent visuellement l'écoulement des petits et moyens cours d'eau. Ce réseau complète les stations hydrométriques, notamment en tête de bassin.</p>
+      <p class="chargement" id="onde-etat">Recherche des stations proches…</p>
+      <div id="onde-contenu" hidden>
+        <div class="donnees-grille" id="onde-resume"></div>
+        <div class="table-responsive">
+          <table class="table-donnees">
+            <thead><tr><th>Cours d'eau</th><th>Station</th><th>Dernière observation</th><th>État</th><th>Distance</th></tr></thead>
+            <tbody id="onde-lignes"></tbody>
+          </table>
+        </div>
+        <p class="note-methodo">ONDE ne mesure ni le débit ni la qualité chimique : il décrit la présence et l'intensité visible de l'écoulement au moment du passage.</p>
+      </div>
+    </section>
+
     <section class="bloc" id="bloc-fleuve">
       <h2>Le fleuve, d'amont en aval</h2>
       <p class="chargement" id="fleuve-etat">Chargement…</p>
       <div id="fleuve-contenu" hidden>
-        <p class="fleuve-intro">Hauteur actuelle et tendance 3 h de chaque station (7 j de contexte) — on voit l'onde de crue descendre le fleuve.</p>
+        <p class="fleuve-intro">Hauteur actuelle et tendance sur 3 heures de chaque station, avec 7 jours de contexte.</p>
         <div class="tuiles-fleuve" id="fleuve-tuiles"></div>
       </div>
     </section>
 
-    <!-- Bloc 4 : Nappe (secondaire) -->
     <section class="bloc" id="bloc-nappe">
-      <h2>La nappe de Valleraugue</h2>
+      <h2>Niveau de la nappe de Valleraugue</h2>
       <p class="chargement" id="nappe-etat">Chargement…</p>
       <div id="nappe-contenu" hidden>
         <dl id="nappe-altitude" class="nappe-altitude" hidden>
@@ -109,11 +141,51 @@ import BoutonAccueil from "../../components/BoutonAccueil.astro";
       </div>
     </section>
 
+    <section class="bloc" id="bloc-ades">
+      <h2>Qualité des eaux souterraines — ADES</h2>
+      <p>ADES centralise les analyses réalisées sur les sources, puits et forages. Les résultats ci-dessous sont distincts du niveau piézométrique affiché au-dessus.</p>
+      <p class="chargement" id="ades-etat">Recherche des analyses disponibles…</p>
+      <div id="ades-contenu" hidden>
+        <p id="ades-station" class="situation-courante"></p>
+        <div class="analyse-grille" id="ades-parametres"></div>
+        <p class="note-methodo">Ces mesures caractérisent un point d'eau et une date de prélèvement. Elles ne décrivent pas automatiquement toute la nappe ni la qualité de l'eau distribuée au robinet.</p>
+      </div>
+    </section>
+
+    <section class="bloc" id="bloc-baignade">
+      <h2>Qualité des eaux de baignade — Le Mouretou</h2>
+      <p>Le contrôle sanitaire porte principalement sur <em>Escherichia coli</em> et les entérocoques intestinaux. Le classement annuel repose sur plusieurs saisons et ne se confond pas avec le résultat ponctuel d'un prélèvement.</p>
+      <p class="chargement" id="baignade-etat">Chargement des résultats officiels consolidés…</p>
+      <div id="baignade-contenu" hidden>
+        <div class="donnees-grille" id="baignade-resume"></div>
+        <div class="table-responsive">
+          <table class="table-donnees">
+            <thead><tr><th>Date</th><th>E. coli</th><th>Entérocoques</th><th>Résultat ponctuel</th></tr></thead>
+            <tbody id="baignade-lignes"></tbody>
+          </table>
+        </div>
+        <div class="liens-sources">
+          <a href="https://baignades.sante.gouv.fr/baignades/consultSite.do?annee=2026&amp;dptddass=030&amp;site=030002043" target="_blank" rel="noopener">Suivi officiel de la saison 2026 →</a>
+          <a href="https://www.data.gouv.fr/datasets/donnees-de-rapportage-de-la-saison-balneaire-1" target="_blank" rel="noopener">Jeu national de rapportage →</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="bloc" id="bloc-sources">
+      <h2>Provenance et limites</h2>
+      <div class="panorama-grille">
+        <article class="panorama-carte"><h3>Temps réel</h3><p>Vigicrues et certaines chroniques piézométriques sont actualisées fréquemment.</p></article>
+        <article class="panorama-carte"><h3>Campagnes</h3><p>ONDE, ADES et baignade dépendent de dates de prélèvement ou de passage.</p></article>
+        <article class="panorama-carte"><h3>Interprétation</h3><p>L'absence de mesure récente ne signifie ni absence de risque ni absence de pollution.</p></article>
+      </div>
+    </section>
+
     <p class="pied" id="horodatage"></p>
   </main>
 
   <script is:inline src="/eau/graphe.js"></script>
   <script is:inline src="/eau/eau-commun.js"></script>
   <script is:inline src="/eau/app.js"></script>
+  <script is:inline src="/eau/qualite.js"></script>
 </body>
 </html>
