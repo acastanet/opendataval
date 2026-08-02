@@ -1,0 +1,81 @@
+{
+  "type": "FeatureCollection",
+  "name": "chaos-nimes-le-vieux-500m",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "chaos-nimes-le-vieux-500m-centre",
+        "name": "Chaos de Nîmes-le-Vieux",
+        "role": "scene_centre",
+        "requested_wgs84": [
+          3.513,
+          44.2256
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.51300447,
+          44.22560329
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "chaos-nimes-le-vieux-500m-emprise",
+        "name": "Emprise 500 × 500 m — Chaos de Nîmes-le-Vieux",
+        "role": "processing_bbox",
+        "crs_processing": "EPSG:2154",
+        "bbox_l93": [
+          740733.0,
+          6347282.0,
+          741233.0,
+          6347782.0
+        ],
+        "width_m": 500,
+        "height_m": 500,
+        "area_m2": 250000,
+        "buffer_m": 15.0,
+        "lidar_tiles": [
+          "LHD_FXX_0740_6348",
+          "LHD_FXX_0741_6348"
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              3.50985498,
+              44.22336766
+            ],
+            [
+              3.5161133,
+              44.22333843
+            ],
+            [
+              3.51615421,
+              44.22783883
+            ],
+            [
+              3.50989539,
+              44.22786807
+            ],
+            [
+              3.50985498,
+              44.22336766
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

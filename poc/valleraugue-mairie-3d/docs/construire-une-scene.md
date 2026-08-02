@@ -34,7 +34,8 @@ Une scène traverse quatre étages, dont un seul demande Docker.
                                    ↓
         ┌──────────────────────────────────────────────────────────────┐
  ③      │ poc.py --config config/<id>.conf all                         │  natif Windows
-        │   validate → terrain → vegetation → ortho → glb → web        │  ~ 2 à 6 min
+        │   validate → terrain → vegetation → ortho → geology →        │  ~ 2 à 6 min
+        │   glb → web                                                  │
         │   render/scene.glb + render/scene.json                       │
         └──────────────────────────────────────────────────────────────┘
                                    ↓
@@ -46,9 +47,11 @@ Une scène traverse quatre étages, dont un seul demande Docker.
 
 L'étage ② est le seul à sortir de l'environnement Python natif : il embarque GDAL, PDAL et
 Roofer dans le conteneur `3dgi/3dbag-pipeline-tools`. C'est aussi le seul à télécharger les
-données lourdes. À l'étage ③, l'orthophotographie fait une requête WMS et la végétation une
-requête WFS légère vers BD Forêt V2 ; cette dernière est facultative et retombe sur un profil
-générique si le service est indisponible.
+données lourdes. À l'étage ③, l'orthophotographie fait une requête WMS vers la Géoplateforme,
+et deux appels en sortent : la végétation interroge le WFS BD Forêt V2 pour typer les
+houppiers, la géologie télécharge l'archive départementale de la BD Charm-50 du BRGM. Ces
+deux-là sont facultatifs — le profil de houppier générique et l'absence de couche géologique
+sont des issues normales, pas des échecs.
 
 ## 2. Étage ① — décrire la scène
 
@@ -159,7 +162,44 @@ suffisent. Le plan les liste, y compris celles que seule la marge fait entrer.
 .\.venv\Scripts\python.exe poc.py --config config\notre-dame-rouviere-200m.conf all
 ```
 
-`check` vérifie Python, les trois dépendances et la présence des deux entrées Roofer. `all`
+### Le menu, pour ne pas retenir tout cela
+
+```powershell
+.\.venv\Scripts\python.exe poc.py scenes
+```
+
+`scenes` dresse l'état de chaque configuration versionnée et enchaîne ce qu'il faut :
+
+```text
+  n°  Scène                                      État
+  ────────────────────────────────────────────────────────────────────────────
+   1  Chaos de Nîmes-le-Vieux · 500 m            à jour — assemblée le 02/08/2026 à 06h51
+   2  Notre-Dame-de-la-Rouvière · 200 m          configuration plus récente — à réassembler
+   3  Valleraugue · 100 m                        jamais assemblée
+   4  Balcon du Vertige · 500 m                  aucune exécution Roofer — voir docs/lidar-roofer.md
+
+  a  assembler les 2 scène(s) à reprendre
+  s  ouvrir le visualiseur
+  q  quitter
+```
+
+Quatre états, quatre suites différentes : réassembler, assembler pour la première fois, ou
+commencer par l'étage ② sous Docker. Choisir un numéro propose l'assemblage seul (`glb`, deux
+à six minutes) ou le pipeline natif complet ; `a` reprend d'un coup toutes celles qui le
+demandent, puis met le visualiseur à jour **une seule fois**. La scène par défaut du sélecteur
+reste celle du `--config`, quelle que soit la scène assemblée.
+
+**« Configuration plus récente » est l'état qui vaut son existence au menu.** Le calage de
+l'orthophotographie et la position solaire sont *cuits* dans la scène au moment de `glb` — le
+premier dans les coordonnées de texture du GLB, la seconde dans `scene.json`. Retoucher un
+`.conf` ne change donc rien tant que l'assemblage n'a pas été rejoué, et rien ne le signalait :
+`poc.py web` le dit maintenant aussi, pour ceux qui lancent les commandes directement.
+
+Un dépôt fraîchement cloné date tous ses fichiers du jour : les scènes y paraîtront à
+reprendre. L'avertissement invite à réassembler, ce qui est sans risque — il ne supprime jamais
+rien.
+
+`check` vérifie Python, les quatre dépendances et la présence des deux entrées Roofer. `all`
 enchaîne, sur la dernière exécution complète du `OUTPUT_DIR` :
 
 | Étape | Entrées | Sorties | Ce qui peut échouer |
@@ -168,6 +208,7 @@ enchaîne, sur la dernière exécution complète du `OUTPUT_DIR` :
 | `terrain` | points LiDAR de classe 2 | `terrain.tif/.tfw/.prj/.npy`, `canopy.npy`, `surface.npy`, `water.npy`, `bridge.npy` | taux de mailles mesurées faible sous couvert boisé |
 | `vegetation` | classe LiDAR 5, WFS BD Forêt V2 facultatif | `trees.json` | repli générique si le WFS est indisponible |
 | `ortho` | WMS Géoplateforme | `orthophoto.jpg`, `orthophoto.json` | service indisponible, emprise hors couverture |
+| `geology` | archive BD Charm-50 du département, en cache dans `.work/geology/` | `render/geology.png`, `geology-pick.png`, `geology.json` | `GEOLOGY_DEPARTMENT` vide ou faux, InfoTerre indisponible, département non harmonisé : la scène se charge sans la couche |
 | `glb` | tout ce qui précède | `render/scene.glb`, `scene.json`, `buildings.json` | toiture dégradée sans emprise : conservation signalée de la géométrie Roofer |
 | `web` | `render/` de toutes les emprises | `web/` complet | — |
 
@@ -176,6 +217,24 @@ propagation de la moyenne des voisines. Une bande non couverte recevrait un reli
 plausible et **inventé**, sans végétation ni eau, et sans le moindre message. Un déficit se
 corrige en relançant l'étage ② avec un `--buffer` plus large — jamais en réduisant
 `TERRAIN_MARGIN_M`, qui existe pour porter les bâtiments de bordure.
+
+### Département géologique, à renseigner une fois par site
+
+`poc.py scene` écrit `GEOLOGY_DEPARTMENT=""` : le numéro ne se déduit pas d'un point
+Lambert-93 sans table de correspondance, et un mauvais département draperait la géologie
+d'une autre région sans que rien ne le signale. Le renseigner sur trois chiffres — `030`
+pour le Gard, `048` pour la Lozère, `2A` et `2B` pour la Corse — puis :
+
+```powershell
+.\.venv\Scripts\python.exe poc.py --config config\<id>.conf geology
+```
+
+Une scène dont le département reste vide se produit normalement, sans la couche : la bascule
+« Carte géologique BRGM » du visualiseur est alors désactivée, avec son explication. Les
+couleurs sont celles de la carte imprimée, lues dans les champs de quadrichromie du DBF ; une
+formation sans fond imprimé — distinguée sur la carte par une surcharge que le drapage ne
+saurait pas rendre — reçoit une teinte dérivée de son code, ce que `geology.json` signale en
+passant sa clé `palette` de `brgm` à `mixte`.
 
 ### Calibration solaire, à faire une fois par site
 
@@ -187,6 +246,73 @@ La commande retrouve l'azimut et la hauteur du soleil sur les ombres de l'orthop
 et mesure le décalage résiduel de l'image sur les emprises bâties. Reporter les quatre
 valeurs dans le `.conf` en décommentant `ORTHO_SUN_*` et `ORTHO_OFFSET_*` seulement si l'on
 veut les figer ; sinon `glb` refait la mesure à chaque assemblage.
+
+Elle écrit aussi `ortho-registration.png` dans le dossier d'exécution : les emprises bâties
+posées sur l'orthophotographie, sans calage en vert et avec le calage retenu en bleu. C'est le
+seul contrôle qui tranche, et il se lit en quelques secondes.
+
+### Les deux mesures se refusent quand elles n'ont pas de prise
+
+Aucune des deux ne vaut partout, et **une mesure fausse ne se distingue pas d'une mesure juste
+à sa seule allure** — c'est pourquoi chacune est refusée dès que ses conditions ne sont pas
+réunies. La scène se produit dans tous les cas.
+
+| Mesure | Ce qu'elle suppose | Ce qu'elle fait sinon |
+| --- | --- | --- |
+| Calage | des toitures plus rouges que leur environnement, sur au moins 1 % de l'image | l'orthophotographie est drapée telle quelle |
+| Soleil | une direction d'ombre du bâti que celle des houppiers confirme à 30° près | le visualiseur laisse le soleil librement réglable |
+
+Le calage cherche la translation qui amène les emprises sur les toitures les plus rouges. Sur
+un causse — toits de tôle et de fibrociment gris posés sur un sol ocre — le contraste s'inverse,
+et maximiser le rouge chasse le masque *hors* du bâti, jusqu'à la borne du domaine de recherche.
+La scène « Chaos de Nîmes-le-Vieux » y gagnait une dizaine de mètres d'écart entre la photo et
+les volumes, appliqués sans réserve au terrain comme aux toitures. Le contraste mesuré sous les
+emprises sépare franchement les deux situations : de +16,9 à +24,3 là où le recalage converge,
+−13,8 et −6,0 là où il s'échappait.
+
+L'azimut solaire souffre du même mal là où le bâti est maigre, sans que rien ne le trahisse :
+au Col de Perjuret, cinq bâtiments donnent le creux d'ombre le plus marqué de toutes les scènes
+du POC. Seule une seconde source tranche, d'où le recoupement sur les ombres des houppiers —
+qui confirme justement Perjuret, et dément Nîmes-le-Vieux de 60°.
+
+Un site refusé n'est pas un site perdu : la vignette dit si l'absence de calage suffit — c'est
+le cas des deux scènes ci-dessus — et sinon l'écart s'y mesure à l'œil, pour être inscrit dans
+`ORTHO_OFFSET_EAST` et `ORTHO_OFFSET_NORTH`. Une valeur renseignée court-circuite la mesure,
+`0` compris.
+
+### Caler l'orthophotographie à la main, dans le visualiseur
+
+La section « Textures » du panneau porte deux glissières, **est** et **nord**, qui déplacent la
+photographie sur le terrain et sur les toitures à la fois. C'est la manière la plus rapide de
+trouver le calage d'un site que la mesure refuse : on pousse jusqu'à ce que les toits de la photo
+rejoignent les volumes, puis « Copier le calage pour la configuration » rend les deux lignes à
+coller dans le `.conf` **et** dans son `.example`.
+
+```text
+ORTHO_OFFSET_EAST=-1.20
+ORTHO_OFFSET_NORTH=2.40
+```
+
+Relancer ensuite `glb` sur la configuration : le calage entre alors dans les coordonnées de
+texture de la scène, et n'a plus à être repris à chaque ouverture. Le curseur exprime un écart à
+ce qui est déjà appliqué ; le bouton, lui, rend le total, mesure cuite comprise.
+
+Le réglage retombe à zéro d'une scène à l'autre, à dessein : un calage vaut pour une
+orthophotographie, pas pour un visualiseur.
+
+La section « Éclairage » porte le même bouton pour le soleil. Décocher « Caler le soleil sur la
+mesure de l'orthophoto » libère la hauteur et l'azimut ; une fois les ombres calculées posées sur
+celles de la photographie, « Copier le soleil pour la configuration » rend les deux lignes
+correspondantes. L'azimut du visualiseur est déjà géographique — 0° au nord, croissant vers
+l'est — soit la convention du `.conf` : aucune conversion ne s'interpose.
+
+```text
+ORTHO_SUN_AZIMUTH_DEG=285.0
+ORTHO_SUN_ELEVATION_DEG=13.4
+```
+
+Le bouton sert aussi à **figer une mesure jugée bonne** : renseignées, ces deux valeurs
+court-circuitent la mesure, que `glb` refait sinon à chaque assemblage.
 
 ## 5. Étage ④ — entrer dans le menu du visualiseur
 
@@ -292,6 +418,11 @@ write_scene(plan, root)           # les trois fichiers
   `glbMb` celui que le visiteur téléchargera.
 - **`upstreamCommand`**, à copier tel quel : l'étage ② n'est pas pilotable depuis
   l'environnement Python natif, et l'interface ne doit pas prétendre le lancer.
+- **Le département géologique**, à demander à la saisie. `plan_scene` ne le calcule pas — il
+  n'y a pas de table commune → département dans le POC — et le gabarit écrit donc
+  `GEOLOGY_DEPARTMENT=""`. Une interface qui connaît la commune, elle, le connaît : c'est le
+  seul réglage du gabarit qu'elle a intérêt à faire remplir plutôt qu'à laisser retoucher
+  après coup. Laissé vide, tout fonctionne, sans la carte géologique.
 
 ### Ce que l'interface ne doit pas faire
 
@@ -312,6 +443,14 @@ write_scene(plan, root)           # les trois fichiers
 | `docker is required` | Docker Desktop arrêté | le démarrer avant l'étage ② |
 | `the working directory 'C:/Program Files/Git/output' is invalid` | `MSYS2_ARG_CONV_EXCL='*'` oublié | reprendre la commande du plan telle quelle |
 | **FAIL** — *le nuage LiDAR ne couvre pas l'emprise du terrain* | `--buffer` trop court, ou dalle manquante | relancer l'étage ② avec un buffer plus large ; vérifier que toutes les dalles du plan sont en cache |
+| `GEOLOGY_DEPARTMENT n'est pas renseigné` | scène créée par `poc.py scene`, département jamais rempli | l'inscrire sur trois chiffres dans le `.conf` **et** son `.example`, puis relancer `geology` |
+| `Aucune formation géologique sur l'emprise` | mauvais département | vérifier lequel couvre le centre de la scène ; l'archive est bien lue, mais ailleurs |
+| `projection inattendue, emprise … hors du Lambert-93` | archive corrompue ou format changé | vider `.work/geology/` pour forcer un nouveau téléchargement |
+| `AVERTISSEMENT : couche géologique indisponible` | InfoTerre hors service, hors ligne, département non harmonisé | aucune action : la scène est complète, sans la carte. Relancer `geology` plus tard suffit à l'ajouter |
+| La bascule « Carte géologique BRGM » est grisée | la scène chargée n'a pas les trois artefacts | lancer `geology` sur sa configuration, puis `web` |
+| `AVERTISSEMENT : calage de l'orthophotographie non mesuré` | toitures indiscernables de leur environnement, ou emprises trop peu étendues | aucune action : la photo est drapée telle quelle. Ouvrir `ortho-registration.png` ; si les contours suivent les bâtiments, c'est le bon calage |
+| Les toitures 3D portent une couleur uniforme, les bâtiments de la photo sont à côté | version antérieure aux garde-fous : un calage faux de plusieurs mètres avait été mesuré et appliqué | relancer `glb`, puis `web` |
+| `AVERTISSEMENT : calibration solaire non concluante` | ombres du bâti et des houppiers contradictoires, ou azimut hors de ce qu'une prise de vue peut porter | aucune action : le soleil reste réglable dans le visualiseur. Le figer avec `ORTHO_SUN_AZIMUTH_DEG` et `ORTHO_SUN_ELEVATION_DEG` si la date de prise de vue est connue |
 | `Exécuter d'abord la commande glb` | `web` avant `all` | lancer `all` |
 | `Aucune exécution complète dans …` | étage ② jamais fait pour ce `OUTPUT_DIR` | lancer l'étage ② |
 | La scène n'apparaît pas dans le sélecteur | pas de `render/scene.glb` dans son `OUTPUT_DIR` | lancer `all` sur sa configuration, puis `web` sur la configuration par défaut |

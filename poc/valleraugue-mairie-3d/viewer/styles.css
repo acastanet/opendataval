@@ -713,6 +713,25 @@ input[type="checkbox"]:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+/* La légende de qualité tient en trois entrées ; une légende géologique en compte
+   couramment vingt ou trente, qui pousseraient le reste du panneau hors de l'écran. */
+.geology-legend {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.geology-legend button .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.geology-legend .count {
+  flex: 0 0 auto;
+  padding-left: 6px;
+}
+
 .building-card {
   position: fixed;
   z-index: 2;

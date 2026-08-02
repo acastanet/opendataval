@@ -95,8 +95,13 @@ les cas signalés — est précisément l'usage de contrôle que l'outil revendi
 1. **Statut** : pastille colorée par état (`chargement` / `prête` / `erreur`) et barre de
    progression en octets.
 2. **Mesures** : bâtiments, emprise, relief — conservées en mobile, sur deux colonnes.
-3. **Couches** : terrain, bâtiments, végétation, eau, ponts — en accordéon, seul pliage de ce
-   niveau : elles sont cinq, et on n'y revient pas à chaque ouverture.
+3. **Couches** : terrain, bâtiments, végétation, eau, ponts, carte géologique BRGM — en
+   accordéon, seul pliage de ce niveau : elles sont six, et on n'y revient pas à chaque
+   ouverture. La géologie y porte en plus son opacité et sa légende, contrairement aux cinq
+   autres : ce n'est pas un nœud du GLB qu'on montre ou masque, mais une image drapée sur le
+   terrain, dont la transparence *est* la comparaison avec l'orthophoto rendue dessous. Mettre
+   ce curseur au niveau expert, avec celui du terrain, aurait séparé la bascule de ce qui la
+   rend utile.
 4. **POV** : titre et trois boutons carrés sur une même ligne — vue générale, mairie, toitures.
    Trois boutons pleine largeur prenaient la hauteur de trois sections pour trois commandes qui
    ne demandent qu'une icône.
@@ -128,6 +133,34 @@ milieu du panneau aurait sinon décalé tout l'état déjà mémorisé.
 | 1 | Deux niveaux, accordéons indépendants, progression en octets, statut coloré, dialogue d'aide, panneau verrouillé pendant le chargement, `.button` explicite | 1, 2, 3, 4, 5, 15, 16 |
 | 2 | Survol des bâtiments, contour de sélection épousant le volume, transitions de caméra interruptibles, barre d'échelle | 6, 7, 8, 10 |
 | 3 | Persistance `localStorage`, état « personnalisé » du mode de rendu, légende de qualité filtrable, recherche par `cleabs`, reprise du mobile | 9, 11, 12, 13, 14 |
+
+### Calage manuel de l'orthophotographie
+
+La section « Textures » porte deux glissières, **est** et **nord**, qui déplacent la photographie
+sur le terrain et sur les toitures à la fois — les deux partagent la même texture glTF, si bien
+qu'un décalage de coordonnées appliqué à celle-ci les suit ensemble, comme le fait `ortho_uv`
+à la production.
+
+Elles existent parce que la mesure automatique **se refuse** là où les toitures ne se distinguent
+pas de leur environnement (`sun.py`), et qu'il faut bien pouvoir caler l'image à la main dans ce
+cas. Le réglage est de plus le seul moyen de vérifier une mesure : on la fait bouger, on voit à
+partir d'où elle se dégrade.
+
+Trois décisions valent d'être notées :
+
+- **Le réglage ne se mémorise pas d'une scène à l'autre.** Un calage vaut pour une
+  orthophotographie ; le reporter ailleurs décalerait une image qui n'a pas le même défaut. Il
+  retombe donc à zéro à chaque chargement, contrairement aux autres réglages du panneau.
+- **Le bouton « Copier le calage » rend le total**, mesure cuite dans la scène comprise, sous la
+  forme des deux lignes `ORTHO_OFFSET_*` à coller dans le `.conf`. C'est la seule valeur qui a un
+  sens hors du visualiseur : les curseurs, eux, ne disent qu'un écart à ce qui est déjà appliqué.
+  La section « Éclairage » a son équivalent pour `ORTHO_SUN_*`, par le même chemin — l'azimut du
+  panneau est déjà géographique, aucune conversion ne s'interpose. Une copie refusée par le
+  navigateur affiche les lignes à l'écran plutôt que d'échouer en silence : un réglage trouvé à
+  l'œil et impossible à reporter serait perdu.
+- **La texture n'est pas renvoyée au GPU** à chaque cran : seul son décalage change, et la
+  matrice de texture est recalculée au rendu. Lever `needsUpdate` retéléverserait 4096 pixels de
+  côté à chaque mouvement du curseur.
 
 S'y ajoutent deux reprises de l'habillage :
 
@@ -170,7 +203,12 @@ Points d'implémentation qui méritent d'être signalés :
 - **Les transitions de caméra s'interrompent à la première interaction.** Une animation qu'on ne
   peut pas reprendre en main est pire qu'un saut.
 - **La persistance ne force jamais une couche absente.** Un réglage retrouvé ne rallume pas une
-  bascule désactivée faute de végétation ou d'eau dans la scène chargée.
+  bascule désactivée faute de végétation, d'eau ou de carte géologique dans la scène chargée.
+- **La carte géologique ne se télécharge qu'à sa première activation.** Elle vit hors du GLB,
+  en trois fichiers servis à part ; les charger d'office aurait fait payer à chaque visiteur
+  une couche que la plupart n'ouvriront pas. Le clic y lit la formation dans une image
+  d'identifiants décodée une fois dans un canvas — chaque interrogation n'est ensuite qu'un
+  accès mémoire, et le bâti reste prioritaire sur le rayon.
 - **La liste des identifiants se construit depuis les nœuds de la scène, pas depuis
   `buildings.json`.** Les `cleabs` sont déjà dans les `extras` du GLB, que le visualiseur lit de
   toute façon pour la carte de détail : charger le fichier d'attributs n'aurait ajouté qu'une

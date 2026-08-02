@@ -6,12 +6,16 @@ Ce module dépend de NumPy : ``cli`` ne l'importe donc jamais au chargement, afi
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
 
 
 Window = tuple[int, int, int, int]
+
+# Anneau d'un polygone : abscisses et ordonnées en Lambert-93, fermeture implicite.
+Ring = tuple[np.ndarray, np.ndarray]
 
 
 def inside_polygon(
@@ -31,6 +35,112 @@ def inside_polygon(
             ) + polygon_x[current]
         inside ^= straddles & (x < crossing)
     return inside
+
+
+def _ring_edges(rings: Sequence[Ring]) -> tuple[np.ndarray, ...] | None:
+    """Arêtes de tous les anneaux, bout à bout, chaque anneau refermé sur son premier point."""
+    starts_x, starts_y, ends_x, ends_y = [], [], [], []
+    for ring_x, ring_y in rings:
+        if len(ring_x) < 3 or len(ring_x) != len(ring_y):
+            continue
+        starts_x.append(ring_x)
+        starts_y.append(ring_y)
+        ends_x.append(np.roll(ring_x, -1))
+        ends_y.append(np.roll(ring_y, -1))
+    if not starts_x:
+        return None
+    return (
+        np.concatenate(starts_x),
+        np.concatenate(starts_y),
+        np.concatenate(ends_x),
+        np.concatenate(ends_y),
+    )
+
+
+def fill_rings(
+    grid: np.ndarray,
+    rings: Sequence[Ring],
+    value: int,
+    xmin: float,
+    ymax: float,
+    resolution: float,
+) -> int:
+    """Peint ``value`` dans les cellules couvertes par ``rings`` et rend leur nombre.
+
+    Rastériseur par balayage de lignes, avec la règle pair-impair : les anneaux intérieurs
+    et les parties disjointes d'une même géométrie n'ont donc rien à déclarer, c'est la
+    convention même du format Shapefile qui les distingue par leur sens de parcours.
+
+    ``inside_polygon`` ferait le même travail, mais en testant chaque cellule contre chaque
+    arête : sur une formation géologique départementale, qui porte des dizaines de milliers
+    de sommets pour une emprise de deux cents mètres, le coût devient prohibitif. Ici chaque
+    arête n'est vue que sur les lignes qu'elle traverse réellement.
+
+    Comme toutes les grilles du POC, la ligne 0 est au nord : c'est ce qui rend la texture
+    directement compatible avec les UV de ``ortho_uv``.
+    """
+    height, width = grid.shape
+    edges = _ring_edges(rings)
+    if edges is None:
+        return 0
+    start_x, start_y, end_x, end_y = edges
+
+    # Une arête horizontale ne traverse le centre d'aucune ligne, et sa pente ferait diviser
+    # par zéro. Aucune autre ne peut être écartée sur son abscisse, même très au large de
+    # l'emprise : la règle pair-impair compte les croisements par paires, et en retirer un
+    # seul inverse le dedans et le dehors sur toute la ligne. Seule la latitude borne le
+    # travail — c'est elle qui ramène une formation départementale à sa bande utile.
+    kept = start_y != end_y
+    if not kept.any():
+        return 0
+    start_x, start_y = start_x[kept], start_y[kept]
+    end_x, end_y = end_x[kept], end_y[kept]
+
+    # Fenêtre de lignes de chaque arête, prise large : la parité exacte est retestée ligne
+    # par ligne, ce bornage n'a qu'à ne rien oublier.
+    low = np.minimum(start_y, end_y)
+    high = np.maximum(start_y, end_y)
+    first = np.clip(np.ceil((ymax - high) / resolution - 0.5), 0, height - 1).astype(np.int64)
+    last = np.clip(np.floor((ymax - low) / resolution - 0.5), 0, height - 1).astype(np.int64)
+    if not (last >= first).any():
+        return 0
+
+    order = np.argsort(first, kind="stable")
+    entering = first[order]
+    painted = 0
+    active: list[int] = []
+    cursor = 0
+    for row in range(int(entering[0]), height):
+        while cursor < order.size and entering[cursor] <= row:
+            active.append(int(order[cursor]))
+            cursor += 1
+        active = [edge for edge in active if last[edge] >= row]
+        if not active:
+            if cursor >= order.size:
+                break
+            continue
+        index = np.asarray(active, dtype=np.int64)
+        y_center = ymax - (row + 0.5) * resolution
+        above_start = start_y[index] > y_center
+        above_end = end_y[index] > y_center
+        crossed = index[above_start != above_end]
+        if crossed.size < 2:
+            continue
+        crossings = start_x[crossed] + (y_center - start_y[crossed]) * (
+            end_x[crossed] - start_x[crossed]
+        ) / (end_y[crossed] - start_y[crossed])
+        crossings.sort()
+        # Un nombre impair de croisements signale un anneau mal fermé : le dernier est
+        # ignoré plutôt que de peindre jusqu'au bord est.
+        for left, right in zip(crossings[0::2], crossings[1::2]):
+            begin = int(np.ceil((left - xmin) / resolution - 0.5))
+            end = int(np.floor((right - xmin) / resolution - 0.5))
+            begin, end = max(begin, 0), min(end, width - 1)
+            if end < begin:
+                continue
+            grid[row, begin : end + 1] = value
+            painted += end - begin + 1
+    return painted
 
 
 def polygon_window(

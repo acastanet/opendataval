@@ -1,3 +1,7 @@
 laspy[lazrs]>=2.5,<3
 numpy>=2,<3
 Pillow>=10,<13
+# Lecteur de Shapefile en Python pur, pour la BD Charm-50 du BRGM. Ce n'est pas une pile SIG :
+# aucun binaire, aucun GEOS ni GDAL. Le découpage sur l'emprise est assuré par la rastérisation,
+# shapely serait donc à la fois interdit ici et inutile.
+pyshp>=2.3,<3

@@ -7,7 +7,7 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <!-- Titre de repli : la scène chargée le remplace par le sien, lu dans `scenes.json`. -->
     <title>Maquette du village</title>
-    <link rel="stylesheet" href="./styles.css?v=20260730-scenes" />
+    <link rel="stylesheet" href="./styles.css?v=20260802-calage-ortho" />
     <script type="importmap">
       {
         "imports": {
@@ -171,6 +171,20 @@
           <span>Ponts</span>
           <input id="bridgeToggle" type="checkbox" checked />
         </label>
+        <!-- La géologie n'est pas un nœud du GLB mais une texture drapée sur le terrain :
+             elle a donc sa propre opacité, qui est aussi ce qui permet de la comparer à
+             l'orthophoto rendue dessous. -->
+        <label class="switch-row">
+          <span>Carte géologique BRGM</span>
+          <input id="geologyToggle" type="checkbox" />
+        </label>
+        <label class="range-row">
+          <span>Opacité de la géologie</span>
+          <output id="geologyOpacityValue">70 %</output>
+          <input id="geologyOpacity" type="range" min="10" max="100" value="70" />
+        </label>
+        <p id="geologyNotice" class="notice"></p>
+        <div id="geologyLegend" class="quality-legend geology-legend" hidden></div>
       </details>
 
       <!-- Niveau 2 : tout ce qui sert au contrôle fin, replié par défaut et mémorisé. Les
@@ -240,6 +254,25 @@
               <output id="opacityValue">100 %</output>
               <input id="terrainOpacity" type="range" min="15" max="100" value="100" />
             </label>
+            <p class="notice">
+              L’orthophotographie n’est pas toujours calée sur les données bâties. Ces deux
+              réglages la déplacent sur le terrain <em>et</em> sur les toitures à la fois,
+              jusqu’à ce que les toits de la photo rejoignent les volumes.
+            </p>
+            <label class="range-row">
+              <span>Calage de la photo — est</span>
+              <output id="orthoEastValue">0,0 m</output>
+              <input id="orthoEast" type="range" min="-12" max="12" step="0.1" value="0" />
+            </label>
+            <label class="range-row">
+              <span>Calage de la photo — nord</span>
+              <output id="orthoNorthValue">0,0 m</output>
+              <input id="orthoNorth" type="range" min="-12" max="12" step="0.1" value="0" />
+            </label>
+            <button id="orthoOffsetCopy" class="button" type="button">
+              Copier le calage pour la configuration
+            </button>
+            <p id="orthoOffsetFeedback" class="notice"></p>
           </details>
 
           <details id="lightControls" class="controls accordion">
@@ -259,6 +292,10 @@
               <output id="azimuthValue">95°</output>
               <input id="sunAzimuth" type="range" min="0" max="359" step="0.1" value="95" />
             </label>
+            <button id="sunConfigCopy" class="button" type="button">
+              Copier le soleil pour la configuration
+            </button>
+            <p id="sunConfigFeedback" class="notice"></p>
             <label class="range-row">
               <span>Intensité du soleil</span>
               <output id="sunIntensityValue">3,2</output>
@@ -418,6 +455,40 @@
       <p id="buildingQualityDetail" class="quality-detail"></p>
     </section>
 
+    <section
+      id="geologyDetails"
+      class="building-card geology-card"
+      aria-live="polite"
+      aria-label="Formation géologique sélectionnée"
+      hidden
+    >
+      <div class="card-heading">
+        <div>
+          <span class="card-eyebrow">Formation géologique</span>
+          <h2 id="geologyCode">—</h2>
+        </div>
+        <button id="geologyClose" class="icon-button" type="button" aria-label="Fermer">×</button>
+      </div>
+      <dl class="building-metrics">
+        <div>
+          <dt>Notice</dt>
+          <dd id="geologyLabel">—</dd>
+        </div>
+        <div>
+          <dt>Âge</dt>
+          <dd id="geologyAge">—</dd>
+        </div>
+        <div>
+          <dt>Lithologie</dt>
+          <dd id="geologyLithology">—</dd>
+        </div>
+      </dl>
+      <p class="quality-detail">
+        BRGM — BD Charm-50 harmonisée, échelle nominale 1:50 000. Ces limites ne conviennent
+        pas à une interprétation parcellaire.
+      </p>
+    </section>
+
     <output
       id="cameraPoseToast"
       class="camera-pose-toast"
@@ -457,6 +528,10 @@
               <li>Molette : approcher ou reculer.</li>
               <li>Clic droit ou glisser à deux doigts : déplacer le point visé.</li>
               <li>Clic sur un bâtiment : afficher ses mesures et sa qualité.</li>
+              <li>
+                Carte géologique active, clic sur le terrain : nommer la formation, son âge
+                et sa lithologie.
+              </li>
             </ul>
           </section>
           <section class="data-section">
@@ -514,6 +589,6 @@
 
     <div id="error" class="error" hidden></div>
 
-    <script type="module" src="./app.js?v=20260730-scenes"></script>
+    <script type="module" src="./app.js?v=20260802-calage-ortho"></script>
   </body>
 </html>

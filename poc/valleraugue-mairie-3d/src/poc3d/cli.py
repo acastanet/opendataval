@@ -34,11 +34,13 @@ def parser() -> ArgumentParser:
         ("terrain", "Génère un MNT à partir des points LiDAR de classe sol."),
         ("ortho", "Télécharge l'orthophotographie IGN sur l'emprise."),
         ("vegetation", "Détecte les cimes de la classe LiDAR 5 et écrit trees.json."),
+        ("geology", "Rastérise la carte géologique BRGM BD Charm-50 sur l'emprise."),
         ("sun", "Retrouve la position solaire de l'orthophotographie par ses ombres."),
         ("glb", "Assemble terrain, orthophoto et bâtiments dans scene.glb."),
         ("web", "Prépare le visualiseur web local et ses dépendances."),
         ("enhance", "Enrichit la dernière sortie Roofer : terrain, ortho, GLB et web."),
         ("all", "Alias de enhance pour une exécution Windows Python complète."),
+        ("scenes", "Menu des scènes : état de chacune, assemblage et visualiseur."),
     ):
         subparsers.add_parser(name, help=help_text)
     serve = subparsers.add_parser("serve", help="Démarre le visualiseur web local.")
@@ -86,8 +88,25 @@ def _enhance(config: PocConfig, run_dir: Path) -> None:
     if config.get_bool("VEGETATION", True):
         create_vegetation(config, run_dir)
     download_orthophoto(config, run_dir)
+    if config.get_bool("GEOLOGY", True):
+        _geology(config, run_dir)
     create_scene_glb(config, run_dir)
     prepare_viewer(config, run_dir)
+
+
+def _geology(config: PocConfig, run_dir: Path) -> None:
+    """Couche géologique BRGM, hors Géoplateforme et donc jamais bloquante.
+
+    Le service peut être indisponible, le département pas encore harmonisé, ou l'emprise
+    hors couverture : dans tous ces cas la scène doit se produire sans la carte, comme le
+    fait déjà la typologie BD Forêt de l'étape `vegetation`.
+    """
+    from .geology import create_geology
+
+    try:
+        create_geology(config, run_dir)
+    except (OSError, RuntimeError, ValueError) as error:
+        print(f"AVERTISSEMENT : couche géologique indisponible ({error}).")
 
 
 def _report_scene(plan: "ScenePlan") -> None:
@@ -166,6 +185,10 @@ def execute(args: Namespace) -> None:
         from .vegetation import create_vegetation
 
         create_vegetation(config)
+    elif args.command == "geology":
+        from .geology import create_geology
+
+        create_geology(config)
     elif args.command == "sun":
         from .sun import report_ortho_sun
 
@@ -174,6 +197,15 @@ def execute(args: Namespace) -> None:
         create_scene_glb(config)
     elif args.command == "web":
         prepare_viewer(config)
+        # Le manifeste recense toutes les emprises : c'est le seul moment où l'on voit
+        # d'un coup les scènes dont la configuration a changé sans être réassemblée.
+        from .studio import warn_if_stale
+
+        warn_if_stale(ROOT)
+    elif args.command == "scenes":
+        from .studio import run_menu
+
+        run_menu(config)
     elif args.command == "enhance":
         _enhance(config, latest_run(config, require_complete=True))
     elif args.command == "all":

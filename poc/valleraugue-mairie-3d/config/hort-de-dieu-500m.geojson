@@ -1,0 +1,83 @@
+{
+  "type": "FeatureCollection",
+  "name": "hort-de-dieu-500m",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hort-de-dieu-500m-centre",
+        "name": "Mont Aigoual",
+        "role": "scene_centre",
+        "requested_wgs84": [
+          3.5841,
+          44.1141
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.58409713,
+          44.11410392
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hort-de-dieu-500m-emprise",
+        "name": "Emprise 500 × 500 m — Mont Aigoual",
+        "role": "processing_bbox",
+        "crs_processing": "EPSG:2154",
+        "bbox_l93": [
+          746504.0,
+          6334934.0,
+          747004.0,
+          6335434.0
+        ],
+        "width_m": 500,
+        "height_m": 500,
+        "area_m2": 250000,
+        "buffer_m": 15.0,
+        "lidar_tiles": [
+          "LHD_FXX_0746_6336",
+          "LHD_FXX_0747_6336",
+          "LHD_FXX_0746_6335",
+          "LHD_FXX_0747_6335"
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              3.58095102,
+              44.11187047
+            ],
+            [
+              3.58719703,
+              44.11183718
+            ],
+            [
+              3.58724349,
+              44.11633729
+            ],
+            [
+              3.58099697,
+              44.11637058
+            ],
+            [
+              3.58095102,
+              44.11187047
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

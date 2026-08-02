@@ -405,6 +405,19 @@ OCCLUSION_STRENGTH=0.6
 #ORTHO_OFFSET_NORTH=-2.58
 ORTHO_LAYER="ORTHOIMAGERY.ORTHOPHOTOS"
 ORTHO_WMS_URL="https://data.geopf.fr/wms-r/wms"
+# Carte géologique BRGM, BD Charm-50 harmonisée à 1/50 000, drapée sur le terrain dans le
+# visualiseur. L'archive se télécharge par département et se met en cache dans .work/geology/,
+# partagée par toutes les scènes du même département. Le BRGM n'étant pas la Géoplateforme,
+# l'étape ne bloque jamais : hors ligne ou hors couverture, la scène se produit sans la carte.
+GEOLOGY=1
+# À renseigner : numéro du département de l'emprise, sur trois chiffres (030 pour le Gard,
+# 048 pour la Lozère, 2A et 2B pour la Corse). Il ne se déduit pas des coordonnées
+# Lambert-93, et un mauvais département donne une carte hors emprise.
+GEOLOGY_DEPARTMENT=""
+# Côté de la texture géologique. 2048 px tient largement le 1/50 000 sur une emprise de
+# quelques centaines de mètres : au-delà, on lisse des contours dont la source ne porte pas
+# la précision. Les limites de la BD Charm-50 ne conviennent pas à une lecture parcellaire.
+GEOLOGY_TEXTURE_SIZE_PX=2048
 OUTPUT_DIR="{plan.output_dir}"
 """
 

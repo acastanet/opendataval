@@ -76,7 +76,15 @@ def _write_config(root: Path, name: str, side: int, output: str) -> Path:
     return source
 
 
-def _write_run(root: Path, output: str, name: str, *, scene: bool, roofer: bool = True) -> Path:
+def _write_run(
+    root: Path,
+    output: str,
+    name: str,
+    *,
+    scene: bool,
+    roofer: bool = True,
+    geology: bool = False,
+) -> Path:
     run_dir = root / output / name
     if roofer:
         roofer_dir = run_dir / "roofer_output"
@@ -88,6 +96,10 @@ def _write_run(root: Path, output: str, name: str, *, scene: bool, roofer: bool 
         render.mkdir(parents=True, exist_ok=True)
         (render / "scene.glb").write_bytes(b"glTF")
         (render / "scene.json").write_text("{}\n", encoding="utf-8")
+        if geology:
+            (render / "geology.png").write_bytes(b"\x89PNG")
+            (render / "geology-pick.png").write_bytes(b"\x89PNG")
+            (render / "geology.json").write_text('{"formations": []}\n', encoding="utf-8")
     return run_dir
 
 
@@ -146,6 +158,58 @@ class AvailableScenesTest(unittest.TestCase):
                 entries[1].as_manifest()["scene"], "assets/scenes/poc-600m/scene.glb"
             )
             self.assertEqual(entries[1].run, "run-600")
+
+    def test_annonce_la_carte_geologique_quand_elle_est_produite(self) -> None:
+        """Le visualiseur ne charge la couche que sur activation : il lui faut donc les
+        trois URL dans le manifeste, la texture n'étant pas embarquée dans le GLB."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = _write_config(root, "poc-200m", 200, "output-200m")
+            run_dir = _write_run(root, "output-200m", "run-200", scene=True, geology=True)
+            entries = available_scenes(PocConfig.load(root, source), run_dir)
+            geology = entries[0].as_manifest()["configuration"]["geology"]
+            self.assertEqual(
+                geology,
+                {
+                    "texture": "assets/geology.png",
+                    "pick": "assets/geology-pick.png",
+                    "metadata": "assets/geology.json",
+                },
+            )
+
+    def test_prefixe_la_geologie_des_autres_emprises(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            active = _write_config(root, "poc-200m", 200, "output-200m")
+            _write_config(root, "poc-600m", 600, "output-600m")
+            run_dir = _write_run(root, "output-200m", "run-200", scene=True)
+            _write_run(root, "output-600m", "run-600", scene=True, geology=True)
+            entries = available_scenes(PocConfig.load(root, active), run_dir)
+            self.assertEqual(
+                entries[1].as_manifest()["configuration"]["geology"]["texture"],
+                "assets/scenes/poc-600m/geology.png",
+            )
+
+    def test_tait_la_geologie_des_scenes_qui_n_en_portent_pas(self) -> None:
+        """Les scènes produites avant cette couche doivent continuer à se charger, et leur
+        bascule rester désactivée plutôt que sans effet."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = _write_config(root, "poc-200m", 200, "output-200m")
+            run_dir = _write_run(root, "output-200m", "run-200", scene=True)
+            manifest = available_scenes(PocConfig.load(root, source), run_dir)[0].as_manifest()
+            self.assertNotIn("geology", manifest["configuration"])
+
+    def test_exige_les_trois_artefacts_geologiques(self) -> None:
+        """Une carte sans son image d'identifiants ne serait pas interrogeable au clic :
+        mieux vaut ne pas l'annoncer du tout qu'offrir une commande à moitié muette."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = _write_config(root, "poc-200m", 200, "output-200m")
+            run_dir = _write_run(root, "output-200m", "run-200", scene=True, geology=True)
+            (run_dir / "render" / "geology-pick.png").unlink()
+            manifest = available_scenes(PocConfig.load(root, source), run_dir)[0].as_manifest()
+            self.assertNotIn("geology", manifest["configuration"])
 
     def test_transmet_la_resolution_orthophoto_configuree(self) -> None:
         with TemporaryDirectory() as directory:

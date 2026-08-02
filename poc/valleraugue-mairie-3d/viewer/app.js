@@ -645,6 +645,9 @@ function updateSun() {
   if (csm) csm.lightDirection.copy(direction).multiplyScalar(-1);
   document.querySelector("#sunValue").textContent = `${height}°`;
   document.querySelector("#azimuthValue").textContent = `${azimuth}°`;
+  // Le soleil a bougé : un « Copié » laissé en place désignerait des valeurs qui ne sont plus
+  // celles de l'écran.
+  document.querySelector("#sunConfigFeedback").textContent = "";
 }
 
 function orthoSunMeasure(metadata = currentMetadata) {
@@ -1016,8 +1019,16 @@ function buildingAt(clientX, clientY) {
 
 function pickBuilding(event) {
   const building = buildingAt(event.clientX, event.clientY);
-  if (building) selectBuilding(building);
-  else clearBuildingSelection();
+  if (building) {
+    selectBuilding(building);
+    return;
+  }
+  clearBuildingSelection();
+  // Le bâti reste prioritaire : on n'interroge la géologie que là où le clic a traversé
+  // jusqu'au terrain. Un clic hors formation ne referme pas la carte affichée, sans quoi
+  // toute manipulation de caméra un peu brusque l'effacerait.
+  const formation = geologyAt(event.clientX, event.clientY);
+  if (formation) showGeologyFormation(formation);
 }
 
 // Cadre un bâtiment en conservant l'azimut courant : on veut s'approcher, pas être téléporté
@@ -1129,6 +1140,12 @@ function addDataSection(container, title, content, { wide = false, list = false 
   container.append(section);
 }
 
+function readableInstant(value) {
+  const moment = value ? new Date(value) : null;
+  if (!moment || Number.isNaN(moment.valueOf())) return "date non renseignée";
+  return new Intl.DateTimeFormat("fr-FR").format(moment);
+}
+
 function readableRun(run) {
   const match = /^run-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/.exec(run ?? "");
   if (!match) return run || "non renseignée";
@@ -1230,6 +1247,25 @@ function updateDataInformation(metadata, entry) {
   // mention de paternité doit accompagner la réutilisation, donc la publication en ligne.
   // La révision de Three.js est lue dans la bibliothèque et non recopiée : la version servie
   // est celle que `web.py` a téléchargée, pas celle qu'un littéral aurait figée ici.
+  // La géologie ne vient pas de l'IGN et n'a pas la même échelle nominale que le reste de la
+  // scène : sa provenance et sa limite d'emploi méritent leur propre section, renseignée par
+  // `geology.json` plutôt que recopiée ici. Elle n'apparaît qu'une fois la couche chargée.
+  if (geologyMetadata) {
+    addDataSection(
+      sections,
+      "Carte géologique",
+      [
+        `${geologyMetadata.source ?? "BRGM — BD Charm-50 harmonisée"} — département ${
+          geologyMetadata.department ?? "non renseigné"
+        }.`,
+        `Échelle nominale 1:${(geologyMetadata.scale ?? 50000).toLocaleString("fr-FR")} — ces limites ne conviennent pas à une interprétation parcellaire.`,
+        `Archive récupérée le ${readableInstant(geologyMetadata.retrievedAt)} depuis ${geologyMetadata.archiveUrl ?? "InfoTerre"}.`,
+        `Empreinte SHA-256 de l’archive : ${geologyMetadata.sha256 ?? "non renseignée"}.`,
+        "© BRGM — réutilisation libre sous réserve de citer la source et sa date de mise à jour, sans altérer l’information ni l’employer à une échelle plus fine que celle prévue.",
+      ],
+      { list: true, wide: true },
+    );
+  }
   addDataSection(
     sections,
     "Licence et attribution",
@@ -1386,6 +1422,9 @@ function disposeModel() {
   clearBuildingSelection();
   setHovered(null);
   setQualityColors(false);
+  // Avant `disposeObject` : la carte est enfant du terrain, et sa géométrie lui est
+  // empruntée. La détacher d'abord évite de libérer deux fois le même tampon.
+  disposeGeology();
   qualityFilter = null;
   csm?.dispose();
   scene.remove(model);
@@ -1425,6 +1464,398 @@ function applyTerrainOpacity() {
       material.depthWrite = opacity > 0.95;
     });
   });
+}
+
+// ---------------------------------------------------------------------------------------
+// Calage manuel de l'orthophotographie. La mesure automatique se refuse là où les toitures
+// ne se distinguent pas de leur environnement — toits de tôle sur un causse, par exemple —
+// et il reste alors à caler l'image à l'œil. Le terrain et les toitures partagent la même
+// texture glTF : décaler celle-ci les déplace ensemble, comme le fait `ortho_uv` à la
+// production. La géologie a la sienne et ne bouge pas, ce qui est juste : elle est rastérisée
+// depuis des polygones Lambert-93, donc déjà en place.
+// ---------------------------------------------------------------------------------------
+const ORTHO_OFFSET_INPUTS = ["#orthoEast", "#orthoNorth"];
+
+function orthoTexture() {
+  let found = null;
+  model?.traverse((object) => {
+    if (found) return;
+    materialsOf(object).forEach((material) => {
+      if (!found && isTerrainMaterial(material)) {
+        found = originalMaterials.get(material)?.map ?? material.map ?? null;
+      }
+    });
+  });
+  return found;
+}
+
+// Côté de l'emprise couverte par la photo, marge comprise. Les scènes produites avant cette
+// clé retombent sur la largeur de la bbox : l'écart, celui de la marge, reste sous le
+// dixième et ne se voit pas à l'œil — relancer `glb` rétablit l'échelle exacte.
+function orthoExtentM() {
+  if (Number.isFinite(currentMetadata?.orthoExtentM)) return currentMetadata.orthoExtentM;
+  const bbox = currentMetadata?.bbox;
+  return Array.isArray(bbox) ? bbox[2] - bbox[0] : null;
+}
+
+function manualOrthoOffset() {
+  return {
+    east: Number(document.querySelector("#orthoEast").value),
+    north: Number(document.querySelector("#orthoNorth").value),
+  };
+}
+
+// Calage total appliqué à la scène : celui cuit dans les coordonnées de texture à la
+// production, plus celui des curseurs. C'est ce total qui se reporte dans la configuration.
+function totalOrthoOffset() {
+  const manual = manualOrthoOffset();
+  const measured = currentMetadata?.orthoOffset;
+  return {
+    east: manual.east + (Number(measured?.eastMetres) || 0),
+    north: manual.north + (Number(measured?.northMetres) || 0),
+  };
+}
+
+function formatMetres(value) {
+  return `${value.toFixed(1).replace(".", ",")} m`;
+}
+
+function applyOrthoOffset() {
+  const manual = manualOrthoOffset();
+  document.querySelector("#orthoEastValue").textContent = formatMetres(manual.east);
+  document.querySelector("#orthoNorthValue").textContent = formatMetres(manual.north);
+  const texture = orthoTexture();
+  const extent = orthoExtentM();
+  if (!texture || !extent) return;
+  // u croît vers l'est, v vers le sud : la composante nord s'y oppose, exactement comme dans
+  // `ortho_uv`. Trois conventions d'orientation se croisent ici, un signe divergent ferait
+  // glisser la photo dans la mauvaise direction sans que rien ne le dise.
+  // `offset` alimente la matrice de texture, que le rendu recalcule seul : lever
+  // `needsUpdate` renverrait les 4096 pixels de côté au GPU à chaque cran du curseur.
+  texture.offset.set(manual.east / extent, -manual.north / extent);
+  document.querySelector("#orthoOffsetFeedback").textContent = "";
+}
+
+function resetOrthoOffset() {
+  // Un calage vaut pour une orthophotographie, donc pour une scène : le reporter d'une scène
+  // à la suivante décalerait une image qui n'a pas le même défaut.
+  for (const selector of ORTHO_OFFSET_INPUTS) {
+    document.querySelector(selector).value = "0";
+  }
+  applyOrthoOffset();
+}
+
+// Les réglages qui ont un équivalent dans le `.conf` se recopient par le même chemin : le
+// presse-papiers quand le navigateur l'autorise, et le texte à l'écran sinon — refuser la copie
+// sans montrer la valeur laisserait l'utilisateur devant un réglage qu'il ne peut pas reporter.
+async function copyForConfiguration(lines, feedbackSelector) {
+  const feedback = document.querySelector(feedbackSelector);
+  try {
+    await navigator.clipboard.writeText(lines);
+    feedback.textContent =
+      "Copié — à coller dans le .conf de la scène et dans son .example, puis relancer glb.";
+  } catch (error) {
+    feedback.textContent = `Copie refusée par le navigateur : ${lines.replace(/\n/g, "  ")}`;
+  }
+}
+
+async function copyOrthoOffset() {
+  const total = totalOrthoOffset();
+  await copyForConfiguration(
+    `ORTHO_OFFSET_EAST=${total.east.toFixed(2)}\n` +
+      `ORTHO_OFFSET_NORTH=${total.north.toFixed(2)}\n`,
+    "#orthoOffsetFeedback",
+  );
+}
+
+// L'azimut du visualiseur est déjà géographique — 0° au nord, croissant vers l'est — soit la
+// convention de `ORTHO_SUN_AZIMUTH_DEG` : les deux valeurs se reportent sans conversion.
+async function copySunSetting() {
+  const height = Number(document.querySelector("#sunHeight").value);
+  const azimuth = Number(document.querySelector("#sunAzimuth").value);
+  await copyForConfiguration(
+    `ORTHO_SUN_AZIMUTH_DEG=${azimuth.toFixed(1)}\n` +
+      `ORTHO_SUN_ELEVATION_DEG=${height.toFixed(1)}\n`,
+    "#sunConfigFeedback",
+  );
+}
+
+// ---------------------------------------------------------------------------------------
+// Carte géologique BRGM (BD Charm-50). Elle n'est pas embarquée dans le GLB : ses trois
+// artefacts sont servis à part et chargés à la première activation, pour ne pas alourdir
+// l'ouverture d'une scène qu'on regarde le plus souvent sans elle.
+// ---------------------------------------------------------------------------------------
+let geologyOverlay = null;
+let geologyMaterial = null;
+let geologyPick = null;
+let geologyMetadata = null;
+let geologyToken = 0;
+let geologySelection = null;
+
+function geologyDescriptor() {
+  return currentEntry?.configuration?.geology ?? null;
+}
+
+// La nappe du terrain et sa tranche latérale sont deux primitives du même mesh glTF : seule
+// la première porte des UV, et c'est la seule sur laquelle draper la géologie.
+function terrainSurface() {
+  let found = null;
+  terrain?.traverse((object) => {
+    if (found || !object.isMesh) return;
+    const materials = materialsOf(object);
+    const index = materials.findIndex(isTerrainMaterial);
+    if (index >= 0 && object.geometry?.getAttribute("uv")) {
+      found = { mesh: object, index, count: materials.length };
+    }
+  });
+  return found;
+}
+
+function attachGeologyOverlay(texture) {
+  const surface = terrainSurface();
+  if (!surface) return false;
+  geologyMaterial = new THREE.MeshStandardMaterial({
+    name: "Geologie BRGM",
+    map: texture,
+    transparent: true,
+    // La carte double exactement la nappe : sans décalage de profondeur, les deux surfaces
+    // coplanaires clignoteraient d'un pixel à l'autre selon l'angle de vue.
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+    depthWrite: false,
+  });
+  // Géométrie partagée avec le terrain : la couche ne coûte pas un octet de sommet. Les
+  // autres emplacements de matériau restent invisibles, faute de quoi la géologie
+  // descendrait sur la tranche latérale, qui n'a pas d'UV.
+  const materials = Array.from({ length: surface.count }, (_, slot) =>
+    slot === surface.index
+      ? geologyMaterial
+      : new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  geologyOverlay = new THREE.Mesh(
+    surface.mesh.geometry,
+    surface.count > 1 ? materials : geologyMaterial,
+  );
+  geologyOverlay.name = "GeologieBRGM";
+  geologyOverlay.receiveShadow = true;
+  // Un décor ne doit pas s'interposer entre le curseur et les bâtiments.
+  geologyOverlay.raycast = () => {};
+  surface.mesh.add(geologyOverlay);
+  setupCsmMaterials(geologyOverlay);
+  applyGeologyOpacity();
+  return true;
+}
+
+async function loadGeology() {
+  const descriptor = geologyDescriptor();
+  if (!descriptor || geologyOverlay) return Boolean(geologyOverlay);
+  const token = ++geologyToken;
+  const notice = document.querySelector("#geologyNotice");
+  notice.textContent = "Chargement de la carte géologique…";
+  try {
+    const [metadata, texture, picking] = await Promise.all([
+      fetch(descriptor.metadata).then((response) => {
+        if (!response.ok) throw new Error(`métadonnées absentes (${response.status})`);
+        return response.json();
+      }),
+      new THREE.TextureLoader().loadAsync(descriptor.texture),
+      fetch(descriptor.pick)
+        .then((response) => {
+          if (!response.ok) throw new Error(`carte d’identifiants absente (${response.status})`);
+          return response.blob();
+        })
+        .then(createImageBitmap),
+    ]);
+    // Une autre scène a été demandée entre-temps : ce chargement n'a plus de destinataire.
+    if (token !== geologyToken) {
+      texture.dispose();
+      picking.close();
+      return false;
+    }
+    // `GLTFLoader` pose `flipY = false` sur les textures du GLB, `TextureLoader` non. Sans
+    // cet alignement, la carte se draperait à l'envers des UV du terrain — nord au sud —
+    // sans que rien ne le signale.
+    texture.flipY = false;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    texture.needsUpdate = true;
+    geologyPick = readPickImage(picking);
+    picking.close();
+    geologyMetadata = metadata;
+    if (!attachGeologyOverlay(texture)) {
+      texture.dispose();
+      throw new Error("aucune nappe de terrain à draper");
+    }
+    updateGeologyLegend();
+    // Le dialogue de traçabilité a été rendu à l'ouverture de la scène, avant que la carte
+    // ne soit chargée : il faut le reconstruire pour qu'il porte enfin la source BRGM.
+    if (currentMetadata && currentEntry) updateDataInformation(currentMetadata, currentEntry);
+    notice.textContent = "";
+    return true;
+  } catch (error) {
+    if (token === geologyToken) {
+      notice.textContent = `Carte géologique indisponible : ${error.message}`;
+      document.querySelector("#geologyToggle").checked = false;
+    }
+    return false;
+  }
+}
+
+// L'image d'identifiants se lit une fois pour toutes : chaque clic n'est ensuite qu'un accès
+// mémoire. Le PNG est produit sans profil colorimétrique, sans quoi la gestion de couleur du
+// canvas altérerait les valeurs qui portent précisément les identifiants.
+function readPickImage(bitmap) {
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  context.drawImage(bitmap, 0, 0);
+  const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+  return { data, width: bitmap.width, height: bitmap.height };
+}
+
+function applyGeologyOpacity() {
+  const slider = document.querySelector("#geologyOpacity");
+  document.querySelector("#geologyOpacityValue").textContent = `${slider.value} %`;
+  if (!geologyMaterial) return;
+  // C'est ce curseur qui fait la comparaison avec l'orthophoto : celle-ci est rendue dessous,
+  // et la transparence de la géologie la laisse réapparaître progressivement.
+  geologyMaterial.opacity = Number(slider.value) / 100;
+}
+
+function setGeologyVisible(visible) {
+  if (geologyOverlay) geologyOverlay.visible = visible;
+  if (!visible) clearGeologySelection();
+  document.querySelector("#geologyLegend").hidden = !visible || !geologyMetadata;
+}
+
+function geologyFormations() {
+  return Array.isArray(geologyMetadata?.formations) ? geologyMetadata.formations : [];
+}
+
+function updateGeologyLegend() {
+  const legend = document.querySelector("#geologyLegend");
+  const formations = geologyFormations();
+  if (!formations.length) {
+    legend.hidden = true;
+    legend.replaceChildren();
+    return;
+  }
+  // La couverture est comptée en pixels par l'étape `geology` : la ramener en pourcentage
+  // dit d'un coup d'œil ce qui domine l'emprise.
+  const total = formations.reduce((sum, entry) => sum + (entry.coveragePx ?? 0), 0) || 1;
+  legend.replaceChildren(
+    ...formations.map((formation) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("aria-pressed", String(geologySelection === formation.id));
+      button.title = formation.label
+        ? `${formation.code} — ${formation.label}`
+        : formation.code;
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = formation.color;
+      const name = document.createElement("span");
+      name.className = "label";
+      // La notice passe devant la notation : une notation sur dix emploie la police
+      // cartographique du BRGM, dont les glyphes grecs ressortent en charabia hors de
+      // cette police. Elle reste lisible dans l'infobulle et sur la carte de détail.
+      name.textContent = formation.label || formation.code;
+      const share = document.createElement("span");
+      share.className = "count";
+      share.textContent = `${Math.round(((formation.coveragePx ?? 0) / total) * 100)} %`;
+      button.append(dot, name, share);
+      button.addEventListener("click", () => {
+        showGeologyFormation(geologySelection === formation.id ? null : formation);
+      });
+      return button;
+    }),
+  );
+  legend.hidden = !document.querySelector("#geologyToggle").checked;
+}
+
+function showGeologyFormation(formation) {
+  const card = document.querySelector("#geologyDetails");
+  geologySelection = formation?.id ?? null;
+  if (!formation) {
+    card.hidden = true;
+  } else {
+    document.querySelector("#geologyCode").textContent = formation.code || "—";
+    document.querySelector("#geologyLabel").textContent = displayAttribute(formation.label);
+    document.querySelector("#geologyAge").textContent = displayAttribute(formation.age);
+    document.querySelector("#geologyLithology").textContent = displayAttribute(formation.lithology);
+    card.hidden = false;
+  }
+  updateGeologyLegend();
+}
+
+function clearGeologySelection() {
+  if (geologySelection === null && document.querySelector("#geologyDetails").hidden) return;
+  showGeologyFormation(null);
+}
+
+// Identifiant de la formation sous le pointeur, lu dans la carte d'identifiants. Les UV du
+// terrain sont ceux de l'orthophoto, et la texture géologique couvre exactement la même
+// emprise : aucune reprojection n'est nécessaire.
+function geologyAt(x, y) {
+  if (!geologyPick || !geologyOverlay?.visible) return null;
+  const surface = terrainSurface();
+  if (!surface) return null;
+  pointerToNdc(x, y);
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObject(surface.mesh, false)[0];
+  if (!hit?.uv) return null;
+  const { data, width, height } = geologyPick;
+  const column = Math.min(width - 1, Math.max(0, Math.round(hit.uv.x * (width - 1))));
+  const row = Math.min(height - 1, Math.max(0, Math.round(hit.uv.y * (height - 1))));
+  const offset = (row * width + column) * 4;
+  const identifier = (data[offset] << 16) | (data[offset + 1] << 8) | data[offset + 2];
+  if (!identifier) return null;
+  return geologyFormations().find((formation) => formation.id === identifier) ?? null;
+}
+
+function configureGeologyControls() {
+  const toggle = document.querySelector("#geologyToggle");
+  const slider = document.querySelector("#geologyOpacity");
+  const available = Boolean(geologyDescriptor());
+  toggle.disabled = !available;
+  slider.disabled = !available;
+  const explanation = available
+    ? ""
+    : "Cette scène a été produite sans la carte géologique BRGM.";
+  toggle.closest("label").title = explanation;
+  slider.closest("label").title = explanation;
+  document.querySelector("#geologyNotice").textContent = "";
+  if (!available) {
+    toggle.checked = false;
+    return;
+  }
+  // Le réglage a survécu au changement de scène : la couche doit se recharger d'elle-même.
+  if (toggle.checked) loadGeology().then(() => setGeologyVisible(toggle.checked));
+}
+
+function disposeGeology() {
+  // Invalide un chargement encore en vol : son résultat ne doit pas rejoindre la scène
+  // suivante.
+  geologyToken += 1;
+  if (geologyOverlay) {
+    geologyOverlay.removeFromParent();
+    for (const material of materialsOf(geologyOverlay)) {
+      csm?.shaders.delete(material);
+      material.map?.dispose();
+      material.dispose();
+    }
+    // La géométrie appartient au terrain : la libérer ici la retirerait sous ses pieds.
+    geologyOverlay = null;
+  }
+  geologyMaterial = null;
+  geologyPick = null;
+  geologyMetadata = null;
+  geologySelection = null;
+  document.querySelector("#geologyDetails").hidden = true;
+  document.querySelector("#geologyLegend").hidden = true;
+  document.querySelector("#geologyLegend").replaceChildren();
 }
 
 function adopt(entry, metadata, gltf) {
@@ -1472,6 +1903,7 @@ function adopt(entry, metadata, gltf) {
   }
   setupCsmMaterials(model);
   rememberMaterials(model);
+  resetOrthoOffset();
   configureTextureToggle("#terrainTextureToggle", terrain, isTerrainMaterial);
   configureTextureToggle("#roofTextureToggle", buildings, isRoofMaterial);
   for (const entry of optionalLayers) {
@@ -1494,6 +1926,8 @@ function adopt(entry, metadata, gltf) {
   // Les réglages continus survivent au changement de scène : les matériaux sont neufs, mais
   // les curseurs, eux, sont restés où l'utilisateur les avait laissés.
   applyTerrainOpacity();
+  applyGeologyOpacity();
+  configureGeologyControls();
   applyCrownScale();
   model.scale.y = Number(document.querySelector("#verticalScale").value) / 100;
   scene.add(model);
@@ -1596,6 +2030,8 @@ const PERSISTED_INPUTS = [
   "roofTextureToggle",
   "wireframeToggle",
   "terrainOpacity",
+  "geologyToggle",
+  "geologyOpacity",
   "sunLockToMeasure",
   "sunHeight",
   "sunAzimuth",
@@ -1750,6 +2186,20 @@ document.querySelector("#wireframeToggle").addEventListener("change", (event) =>
 });
 
 document.querySelector("#terrainOpacity").addEventListener("input", applyTerrainOpacity);
+
+for (const selector of ORTHO_OFFSET_INPUTS) {
+  document.querySelector(selector).addEventListener("input", applyOrthoOffset);
+}
+document.querySelector("#orthoOffsetCopy").addEventListener("click", copyOrthoOffset);
+document.querySelector("#sunConfigCopy").addEventListener("click", copySunSetting);
+
+document.querySelector("#geologyToggle").addEventListener("change", async (event) => {
+  const wanted = event.target.checked;
+  if (wanted && !(await loadGeology())) return;
+  setGeologyVisible(wanted);
+});
+document.querySelector("#geologyOpacity").addEventListener("input", applyGeologyOpacity);
+document.querySelector("#geologyClose").addEventListener("click", clearGeologySelection);
 
 document.querySelector("#sceneSelect").addEventListener("change", (event) => {
   const entry = sceneEntries.find((candidate) => candidate.id === event.target.value);

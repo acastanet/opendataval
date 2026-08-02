@@ -131,6 +131,9 @@ eau, et sans le moindre message. Le correctif et le contrôle qui l'accompagne s
 - Python 3.11 ou supérieur pour Windows ;
 - accès réseau à la Géoplateforme IGN et au CDN utilisé pour mettre Three.js en
   cache dans le visualiseur ;
+- accès à [InfoTerre](https://infoterre.brgm.fr) pour la carte géologique, facultatif : hors
+  ligne, la scène se produit sans elle. L’archive départementale pèse une vingtaine de
+  mégaoctets et n’est téléchargée qu’une fois par département, dans `.work/geology/` ;
 - une exécution Roofer déjà présente dans `output*/run-*`. La produire relève de l’étape amont,
   décrite dans [`docs/lidar-roofer.md`](docs/lidar-roofer.md) : c’est la seule partie de la
   chaîne qui demande Docker, et `poc.py validate` vérifie désormais que son nuage couvre bien
@@ -162,18 +165,25 @@ l’acquisition LiDAR ni Roofer.
 
 | Commande | Effet |
 | --- | --- |
+| `python poc.py scenes` | **menu des scènes** : état de chacune, assemblage, pipeline complet, visualiseur |
 | `python poc.py scene` | décrit une nouvelle emprise depuis un point WGS84 et écrit sa configuration |
 | `python poc.py check` | vérifie Python, les modules et les données d’entrée |
 | `python poc.py validate` | valide les artefacts de la dernière exécution |
 | `python poc.py terrain` | produit le terrain depuis le LiDAR sol avec `laspy` et NumPy |
 | `python poc.py ortho` | télécharge `orthophoto.jpg` depuis le WMS IGN |
 | `python poc.py vegetation` | détecte les cimes de la classe LiDAR 5 et écrit `trees.json` |
+| `python poc.py geology` | rastérise la carte géologique BRGM sur l’emprise |
 | `python poc.py sun` | retrouve la position solaire de l’orthophoto par ses ombres |
 | `python poc.py glb` | assemble `render/scene.glb` |
 | `python poc.py web` | prépare le visualiseur et met Three.js en cache |
-| `python poc.py enhance` | enchaîne validation, terrain, ortho, GLB et web |
+| `python poc.py enhance` | enchaîne validation, terrain, végétation, ortho, géologie, GLB et web |
 | `python poc.py all` | vérifie l’environnement puis exécute `enhance` |
 | `python poc.py serve` | ouvre le visualiseur sur `http://127.0.0.1:8000` |
+
+`scenes` est le point d’entrée à retenir quand plusieurs emprises coexistent : il montre lesquelles
+sont à jour, lesquelles ont une configuration retouchée depuis leur dernier assemblage — le calage
+de l’orthophoto et la position solaire y sont cuits, une retouche du `.conf` reste sans effet tant
+que `glb` n’a pas été rejoué — et lesquelles attendent encore l’étage Docker.
 
 Une autre configuration peut être sélectionnée :
 
@@ -200,7 +210,10 @@ orthophoto.json
 render/
 ├── scene.glb
 ├── scene.json
-└── buildings.json
+├── buildings.json
+├── geology.png
+├── geology-pick.png
+└── geology.json
 web/
 ├── index.html
 ├── app.js
@@ -209,6 +222,9 @@ web/
 │   ├── scene.glb
 │   ├── scene.json
 │   ├── buildings.json
+│   ├── geology.png
+│   ├── geology-pick.png
+│   ├── geology.json
 │   ├── scenes.json
 │   └── scenes/
 │       └── <autre emprise>/
@@ -399,6 +415,45 @@ voisins — sinon les toitures noirciraient avec le pied des murs.
 Réglages : `AMBIENT_OCCLUSION`, `OCCLUSION_AZIMUTHS`, `OCCLUSION_RADIUS_M`,
 `OCCLUSION_STRENGTH` (0 n’assombrit rien, 1 assombrit au maximum).
 
+## Carte géologique BRGM
+
+`poc.py geology` télécharge la **BD Charm-50 harmonisée** du département — les cartes
+géologiques vectorisées à 1/50 000 — et la rastérise sur l’emprise. La source étant
+vectorielle et non une image, les attributs survivent : c’est ce qui permet d’interroger la
+formation au clic plutôt que de contempler un fond de carte muet.
+
+La couche **n’est pas embarquée dans le GLB**. Elle sort en trois fichiers servis à part,
+que le visualiseur ne charge qu’à l’activation de sa bascule : une scène qu’on regarde sans
+la géologie ne paie pas son poids à l’ouverture.
+
+| Fichier | Rôle |
+| --- | --- |
+| `render/geology.png` | la carte drapée sur le terrain, aux UV de l’orthophoto |
+| `render/geology-pick.png` | carte d’identifiants, jamais affichée : elle donne la formation sous le clic |
+| `render/geology.json` | légende, provenance, empreinte SHA-256 de l’archive |
+
+Les couleurs sont **celles de la carte imprimée**, lues dans les champs de quadrichromie du
+DBF (`C_FOND`, `M_FOND`, `J_FOND`, `N_FOND`) : le rose des granites et le vert-bleu des
+métamorphiques sortent conformes à la convention. Le `.qml` livré à côté de l’archive n’est
+pas exploité — c’est un `RuleRenderer` renvoyant à des motifs et à une police cartographique
+qu’un navigateur n’a pas. Une formation sans fond imprimé, que la carte distingue par une
+surcharge dont le drapage ne rendrait rien, reçoit une teinte dérivée de son code ; la clé
+`palette` de `geology.json` passe alors de `brgm` à `mixte`.
+
+Deux limites viennent de la source et non du traitement. Une notation sur dix emploie la
+police cartographique du BRGM et ressort en charabia hors de celle-ci : la légende affiche
+donc la notice en premier, la notation restant en infobulle. Et le format n’a aucun champ
+d’âge — il est extrait de la parenthèse finale de la description, présente sur quatre
+notices sur cinq.
+
+Réglages : `GEOLOGY`, `GEOLOGY_DEPARTMENT` (trois chiffres, à renseigner par scène : il ne se
+déduit pas des coordonnées Lambert-93), `GEOLOGY_TEXTURE_SIZE_PX`. L’étape est **non
+bloquante** : département vide ou faux, service indisponible, emprise hors couverture — la
+scène se produit sans la couche, et sa bascule reste désactivée avec son explication.
+
+> L’échelle nominale est le 1:50 000. Ces limites **ne conviennent pas à une interprétation
+> parcellaire**, et le visualiseur le rappelle dans « Informations sur les données ».
+
 ## Qualité des toitures
 
 Roofer étiquette lui-même ses échecs dans `rf_roof_type`, et l’information était jetée. Sur
@@ -581,6 +636,16 @@ sa taille réelle, mesurée à chaque changement : elles ne passent plus dessous
 de prise de vue devient connue ; `ORTHO_OFFSET_EAST` et `ORTHO_OFFSET_NORTH` forcent le
 calage ; `ROOF_TEXTURE_FROM_ORTHO=0` revient aux toitures en teintes unies.
 
+Ces deux mesures se font sur l’image, et **se refusent quand elles n’ont pas de prise**. Le
+calage cherche la translation qui pose les emprises bâties sur les toitures les plus rouges :
+sur un causse, où des toits de tôle grise reposent sur un sol ocre, le contraste s’inverse et
+la recherche s’échappe du bâti — elle rendait jusqu’ici une dizaine de mètres d’écart, appliqués
+sans réserve à la texture du terrain comme des toitures. L’azimut solaire, lui, se recoupe sur
+les ombres des houppiers : deux directions inconciliables valent mieux refusées qu’arbitrées.
+Dans les deux cas la scène se produit — orthophotographie drapée telle quelle, soleil laissé
+réglable — et `poc.py sun` écrit une vignette `ortho-registration.png` où l’on vérifie le calage
+à l’œil, de quoi renseigner `ORTHO_OFFSET_*` à la main s’il le faut.
+
 `render/buildings.json` associe chaque nom de nœud à ses attributs BD TOPO (`cleabs`,
 `nature`, `usage_1`, `hauteur`…), également embarqués dans les `extras` du GLB. C’est
 ce qui permet de sélectionner un bâtiment précis — la mairie, par exemple — dans un
@@ -601,8 +666,13 @@ validation des artefacts, la couverture du nuage LiDAR sur l’emprise du terrai
 le recensement et le titrage des scènes du sélecteur, la séparation murs/toitures, l’écriture du conteneur
 GLB, la conversion sRGB des palettes, la tranche du terrain, la détection des
 cimes, la teinte et la silhouette des houppiers, l’ajustement du plan d’eau, la
-fermeture des masques, le maillage des nappes, le facteur de vue du ciel et le
-relevé des toitures dégradées.
+fermeture des masques, le maillage des nappes, le facteur de vue du ciel, le
+relevé des toitures dégradées, la rastérisation des polygones géologiques — trous,
+parties disjointes, découpage sur l’emprise et orientation nord/sud — ainsi que la
+lecture de la BD Charm-50, son cache et sa dégradation hors ligne.
+
+Aucun test ne sort sur le réseau : les archives et les réponses de service sont
+fabriquées en mémoire.
 
 ## Données et composants externes
 
@@ -610,4 +680,10 @@ relevé des toitures dégradées.
 - LiDAR HD et BD TOPO : Géoplateforme IGN ;
 - orthophotographie : WMS raster IGN, couche
   `ORTHOIMAGERY.ORTHOPHOTOS` ;
+- carte géologique : [BD Charm-50 harmonisée](https://infoterre.brgm.fr/formulaire/telechargement-cartes-geologiques-departementales-150-000-bd-charm-50)
+  du BRGM, à 1/50 000, téléchargée par département depuis InfoTerre. Sa réutilisation
+  demande de citer la source et sa date de mise à jour, de ne pas altérer l’information et
+  de ne pas l’employer à une échelle plus fine que celle prévue — le visualiseur porte ces
+  mentions dans « Informations sur les données », alimentées par `geology.json` ;
+- lecture des Shapefiles : `pyshp`, licence MIT, en Python pur — le POC reste sans pile SIG ;
 - visualisation : Three.js mis en cache localement lors de `python poc.py web`.
