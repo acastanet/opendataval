@@ -233,6 +233,26 @@ sur l'emprise 200 m puis 600 m.
 - [ ] À 380 × 700 : les trois mesures restent affichées, l'aide est atteignable, et ni la rose des
   vents ni la barre d'échelle ne passent sous le panneau, ouvert comme fermé.
 
+## Carte géologique BRGM
+
+À contrôler sur l'emprise 200 m de Valleraugue **et** sur le 600 m du Perjuret, où le
+contraste socle cévenol / série du causse est franc.
+
+- [ ] La bascule « Carte géologique BRGM » drape la carte sur le terrain et sur lui seul :
+  les toitures et la tranche latérale restent nues.
+- [ ] Le curseur d'opacité fait réapparaître l'orthophoto, sans clignotement de profondeur.
+- [ ] Un contact géologique identifiable coïncide avec le même contact sur
+  [InfoTerre](https://infoterre.brgm.fr) — c'est ce contrôle qui attrape une inversion
+  nord-sud de la texture.
+- [ ] Le clic sur le terrain nomme la formation, son âge et sa notice ; un clic sur un
+  bâtiment sélectionne toujours le bâtiment.
+- [ ] La légende ne liste que des formations effectivement visibles à l'écran.
+- [ ] Une scène sans géologie désactive la bascule avec son explication, sans erreur en
+  console ; revenir dessus recharge la couche.
+- [ ] « Informations sur les données » affiche la source BRGM, l'échelle 1:50 000, la date de
+  récupération et l'avertissement sur l'usage parcellaire.
+- [ ] Une dizaine d'allers-retours entre scènes ne fait pas croître la mémoire du navigateur.
+
 ## Reproductibilité
 
 - [ ] `python poc.py check` réussit avec Python Windows, sans Docker ni WSL.

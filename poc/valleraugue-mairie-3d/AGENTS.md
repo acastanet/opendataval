@@ -28,10 +28,19 @@ pas versionné, les correctifs qu’il exige vivent dans [`patches/`](patches/) 
 doivent y être mis à jour avec toute modification du workflow amont — sans quoi
 un nouveau clone les perd en silence.
 
-Un seul appel réseau de la chaîne d’enrichissement sort de la Géoplateforme :
-`vegetation` interroge le WFS BD Forêt V2 pour typer les houppiers. Il est **non
-bloquant** — hors couverture ou hors ligne, le profil générique subsiste, et
-aucune étape ne doit en faire une condition de succès.
+Deux appels réseau de la chaîne d’enrichissement sortent de la Géoplateforme, et
+tous deux sont **non bloquants** : hors couverture ou hors ligne, la scène se
+produit sans eux, et aucune étape ne doit en faire une condition de succès.
+
+- `vegetation` interroge le WFS BD Forêt V2 pour typer les houppiers ; à défaut,
+  le profil générique subsiste ;
+- `geology` télécharge l’archive départementale de la BD Charm-50 du BRGM
+  (InfoTerre) pour rastériser la carte géologique à 1/50 000 sur l’emprise ; à
+  défaut, la scène se charge sans la couche et sa bascule reste désactivée.
+  L’archive pèse une vingtaine de mégaoctets et se met en cache dans
+  `.work/geology/`, partagée par toutes les scènes du même département. Le
+  département ne se déduit pas des coordonnées : chaque `.conf` porte son
+  `GEOLOGY_DEPARTMENT`.
 
 ## Structure
 
@@ -107,12 +116,22 @@ node --check viewer\app.js
 ni télécharger à nouveau les données LiDAR sources ni lancer Roofer.
 
 Les commandes ciblées disponibles sont `validate`, `terrain`, `ortho`,
-`vegetation`, `sun`, `glb`, `web` et `enhance`. Passer une configuration
+`vegetation`, `geology`, `sun`, `glb`, `web` et `enhance`. Passer une configuration
 différente avec `--config`, avant le nom de la sous-commande. `scene` fait
 exception : elle fabrique une configuration et ignore donc `--config`.
+
+`poc.py scenes` ouvre le menu des emprises : il dresse l'état de chaque `.conf`
+versionné et enchaîne assemblage, pipeline complet ou visualiseur. L'état
+« configuration plus récente » compare la date du `.conf` à celle de son
+`render/scene.glb` — le calage de l'orthophotographie et la position solaire sont
+cuits à l'assemblage, une retouche du `.conf` reste sans effet tant que `glb`
+n'a pas été rejoué. `poc.py web` signale la même chose pour toutes les emprises.
+Le menu lit `printer` et `reader` en paramètres afin de rester testable sans
+terminal : ne pas y appeler `print` ni `input` directement.
 `lancer.bat`
 contrôle l’environnement, protège les processus étrangers utilisant le port,
-puis lance uniquement le serveur local.
+puis lance uniquement le serveur local. `scenes.bat` ouvre le menu ; son argument
+facultatif désigne la scène par défaut du sélecteur, non celle à assembler.
 
 ## Style et tests
 
@@ -152,7 +171,9 @@ les configurations, les commandes documentées, les rapports ou les commits.
 Préserver les sorties Roofer existantes : les commandes d’enrichissement
 peuvent remplacer uniquement leurs propres produits (`terrain.*`, `canopy.npy`,
 `surface.npy`, `water.npy`, `bridge.npy`, `trees.json`, `orthophoto.*`,
-`render/` et `web/`).
+`render/` — y compris `render/geology.png`, `render/geology-pick.png` et
+`render/geology.json` — et `web/`). Le cache des archives BRGM vit hors de
+l’exécution, dans `.work/geology/`, puisqu’il se partage entre scènes.
 
 `poc.py web` lit en outre le `render/` des autres emprises pour alimenter le
 sélecteur de scènes du visualiseur, et ne recopie ces scènes que dans son propre

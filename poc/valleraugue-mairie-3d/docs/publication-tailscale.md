@@ -59,9 +59,15 @@ sur le serveur, qui n'a pas forcément le CPU pour.
 
 ```bash
 # Git Bash, depuis poc/valleraugue-mairie-3d/publication
-find . \( -name '*.glb' -o -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.json' \) \
+find . \( -name '*.glb' -o -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.json' \
+          -o -name '*.png' \) \
   -exec gzip -9 -k -f {} +
 ```
+
+Les `.png` sont dans la liste à dessein, bien qu'un PNG soit déjà compressé : les cartes
+géologiques n'étant que des aplats de couleur, elles passent de 23 Ko à 3,5 Ko. La
+justification complète est au § 3 de
+[`publication-visualiseur.md`](publication-visualiseur.md).
 
 **Ne jamais transférer `output*/`, `.work-python/` ni `.venv/`.** Le premier pèse près d'un
 gigaoctet, les deux autres n'ont aucun sens sur le serveur.
@@ -255,6 +261,7 @@ hôtes servis :
 | `curl -I http://<site-tailnet>/valleraugue-3d` | `308` vers `/valleraugue-3d/` |
 | `curl -sI -H 'Accept-Encoding: gzip' http://<site-tailnet>/valleraugue-3d/assets/scene.glb` | `Content-Encoding: gzip`, `Content-Type: model/gltf-binary` |
 | `curl -s http://<site-tailnet>/valleraugue-3d/assets/scenes.json` | autant d'entrées que de scènes publiées, la plus légère en premier |
+| `curl -sI -H 'Accept-Encoding: gzip' http://<site-tailnet>/valleraugue-3d/assets/geology.png` | `200`, `Content-Encoding: gzip` — sinon la précompression du § 2 a oublié les `.png` |
 | `curl -sI https://<site-public>/valleraugue-3d/` | même CSP que Caddy, avec `connect-src 'self' blob:` |
 | `curl -sI https://<site-public>/valleraugue-3d/favicon.svg` | `200`, `Content-Type: image/svg+xml` |
 | Navigateur, console ouverte | scène chargée, sélecteur fonctionnel, aucune 404 ni erreur CSP |

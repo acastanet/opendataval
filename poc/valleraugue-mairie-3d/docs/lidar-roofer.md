@@ -37,10 +37,11 @@ git clone https://github.com/ignfab/roofer-with-ignf-datasets.git \
 git -C .work-python/roofer-with-ignf-datasets checkout 0c4fb08
 git -C .work-python/roofer-with-ignf-datasets apply \
   ../../patches/0001-copc-source.patch \
-  ../../patches/0002-lidar-extent-union.patch
+  ../../patches/0002-lidar-extent-union.patch \
+  ../../patches/0003-terrain-only-scene.patch
 ```
 
-Les deux correctifs sont versionnés dans [`../patches/`](../patches/) parce que le clone, lui,
+Les trois correctifs sont versionnés dans [`../patches/`](../patches/) parce que le clone, lui,
 ne l'est pas : sans eux consignés ici, un nouveau clone les perdrait en silence.
 
 ### `0001-copc-source.patch`
@@ -76,6 +77,12 @@ eau et sans le moindre message.
 Le correctif prend l'**union de la bbox demandée et de l'étendue du bâti**, puis applique le
 buffer. `--buffer` devient ainsi une marge autour de la zone demandée, ce qui permet de
 l'accorder à `TERRAIN_MARGIN_M`.
+
+### `0003-terrain-only-scene.patch`
+
+Autorise les emprises naturelles sans bâtiment BD TOPO. Le workflow extrait tout de même le
+LiDAR sur l'emprise complète et produit une sortie CityJSONSeq vide, afin que le pipeline aval
+fabrique une scène de terrain, végétation et orthophoto sans inventer de bâti.
 
 ## Mettre les dalles LiDAR en cache
 

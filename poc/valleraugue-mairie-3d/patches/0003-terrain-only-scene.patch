@@ -1,0 +1,51 @@
+diff --git a/scripts/run_workflow.sh b/scripts/run_workflow.sh
+--- a/scripts/run_workflow.sh
++++ b/scripts/run_workflow.sh
+@@ -271,11 +271,24 @@ download_buildings() {
+-
++
+  BUILDING_COUNT="$(extract_feature_count "$BUILDINGS_GPKG" "$BUILDINGS_LAYER_NAME")"
+   [[ -n "$BUILDING_COUNT" ]] || die "could not determine building feature count"
+-  [[ "$BUILDING_COUNT" != "0" ]] || die "building query returned no features"
++  NO_BUILDINGS=0
++  if [[ "$BUILDING_COUNT" == "0" ]]; then
++    # Natural sites can legitimately have no BD TOPO building. They still need a complete
++    # LiDAR extraction so the downstream terrain-only scene remains reproducible.
++    NO_BUILDINGS=1
++    log "Building query returned no features; continuing with a terrain-only scene"
++  fi
+ }
+-
++
+ prepare_extents() {
+-  read -r BUILDING_XMIN BUILDING_YMIN BUILDING_XMAX BUILDING_YMAX <<<"$(extract_extent "$BUILDINGS_GPKG" "$BUILDINGS_LAYER_NAME")"
++  if (( NO_BUILDINGS )); then
++    BUILDING_XMIN="$INPUT_XMIN"
++    BUILDING_YMIN="$INPUT_YMIN"
++    BUILDING_XMAX="$INPUT_XMAX"
++    BUILDING_YMAX="$INPUT_YMAX"
++  else
++    read -r BUILDING_XMIN BUILDING_YMIN BUILDING_XMAX BUILDING_YMAX <<<"$(extract_extent "$BUILDINGS_GPKG" "$BUILDINGS_LAYER_NAME")"
++  fi
+   write_bbox_json "$BUILDING_BBOX_JSON" "$BUILDING_XMIN" "$BUILDING_YMIN" "$BUILDING_XMAX" "$BUILDING_YMAX"
+-
++
+  # The extraction extent is the union of the requested bbox and the building extent, then
+@@ -396,8 +409,14 @@ main() {
+   download_lidar
+   build_pdal_pipeline
+   run_pdal_pipeline
+-  complete_attributes
+-  run_roofer
++  if (( NO_BUILDINGS )); then
++    log "Skipping Roofer: no buildings in the requested area"
++    cp "$BUILDINGS_GPKG" "$POSTPROCESS_GPKG"
++    printf '%s\n' '{"type":"CityJSON","transform":{"scale":[0.001,0.001,0.001],"translate":[0.0,0.0,0.0]}}' >"$ROOFER_OUTPUT_DIR/empty.city.jsonl"
++  else
++    complete_attributes
++    run_roofer
++  fi
+-
++
+  log "Workflow completed"
+ }

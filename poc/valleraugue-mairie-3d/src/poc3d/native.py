@@ -7,7 +7,9 @@ import sys
 from .config import PocConfig, latest_run
 
 
-REQUIRED_MODULES = ("laspy", "numpy", "PIL")
+# `shapefile` est le nom d'import de pyshp : sans lui ici, une installation incomplète ne se
+# manifesterait qu'au milieu de l'étape `geology`, après le téléchargement de l'archive.
+REQUIRED_MODULES = ("laspy", "numpy", "PIL", "shapefile")
 
 
 def check_environment(config: PocConfig) -> Path:

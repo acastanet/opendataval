@@ -1202,6 +1202,13 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
     offset = None
     try:
         offset = measure_ortho_offset(config, run_dir)
+        # Ces valeurs sont cuites ici, dans les coordonnées de texture : retoucher le `.conf`
+        # ensuite ne changerait rien tant que l'assemblage n'est pas rejoué. Les annoncer est
+        # ce qui permet de vérifier, en un coup d'œil, que la retouche a bien été prise.
+        print(
+            f"Calage de l'orthophotographie : est {offset.east_m:+.2f} m, "
+            f"nord {offset.north_m:+.2f} m ({offset.source})"
+        )
     except (OSError, RuntimeError, ValueError) as error:
         print(f"AVERTISSEMENT : orthophotographie non recalée ({error}).")
     ortho_offset = (offset.east_m, offset.north_m) if offset else (0.0, 0.0)
@@ -1402,6 +1409,10 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
         "minElevation": terrain.min_elevation,
         "maxElevation": terrain.max_elevation,
         "terrainResolutionM": config.get_float("TERRAIN_RESOLUTION_M", 1.0),
+        # Côté de l'emprise que couvre l'orthophotographie, marge du terrain comprise. C'est
+        # l'échelle qui convertit un calage en mètres vers des coordonnées de texture : sans
+        # elle, le visualiseur ne saurait pas de combien décaler l'image pour un mètre demandé.
+        "orthoExtentM": config.terrain_bbox[2] - config.terrain_bbox[0],
         "sourceCityJSONSeq": [path.name for path in cityjson_files],
         # Roofer signale lui-même les toitures qu'il n'a pas su reconstruire : sans cette
         # clé, elles se lisent dans la scène comme n'importe quelle toiture mesurée.
@@ -1438,7 +1449,12 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
     # Le visualiseur en a besoin pour caler son soleil sur les ombres de l'orthophotographie ;
     # un échec de calibration ne doit pas empêcher la production de la scène.
     try:
-        metadata["orthoSun"] = measure_ortho_sun(config, run_dir).as_metadata()
+        sun = measure_ortho_sun(config, run_dir)
+        metadata["orthoSun"] = sun.as_metadata()
+        print(
+            f"Soleil de l'orthophotographie : azimut {sun.azimuth_deg:.0f}°, "
+            f"hauteur {sun.elevation_deg:.0f}° ({sun.source})"
+        )
     except (OSError, RuntimeError, ValueError) as error:
         print(f"AVERTISSEMENT : calibration solaire indisponible ({error}).")
     if offset is not None:

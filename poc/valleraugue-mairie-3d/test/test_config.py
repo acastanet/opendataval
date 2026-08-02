@@ -81,6 +81,20 @@ class ConfigTest(unittest.TestCase):
                     f"{source.name} a divergé de son .example",
                 )
 
+    def test_toutes_les_configurations_versionnees_portent_un_departement(self) -> None:
+        """La carte géologique se télécharge par département, et celui-ci ne se déduit pas
+        des coordonnées Lambert-93. Laissé vide, il ferait taire la couche ; renseigné au
+        hasard, il draperait la géologie d'une autre région sans que rien ne le signale."""
+        for source in sorted((ROOT / "config").glob("*.conf")):
+            with self.subTest(configuration=source.name):
+                config = PocConfig.load(ROOT, source)
+                department = config.get("GEOLOGY_DEPARTMENT", "").strip()
+                self.assertRegex(
+                    department,
+                    r"^([0-9]{3}|2[AB])$",
+                    f"{source.name} : GEOLOGY_DEPARTMENT attendu sur trois caractères",
+                )
+
     def test_selectionne_la_derniere_execution_complete(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)

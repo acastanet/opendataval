@@ -44,20 +44,26 @@ web/
 │   ├── scene.glb         23 Mo   ← emprise 200 m, scène chargée par défaut
 │   ├── scene.json                  métadonnées de traçabilité
 │   ├── buildings.json   357 Ko     attributs BD TOPO par bâtiment
+│   ├── geology.png       23 Ko     carte géologique BRGM, chargée à la demande
+│   ├── geology-pick.png  18 Ko     carte d'identifiants, jamais affichée
+│   ├── geology.json       2 Ko     légende et provenance de la couche
 │   ├── scenes.json                 manifeste du sélecteur de scènes
 │   └── scenes/
 │       ├── poc-600m/
 │       │   ├── scene.glb   57,5 Mo   ← Valleraugue, emprise 600 m
 │       │   ├── scene.json
-│       │   └── buildings.json 979 Ko
+│       │   ├── buildings.json 979 Ko
+│       │   └── geology.*      53 Ko
 │       ├── notre-dame-rouviere-200m/
 │       │   ├── scene.glb   18,7 Mo   ← Notre-Dame-de-la-Rouvière, emprise 200 m
 │       │   ├── scene.json
-│       │   └── buildings.json
+│       │   ├── buildings.json
+│       │   └── geology.*      37 Ko
 │       └── creyssensac-et-pissot-200m/
 │           ├── scene.glb   17,9 Mo   ← Creyssensac-et-Pissot, emprise 200 m
 │           ├── scene.json
-│           └── buildings.json
+│           ├── buildings.json
+│           └── geology.*      44 Ko
 └── vendor/               2,3 Mo    Three.js 0.178.0 + addons (MIT)
 ```
 
@@ -70,6 +76,12 @@ visiteur. Les autres ne partent que si on les choisit dans le sélecteur.
 Le décompte ci-dessus est celui d'un état donné : `poc.py web` publie **toute** scène dont la
 configuration porte un `render/scene.glb`, et le total croît d'une vingtaine de mégaoctets par
 scène 200 m ajoutée. Le vérifier avant chaque mise en ligne.
+
+La carte géologique ne pèse pas dans cette balance : **250 Ko pour cinq scènes**, aplats de
+couleur que le PNG compresse très efficacement. C'est aussi pourquoi elle est publiée hors du
+GLB plutôt qu'embarquée — non pas pour le poids, mais parce que le visualiseur ne la
+télécharge qu'à l'activation de sa bascule. Une scène regardée sans la géologie ne la paie
+jamais.
 
 Le seul état conservé côté client est un `localStorage` de réglages d'affichage. Aucun cookie,
 aucune mesure d'audience, aucune donnée personnelle : `buildings.json` ne porte que des
@@ -98,8 +110,14 @@ Contrôles à passer avant d'aller plus loin :
 1. `assets/scenes.json` contient une entrée par scène assemblée, une 200 m d'abord ;
 2. `index.html`, `app.js`, `styles.css` et `favicon.svg` du dossier `web/` sont identiques à
    ceux de `viewer/` (comparer les tailles ou les empreintes) ;
-3. tous les `scene.glb` / `scene.json` référencés par le manifeste existent bien ;
+3. tous les `scene.glb` / `scene.json` référencés par le manifeste existent bien, ainsi que
+   les trois fichiers `geology.*` des entrées qui portent une clé `configuration.geology` ;
 4. chaque entrée porte un `title` — sans lui, deux scènes de même taille sont indiscernables.
+
+Une entrée **sans** clé `geology` n'est pas un défaut : la scène a été assemblée avant cette
+couche, ou son département n'est pas renseigné. Le visualiseur désactive alors la bascule avec
+son explication. Ce qui serait un défaut, c'est une clé présente pointant sur un fichier
+absent — d'où le contrôle 3.
 
 ## 3. Figer un chemin de déploiement stable
 
@@ -126,8 +144,16 @@ coûte environ **1,3 s de CPU par requête non mise en cache**. Précompresser u
 ```bash
 # Git Bash, depuis poc/valleraugue-mairie-3d/publication
 find . -name '*.glb' -o -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.json' \
+  -o -name '*.png' \
   | xargs -I{} gzip -9 -k -f {}
 ```
+
+**Les `.png` en font partie, contre toute attente.** Un PNG porte déjà un flux deflate et ne
+devrait rien gagner à être regzippé ; les cartes géologiques, elles, tombent de 23 Ko à
+**3,5 Ko**, soit un facteur 6,7. La raison tient au contenu : une carte drapée ne compte que
+quelques aplats de couleur, si bien que le flux compressé produit par Pillow reste lui-même
+très répétitif d'une ligne à l'autre. Le cas est vérifiable en une commande — `gzip -9 -c
+assets/geology.png | wc -c` — et il ne se généralise pas aux PNG photographiques.
 
 Caddy servira le `.gz` aux clients qui l'acceptent via `precompressed` (§ 4). Ajouter les `.zst`
 avec `zstd -19 -k` si l'outil est disponible : Caddy les préfère, mais leur absence n'est pas
@@ -189,6 +215,13 @@ connect-src 'self' blob: https://data.geopf.fr https://unpkg.com;
 
 Les modules ES viennent de `vendor/` (`script-src 'self'`) et l'`importmap` inline est couvert
 par `'unsafe-inline'`. Ne pas élargir davantage la CSP pour corriger un autre défaut.
+
+**La carte géologique n'exige aucun élargissement**, et c'est à savoir avant de toucher à la
+directive « au cas où ». Ses trois fichiers sont servis depuis la même origine : la texture
+passe par un `<img>` que couvre `img-src 'self'`, la légende et la carte d'identifiants par un
+`fetch` que couvre `connect-src 'self'`. Le `createImageBitmap` opère sur un blob déjà en
+mémoire, sans requête, et la lecture des identifiants dans un `<canvas>` ne relève pas de la
+CSP mais de la même origine — que la publication respecte par construction.
 
 Conséquence à connaître : `frame-ancestors 'none'` et `X-Frame-Options: DENY` interdisent tout
 affichage en `iframe`. Si la commune demande un embarquement dans son site, c'est une décision
@@ -274,8 +307,11 @@ Après `docker compose up -d caddy`, sur le port publié (`8080` en local) :
 | `curl -sI -H 'Accept-Encoding: gzip' .../assets/scene.glb` | `Content-Encoding: gzip`, `Content-Type: model/gltf-binary` |
 | `curl -I .../assets/scenes.json` | `200`, autant d'entrées que de scènes publiées |
 | `curl -I .../favicon.svg` | `200`, `Content-Type: image/svg+xml` |
+| `curl -sI -H 'Accept-Encoding: gzip' .../assets/geology.png` | `200`, `Content-Encoding: gzip`, `Content-Type: image/png` |
+| `curl -s .../assets/geology.json` | `source`, `scale`, `retrievedAt` et une liste `formations` non vide |
 | `curl -I .../` puis lecture de `Content-Security-Policy` | `connect-src 'self' blob:` |
 | Navigateur, console ouverte | scène 200 m chargée, **aucune** erreur CSP ni 404 |
+| Bascule « Carte géologique BRGM » | la carte se drape, la légende se remplit, le clic nomme la formation — sans erreur CSP |
 | Sélecteur de scènes | bascule vers chaque autre scène et retour, sans erreur ; le titre de l'en-tête et l'onglet suivent |
 | Dialogue « Informations sur les données » | section licence présente |
 | `curl -I .../assets/../index.html` | pas d'évasion hors de `/srv/valleraugue-3d` |
@@ -285,7 +321,7 @@ Rendre compte de la publication en indiquant l'URL servie, les scènes publiées
 versionnées : `Caddyfile`, `docker-compose.yml`, `.dockerignore` et ce document. Le contenu de
 `publication/` ne fait **jamais** partie du commit.
 
-### État au 30 juillet 2026
+### État au 1er août 2026
 
 | Élément | État |
 | --- | --- |
@@ -296,7 +332,14 @@ versionnées : `Caddyfile`, `docker-compose.yml`, `.dockerignore` et ce document
 | Entrées `poc/**` dans le `.dockerignore` (§ 5) | **en place** |
 | Nginx public en proxy vers Caddy (§ 5) | **en place** |
 | CSP `connect-src ... blob:` et favicon | **en place** |
-| Scènes assemblées | Valleraugue 200 m et 600 m, Notre-Dame-de-la-Rouvière 200 m, Creyssensac-et-Pissot 200 m |
+| CSP pour la carte géologique (§ 4) | **rien à faire** — même origine, couverte par `'self'` |
+| Scènes assemblées | huit : Valleraugue 200 m et 600 m, Notre-Dame-de-la-Rouvière 200 m, Creyssensac-et-Pissot 200 m, Col de Perjuret 600 m, Chaos de Nîmes-le-Vieux 500 m, Balcon du Vertige 500 m, Hort de Dieu 500 m |
+| Carte géologique BRGM | produite pour les huit, sur trois départements (030 Gard, 048 Lozère, 024 Dordogne) |
+
+Seule `poc.conf`, l'emprise 100 m historique, n'est pas assemblée et n'entre donc pas dans le
+manifeste. Ce tableau vieillit vite : l'état réel se relit en une commande — `curl -s
+.../assets/scenes.json` en ligne, ou la sortie de `poc.py web`, qui énumère les scènes
+proposées au sélecteur.
 
 Le visualiseur est en ligne. Caddy est l'unique source des fichiers ; Nginx ne fait que
 relayer la route publique.

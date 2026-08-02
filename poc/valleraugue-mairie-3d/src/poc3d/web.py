@@ -44,7 +44,11 @@ VENDOR_FILES = {
 # Sous-dossier des scènes autres que celle de l'exécution préparée. Cette dernière reste en
 # `assets/scene.glb` : c'est le chemin documenté, et le sélecteur n'a pas à le déplacer.
 ALTERNATE_SCENES_DIR = "scenes"
-SCENE_FILES = ("scene.glb", "scene.json", "buildings.json")
+# La carte géologique reste hors du GLB : le visualiseur ne la charge qu'à l'activation de
+# sa bascule, et le chargement initial de la scène n'en est pas alourdi. Les trois fichiers
+# sont facultatifs — une scène produite avant leur existence se sert telle quelle.
+GEOLOGY_FILES = ("geology.png", "geology-pick.png", "geology.json")
+SCENE_FILES = ("scene.glb", "scene.json", "buildings.json", *GEOLOGY_FILES)
 VIEWER_FILES = ("index.html", "app.js", "styles.css", "favicon.svg")
 
 
@@ -119,17 +123,39 @@ def _scene_label(config: PocConfig) -> str:
 
 
 def _scene_entry(config: PocConfig, identifier: str, run: str, render_dir: Path, prefix: str) -> SceneEntry:
+    configuration = _viewer_configuration(config)
+    geology = _geology_descriptor(render_dir, prefix)
+    if geology is not None:
+        configuration["geology"] = geology
     return SceneEntry(
         identifier=identifier,
         label=_scene_label(config),
         run=run,
         render_dir=render_dir,
         prefix=prefix,
-        configuration=_viewer_configuration(config),
+        configuration=configuration,
         title=config.scene_title,
         subtitle=config.scene_subtitle,
         centre_label=config.scene_centre_label,
     )
+
+
+def _geology_descriptor(render_dir: Path, prefix: str) -> dict[str, str] | None:
+    """URL des trois artefacts géologiques, ou ``None`` si la scène n'en porte pas.
+
+    La clé vit dans `scenes.json` et non dans `scene.json` : ce dernier est écrit par l'étape
+    `glb`, si bien qu'y ranger la géologie obligerait à réassembler le GLB après chaque
+    exécution de `geology`. Son absence est le signal qui désactive la bascule du visualiseur
+    sur les scènes produites avant cette couche.
+    """
+    if not all((render_dir / name).is_file() for name in GEOLOGY_FILES):
+        return None
+    texture, picking, metadata = GEOLOGY_FILES
+    return {
+        "texture": f"{prefix}/{texture}",
+        "pick": f"{prefix}/{picking}",
+        "metadata": f"{prefix}/{metadata}",
+    }
 
 
 def _viewer_configuration(config: PocConfig) -> dict[str, object]:
@@ -290,10 +316,12 @@ def prepare_viewer(config: PocConfig, run_dir: Path | None = None) -> Path:
         shutil.copy2(viewer_source / name, web_dir / name)
     shutil.copy2(scene_glb, assets_dir / "scene.glb")
     shutil.copy2(scene_json, assets_dir / "scene.json")
-    # Table des attributs BD TOPO par nœud : absente des scènes générées avant son ajout.
-    attributes = render_dir / "buildings.json"
-    if attributes.is_file():
-        shutil.copy2(attributes, assets_dir / "buildings.json")
+    # Table des attributs BD TOPO par nœud, et carte géologique BRGM : les unes comme
+    # l'autre sont absentes des scènes générées avant leur ajout.
+    for name in ("buildings.json", *GEOLOGY_FILES):
+        optional = render_dir / name
+        if optional.is_file():
+            shutil.copy2(optional, assets_dir / name)
 
     # Les autres emprises sont recopiées dans le dossier servi : le serveur local ne sert que
     # `web/`, il ne peut donc pas atteindre le `render/` d'une autre exécution.

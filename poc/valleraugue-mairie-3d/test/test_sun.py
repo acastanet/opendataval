@@ -169,15 +169,30 @@ class ShadowAzimuthTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             shadow_azimuth(np.full((200, 200), 120.0), np.zeros((200, 200), dtype=bool), 0.5)
 
+    def test_refuse_une_image_sans_ombre_portee(self) -> None:
+        """Aucune direction ne se détache : il n'y a rien à mesurer, et rien à inventer."""
+        _, mask = self._scene(shadow_columns=0, shadow_rows=0)
+        with self.assertRaises(RuntimeError):
+            shadow_azimuth(np.full(mask.shape, 180.0), mask, 0.5)
 
-class OrthoOffsetTest(unittest.TestCase):
-    """L'orthophotographie n'est pas calée sur les données bâties : l'écart est constant."""
+
+class OrthoOffsetScene(unittest.TestCase):
+    """Gabarit de scène synthétique, partagé par les mesures et par leurs refus."""
 
     SIDE_M = 40.0
     PIXELS = 400
     HEIGHT_M = 10.0
 
-    def _run(self, root: Path, east_m: float, north_m: float) -> tuple[PocConfig, Path]:
+    def _run(
+        self,
+        root: Path,
+        east_m: float,
+        north_m: float,
+        *,
+        half_m: float = 2.0,
+        roof: tuple[int, int, int] = (200, 120, 90),
+        background: tuple[int, int, int] | np.ndarray = (60, 70, 90),
+    ) -> tuple[PocConfig, Path]:
         config_file = root / "poc.conf"
         config_file.write_text(
             f'POC_BBOX="0 0 {self.SIDE_M:g} {self.SIDE_M:g}"\nTERRAIN_MARGIN_M=0\n',
@@ -188,7 +203,11 @@ class OrthoOffsetTest(unittest.TestCase):
 
         squares = [(x, y) for x in (10.0, 20.0, 30.0) for y in (12.0, 26.0)]
         resolution = self.SIDE_M / self.PIXELS
-        image = Image.new("RGB", (self.PIXELS, self.PIXELS), (60, 70, 90))
+        image = (
+            Image.fromarray(background)
+            if isinstance(background, np.ndarray)
+            else Image.new("RGB", (self.PIXELS, self.PIXELS), background)
+        )
         draw = ImageDraw.Draw(image)
         for x, y in squares:
             # La toiture est peinte décalée : c'est ce décalage que la mesure doit retrouver.
@@ -196,19 +215,24 @@ class OrthoOffsetTest(unittest.TestCase):
             bottom = y + north_m
             draw.rectangle(
                 [
-                    (left - 2) / resolution,
-                    (self.SIDE_M - (bottom + 2)) / resolution,
-                    (left + 2) / resolution,
-                    (self.SIDE_M - (bottom - 2)) / resolution,
+                    (left - half_m) / resolution,
+                    (self.SIDE_M - (bottom + half_m)) / resolution,
+                    (left + half_m) / resolution,
+                    (self.SIDE_M - (bottom - half_m)) / resolution,
                 ],
-                fill=(200, 120, 90),
+                fill=roof,
             )
         image.save(run_dir / "orthophoto.jpg", quality=95)
 
         header = {"type": "CityJSON", "transform": {"scale": [1, 1, 1], "translate": [0, 0, 0]}}
         lines = [json.dumps(header)]
         for x, y in squares:
-            corners = [(x - 2, y - 2), (x + 2, y - 2), (x + 2, y + 2), (x - 2, y + 2)]
+            corners = [
+                (x - half_m, y - half_m),
+                (x + half_m, y - half_m),
+                (x + half_m, y + half_m),
+                (x - half_m, y + half_m),
+            ]
             lines.append(
                 json.dumps(
                     {
@@ -235,6 +259,10 @@ class OrthoOffsetTest(unittest.TestCase):
             "\n".join(lines) + "\n", encoding="utf-8"
         )
         return PocConfig.load(root, config_file), run_dir
+
+
+class OrthoOffsetTest(OrthoOffsetScene):
+    """L'orthophotographie n'est pas calée sur les données bâties : l'écart est constant."""
 
     def test_retrouve_un_decalage_vers_le_sud(self) -> None:
         """Cas réel du site : l'orthophoto est décalée de quelques mètres vers le sud."""
@@ -271,6 +299,159 @@ class OrthoOffsetTest(unittest.TestCase):
             offset = measure_ortho_offset(PocConfig.load(root, forced), run_dir)
             self.assertEqual((offset.east_m, offset.north_m), (-1.5, 0.25))
             self.assertEqual(offset.source, "configuration")
+
+
+class OrthoOffsetRefusalTest(OrthoOffsetScene):
+    """Le critère colorimétrique n'a pas prise partout : mieux vaut le dire que le forcer.
+
+    Chacun de ces cas rendait auparavant une translation d'aspect normal, appliquée sans
+    réserve à la texture du terrain comme à celle des toitures.
+    """
+
+    def test_refuse_des_toitures_moins_rouges_que_leur_environnement(self) -> None:
+        """Le cas du causse : toits de tôle grise sur un sol ocre, contraste inversé."""
+        with TemporaryDirectory() as directory:
+            config, run_dir = self._run(
+                Path(directory), 0.0, 0.0, roof=(140, 140, 145), background=(190, 170, 120)
+            )
+            with self.assertRaises(RuntimeError):
+                measure_ortho_offset(config, run_dir)
+
+    def test_refuse_une_surface_batie_trop_faible(self) -> None:
+        """Assez d'emprises pour la borne d'avant, trop peu de pixels pour une translation."""
+        with TemporaryDirectory() as directory:
+            config, run_dir = self._run(Path(directory), 0.0, 0.0, half_m=0.6)
+            with self.assertRaises(RuntimeError):
+                measure_ortho_offset(config, run_dir)
+
+    def test_refuse_un_optimum_pose_sur_la_borne_du_domaine(self) -> None:
+        """Un fond dont la teinte croît sans fin vers l'est : le critère y monte encore au bord.
+
+        C'est la forme qu'avait prise le défaut en production — le score croissait de façon
+        monotone jusqu'à la borne, et la valeur rendue était celle de la borne elle-même.
+        """
+        with TemporaryDirectory() as directory:
+            columns = np.linspace(0.0, 255.0, self.PIXELS)
+            red = np.tile(columns, (self.PIXELS, 1))
+            gradient = np.stack([red, np.full_like(red, 120.0), 255.0 - red], axis=-1)
+            config, run_dir = self._run(
+                Path(directory),
+                0.0,
+                0.0,
+                roof=(255, 120, 215),  # rouge moins bleu de +40 : moins que le gain du fond
+                background=gradient.astype(np.uint8),
+            )
+            with self.assertRaises(RuntimeError):
+                measure_ortho_offset(config, run_dir)
+
+
+class CrossCheckedSunTest(OrthoOffsetScene):
+    """L'azimut du bâti se confirme sur les houppiers, ou ne se retient pas.
+
+    Là où le bâti est maigre, sa direction d'ombre dérive sans que la netteté du creux le
+    trahisse : au Col de Perjuret, cinq bâtiments donnaient le creux le plus marqué de toutes
+    les scènes du POC, et pourtant seule une seconde source pouvait le confirmer.
+    """
+
+    def _with_shadows(self, root: Path, bearing_deg: float) -> tuple[PocConfig, Path]:
+        """Scène dont les toitures portent une ombre dans la direction demandée."""
+        config, run_dir = self._run(root, 0.0, 0.0)
+        resolution = self.SIDE_M / self.PIXELS
+        image = Image.open(run_dir / "orthophoto.jpg").convert("RGB")
+        draw = ImageDraw.Draw(image)
+        east = 4.0 * np.sin(np.radians(bearing_deg))
+        north = 4.0 * np.cos(np.radians(bearing_deg))
+        for x in (10.0, 20.0, 30.0):
+            for y in (12.0, 26.0):
+                draw.rectangle(
+                    [
+                        (x - 2 + east) / resolution,
+                        (self.SIDE_M - (y + 2 + north)) / resolution,
+                        (x + 2 + east) / resolution,
+                        (self.SIDE_M - (y - 2 + north)) / resolution,
+                    ],
+                    fill=(20, 20, 25),
+                )
+                draw.rectangle(
+                    [
+                        (x - 2) / resolution,
+                        (self.SIDE_M - (y + 2)) / resolution,
+                        (x + 2) / resolution,
+                        (self.SIDE_M - (y - 2)) / resolution,
+                    ],
+                    fill=(200, 120, 90),
+                )
+        image.save(run_dir / "orthophoto.jpg", quality=95)
+        return config, run_dir
+
+    # Les houppiers occupent la bande nord de l'emprise, à l'écart des toitures, et portent une
+    # ombre continue plutôt qu'une tache : c'est ce que la mesure échantillonne, à plusieurs
+    # fractions de la hauteur de l'arbre.
+    TREE_HEIGHT_M = 5.0
+    TREE_CROWN_M = 2.5
+    SHADOW_LENGTHS_M = (2.0, 3.5, 5.0, 6.5)
+
+    def _write_trees(self, run_dir: Path, bearing_deg: float) -> None:
+        """Pose des houppiers dont les ombres portent dans la direction demandée."""
+        image = Image.open(run_dir / "orthophoto.jpg").convert("RGB")
+        draw = ImageDraw.Draw(image)
+        resolution = self.SIDE_M / self.PIXELS
+        radius = self.TREE_CROWN_M
+        trees = []
+        for x in (8.0, 14.0, 20.0, 26.0, 32.0):
+            for y in (32.0, 37.0):
+                for length in self.SHADOW_LENGTHS_M:
+                    east = length * np.sin(np.radians(bearing_deg))
+                    north = length * np.cos(np.radians(bearing_deg))
+                    draw.ellipse(
+                        [
+                            (x - radius + east) / resolution,
+                            (self.SIDE_M - (y + radius + north)) / resolution,
+                            (x + radius + east) / resolution,
+                            (self.SIDE_M - (y - radius + north)) / resolution,
+                        ],
+                        fill=(20, 20, 25),
+                    )
+                trees.append(
+                    {
+                        "x": x,
+                        "y": y,
+                        "ground": 0.0,
+                        "height": self.TREE_HEIGHT_M,
+                        "crown": radius,
+                    }
+                )
+        image.save(run_dir / "orthophoto.jpg", quality=95)
+        (run_dir / "trees.json").write_text(
+            json.dumps({"count": len(trees), "trees": trees}), encoding="utf-8"
+        )
+
+    def test_retient_un_azimut_que_les_houppiers_confirment(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config, run_dir = self._with_shadows(root, 270.0)
+            self._write_trees(run_dir, 270.0)
+            sun = measure_ortho_sun(config, run_dir)
+            self.assertAlmostEqual(sun.azimuth_deg, 90.0, delta=10.0)
+            self.assertIn("houppiers", sun.source)
+
+    def test_refuse_des_ombres_contradictoires(self) -> None:
+        """Ombres du bâti vers l'ouest, des houppiers vers l'est : les deux ne peuvent pas
+        valoir ensemble, et rien ne dit laquelle des deux se trompe."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config, run_dir = self._with_shadows(root, 270.0)
+            self._write_trees(run_dir, 90.0)
+            with self.assertRaises(RuntimeError):
+                measure_ortho_sun(config, run_dir)
+
+    def test_se_contente_du_bati_sans_vegetation(self) -> None:
+        """Une scène sans végétation reste calibrable : la provenance le dit, sans plus."""
+        with TemporaryDirectory() as directory:
+            config, run_dir = self._with_shadows(Path(directory), 270.0)
+            sun = measure_ortho_sun(config, run_dir)
+            self.assertAlmostEqual(sun.azimuth_deg, 90.0, delta=10.0)
+            self.assertNotIn("houppiers", sun.source)
 
 
 if __name__ == "__main__":
