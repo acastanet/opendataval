@@ -5,31 +5,30 @@ import { SECTIONS } from "@opendata-vda/shared/sections";
 const applications = [
   {
     nom: "Feu",
-    statut: "Déjà disponible",
-    description: "Consignes officielles et niveau de danger dans les massifs gardois.",
+    statut: "Disponible",
+    description: "Consignes officielles, danger dans les massifs et détections satellitaires récentes.",
     href: "/incendies/",
     classe: "feu",
     action: "Consulter le risque incendie",
   },
   {
     nom: "Eau",
-    statut: "En cours de déploiement",
-    description: "Suivre l'eau à Valleraugue : rivière, crues et nappe.",
+    statut: "En déploiement",
+    description: "Suivre la rivière, les crues, la nappe et les indicateurs de qualité de l'eau.",
     href: "/eau/",
     classe: "eau",
     action: "Découvrir l'application Eau",
   },
   {
-    nom: "Terre",
-    statut: "En cours de déploiement",
-    description: "Explorer le territoire, ses paysages et ses données ouvertes.",
+    nom: "Territoire",
+    statut: "Prototype actif",
+    description: "Explorer les cartes, le relief et les premières scènes du jumeau numérique en 3D.",
     href: "/carte/",
-    classe: "terre",
-    action: "Explorer la carte du territoire",
+    classe: "territoire",
+    action: "Explorer le territoire",
   },
 ];
 
-// Index complet de toutes les pages du portail, regroupées par famille.
 const groupes = [
   {
     titre: "Applications de terrain",
@@ -39,10 +38,11 @@ const groupes = [
       { nom: "Feu — vigilance incendie", href: "/vigilance-feu/" },
       { nom: "Eau — rivière, crues & nappe", href: "/eau/" },
       { nom: "Eau — tableau de bord", href: "/eau/tableau-de-bord/" },
-      { nom: "Terre — carte du territoire", href: "/carte/" },
+      { nom: "Carte du territoire", href: "/carte/" },
       { nom: "Relief 3D", href: "/relief/" },
+      { nom: "Jumeau numérique 3D", href: "/valleraugue-3d/" },
       { nom: "Météo essentielle", href: "/meteo/essentiel/" },
-      { nom: "Météo v2 (bêta)", href: "/meteo-v2/" },
+      { nom: "Météo v2", href: "/meteo-v2/" },
     ],
   },
   {
@@ -53,15 +53,173 @@ const groupes = [
 ---
 
 <Layout
-  title="Val-d'Aigoual — Feu, Eau, Terre"
-  description="Les applications de terrain de Val-d'Aigoual : Feu, Eau et Terre."
+  title="OpenDataVal — Le jumeau numérique ouvert de Val-d'Aigoual"
+  description="OpenDataVal assemble les données publiques du territoire pour construire un jumeau numérique ouvert, vérifiable et réutilisable de Val-d'Aigoual."
 >
   <main>
-    <section class="accueil" aria-labelledby="titre">
+    <section class="hero" aria-labelledby="titre-principal">
+      <div class="hero-conteneur">
+        <header class="navigation">
+          <a class="marque" href="/" aria-label="OpenDataVal — accueil">
+            <span class="marque-principale">OPEN DATA VAL</span>
+            <span class="marque-signature">Jumeau numérique territorial</span>
+          </a>
+          <nav aria-label="Navigation principale">
+            <a href="#projet">Le projet</a>
+            <a href="#applications">Applications</a>
+            <a href="#sources">Sources</a>
+          </nav>
+        </header>
+
+        <div class="hero-grille">
+          <div class="hero-texte">
+            <p class="sur-titre">Val-d'Aigoual · données publiques · prototype ouvert</p>
+            <h1 id="titre-principal">Le territoire devient un modèle commun.</h1>
+            <p class="introduction">
+              OpenDataVal rassemble les données ouvertes — relief, bâtiments, eau, météo, risques et services — pour construire un <strong>jumeau numérique territorial</strong> vérifiable, réutilisable et progressivement enrichi.
+            </p>
+
+            <div class="actions">
+              <a class="bouton bouton-principal" href="/valleraugue-3d/">Explorer le jumeau numérique</a>
+              <a class="bouton bouton-secondaire" href="#applications">Voir les applications</a>
+            </div>
+
+            <dl class="principes" id="projet">
+              <div>
+                <dt>01</dt>
+                <dd>Données publiques traçables</dd>
+              </div>
+              <div>
+                <dt>02</dt>
+                <dd>Services ouverts et modulaires</dd>
+              </div>
+              <div>
+                <dt>03</dt>
+                <dd>Représentation territoriale commune</dd>
+              </div>
+            </dl>
+          </div>
+
+          <figure class="jumeau" aria-labelledby="legende-jumeau">
+            <svg viewBox="0 0 720 620" role="img" aria-labelledby="titre-schema description-schema">
+              <title id="titre-schema">Des données ouvertes assemblées en jumeau numérique territorial</title>
+              <desc id="description-schema">Quatre jeux de données publics alimentent une représentation en couches du relief, de l'eau, des bâtiments et des phénomènes observés.</desc>
+              <defs>
+                <pattern id="trame-points" width="12" height="12" patternUnits="userSpaceOnUse">
+                  <circle cx="2.2" cy="2.2" r="1.5" fill="#1c5d88" opacity="0.22"></circle>
+                </pattern>
+                <pattern id="trame-fine" width="9" height="9" patternUnits="userSpaceOnUse">
+                  <circle cx="2" cy="2" r="1" fill="#13212a" opacity="0.13"></circle>
+                </pattern>
+              </defs>
+
+              <text x="32" y="42" class="schema-index">DONNÉES OUVERTES</text>
+              <text x="688" y="42" text-anchor="end" class="schema-index">MODÈLE TERRITORIAL · 01</text>
+
+              <g class="sources">
+                <g transform="translate(24 90)">
+                  <rect width="172" height="58" rx="2" fill="#ffffff"></rect>
+                  <rect width="9" height="58" fill="#1c5d88"></rect>
+                  <text x="28" y="25" class="source-titre">RELIEF</text>
+                  <text x="28" y="43" class="source-detail">altitude · pentes</text>
+                </g>
+                <g transform="translate(24 178)">
+                  <rect width="172" height="58" rx="2" fill="#ffffff"></rect>
+                  <rect width="9" height="58" fill="#d28a43"></rect>
+                  <text x="28" y="25" class="source-titre">BÂTIMENTS</text>
+                  <text x="28" y="43" class="source-detail">formes · hauteurs</text>
+                </g>
+                <g transform="translate(24 266)">
+                  <rect width="172" height="58" rx="2" fill="#ffffff"></rect>
+                  <rect width="9" height="58" fill="#2d789f"></rect>
+                  <text x="28" y="25" class="source-titre">EAU</text>
+                  <text x="28" y="43" class="source-detail">cours · mesures</text>
+                </g>
+                <g transform="translate(24 354)">
+                  <rect width="172" height="58" rx="2" fill="#ffffff"></rect>
+                  <rect width="9" height="58" fill="#849b79"></rect>
+                  <text x="28" y="25" class="source-titre">OBSERVATIONS</text>
+                  <text x="28" y="43" class="source-detail">météo · risques</text>
+                </g>
+              </g>
+
+              <g class="liaisons" fill="none" stroke="#a8b6bb" stroke-width="2">
+                <path d="M196 119 H242 V378"></path>
+                <path d="M196 207 H258 V355"></path>
+                <path d="M196 295 H274 V331"></path>
+                <path d="M196 383 H290 V307"></path>
+              </g>
+              <g fill="#1c5d88">
+                <circle cx="242" cy="378" r="4"></circle>
+                <circle cx="258" cy="355" r="4"></circle>
+                <circle cx="274" cy="331" r="4"></circle>
+                <circle cx="290" cy="307" r="4"></circle>
+              </g>
+
+              <g class="modele">
+                <path d="M250 432 C302 389 350 410 392 374 C439 334 489 357 530 323 C572 288 626 300 680 263 L680 495 C623 526 559 537 493 534 C417 531 337 515 250 483 Z" fill="#c7dce7"></path>
+                <path d="M250 414 C302 371 350 392 392 356 C439 316 489 339 530 305 C572 270 626 282 680 245 L680 467 C623 498 559 509 493 506 C417 503 337 487 250 455 Z" fill="#e4edf1"></path>
+                <path d="M250 414 C302 371 350 392 392 356 C439 316 489 339 530 305 C572 270 626 282 680 245 L680 467 C623 498 559 509 493 506 C417 503 337 487 250 455 Z" fill="url(#trame-points)"></path>
+
+                <path d="M282 429 C330 397 357 413 401 379 C442 348 478 359 520 328 C558 299 602 309 653 278" fill="none" stroke="#7da6bc" stroke-width="3" opacity="0.72"></path>
+                <path d="M306 455 C352 429 386 434 426 403 C468 370 506 382 548 349 C584 321 618 327 662 299" fill="none" stroke="#9bb8c8" stroke-width="2" opacity="0.72"></path>
+                <path d="M276 389 C325 351 371 375 410 338 C455 296 500 323 540 288 C580 253 622 265 669 230" fill="none" stroke="#b4c8d2" stroke-width="2" opacity="0.8"></path>
+
+                <path d="M279 438 C322 413 344 427 380 408 C423 384 447 400 489 377 C532 353 552 365 594 342 C619 329 642 317 667 298" fill="none" stroke="#1f719b" stroke-width="13" stroke-linecap="round"></path>
+                <path d="M279 438 C322 413 344 427 380 408 C423 384 447 400 489 377 C532 353 552 365 594 342 C619 329 642 317 667 298" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.72"></path>
+
+                <g fill="#d28a43">
+                  <path d="M362 355 h42 v33 h-42z"></path>
+                  <path d="M410 331 h28 v39 h-28z"></path>
+                  <path d="M454 303 h50 v38 h-50z"></path>
+                  <path d="M523 286 h32 v41 h-32z"></path>
+                  <path d="M575 266 h46 v35 h-46z"></path>
+                </g>
+                <g fill="#b96f2f">
+                  <path d="M357 355 l26 -18 26 18z"></path>
+                  <path d="M406 331 l18 -15 18 15z"></path>
+                  <path d="M448 303 l31 -20 31 20z"></path>
+                  <path d="M518 286 l21 -16 21 16z"></path>
+                  <path d="M569 266 l29 -18 29 18z"></path>
+                </g>
+
+                <g fill="#849b79">
+                  <circle cx="331" cy="372" r="14"></circle>
+                  <circle cx="344" cy="360" r="11"></circle>
+                  <circle cx="481" cy="362" r="13"></circle>
+                  <circle cx="510" cy="340" r="16"></circle>
+                  <circle cx="551" cy="359" r="12"></circle>
+                  <circle cx="636" cy="319" r="17"></circle>
+                </g>
+
+                <g>
+                  <circle cx="430" cy="288" r="18" fill="#ffffff"></circle>
+                  <circle cx="430" cy="288" r="7" fill="#1c5d88"></circle>
+                  <circle cx="430" cy="288" r="28" fill="none" stroke="#1c5d88" stroke-width="2" opacity="0.28"></circle>
+                  <circle cx="430" cy="288" r="39" fill="none" stroke="#1c5d88" stroke-width="2" opacity="0.14"></circle>
+                </g>
+
+                <rect x="568" y="421" width="96" height="52" rx="2" fill="#ffffff"></rect>
+                <text x="584" y="443" class="mesure-titre">44.0811° N</text>
+                <text x="584" y="461" class="mesure-detail">3.6412° E · 629 m</text>
+              </g>
+
+              <rect x="250" y="548" width="430" height="34" fill="url(#trame-fine)"></rect>
+              <text x="250" y="606" class="schema-note">UNE REPRÉSENTATION COMMUNE · DOCUMENTÉE · RÉUTILISABLE</text>
+            </svg>
+            <figcaption id="legende-jumeau">
+              Chaque couche conserve sa source et sa date : le modèle montre le territoire sans masquer l'origine des données.
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="applications-section" id="applications" aria-labelledby="titre-applications">
       <div class="conteneur">
-        <p class="sur-titre">Val-d'Aigoual</p>
-        <h1 id="titre">Feu, Eau, Terre</h1>
-        <p class="introduction">Des applications simples pour comprendre le territoire et agir au bon moment.</p>
+        <p class="sur-titre">Premiers usages</p>
+        <h2 id="titre-applications">Un même territoire, plusieurs instruments.</h2>
+        <p class="section-introduction">Les applications spécialisées alimentent progressivement le jumeau numérique et rendent les données directement utiles sur le terrain.</p>
 
         <nav aria-label="Applications du territoire">
           <ul class="applications">
@@ -83,9 +241,9 @@ const groupes = [
       </div>
     </section>
 
-    <section class="plan" aria-labelledby="titre-plan">
+    <section class="plan" id="sources" aria-labelledby="titre-plan">
       <div class="conteneur">
-        <p class="sur-titre">Plan du site</p>
+        <p class="sur-titre">Accès direct</p>
         <h2 id="titre-plan">Toutes les pages du portail</h2>
         <div class="groupes">
           {
@@ -94,9 +252,7 @@ const groupes = [
                 <h3>{groupe.titre}</h3>
                 <ul>
                   {groupe.liens.map((lien) => (
-                    <li>
-                      <a href={lien.href}>{lien.nom}</a>
-                    </li>
+                    <li><a href={lien.href}>{lien.nom}</a></li>
                   ))}
                 </ul>
               </nav>
@@ -109,12 +265,238 @@ const groupes = [
 </Layout>
 
 <style>
-  .accueil {
-    display: grid;
-    min-height: 100vh;
+  :global(html) {
+    scroll-behavior: smooth;
+  }
+
+  .hero {
+    min-height: 100svh;
+    color: #13212a;
+    background: #f7f5ef;
+  }
+
+  .hero-conteneur {
+    width: min(1280px, calc(100% - 2rem));
+    min-height: 100svh;
+    margin: 0 auto;
+    padding: 1.25rem 0 clamp(2rem, 5vw, 4.5rem);
+  }
+
+  .navigation {
+    display: flex;
     align-items: center;
-    padding: clamp(2rem, 8vw, 6rem) 0;
-    background: linear-gradient(150deg, #f6f4ed 0%, #e7eee7 100%);
+    justify-content: space-between;
+    gap: 2rem;
+    min-height: 4rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #cbd3d2;
+  }
+
+  .marque {
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+    color: #13212a;
+    text-decoration: none;
+  }
+
+  .marque-principale {
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+  }
+
+  .marque-signature {
+    color: #56646b;
+    font-size: 0.72rem;
+    font-weight: 650;
+  }
+
+  .navigation nav {
+    display: flex;
+    gap: clamp(1rem, 3vw, 2.4rem);
+  }
+
+  .navigation nav a {
+    color: #34454e;
+    font-size: 0.8rem;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .navigation nav a:hover {
+    color: #1c5d88;
+  }
+
+  .hero-grille {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(34rem, 1.1fr);
+    gap: clamp(2rem, 5vw, 5.5rem);
+    align-items: center;
+    min-height: calc(100svh - 5.25rem);
+    padding-top: clamp(2rem, 4vw, 4rem);
+  }
+
+  .hero-texte {
+    padding-bottom: 1rem;
+  }
+
+  .sur-titre {
+    margin: 0;
+    color: #1c5d88;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+    line-height: 1.5;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    max-width: 11ch;
+    margin: 1.1rem 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(3.25rem, 6vw, 6.7rem);
+    font-weight: 600;
+    letter-spacing: -0.052em;
+    line-height: 0.91;
+  }
+
+  .introduction {
+    max-width: 59ch;
+    margin: 1.6rem 0 0;
+    color: #40515a;
+    font-size: clamp(1rem, 1.35vw, 1.18rem);
+    line-height: 1.62;
+  }
+
+  .introduction strong {
+    color: #13212a;
+    font-weight: 780;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-top: 2rem;
+  }
+
+  .bouton {
+    display: inline-flex;
+    min-height: 3.15rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem 1.2rem;
+    border: 1px solid #1c5d88;
+    border-radius: 2px;
+    font-size: 0.86rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .bouton-principal {
+    color: #fff;
+    background: #1c5d88;
+  }
+
+  .bouton-principal:hover {
+    background: #164b6e;
+  }
+
+  .bouton-secondaire {
+    color: #1c5d88;
+    background: transparent;
+  }
+
+  .bouton-secondaire:hover {
+    background: #e3edf2;
+  }
+
+  .bouton:focus-visible,
+  .navigation a:focus-visible,
+  .application:focus-visible,
+  .groupe a:focus-visible {
+    outline: 3px solid #13212a;
+    outline-offset: 3px;
+  }
+
+  .principes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    max-width: 46rem;
+    margin: clamp(2.2rem, 5vw, 4.2rem) 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid #cbd3d2;
+  }
+
+  .principes div {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .principes dt {
+    color: #1c5d88;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+
+  .principes dd {
+    margin: 0;
+    color: #4a5a62;
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1.42;
+  }
+
+  .jumeau {
+    margin: 0;
+  }
+
+  .jumeau svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: #edf1ef;
+    box-shadow: 14px 16px 0 #dce7e7;
+  }
+
+  .schema-index,
+  .schema-note {
+    fill: #40515a;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+  }
+
+  .source-titre,
+  .mesure-titre {
+    fill: #13212a;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+  }
+
+  .source-detail,
+  .mesure-detail {
+    fill: #52626a;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 650;
+  }
+
+  .jumeau figcaption {
+    max-width: 56ch;
+    margin: 1.2rem 0 0 auto;
+    color: #5d6b72;
+    font-size: 0.76rem;
+    font-weight: 650;
+    line-height: 1.5;
   }
 
   .conteneur {
@@ -122,165 +504,140 @@ const groupes = [
     margin: 0 auto;
   }
 
-  .sur-titre {
-    margin: 0;
-    color: #37534b;
-    font-size: 0.75rem;
-    font-weight: 900;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+  .applications-section {
+    padding: clamp(4rem, 9vw, 7rem) 0;
+    background: #fff;
   }
 
-  h1 {
-    margin: 0.45rem 0 0;
-    color: #17242c;
+  .applications-section h2,
+  .plan h2 {
+    max-width: 16ch;
+    margin: 0.75rem 0 0;
     font-family: var(--font-display);
-    font-size: clamp(3.2rem, 10vw, 7.5rem);
-    line-height: 0.88;
+    font-size: clamp(2.4rem, 5vw, 4.4rem);
+    font-weight: 600;
     letter-spacing: -0.045em;
+    line-height: 0.98;
   }
 
-  .introduction {
-    max-width: 48ch;
-    margin: 1.25rem 0 0;
-    color: #37534b;
-    font-size: clamp(1rem, 2vw, 1.2rem);
-    font-weight: 600;
-    line-height: 1.5;
+  .section-introduction {
+    max-width: 62ch;
+    margin: 1.2rem 0 0;
+    color: #52626a;
+    font-size: 1rem;
+    line-height: 1.6;
   }
 
   .applications {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
-    margin: clamp(2rem, 6vw, 4.25rem) 0 0;
+    margin: clamp(2.4rem, 6vw, 4.4rem) 0 0;
     padding: 0;
     list-style: none;
   }
 
   .application {
-    --couleur: #3e805c;
-    --fond: #e7f1e9;
+    --couleur: #1c5d88;
     display: flex;
     min-height: 19rem;
     flex-direction: column;
     align-items: flex-start;
-    padding: clamp(1.25rem, 3vw, 2rem);
-    border: 2px solid var(--couleur);
-    border-radius: 10px;
-    color: #17242c;
-    background: var(--fond);
-    box-shadow: 0 8px 20px rgba(23, 36, 44, 0.08);
+    padding: clamp(1.35rem, 3vw, 2rem);
+    border-top: 7px solid var(--couleur);
+    color: #13212a;
+    background: #f2f4f1;
     text-decoration: none;
-    transition: transform 160ms ease, box-shadow 160ms ease;
+    transition: transform 160ms ease, background 160ms ease;
   }
 
-  .application.feu { --couleur: #a93f08; --fond: #ffe0b2; }
-  .application.eau { --couleur: #1463a4; --fond: #dceef9; }
-  .application.terre { --couleur: #3e805c; --fond: #e2eedf; }
+  .application.feu { --couleur: #c56f34; }
+  .application.eau { --couleur: #2d789f; }
+  .application.territoire { --couleur: #849b79; }
 
   .application:hover {
     transform: translateY(-4px);
-    box-shadow: 0 14px 28px rgba(23, 36, 44, 0.16);
-  }
-
-  .application:focus-visible {
-    outline: 4px solid #17242c;
-    outline-offset: 4px;
+    background: #e9efee;
   }
 
   .repere {
-    display: block;
-    width: 2.7rem;
-    height: 0.55rem;
-    border-radius: 999px;
+    width: 3.25rem;
+    height: 2.2rem;
     background: var(--couleur);
+    clip-path: polygon(0 0, 100% 0, 76% 100%, 0 82%);
   }
 
   .statut {
-    margin-top: 1.5rem;
-    color: #263841;
-    font-size: 0.72rem;
-    font-weight: 900;
-    letter-spacing: 0.09em;
+    margin-top: 1.4rem;
+    color: #52626a;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
   }
 
   .application strong {
-    margin-top: 0.35rem;
+    margin-top: 0.6rem;
     font-family: var(--font-display);
-    font-size: clamp(2.2rem, 4vw, 3.2rem);
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 600;
     line-height: 0.95;
   }
 
   .description {
-    margin-top: 0.8rem;
-    color: #263841;
-    font-size: 0.98rem;
+    margin-top: 0.9rem;
+    color: #40515a;
+    font-size: 0.93rem;
     font-weight: 600;
-    line-height: 1.45;
+    line-height: 1.5;
   }
 
   .action {
-    display: flex;
-    gap: 0.4rem;
     margin-top: auto;
     padding-top: 1.5rem;
-    color: #17242c;
-    font-size: 0.88rem;
-    font-weight: 900;
+    color: #13212a;
+    font-size: 0.8rem;
+    font-weight: 850;
     line-height: 1.35;
   }
 
-  @media (max-width: 760px) {
-    .applications { grid-template-columns: 1fr; }
-    .application { min-height: 14rem; }
-  }
-
   .plan {
-    padding: clamp(2.5rem, 8vw, 5rem) 0;
-    background: #17242c;
-  }
-
-  .plan .conteneur {
-    width: min(1120px, calc(100% - 2rem));
-    margin: 0 auto;
+    padding: clamp(3.5rem, 8vw, 6rem) 0;
+    color: #f7f5ef;
+    background: #13212a;
   }
 
   .plan .sur-titre {
-    color: #9db7ac;
+    color: #8fb7cd;
   }
 
   .plan h2 {
-    margin: 0.45rem 0 0;
-    color: #f6f4ed;
-    font-family: var(--font-display);
-    font-size: clamp(1.8rem, 5vw, 2.8rem);
-    line-height: 1;
-    letter-spacing: -0.03em;
+    color: #f7f5ef;
   }
 
   .groupes {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-    gap: clamp(1.5rem, 4vw, 3rem);
-    margin-top: clamp(1.75rem, 5vw, 3rem);
+    gap: clamp(1.5rem, 5vw, 4rem);
+    margin-top: clamp(2rem, 5vw, 3.5rem);
   }
 
   .groupe h3 {
     margin: 0 0 0.9rem;
-    padding-bottom: 0.6rem;
-    border-bottom: 1px solid rgba(246, 244, 237, 0.18);
-    color: #f6f4ed;
-    font-size: 0.78rem;
-    font-weight: 900;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid rgba(247, 245, 239, 0.2);
+    color: #f7f5ef;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 800;
     letter-spacing: 0.09em;
     text-transform: uppercase;
   }
 
   .groupe ul {
     display: grid;
-    gap: 0.15rem;
+    gap: 0.18rem;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -288,23 +645,75 @@ const groupes = [
 
   .groupe a {
     display: block;
-    padding: 0.5rem 0.6rem;
-    margin: 0 -0.6rem;
-    border-radius: 6px;
-    color: #dfe7e2;
-    font-size: 0.98rem;
+    margin: 0 -0.55rem;
+    padding: 0.52rem 0.55rem;
+    color: #d9e0df;
+    font-size: 0.94rem;
     font-weight: 600;
     text-decoration: none;
-    transition: background 140ms ease, color 140ms ease;
   }
 
   .groupe a:hover {
-    background: rgba(246, 244, 237, 0.08);
     color: #fff;
+    background: rgba(255, 255, 255, 0.07);
   }
 
-  .groupe a:focus-visible {
-    outline: 3px solid #9db7ac;
-    outline-offset: 2px;
+  @media (max-width: 1040px) {
+    .hero-grille {
+      grid-template-columns: 1fr;
+    }
+
+    .hero-texte {
+      max-width: 52rem;
+    }
+
+    .jumeau {
+      max-width: 48rem;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .navigation {
+      align-items: flex-start;
+    }
+
+    .navigation nav {
+      display: none;
+    }
+
+    .hero-conteneur {
+      width: min(100% - 1.3rem, 1280px);
+    }
+
+    .hero-grille {
+      min-height: auto;
+      padding-top: 2.4rem;
+    }
+
+    h1 {
+      font-size: clamp(3.1rem, 16vw, 5rem);
+    }
+
+    .principes {
+      grid-template-columns: 1fr;
+    }
+
+    .jumeau svg {
+      box-shadow: 7px 8px 0 #dce7e7;
+    }
+
+    .applications {
+      grid-template-columns: 1fr;
+    }
+
+    .application {
+      min-height: 15rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(html) {
+      scroll-behavior: auto;
+    }
   }
 </style>
