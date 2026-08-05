@@ -392,6 +392,17 @@ export const SERVICES: ServiceDescriptor[] = [
     ],
   },
   {
+    id: "itineraire-poids-lourd",
+    name: "Itinéraire poids lourd",
+    role: "Calcule un itinéraire camion compatible avec les restrictions OSM connues et affiche explicitement les portions non vérifiées.",
+    repo: "apps/itineraire-service",
+    method: "GET",
+    publicRoute: "/api/v2/itineraire/poids-lourd",
+    healthUrl: (config) => `${baseUrl(config.itineraireServiceUrl, "http://itineraire-service:3000")}/health`,
+    demo: [],
+    hasDemo: true,
+  },
+  {
     id: "legacy",
     name: "Legacy (pont historique)",
     role: "Pont en lecture seule vers le monolithe historique /api/*. GET et HEAD uniquement.",

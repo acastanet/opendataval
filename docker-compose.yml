@@ -54,6 +54,8 @@ services:
       ASSOCIATION_SERVICE_TIMEOUT_MS: ${ASSOCIATION_SERVICE_TIMEOUT_MS:-5000}
       OLD_SERVICE_URL: http://old-service:3000
       OLD_SERVICE_TIMEOUT_MS: ${OLD_SERVICE_TIMEOUT_MS:-15000}
+      ITINERAIRE_SERVICE_URL: http://itineraire-service:3000
+      ITINERAIRE_SERVICE_TIMEOUT_MS: ${ITINERAIRE_SERVICE_TIMEOUT_MS:-30000}
       MAP_SERVICE_URL: http://map-service:3000
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
@@ -64,6 +66,7 @@ services:
       - fire-detection-service
       - association-service
       - old-service
+      - itineraire-service
     expose:
       - "3000"
     healthcheck:
@@ -137,6 +140,48 @@ services:
       OLD_UPSTREAM_TIMEOUT_MS: ${OLD_UPSTREAM_TIMEOUT_MS:-10000}
       OLD_BUILDING_SEARCH_RADIUS_METERS: ${OLD_BUILDING_SEARCH_RADIUS_METERS:-75}
       APP_VERSION: ${APP_VERSION:-dev}
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  valhalla:
+    image: ghcr.io/valhalla/valhalla-scripted:latest
+    restart: unless-stopped
+    environment:
+      # Corridor continu Doubs ↔ Cévennes via Rhône-Alpes : le script Valhalla accepte une liste
+      # d'URL séparées par des espaces et fusionne les PBF avant le build.
+      tile_urls: "https://download.openstreetmap.fr/extracts/europe/france/languedoc_roussillon-latest.osm.pbf https://download.openstreetmap.fr/extracts/europe/france/auvergne-latest.osm.pbf https://download.openstreetmap.fr/extracts/europe/france/bourgogne-latest.osm.pbf https://download.openstreetmap.fr/extracts/europe/france/franche_comte-latest.osm.pbf https://download.openstreetmap.fr/extracts/europe/france/rhone_alpes-latest.osm.pbf"
+      build_elevation: "False"
+      build_admins: "True"
+      serve_tiles: "True"
+      force_rebuild: "False"
+    volumes:
+      - valhalla_tiles:/custom_files
+    expose:
+      - "8002"
+
+  itineraire-service:
+    build:
+      context: .
+      dockerfile: apps/itineraire-service/Dockerfile
+    image: opendataval-itineraire:latest
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      VALHALLA_URL: http://valhalla:8002
+      VALHALLA_TIMEOUT_MS: ${VALHALLA_TIMEOUT_MS:-25000}
+      ITINERAIRE_RESTRICTIONS_FILE: /var/lib/opendataval/itineraire-service/restrictions.json
+      ITINERAIRE_OSM_BBOXES: ${ITINERAIRE_OSM_BBOXES:-43.2,2.5,45.0,4.9;44.0,2.0,46.4,4.9;46.0,3.0,48.0,5.5;46.0,5.0,47.0,7.0;47.0,5.0,48.0,7.0;44.0,3.7,45.5,7.5;45.5,3.7,46.7,7.5}
+      APP_VERSION: ${APP_VERSION:-dev}
+    volumes:
+      - itineraire_data:/var/lib/opendataval/itineraire-service
+    depends_on:
+      - valhalla
     expose:
       - "3000"
     healthcheck:
@@ -350,3 +395,5 @@ volumes:
   caddy_config:
   vigilance_cache:
   association_data:
+  valhalla_tiles:
+  itineraire_data:

@@ -22,6 +22,8 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 | [microservice/gateway-service/README.md](microservice/gateway-service/README.md) | Gateway : point d'entrée `/api/v2/*`, proxys, santé et routage Vigilance | 2026-07-24 | 2026-07-24 |
 | [microservice/geography-service/README.md](microservice/geography-service/README.md) | Geography : territoire, adresse et altitude d'un point | 2026-07-24 | 2026-07-24 |
 | [microservice/old-service/README.md](microservice/old-service/README.md) | OLD : audit du plan, contrat, calcul bâtiment/cadastre/PLU et limites réglementaires | 2026-08-02 | 2026-08-02 |
+| [microservice/itineraire-service/README.md](microservice/itineraire-service/README.md) | Itinéraire poids lourd : Valhalla, restrictions OSM et confiance calculée | 2026-08-04 | 2026-08-04 |
+| [ADR/009-choix-valhalla-itineraire-poids-lourd.md](ADR/009-choix-valhalla-itineraire-poids-lourd.md) | Choix de Valhalla et enrichissement post-traitement | 2026-08-04 | 2026-08-04 |
 | [microservice/geography-service/audit.md](microservice/geography-service/audit.md) | Audit de couverture du geography-service | 2026-07-23 | 2026-07-23 |
 | [microservice/geography-service/operations.md](microservice/geography-service/operations.md) | Exploitation et diagnostic geography-service | 2026-07-23 | 2026-07-23 |
 | [microservice/geography-service/parity-report.md](microservice/geography-service/parity-report.md) | Rapport de parité vs API historique | 2026-07-23 | 2026-07-23 |

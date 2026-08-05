@@ -1,4 +1,15 @@
 ---
 import SectionLayout from "../layouts/SectionLayout.astro";
 ---
-<SectionLayout slug="mobilite" />
+<SectionLayout slug="mobilite">
+  <aside class="outil-itineraire">
+    <h2>Itinéraire poids lourd</h2>
+    <p>Préparez un trajet camion en distinguant les contraintes OSM connues des portions dont le gabarit reste à vérifier.</p>
+    <a href="/itineraire-poids-lourd">Ouvrir l’outil d’itinéraire PL</a>
+  </aside>
+</SectionLayout>
+
+<style>
+  .outil-itineraire { margin: 1.5rem auto; padding: 1rem 1.2rem; width: min(70rem, calc(100% - 2rem)); border-left: 4px solid #17384b; background: #edf2f3; }
+  h2 { margin: 0; } p { margin: .45rem 0; } a { color: #17384b; font-weight: 800; }
+</style>

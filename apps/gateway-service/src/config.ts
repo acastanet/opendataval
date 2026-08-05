@@ -15,6 +15,8 @@ export interface GatewayConfig {
   associationServiceTimeoutMs?: number;
   oldServiceUrl?: string;
   oldServiceTimeoutMs?: number;
+  itineraireServiceUrl?: string;
+  itineraireServiceTimeoutMs?: number;
   mapServiceUrl?: string;
   version: string;
 }
@@ -102,6 +104,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       env.OLD_SERVICE_TIMEOUT_MS,
       15_000,
       "OLD_SERVICE_TIMEOUT_MS",
+    ),
+    itineraireServiceUrl: normalizeHttpUrl(
+      env.ITINERAIRE_SERVICE_URL?.trim() || "http://itineraire-service:3000",
+      "ITINERAIRE_SERVICE_URL",
+    ),
+    itineraireServiceTimeoutMs: positiveInteger(
+      env.ITINERAIRE_SERVICE_TIMEOUT_MS,
+      30_000,
+      "ITINERAIRE_SERVICE_TIMEOUT_MS",
     ),
     mapServiceUrl: normalizeHttpUrl(
       env.MAP_SERVICE_URL?.trim() || "http://map-service:3000",

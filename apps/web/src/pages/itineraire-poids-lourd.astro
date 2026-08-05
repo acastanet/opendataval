@@ -1,0 +1,27 @@
+---
+import Layout from "../layouts/Layout.astro";
+import BoutonAccueil from "../components/BoutonAccueil.astro";
+import ItinerairePoidsLourd from "../islands/ItinerairePoidsLourd.svelte";
+---
+
+<Layout title="Itinéraire poids lourd" description="Itinéraire camion tenant compte du gabarit connu dans OpenStreetMap et des portions restant à vérifier.">
+  <BoutonAccueil />
+  <main class="page-itineraire">
+    <header>
+      <p>Mobilité · outil cartographique</p>
+      <h1>Itinéraire poids lourd</h1>
+      <span>Le calcul privilégie le temps de parcours et rend explicite ce que les données ouvertes ne permettent pas de vérifier.</span>
+    </header>
+    <ItinerairePoidsLourd client:only="svelte" />
+  </main>
+</Layout>
+
+<style>
+  :global(body) { background: #f4f5f2; }
+  .page-itineraire { width: min(94rem, 100%); margin: 0 auto; padding: 1.2rem clamp(.75rem, 3vw, 2rem) 3rem; }
+  header { display: grid; grid-template-columns: minmax(15rem, 1fr) minmax(18rem, 35rem); gap: 1rem 3rem; align-items: end; padding: 1rem 0 1.4rem; border-top: 5px solid #17384b; }
+  header p { grid-column: 1 / -1; margin: 0; color: #67737a; font-size: .72rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+  h1 { margin: 0; color: #17252d; font-family: var(--font-display); font-size: clamp(2.2rem, 5vw, 4.8rem); line-height: .95; letter-spacing: -.035em; }
+  header span { color: #4d5c63; font-size: 1rem; line-height: 1.55; }
+  @media (max-width: 760px) { header { grid-template-columns: 1fr; } header p { grid-column: auto; } }
+</style>

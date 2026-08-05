@@ -60,6 +60,8 @@ Le **frontend météo v2** (`apps/meteo-web`, React/Vite) consomme les routes `/
 | `weather-service` | v2 | Température météo ponctuelle | interne `:3000` | PostGIS (RO) |
 | `weather-vigilance-service` | v2 | Vigilance officielle départementale et bulletins | interne `:3000` | snapshot JSON |
 | `fire-detection-service` | v2 | Suspicion de feu EUMETSAT/FIRMS autour du GPS | interne `:3000` | aucune |
+| `itineraire-service` | v2 | Itinéraire PL et audit des gabarits OSM | interne `:3000` | index JSON |
+| `valhalla` | v2 interne | Moteur de graphe routier OSM pour `itineraire-service` | interne `:8002` | volume de tuiles |
 | `copernicus` | v2 | Jobs climatiques ERA5 (profile `copernicus`) → PostGIS | — | PostGIS |
 
 `copernicus` n'est pas un service HTTP : c'est un job Python idempotent activé par le profil Compose `copernicus`.
@@ -79,6 +81,7 @@ Routes publiques exposées par le gateway :
 | `GET /api/v2/weather/temperature` | `weather-service:/internal/v1/weather/temperature` | GET |
 | `GET /api/v2/vigilance` | résolution geography puis `weather-vigilance-service:/v1/vigilance/departments/{code}` | GET |
 | `GET /api/v2/fire/nearby` | `fire-detection-service:/v1/fire/nearby`, `radius_km` (1–50) et `history_days` (1–7) obligatoires | GET |
+| `GET /api/v2/itineraire/poids-lourd` | `itineraire-service:/internal/v1/itineraire/poids-lourd` | GET |
 | `/api/v2/legacy/*` | `api:/api/*` (pont temporaire) | GET, HEAD |
 
 Le gateway propage `x-request-id`, normalise les erreurs (`{ error: { code, message, retryable }, requestId }`) et reste indépendant de la santé des services amont.
@@ -96,6 +99,7 @@ Les services Fastify ne sont jamais atteints directement par le navigateur : tou
 | Weather | [`../microservice/weather-service/README.md`](../microservice/weather-service/README.md) | `/internal/v1/weather/temperature` | geography-service, PostGIS (RO), modèle météo |
 | Weather Vigilance | [`../microservice/weather-vigilance/README.md`](../microservice/weather-vigilance/README.md) | `/v1/vigilance/departments/{code}` | API DPVigilance Météo-France, volume `vigilance_cache` |
 | Fire Detection | [`../microservice/fire-detection/README.md`](../microservice/fire-detection/README.md) | `/v1/fire/nearby` | NASA FIRMS Area API, EUMETSAT Data Store |
+| Itinéraire PL | [`../microservice/itineraire-service/README.md`](../microservice/itineraire-service/README.md) | `/internal/v1/itineraire/poids-lourd` | Valhalla, index restrictions OSM |
 | Copernicus | [`../microservice/copernicus/README.md`](../microservice/copernicus/README.md) | jobs ERA5 (batch) | CDS Copernicus, PostGIS |
 
 Les spécifications transverses de la météo v2 (OpenAPI, contrat de provenance, observabilité, déploiement) sont regroupées dans [`conception-v2/`](conception-v2/).

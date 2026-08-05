@@ -11,6 +11,7 @@
 | [Geography Service](geography-service/README.md) | `apps/geography-service/` | `/api/v2/geography/resolve` | `/internal/v1/geography/resolve` | Territoire, adresse postale et altitude d’un point |
 | [Weather Service](weather-service/README.md) | `apps/weather-service/` | `/api/v2/weather/temperature` | `/internal/v1/weather/temperature` | Température ponctuelle selon la méthode Météo V2 |
 | [OLD Service](old-service/README.md) | `apps/old-service/` | `/api/v2/old/perimetre` | `/internal/v1/old/perimetre` | Applicabilité OLD et périmètre indicatif depuis bâtiment, cadastre et PLU |
+| [Itinéraire Service](itineraire-service/README.md) | `apps/itineraire-service/` | `/api/v2/itineraire/poids-lourd` | `/internal/v1/itineraire/poids-lourd` | Itinéraire PL, gabarits OSM connus et portions non vérifiées |
 | [Map Service](map-service/README.md) | `apps/map-service/` | `/api/v2/map/*` | `/internal/v1/map/metrics` | Styles, tuiles, relief, glyphes et légendes cartographiques |
 | [Weather Vigilance](weather-vigilance/README.md) | `services/weather-vigilance/` | `/api/v2/vigilance` | `/v1/vigilance/departments/{code}` | Vigilance météorologique officielle à l’échelle départementale |
 
@@ -27,6 +28,9 @@ flowchart LR
   Gateway --> Weather
   Gateway --> Vigilance
   Gateway --> OLD
+  Gateway --> Itineraire[Itinéraire Service]
+  Itineraire --> Valhalla
+  Itineraire --> Restrictions[(restrictions.json)]
   Weather --> Geography
   Weather --> PostgreSQL[(PostgreSQL / PostGIS)]
   Weather --> Modele[Modèle météo]
@@ -60,6 +64,7 @@ pnpm --filter geography-service typecheck
 pnpm test:geography
 pnpm check:weather
 pnpm check:old
+pnpm check:itineraire
 pnpm check:map
 npm run check:vigilance
 ```
@@ -73,6 +78,7 @@ curl -fsS "http://localhost:8080/api/v2/weather/temperature?lat=44.0812&lon=3.64
 curl -fsS http://localhost:8080/api/v2/map/styles/territoire.json
 curl -fsS "http://localhost:8080/api/v2/vigilance?department_code=30"
 curl -fsS "http://localhost:8080/api/v2/old/perimetre?lon=3.68302778&lat=44.06455556"
+curl -fsS "http://localhost:8080/api/v2/itineraire/poids-lourd?lon_depart=3.641467&lat_depart=44.081192&lon_arrivee=3.6103&lat_arrivee=43.9925&hauteur_m=4.1&largeur_m=2.55&longueur_m=16.5&poids_t=38&charge_essieu_t=11.5&nb_essieux=5&matieres_dangereuses=0"
 ```
 
 Le `Caddyfile` étant embarqué dans l’image, toute modification de routage nécessite une reconstruction de l’image `caddy`.
