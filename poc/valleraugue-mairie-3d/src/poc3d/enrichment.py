@@ -22,11 +22,21 @@ from .raster import (
 )
 
 
-# Classes ASPRS retenues pour le modèle de surface : sol, végétation haute et bâti. C'est ce
-# relief-là — celui qui masque le ciel — que l'occlusion cuite et la canopée interrogent.
-VEGETATION_CLASS = 5
+# Classes ASPRS retenues pour le modèle de surface : les trois strates végétales et le bâti
+# au-dessus du MNT. C'est ce relief-là — celui qui masque le ciel — que l'occlusion interroge.
+# Le MNS doit porter tout ce qui dépasse le sol. La classe 5 reste la seule retenue pour
+# détecter les cimes individuelles, mais les strates 3 et 4 comptent elles aussi dans la
+# surface « avec végétation ».
+VEGETATION_CLASSES = (3, 4, 5)
+HIGH_VEGETATION_CLASS = 5
+# Strates basse et moyenne : buissons, ronces, garrigue et jeunes tiges. Elles voyagent depuis
+# toujours dans `lidar_subset.laz` sans que rien ne les montre — elles ne pesaient que dans le
+# modèle de surface et l'occlusion. C'est sur cette continuité entre le sol et les houppiers
+# que se juge le débroussaillement, et elle n'existait nulle part en 3D.
+UNDERSTORY_CLASSES = (3, 4)
 BUILDING_CLASS = 6
 GROUND_CLASS = 2
+LAMBERT_93_EPSG = 2154
 
 
 def _blend_seating(
@@ -98,15 +108,17 @@ def _surface_models(
     xmin: float,
     ymax: float,
     resolution: float,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Modèle de hauteur de canopée et modèle numérique de surface, sur la grille du MNT.
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Canopée, strate arbustive et modèle numérique de surface, sur la grille du MNT.
 
-    Les deux se déduisent du nuage déjà chargé pour le terrain : les recalculer ailleurs
-    imposerait une seconde lecture du LAZ pour exactement la même information.
+    Les trois se déduisent du nuage déjà chargé pour le terrain : les recalculer ailleurs
+    imposerait une seconde lecture du LAZ pour exactement la même information. La strate
+    arbustive n'a d'ailleurs rien coûté à produire — le maximum par cellule des classes 3
+    et 4 était déjà calculé pour le modèle de surface, et personne ne le regardait.
 
-    La canopée est une **hauteur au-dessus du sol** — c'est elle qui décide qu'un point est
-    un arbre — alors que la surface reste une **altitude absolue**, comparable au terrain
-    par le balayage d'horizon.
+    La canopée et la strate arbustive sont des **hauteurs au-dessus du sol** — c'est cela
+    qui décide qu'un point est un arbre ou un buisson — alors que la surface reste une
+    **altitude absolue**, comparable au terrain par le balayage d'horizon.
     """
     shape = terrain.shape
     highest = {
@@ -119,13 +131,59 @@ def _surface_models(
             resolution,
             shape,
         )
-        for klass in (VEGETATION_CLASS, BUILDING_CLASS)
+        for klass in (*VEGETATION_CLASSES, BUILDING_CLASS)
     }
-    canopy = highest[VEGETATION_CLASS] - terrain
+    canopy = highest[HIGH_VEGETATION_CLASS] - terrain
     # Une cime sous le niveau du sol n'existe pas : c'est le signe d'un point mal classé.
     canopy[~np.isfinite(canopy) | (canopy <= 0)] = np.nan
-    surface = np.fmax(terrain, np.fmax(highest[VEGETATION_CLASS], highest[BUILDING_CLASS]))
-    return canopy, surface
+
+    understory = terrain.copy()
+    for klass in UNDERSTORY_CLASSES:
+        understory = np.fmax(understory, highest[klass])
+    understory -= terrain
+    understory[~np.isfinite(understory) | (understory <= 0)] = np.nan
+
+    surface = terrain.copy()
+    for klass in (*VEGETATION_CLASSES, BUILDING_CLASS):
+        surface = np.fmax(surface, highest[klass])
+    return canopy, understory, surface
+
+
+def _write_geotiff(
+    destination: Path,
+    grid: np.ndarray,
+    xmin: float,
+    ymax: float,
+    resolution: float,
+) -> None:
+    """Écrit une grille en GeoTIFF géoréférencé sur l'emprise, en Lambert-93.
+
+    Le terrain sortait auparavant en TIFF nu flanqué d'un `.tfw` et d'un `.prj`, faute d'un
+    écrivain géospatial. Le géoréférencement vit désormais dans le fichier lui-même, ce qui
+    supprime la possibilité d'un `.tfw` resté en arrière d'une exécution à l'autre — un
+    worldfile périmé prime sur les métadonnées dans plusieurs SIG et décale la couche sans
+    rien signaler.
+
+    Les cellules sans mesure valent ``NaN`` et sont déclarées comme telles : c'est la
+    convention de `canopy.npy` comme des nappes, et elle traverse le GeoTIFF intacte.
+    """
+    from rasterio.transform import from_origin
+    import rasterio
+
+    with rasterio.open(
+        destination,
+        "w",
+        driver="GTiff",
+        height=grid.shape[0],
+        width=grid.shape[1],
+        count=1,
+        dtype="float32",
+        crs=f"EPSG:{LAMBERT_93_EPSG}",
+        transform=from_origin(xmin, ymax, resolution, resolution),
+        nodata=float("nan"),
+        compress="lzw",
+    ) as raster:
+        raster.write(grid.astype(np.float32), 1)
 
 
 def _save_nappes(
@@ -242,34 +300,31 @@ def create_terrain(config: PocConfig, run_dir: Path | None = None) -> tuple[Path
         grid[interpolated] = average[interpolated]
 
     seated = _seat_buildings(config, grid, run_dir)
-    canopy, surface = _surface_models(
+    canopy, understory, surface = _surface_models(
         x, y, z, classification, within, grid, xmin, ymax, resolution
     )
     np.save(run_dir / "canopy.npy", canopy)
     np.save(run_dir / "surface.npy", surface)
+    understory_grid = run_dir / "understory.npy"
+    if config.get_bool("UNDERSTORY", True):
+        np.save(understory_grid, understory)
+    else:
+        understory_grid.unlink(missing_ok=True)
     _save_nappes(config, run_dir, x, y, z, classification, within, xmin, ymax, resolution, grid.shape)
 
-    Image.fromarray(grid.astype(np.float32), mode="F").save(
-        terrain_tif, compression="tiff_lzw"
-    )
-    (run_dir / "terrain.tfw").write_text(
-        "\n".join(
-            (
-                f"{resolution}",
-                "0.0",
-                "0.0",
-                f"{-resolution}",
-                f"{xmin + resolution / 2}",
-                f"{ymax - resolution / 2}",
-            )
-        )
-        + "\n",
-        encoding="ascii",
-    )
-    (run_dir / "terrain.prj").write_text(
-        'PROJCS["RGF93 v1 / Lambert-93",AUTHORITY["EPSG","2154"]]\n',
-        encoding="ascii",
-    )
+    _write_geotiff(terrain_tif, grid, xmin, ymax, resolution)
+    # Le modèle de hauteur de canopée et la strate arbustive sortent eux aussi en GeoTIFF :
+    # ils portent la mesure sur laquelle se juge la continuité verticale du combustible, et
+    # cette lecture-là se fait dans un SIG, pas dans le visualiseur.
+    _write_geotiff(run_dir / "canopy.tif", canopy, xmin, ymax, resolution)
+    if config.get_bool("UNDERSTORY", True):
+        _write_geotiff(run_dir / "understory.tif", understory, xmin, ymax, resolution)
+    else:
+        (run_dir / "understory.tif").unlink(missing_ok=True)
+    # Le géoréférencement vit désormais dans le GeoTIFF : laissés en place, ces deux fichiers
+    # d'une exécution antérieure primeraient sur lui dans plusieurs SIG.
+    (run_dir / "terrain.tfw").unlink(missing_ok=True)
+    (run_dir / "terrain.prj").unlink(missing_ok=True)
     np.save(terrain_grid, grid)
     # Produit hérité : sa présence ferait relire une emprise périmée par la scène GLB.
     (run_dir / "terrain.xyz").unlink(missing_ok=True)
@@ -285,10 +340,18 @@ def create_terrain(config: PocConfig, run_dir: Path | None = None) -> tuple[Path
         f"{measured.mean():.1%} mesurées, "
         f"{seated} assises sous les bâtiments)"
     )
+    cells = grid.size
     print(
-        f"Modèles dérivés : canopée sur {int(np.isfinite(canopy).sum())} cellules, "
-        "surface pour l'occlusion ambiante"
+        f"Modèles dérivés : canopée sur {int(np.isfinite(canopy).sum())} cellules "
+        f"({np.isfinite(canopy).mean():.0%}), strate arbustive sur "
+        f"{int(np.isfinite(understory).sum())} cellules "
+        f"({np.isfinite(understory).mean():.0%}), surface pour l'occlusion ambiante"
     )
+    # La superposition d'une strate basse et d'un houppier est la continuité verticale du
+    # combustible : c'est par elle qu'un feu de surface gagne la canopée, et elle ne se lit
+    # sur aucune des deux couches prise seule.
+    both = np.isfinite(canopy) & np.isfinite(understory)
+    print(f"Continuité verticale : {int(both.sum())} cellules ({both.sum() / cells:.0%})")
     return terrain_tif, terrain_grid
 
 

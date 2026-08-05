@@ -93,6 +93,56 @@
 - [ ] Le visualiseur fonctionne via `python poc.py serve`.
 - [ ] Le visualiseur reste utilisable sur un écran mobile.
 
+## Comparaison sol nu / végétation / source
+
+- [ ] `surface.npy` retient les classes 3, 4 et 5 en plus du sol et du bâti.
+- [ ] « Sol nu » masque végétation et canopée, et coupe les textures orthophoto.
+- [ ] « Végétation » rétablit les mêmes couches à caméra et échelle inchangées.
+- [ ] « Nuage source » charge `source-points.glb` seulement au premier affichage.
+- [ ] `source-points.json` porte le SHA-256 du LAZ, les URL COPC, les dimensions et les
+  effectifs par classe avant/après échantillonnage.
+
+### Rendu du nuage LiDAR
+
+Le contrôle décisif est le **rapprochement de la caméra** : c'est là que l'ancien réglage, en
+pixels et sans atténuation, se trouait alors qu'il paraissait dense de loin.
+
+- [ ] En approchant, le nuage se **referme** en surface continue — toitures pleines, façades
+  lisibles — au lieu de laisser voir le ciel au travers.
+- [ ] En reculant, il reste lisible sans virer au voile uniforme.
+- [ ] Les points sont ronds, jamais des carrés de pixels.
+- [ ] Le curseur « Taille des points » agit dans les deux sens sans faire disparaître le nuage
+  à ses extrémités.
+- [ ] Les quatre modes de couleur produisent une image distincte, et le relief de l'occlusion
+  cuite subsiste dans chacun d'eux.
+- [ ] Le mode « Orthophotographie » se superpose au mode « Végétation » sans décalage à caméra
+  inchangée : c'est le contrôle du calage de la photographie sur la donnée LiDAR.
+- [ ] Les curseurs « Calage de la photo » déplacent la photographie **sur le nuage aussi**, et
+  pas seulement sur le terrain et les toitures. Contrôle : à calage identique et caméra
+  inchangée, un toit repéré dans la photo occupe la même place dans les deux représentations.
+- [ ] Ramener les deux curseurs à zéro rétablit exactement l'image de départ, sans dérive.
+
+### Superposition du nuage et du modèle
+
+- [ ] « Superposé » affiche les deux à la fois, et « Nuage source » masque toujours le modèle.
+- [ ] Le nuage passe de lui-même en couleurs de classe à l'entrée dans le mode, et le
+  sélecteur reste libre ensuite ; revenir au mode ne réécrase pas un choix fait depuis.
+- [ ] Aucun grésillement entre les points et les surfaces qu'ils ont servi à construire —
+  le sol classé 2 sur le terrain interpolé est le cas le plus exposé.
+- [ ] Les points restent occultés par les volumes qui les cachent : un point de façade
+  arrière ne doit pas traverser le bâtiment.
+- [ ] Ne garder que la classe « Bâtiment » pose la mesure des toits sur les volumes Roofer ;
+  les toitures dégradées signalées par `roofQuality` sont bien celles qui s'écartent le plus.
+- [ ] Les bascules de couches du modèle restent actives dans ce mode.
+- [ ] Décocher une classe dans la légende la masque, et la recocher la rétablit ; le compte
+  affiché ne change pas, rien n'étant retiré du fichier.
+- [ ] Sur une scène assemblée sans orthophotographie, le mode correspondant est désactivé avec
+  son infobulle, et la scène s'affiche en couleurs de classe.
+- [ ] Sur une scène sans nuage témoin, la représentation « Nuage source » reste désactivée et
+  aucun réglage de points n'apparaît.
+- [ ] Sur l'emprise 600 m, `voxelM` dans `source-points.json` est supérieur au réglage du
+  `.conf` : la grille s'est élargie d'elle-même pour tenir le plafond de points.
+
 ## Vague 0 — correctifs retenus
 
 La touche `P` copie dans le presse-papiers et imprime dans la console la scène, la position de

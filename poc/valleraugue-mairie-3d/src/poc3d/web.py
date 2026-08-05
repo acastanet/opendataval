@@ -48,7 +48,14 @@ ALTERNATE_SCENES_DIR = "scenes"
 # sa bascule, et le chargement initial de la scène n'en est pas alourdi. Les trois fichiers
 # sont facultatifs — une scène produite avant leur existence se sert telle quelle.
 GEOLOGY_FILES = ("geology.png", "geology-pick.png", "geology.json")
-SCENE_FILES = ("scene.glb", "scene.json", "buildings.json", *GEOLOGY_FILES)
+SOURCE_POINT_FILES = ("source-points.glb", "source-points.json")
+SCENE_FILES = (
+    "scene.glb",
+    "scene.json",
+    "buildings.json",
+    *GEOLOGY_FILES,
+    *SOURCE_POINT_FILES,
+)
 VIEWER_FILES = ("index.html", "app.js", "styles.css", "favicon.svg")
 
 
@@ -98,6 +105,9 @@ class SceneEntry:
         ):
             if value:
                 manifest[key] = value
+        if all((self.render_dir / name).is_file() for name in SOURCE_POINT_FILES):
+            manifest["sourcePoints"] = f"{self.prefix}/source-points.glb"
+            manifest["sourcePointsMetadata"] = f"{self.prefix}/source-points.json"
         return manifest
 
 
@@ -316,9 +326,9 @@ def prepare_viewer(config: PocConfig, run_dir: Path | None = None) -> Path:
         shutil.copy2(viewer_source / name, web_dir / name)
     shutil.copy2(scene_glb, assets_dir / "scene.glb")
     shutil.copy2(scene_json, assets_dir / "scene.json")
-    # Table des attributs BD TOPO par nœud, et carte géologique BRGM : les unes comme
-    # l'autre sont absentes des scènes générées avant leur ajout.
-    for name in ("buildings.json", *GEOLOGY_FILES):
+    # Ces compléments sont absents des scènes générées avant leur ajout. Le nuage témoin
+    # reste surtout séparé du GLB principal afin de n'être transféré qu'à la demande.
+    for name in ("buildings.json", *GEOLOGY_FILES, *SOURCE_POINT_FILES):
         optional = render_dir / name
         if optional.is_file():
             shutil.copy2(optional, assets_dir / name)

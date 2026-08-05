@@ -5,10 +5,18 @@ n'étaient que de la peinture plate sur le terrain, ce qui trahit le rendu plus 
 n'importe quel défaut de toiture.
 
 L'approche reste délibérément sobre : hauteur de canopée, maxima locaux pour les cimes,
-rayon de couronne par profil radial, puis un volume simple par arbre. BD Forêt V2 ne pilote
-qu'un profil feuillu, conifère ou mixte à l'échelle de sa plage cartographiée. Pas de
-segmentation botanique individuelle ni de panneau orienté caméra — à 200 m l'enjeu est la
-présence, pas le réalisme botanique.
+segmentation des houppiers par ligne de partage des eaux, puis un volume simple par arbre.
+BD Forêt V2 ne pilote qu'un profil feuillu, conifère ou mixte à l'échelle de sa plage
+cartographiée. Pas de reconstruction botanique individuelle ni de panneau orienté caméra —
+à 200 m l'enjeu est la présence, pas le réalisme botanique.
+
+Le houppier se mesurait auparavant par retombée d'un profil radial autour de la cime. Ce
+critère est juste sur un arbre isolé et faux en couvert continu : entre deux sujets jointifs
+la canopée ne retombe jamais, le profil court jusqu'au plafond, et ``VEGETATION_MAX_CROWN_M``
+tranchait pour près de la moitié des arbres — la mesure était alors celle du réglage, pas
+celle de la donnée. La ligne de partage des eaux résout exactement ce cas : les cimes servent
+de marqueurs, le relief est la canopée retournée, et deux houppiers voisins se partagent la
+vallée qui les sépare au lieu de saturer chacun de son côté.
 """
 
 from __future__ import annotations
@@ -25,7 +33,6 @@ import zlib
 import numpy as np
 
 from .config import PocConfig, latest_run
-from .raster import maximum_filter
 
 
 # Proportions d'un arbre proxy, exprimées en fraction de sa hauteur totale. Elles ne
@@ -40,15 +47,37 @@ TRUNK_HALF_WIDTH_FRACTION = 0.045
 MINIMUM_TRUNK_HALF_WIDTH_M = 0.12
 MINIMUM_CROWN_RADIUS_M = 1.2
 # Le rayon de couronne s'arrête là où la canopée retombe sous la moitié de la cime : c'est
-# le critère le plus stable sur un modèle de hauteur bruité.
+# le critère le plus stable sur un modèle de hauteur bruité. Il borne aussi le bassin de la
+# ligne de partage des eaux, qui sans cela s'étendrait jusqu'au pied du couvert.
 CROWN_HEIGHT_RATIO = 0.5
+# Aplatissement maximal d'un houppier segmenté, en rapport du petit axe au grand. Une couronne
+# réelle est ovale, jamais une lame : sous ce seuil, la région décrit une trouée entre deux
+# arbres ou une haie prise pour un sujet, et l'ovalité mesurée doit céder devant le garde-fou.
+MINIMUM_CROWN_RATIO = 0.35
 FOREST_WFS_URL = "https://data.geopf.fr/wfs/ows"
 FOREST_WFS_LAYER = "LANDCOVER.FORESTINVENTORY.V2:formation_vegetale"
+# Second référentiel, interrogé après BD Forêt. Celle-ci ne cartographie que des plages d'au
+# moins 5 000 m² et ignore donc tout ce qui n'est pas un massif : la BD TOPO décrit à l'inverse
+# haies, landes ligneuses, bois et forêts ouvertes, à la parcelle. C'est cette granularité-là
+# qu'il faut pour typer la végétation d'abord et le pourtour d'un village ensuite.
+#
+# Le thème Végétation harmonisé de BD France (`IGNF_BD-FRANCE-TOPO-VEGETATION`) serait le
+# candidat naturel : il figure au catalogue WFS de la Géoplateforme, mais n'y renvoie aucune
+# entité — vérifié sur Valleraugue, l'Hort-de-Dieu et Besançon. La BD TOPO le remplace tant
+# qu'il reste vide.
+LANDCOVER_WFS_LAYER = "BDTOPO_V3:zone_de_vegetation"
+LAMBERT_93 = "EPSG:2154"
 
 
 @dataclass(frozen=True)
 class Tree:
-    """Un arbre proxy, en Lambert-93 et en mètres."""
+    """Un arbre proxy, en Lambert-93 et en mètres.
+
+    ``crown`` est le rayon du disque de même aire que le houppier segmenté. ``ratio`` et
+    ``angle`` décrivent son ellipse — rapport des axes et orientation du grand axe, en
+    radians depuis l'est. Les trois sont absents d'un ``trees.json`` antérieur à la
+    segmentation : la silhouette retombe alors sur le tirage pseudo-aléatoire d'origine.
+    """
 
     x: float
     y: float
@@ -57,6 +86,9 @@ class Tree:
     crown: float
     foliage: str = "generic"
     essence: str | None = None
+    crown_area: float | None = None
+    crown_ratio: float | None = None
+    crown_angle: float | None = None
 
     def as_json(self) -> dict[str, float | str]:
         result: dict[str, float | str] = {
@@ -69,29 +101,13 @@ class Tree:
         }
         if self.essence:
             result["essence"] = self.essence
+        if self.crown_area is not None:
+            result["crownArea"] = round(self.crown_area, 2)
+        if self.crown_ratio is not None:
+            result["crownRatio"] = round(self.crown_ratio, 3)
+        if self.crown_angle is not None:
+            result["crownAngle"] = round(self.crown_angle, 3)
         return result
-
-
-def _inside_ring(x: float, y: float, ring: list[list[float]]) -> bool:
-    """Test pair-impair sans dépendance SIG, suffisant pour les polygones GeoJSON du WFS."""
-    inside = False
-    for first, second in zip(ring, ring[1:] + ring[:1]):
-        ax, ay = float(first[0]), float(first[1])
-        bx, by = float(second[0]), float(second[1])
-        if (ay > y) == (by > y):
-            continue
-        crossing = (bx - ax) * (y - ay) / (by - ay) + ax
-        if x < crossing:
-            inside = not inside
-    return inside
-
-
-def _inside_polygon(x: float, y: float, polygon: list[list[list[float]]]) -> bool:
-    return bool(
-        polygon
-        and _inside_ring(x, y, polygon[0])
-        and not any(_inside_ring(x, y, hole) for hole in polygon[1:])
-    )
 
 
 def _foliage_kind(essence: object) -> str:
@@ -100,48 +116,96 @@ def _foliage_kind(essence: object) -> str:
         return "mixed"
     if "conif" in label or "résine" in label:
         return "conifer"
-    if "feuill" in label or "châtaign" in label or "chêne" in label or "peupl" in label:
+    if (
+        "feuill" in label
+        or "châtaign" in label
+        or "chêne" in label
+        or "peupl" in label
+        # Natures de la BD TOPO : une haie et un verger sont des feuillus sans exception
+        # utile ici. « Bois », « Forêt ouverte » et « Lande ligneuse » n'indiquent en
+        # revanche aucune essence, et gardent donc le profil générique.
+        or "haie" in label
+        or "verger" in label
+    ):
         return "deciduous"
     return "generic"
 
 
+def _formation_label(properties: dict) -> str:
+    """Nature d'une formation, quel que soit le référentiel qui la décrit.
+
+    BD Forêt nomme son attribut ``essence`` ou ``tfv``, la BD TOPO le nomme ``nature``.
+    Les deux couches se lisent par le même chemin, et seul le nom du champ change.
+    """
+    for champ in ("essence", "tfv", "nature"):
+        valeur = str(properties.get(champ) or "").strip()
+        if valeur:
+            return valeur
+    return ""
+
+
 def classify_forest_types(trees: list[Tree], payload: dict) -> list[Tree]:
-    """Affecte à chaque cime l'essence de la plage BD Forêt qui la contient."""
-    formations = []
-    for feature in payload.get("features", []):
-        geometry = feature.get("geometry") or {}
-        coordinates = geometry.get("coordinates") or []
-        polygons = coordinates if geometry.get("type") == "MultiPolygon" else [coordinates]
-        properties = feature.get("properties") or {}
-        essence = str(properties.get("essence") or properties.get("tfv") or "").strip()
-        if polygons and essence:
-            formations.append((polygons, essence))
+    """Affecte à chaque cime la nature de la formation végétale qui la contient.
+
+    L'appariement passe par une jointure spatiale indexée. Écrit à la main, le test
+    point-dans-polygone comparait chaque arbre à chaque formation : sur une emprise de
+    500 m, quelques centaines de cimes contre autant de polygones, le coût devenait celui
+    du produit des deux. Il interdisait surtout d'interroger un second référentiel, alors
+    que c'est ce qu'il faut pour typer autre chose que des plages forestières.
+
+    Une cime déjà typée n'est jamais reclassée : le second recours ne sert qu'à ce que le
+    premier a laissé générique.
+    """
+    import geopandas as gpd
+    from shapely.geometry import Point, shape
+
+    formations = [
+        (shape(feature["geometry"]), _formation_label(feature.get("properties") or {}))
+        for feature in payload.get("features", [])
+        if feature.get("geometry") and _formation_label(feature.get("properties") or {})
+    ]
+    if not formations or not trees:
+        return trees
+
+    cimes = gpd.GeoDataFrame(
+        {"rang": range(len(trees))},
+        geometry=[Point(tree.x, tree.y) for tree in trees],
+        crs=LAMBERT_93,
+    )
+    plages = gpd.GeoDataFrame(
+        {"label": [label for _, label in formations]},
+        geometry=[geometrie for geometrie, _ in formations],
+        crs=LAMBERT_93,
+    )
+    jointure = cimes.sjoin(plages, how="inner", predicate="within")
+    # Deux formations superposées produiraient deux lignes pour la même cime : la première
+    # tranche, comme le faisait le parcours séquentiel qu'elle remplace.
+    labels = dict(
+        zip(
+            jointure["rang"].tolist(),
+            jointure["label"].tolist(),
+        )
+    )
 
     classified = []
-    for tree in trees:
-        match = next(
-            (
-                essence
-                for polygons, essence in formations
-                if any(_inside_polygon(tree.x, tree.y, polygon) for polygon in polygons)
-            ),
-            None,
-        )
-        classified.append(
-            replace(tree, foliage=_foliage_kind(match), essence=match) if match else tree
-        )
+    for rang, tree in enumerate(trees):
+        label = labels.get(rang)
+        if label and tree.foliage == "generic":
+            classified.append(replace(tree, foliage=_foliage_kind(label), essence=label))
+        else:
+            classified.append(tree)
     return classified
 
 
-def download_forest_types(config: PocConfig) -> dict:
-    """Récupère les seules formations BD Forêt qui croisent l'emprise de terrain."""
+def download_forest_types(config: PocConfig, layer: str = FOREST_WFS_LAYER) -> dict:
+    """Récupère les seules formations qui croisent l'emprise de terrain."""
     xmin, ymin, xmax, ymax = config.terrain_bbox
     crs = "urn:ogc:def:crs:EPSG::2154"
     params = {
         "SERVICE": "WFS",
         "VERSION": "2.0.0",
         "REQUEST": "GetFeature",
-        "TYPENAMES": FOREST_WFS_LAYER,
+        "TYPENAMES": layer,
         "SRSNAME": crs,
         "BBOX": f"{xmin:g},{ymin:g},{xmax:g},{ymax:g},{crs}",
         "OUTPUTFORMAT": "application/json",
@@ -182,46 +246,169 @@ def _crown_radius(canopy: np.ndarray, row: int, column: int, height: float, reso
     return min(max(radius, MINIMUM_CROWN_RADIUS_M), maximum_m)
 
 
-def detect_trees(
-    config: PocConfig,
-    canopy: np.ndarray,
-    terrain: np.ndarray,
-) -> list[Tree]:
-    """Retient une cime par maximum local du modèle de hauteur de canopée.
+def _crown_ellipse(region_rows: np.ndarray, region_columns: np.ndarray) -> tuple[float, float]:
+    """Aplatissement et orientation d'un houppier, par les moments d'ordre deux de sa région.
 
-    Les maxima sont parcourus du plus haut au plus bas et se suppriment mutuellement dans la
-    fenêtre de détection : sans cela, un houppier large produirait une grappe de doublons.
+    Les axes principaux de la couronne sortent des vecteurs propres de la covariance de ses
+    cellules. C'est la mesure que le tirage pseudo-aléatoire d'origine remplaçait faute de
+    segmentation : une couronne réelle est ovale, et son grand axe suit la lumière ou le
+    voisin qui l'a contrainte.
+
+    Renvoie le rapport du petit axe au grand — borné, car une région en lame décrit une
+    trouée et non un arbre — et l'angle du grand axe, en radians depuis l'est.
+
+    Les coordonnées entrent en lignes et colonnes de la grille : la ligne croît vers le sud,
+    la colonne vers l'est. La conversion en mètres est isotrope et n'a donc aucun effet sur
+    les directions ; elle est omise.
     """
-    resolution = config.get_float("TERRAIN_RESOLUTION_M", 1.0)
-    minimum_height = config.get_float("VEGETATION_MIN_HEIGHT_M", 4.0)
-    window_m = config.get_float("VEGETATION_PEAK_WINDOW_M", 5.0)
-    maximum_crown = config.get_float("VEGETATION_MAX_CROWN_M", 6.4)
-    if minimum_height <= 0 or window_m <= 0:
-        raise ValueError("VEGETATION_MIN_HEIGHT_M et VEGETATION_PEAK_WINDOW_M doivent être positifs")
+    count = region_rows.size
+    if count < 2:
+        return 1.0, 0.0
+    south = region_rows - region_rows.mean()
+    east = region_columns - region_columns.mean()
+    covariance = np.array(
+        [
+            [float((east * east).sum()), float((east * south).sum())],
+            [float((east * south).sum()), float((south * south).sum())],
+        ]
+    ) / count
+    # `eigh` suffit et ordonne ses valeurs propres croissantes : la matrice est symétrique
+    # par construction. Les valeurs propres sont les variances le long des axes principaux.
+    values, vectors = np.linalg.eigh(covariance)
+    if values[1] <= 1e-12:
+        return 1.0, 0.0
+    ratio = math.sqrt(max(values[0], 0.0) / values[1])
+    major = vectors[:, 1]
+    return max(ratio, MINIMUM_CROWN_RATIO), math.atan2(float(major[1]), float(major[0]))
 
-    xmin, _, _, ymax = config.terrain_bbox
-    filled = np.where(np.isfinite(canopy), canopy, 0.0)
-    reach = max(1, int(round(window_m / (2 * resolution))))
-    candidates = np.argwhere((filled >= minimum_height) & (filled >= maximum_filter(filled, reach)))
+
+def _segment_crowns(
+    canopy: np.ndarray,
+    peaks: np.ndarray,
+    minimum_height: float,
+    resolution: float,
+    maximum_crown: float,
+) -> dict[int, tuple[float, float, float]]:
+    """Segmente les houppiers par ligne de partage des eaux, une région par cime.
+
+    Le relief soumis à l'algorithme est la canopée retournée : chaque cime devient le fond
+    d'un bassin, et la crête qui sépare deux bassins tombe dans le creux entre deux arbres —
+    précisément là où le profil radial ne retombait jamais.
+
+    Deux garde-fous bornent les bassins. Le masque écarte ce qui n'est pas de la canopée, pour
+    que l'eau ne s'écoule ni sur le sol nu ni sur les toitures. Le rayon maximal la borne
+    ensuite : sans lui, un arbre en lisière annexerait tout le versant qu'aucun voisin ne lui
+    dispute.
+
+    Renvoie, par étiquette de cime, l'aire du houppier en mètres carrés, l'aplatissement de
+    son ellipse et l'orientation de son grand axe.
+    """
+    from skimage.segmentation import watershed
+
+    reach = max(1, int(round(maximum_crown / resolution)))
+    markers = np.zeros(canopy.shape, dtype=np.int32)
+    for label, (row, column) in enumerate(peaks, start=1):
+        markers[row, column] = label
+
+    within_reach = np.zeros(canopy.shape, dtype=bool)
+    for row, column in peaks:
+        first, last = max(0, row - reach), min(canopy.shape[0], row + reach + 1)
+        left, right = max(0, column - reach), min(canopy.shape[1], column + reach + 1)
+        within_reach[first:last, left:right] = True
+
+    labels = watershed(-canopy, markers, mask=(canopy >= minimum_height) & within_reach)
+
+    cell_area = resolution * resolution
+    shapes: dict[int, tuple[float, float, float]] = {}
+    for label, (row, column) in enumerate(peaks, start=1):
+        rows, columns = np.nonzero(labels == label)
+        if rows.size == 0:
+            continue
+        ratio, angle = _crown_ellipse(rows.astype(np.float64), columns.astype(np.float64))
+        shapes[label] = (rows.size * cell_area, ratio, angle)
+    return shapes
+
+
+def _peak_candidates(
+    filled: np.ndarray, minimum_height: float, reach: int
+) -> list[tuple[int, int]]:
+    """Cimes retenues, parcourues du plus haut maximum local au plus bas.
+
+    Les maxima se suppriment mutuellement dans la fenêtre de détection : sans cela, un
+    houppier large produirait une grappe de doublons, et la segmentation lui découperait
+    autant de bassins minuscules.
+    """
+    from scipy.ndimage import maximum_filter as ndimage_maximum_filter
+
+    highest = ndimage_maximum_filter(filled, size=2 * reach + 1, mode="nearest")
+    candidates = np.argwhere((filled >= minimum_height) & (filled >= highest))
     if candidates.size == 0:
         return []
     order = np.argsort(-filled[candidates[:, 0], candidates[:, 1]])
     taken = np.zeros(filled.shape, dtype=bool)
-    trees: list[Tree] = []
+    peaks: list[tuple[int, int]] = []
     for row, column in candidates[order]:
         first, last = max(0, row - reach), min(filled.shape[0], row + reach + 1)
         left, right = max(0, column - reach), min(filled.shape[1], column + reach + 1)
         if taken[first:last, left:right].any():
             continue
         taken[row, column] = True
+        peaks.append((int(row), int(column)))
+    return peaks
+
+
+def detect_trees(
+    config: PocConfig,
+    canopy: np.ndarray,
+    terrain: np.ndarray,
+) -> list[Tree]:
+    """Retient une cime par maximum local du modèle de hauteur de canopée, puis la dimensionne.
+
+    ``VEGETATION_CROWN_SEGMENTATION`` décide de la mesure du houppier : la ligne de partage
+    des eaux par défaut, le profil radial des exécutions antérieures sinon. Les deux restent
+    disponibles parce que la comparaison sur une emprise réelle est le seul moyen de juger un
+    changement de ce genre.
+    """
+    resolution = config.get_float("TERRAIN_RESOLUTION_M", 1.0)
+    minimum_height = config.get_float("VEGETATION_MIN_HEIGHT_M", 4.0)
+    window_m = config.get_float("VEGETATION_PEAK_WINDOW_M", 5.0)
+    maximum_crown = config.get_float("VEGETATION_MAX_CROWN_M", 6.4)
+    segmented = config.get_bool("VEGETATION_CROWN_SEGMENTATION", True)
+    if minimum_height <= 0 or window_m <= 0:
+        raise ValueError("VEGETATION_MIN_HEIGHT_M et VEGETATION_PEAK_WINDOW_M doivent être positifs")
+
+    xmin, _, _, ymax = config.terrain_bbox
+    filled = np.where(np.isfinite(canopy), canopy, 0.0)
+    reach = max(1, int(round(window_m / (2 * resolution))))
+    peaks = _peak_candidates(filled, minimum_height, reach)
+    if not peaks:
+        return []
+
+    shapes = (
+        _segment_crowns(filled, peaks, minimum_height, resolution, maximum_crown)
+        if segmented
+        else {}
+    )
+    trees: list[Tree] = []
+    for label, (row, column) in enumerate(peaks, start=1):
         height = float(filled[row, column])
+        area, ratio, angle = shapes.get(label, (None, None, None))
+        if area is None:
+            radius = _crown_radius(canopy, row, column, height, resolution, maximum_crown)
+        else:
+            # Le rayon est celui du disque de même aire : c'est la grandeur qui survit à une
+            # couronne non circulaire, et l'ovalité la restitue ensuite sans toucher au volume.
+            radius = math.sqrt(area / math.pi)
         trees.append(
             Tree(
                 x=xmin + (column + 0.5) * resolution,
                 y=ymax - (row + 0.5) * resolution,
                 ground=float(terrain[row, column]),
                 height=height,
-                crown=_crown_radius(canopy, int(row), int(column), height, resolution, maximum_crown),
+                crown=min(max(radius, MINIMUM_CROWN_RADIUS_M), maximum_crown),
+                crown_area=area,
+                crown_ratio=ratio,
+                crown_angle=angle,
             )
         )
     return trees
@@ -242,6 +429,11 @@ def load_trees(run_dir: Path) -> list[Tree]:
             float(entry["crown"]),
             str(entry.get("foliage", "generic")),
             str(entry["essence"]) if entry.get("essence") else None,
+            # Absents d'un `trees.json` antérieur à la segmentation : la silhouette retombe
+            # alors sur le tirage stable, et rien n'oblige à réassembler la scène.
+            float(entry["crownArea"]) if entry.get("crownArea") is not None else None,
+            float(entry["crownRatio"]) if entry.get("crownRatio") is not None else None,
+            float(entry["crownAngle"]) if entry.get("crownAngle") is not None else None,
         )
         for entry in payload.get("trees", [])
     ]
@@ -272,20 +464,47 @@ def create_vegetation(config: PocConfig, run_dir: Path | None = None) -> Path:
         except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as error:
             print(f"AVERTISSEMENT : typologie BD Forêt indisponible ({error}).")
 
+    landcover_source = None
+    if trees and config.get_bool("VEGETATION_LANDCOVER", True):
+        # Second recours, sur ce que BD Forêt a laissé générique : ses plages de 5 000 m²
+        # ignorent les haies et les lisières, qui sont l'essentiel du pourtour d'un village.
+        try:
+            landcover_payload = download_forest_types(config, LANDCOVER_WFS_LAYER)
+            before = sum(1 for tree in trees if tree.foliage == "generic")
+            trees = classify_forest_types(trees, landcover_payload)
+            after = sum(1 for tree in trees if tree.foliage == "generic")
+            landcover_source = {
+                "url": FOREST_WFS_URL,
+                "layer": LANDCOVER_WFS_LAYER,
+                "features": len(landcover_payload["features"]),
+                "typedTrees": before - after,
+            }
+        except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as error:
+            print(f"AVERTISSEMENT : typologie BD TOPO indisponible ({error}).")
+
     destination = run_dir / "trees.json"
     covered = float(np.isfinite(canopy).mean())
     foliage_counts: dict[str, int] = {}
     for tree in trees:
         foliage_counts[tree.foliage] = foliage_counts.get(tree.foliage, 0) + 1
+    maximum_crown = config.get_float("VEGETATION_MAX_CROWN_M", 6.4)
+    # Le nombre d'arbres au plafond est l'indicateur qui juge la mesure du houppier : tant
+    # qu'il est élevé, c'est le réglage qui décide de la largeur des couronnes et non la
+    # canopée. Il valait 153 sur 358 au profil radial, sur l'emprise 200 m de référence.
+    capped = sum(1 for tree in trees if tree.crown >= maximum_crown - 1e-6)
     metadata = {
         "count": len(trees),
         "canopyCoverage": round(covered, 3),
         "minimumHeightM": config.get_float("VEGETATION_MIN_HEIGHT_M", 4.0),
+        "crownSegmentation": config.get_bool("VEGETATION_CROWN_SEGMENTATION", True),
+        "crownCapped": capped,
         "foliage": dict(sorted(foliage_counts.items())),
         "trees": [tree.as_json() for tree in trees],
     }
     if forest_source:
         metadata["forestSource"] = forest_source
+    if landcover_source:
+        metadata["landcoverSource"] = landcover_source
     destination.write_text(
         json.dumps(metadata, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
@@ -293,10 +512,19 @@ def create_vegetation(config: PocConfig, run_dir: Path | None = None) -> Path:
     if trees:
         heights = sorted(tree.height for tree in trees)
         typed = len(trees) - foliage_counts.get("generic", 0)
+        par_bd_topo = landcover_source["typedTrees"] if landcover_source else 0
         print(
             f"Végétation : {len(trees)} arbres, hauteur médiane "
             f"{heights[len(heights) // 2]:.1f} m, maximum {heights[-1]:.1f} m "
-            f"({covered:.0%} de l'emprise sous canopée, {typed} typés par BD Forêt)"
+            f"({covered:.0%} de l'emprise sous canopée, {typed} typés "
+            f"dont {par_bd_topo} par la BD TOPO)"
+        )
+        radii = sorted(tree.crown for tree in trees)
+        mesure = "segmentés" if metadata["crownSegmentation"] else "par profil radial"
+        print(
+            f"Houppiers {mesure} : rayon médian {radii[len(radii) // 2]:.1f} m, "
+            f"{capped} arbres au plafond de {maximum_crown:.1f} m "
+            f"({capped / len(trees):.0%})"
         )
     else:
         print("Végétation : aucune cime détectée (classe LiDAR 5 absente ou trop basse).")
@@ -474,11 +702,18 @@ def trunk_triangles(
 
 
 def tree_shape(tree: Tree) -> tuple[float, float]:
-    """Rotation et ovalité du houppier, tirées de façon stable de la position de l'arbre.
+    """Rotation et ovalité du houppier : la mesure quand elle existe, un tirage stable sinon.
 
-    Le CRC sert ici comme pour les teintes de bâtiment : un arbre doit garder sa silhouette
-    d'une génération de la scène à l'autre, ce que ``hash`` ne garantit pas.
+    La segmentation donne l'ellipse réelle de chaque couronne. Tant qu'elle manquait, la
+    silhouette venait d'un CRC de la position — assez pour rompre l'alignement d'un solide
+    identique recopié des centaines de fois, mais sans rapport avec l'arbre. Le repli subsiste
+    pour un ``trees.json`` antérieur, et pour les scènes qui ont désactivé la segmentation.
+
+    ``ovality`` multiplie le demi-axe est et divise le demi-axe sud : son produit vaut un, et
+    l'aire du houppier reste donc celle qui a été mesurée, quelle que soit sa forme.
     """
+    if tree.crown_ratio is not None and tree.crown_angle is not None:
+        return tree.crown_angle, 1.0 / math.sqrt(max(tree.crown_ratio, MINIMUM_CROWN_RATIO))
     seed = zlib.crc32(f"{tree.x:.2f}:{tree.y:.2f}".encode("utf-8"))
     rotation = (seed % 360) * math.pi / 180.0
     # Une couronne parfaitement circulaire n'existe pas ; ±15 % suffisent à rompre l'alignement.

@@ -1,8 +1,12 @@
 # POC Python Windows — maquettes 3D de Val-d’Aigoual
 
-Ce POC enrichit une sortie Roofer existante : il génère un terrain depuis le
-LiDAR HD, télécharge l’orthophotographie IGN, assemble une scène GLB avec des
-matériaux simples et prépare un visualiseur web local.
+Ce POC enrichit une sortie Roofer existante : il génère un MNT de sol nu depuis le
+LiDAR HD, un MNS avec les classes végétales 3/4/5 et le bâti, télécharge
+l’orthophotographie IGN, assemble une scène GLB et prépare un visualiseur web local.
+Quatre représentations gardent exactement la même caméra : **Sol nu**, **Végétation**,
+**Nuage source** et **Superposé**. Le nuage est un GLB de points séparé, chargé seulement à la
+demande ; la dernière représentation le pose sur le modèle reconstruit, ce qui met l’écart
+entre la mesure et son interprétation sous les yeux plutôt que dans un rapport.
 
 Une scène se décrit désormais par **un point sur une carte et un côté en mètres** :
 `poc.py scene` en déduit l’emprise Lambert-93, la maille, les dalles LiDAR à mettre en
@@ -10,8 +14,11 @@ cache et la commande de l’étape amont. Le pipeline complet et le contrat dest
 future interface de construction sont dans
 [`docs/construire-une-scene.md`](docs/construire-une-scene.md).
 
-Toute la chaîne décrite ici s’exécute nativement avec Python sous Windows.
-Docker, WSL, PDAL, GDAL et un logiciel SIG ne sont pas requis. La reconstruction
+Toute la chaîne décrite ici s’exécute nativement avec Python sous Windows, et
+s’installe par un `venv` et un `pip install -r requirements.txt` : ni conda, ni
+OSGeo4W, ni Docker, ni WSL, ni logiciel SIG à piloter à la main. Les
+bibliothèques géospatiales employées — `shapely`, `pyproj`, `geopandas`,
+`rasterio` — arrivent par des roues Windows autoportantes. La reconstruction
 Roofer est une étape amont distincte ; le POC utilise ses deux entrées déjà
 présentes dans un dossier `run-*` :
 
@@ -175,8 +182,9 @@ l’acquisition LiDAR ni Roofer.
 | `python poc.py geology` | rastérise la carte géologique BRGM sur l’emprise |
 | `python poc.py sun` | retrouve la position solaire de l’orthophoto par ses ombres |
 | `python poc.py glb` | assemble `render/scene.glb` |
+| `python poc.py source` | produit `source-points.glb` et sa traçabilité depuis le LAZ |
 | `python poc.py web` | prépare le visualiseur et met Three.js en cache |
-| `python poc.py enhance` | enchaîne validation, terrain, végétation, ortho, géologie, GLB et web |
+| `python poc.py enhance` | enchaîne validation, terrain, végétation, ortho, géologie, GLB, nuage source et web |
 | `python poc.py all` | vérifie l’environnement puis exécute `enhance` |
 | `python poc.py serve` | ouvre le visualiseur sur `http://127.0.0.1:8000` |
 
@@ -197,10 +205,11 @@ Dans la dernière exécution `output-200m/run-*` :
 
 ```text
 terrain.tif
-terrain.tfw
-terrain.prj
 terrain.npy
 canopy.npy
+canopy.tif
+understory.npy
+understory.tif
 surface.npy
 water.npy
 bridge.npy
@@ -211,6 +220,8 @@ render/
 ├── scene.glb
 ├── scene.json
 ├── buildings.json
+├── source-points.glb
+├── source-points.json
 ├── geology.png
 ├── geology-pick.png
 └── geology.json
@@ -246,9 +257,16 @@ Le fichier principal pour un rendu web est `render/scene.glb`. Il contient :
   dans un sélecteur de couleur éclaircissait tout d’un cran — un mur choisi à 0,86 s’affichait
   à 239/255, d’où l’ancien aspect de maquette en polystyrène ;
 - les **proxys de végétation haute** sous un nœud `Vegetation`, teintés arbre par arbre ;
+- la **strate arbustive** sous un nœud `Sousbois`, tapis de végétation basse et moyenne tiré
+  des classes LiDAR 3 et 4 ;
 - la **nappe d’eau** sous un nœud `Eau` et les **tabliers de pont** sous un nœud `Ponts`,
   reconstruits depuis les classes LiDAR 9 et 17 ;
 - l’**occlusion ambiante cuite** en `COLOR_0` sur le terrain, le bâti et la végétation.
+
+`terrain.tif`, `canopy.tif` et `understory.tif` sortent en **GeoTIFF géoréférencés** en
+Lambert-93 : le géoréférencement vit dans le fichier, et non plus dans un `.tfw` à côté. Les
+deux derniers portent le modèle de hauteur de canopée et la strate arbustive, directement
+exploitables dans un SIG.
 
 ## Terrain à 0,5 m
 
@@ -285,19 +303,29 @@ en 3D : les arbres n’étaient que de la peinture plate sur le terrain, ce qui 
 plus sûrement que n’importe quel défaut de toiture.
 
 `poc.py vegetation` construit un modèle de hauteur de canopée (maximum de la classe 5 moins
-le MNT), retient une cime par maximum local, mesure le rayon de couronne par retombée du
-profil radial, puis écrit `trees.json`. Le GLB en tire un proxy par arbre : houppier
-icosaédrique et fût à section carrée, en quatre teintes de feuillage attribuées de façon
-stable. Sur le run 200 m : **358 arbres**, hauteur médiane 8,0 m, maximum 29,8 m.
+le MNT), retient une cime par maximum local, **segmente les houppiers par ligne de partage des
+eaux**, puis écrit `trees.json`. Le GLB en tire un proxy par arbre : houppier icosaédrique et
+fût à section carrée. Sur le run 200 m : **358 arbres**, hauteur médiane 8,0 m, maximum 29,8 m.
 
-L’approche est délibérément grossière — pas de segmentation individuelle, pas d’essence, pas
-de panneau orienté caméra. À 200 m, l’enjeu est la présence, pas le réalisme botanique.
+Le rayon se mesurait auparavant par retombée d’un profil radial autour de la cime. Ce critère
+est juste sur un arbre isolé et faux en couvert continu : entre deux sujets jointifs la canopée
+ne retombe jamais, et `VEGETATION_MAX_CROWN_M` tranchait pour **163 des 358 arbres (46 %)**. La
+ligne de partage des eaux prend les cimes pour marqueurs et la canopée retournée pour relief :
+deux houppiers voisins se partagent alors la vallée qui les sépare. Le plafond ne borne plus
+que **8 arbres (2 %)**, et le couvert cumulé passe de 27 035 m² à 9 697 m², pour 10 611 m² de
+canopée réellement mesurée au-dessus du seuil d’arbre. `VEGETATION_CROWN_SEGMENTATION=0`
+rejoue l’ancienne mesure pour comparer.
 
-Une limite subsiste, assumée : l’orthophotographie sert de couleur de base au terrain et
-**contient déjà les arbres, peints à plat**. Chaque proxy se pose donc sur sa propre image.
-Effacer la canopée peinte demanderait de repeindre le terrain sous couvert, hors du prix d’un
-POC ; le plafond de couronne est en revanche assez large (8 m) pour que le houppier recouvre
-la tache qui lui correspond.
+L’approche reste délibérément grossière — pas de reconstruction botanique, pas de panneau
+orienté caméra. À 200 m, l’enjeu est la présence, pas le réalisme botanique.
+
+L’orthophotographie contient déjà les arbres peints à plat. La vue **Sol nu** la coupe donc
+sur le terrain comme sur les toitures ; elle ne prétend pas inventer la couleur du sol caché
+sous le couvert. La vue **Végétation** conserve au contraire l’image et les proxys 3D.
+
+`surface.npy`, utilisé pour l’occlusion et les analyses 2,5D, prend le maximum du sol (2),
+des trois strates végétales (3, 4, 5) et des bâtiments (6). `canopy.npy` reste fondé sur la
+classe 5 : c’est la seule strate employée pour détecter les cimes individuelles.
 
 **Chaque houppier prend la couleur réelle de son arbre**, moyennée dans l’orthophotographie
 sous sa couronne : châtaigniers, chênes verts et résineux ne se ressemblent pas, et une
@@ -311,9 +339,12 @@ l’ombre ressortirait noir alors que l’éclairement de la scène est déjà c
 Et elle est mélangée à un tiers de vert de référence, pour qu’une cime mal détectée tombée sur
 une toiture ne produise pas un arbre orange.
 
-Enfin, chaque houppier reçoit une rotation et une ovalité de ±15 %, tirées de façon stable de
-sa position. Aucune prétention botanique : il s’agit de rompre la répétition d’un solide
-identique recopié 358 fois, que l’œil repère immédiatement sur un couvert dense.
+Enfin, chaque houppier reçoit **l’ellipse mesurée de sa couronne** — rapport des axes et
+orientation, tirés des moments d’ordre deux de la région segmentée. Ces deux grandeurs
+venaient auparavant d’un tirage stable de ±15 % autour de la position : assez pour rompre la
+répétition d’un solide identique recopié 358 fois, que l’œil repère immédiatement sur un
+couvert dense, mais sans rapport avec l’arbre. Elles ne coûtent ni triangle ni octet de plus.
+Le tirage subsiste pour les scènes qui désactivent la segmentation.
 
 Cela cassait la répétition d’un arbre au suivant, mais pas la régularité de **chacun** : un
 icosaèdre de vingt faces reste une boule à facettes dès qu’on l’approche. Le rayon de chaque
@@ -329,8 +360,17 @@ comme une bulle. Vingt faces éclairées distinctement se lisent au contraire co
 représentation, au même titre que les volumes LoD2.2 du bâti. Le lissage reste disponible dans
 le visualiseur, sous « Houppiers → Ombrage du feuillage », pour qui veut refaire la comparaison.
 
+Le **typage** de la silhouette — feuillu, conifère ou mixte — vient de la BD Forêt V2, puis de
+la BD TOPO en second recours sur les seules cimes restées génériques. La BD Forêt ne
+cartographie que des massifs d’au moins 5 000 m² : elle type 117 des 358 cimes de Valleraugue,
+et **aucune** de celles de l’Hort-de-Dieu. `BDTOPO_V3:zone_de_vegetation` décrit à l’inverse
+haies, landes ligneuses, bois et forêts ouvertes à la parcelle, et y type **3 834 arbres sur
+3 957**. Une cime déjà typée n’est jamais reclassée. Les deux appels sont non bloquants : hors
+ligne, le profil générique subsiste.
+
 Réglages : `VEGETATION`, `VEGETATION_MIN_HEIGHT_M`, `VEGETATION_PEAK_WINDOW_M`,
-`VEGETATION_MAX_CROWN_M`, `VEGETATION_TINT_FROM_ORTHO`, `VEGETATION_CROWN_IRREGULARITY`.
+`VEGETATION_MAX_CROWN_M`, `VEGETATION_CROWN_SEGMENTATION`, `VEGETATION_TINT_FROM_ORTHO`,
+`VEGETATION_FOREST_TYPES`, `VEGETATION_LANDCOVER`, `VEGETATION_CROWN_IRREGULARITY`.
 
 Sur l’emprise 600 m, où 63 % du sol est sous canopée, les proxys individuels ne suffisent
 pas à rendre un couvert continu. `CANOPY_MASSIF=1` ajoute sous eux une nappe lissée, limitée
@@ -341,6 +381,36 @@ Le défaut reste désactivé sur toutes les autres scènes.
 
 Réglages : `CANOPY_MASSIF`, `CANOPY_MASSIF_COVERAGE`,
 `CANOPY_MASSIF_SMOOTHING_M`.
+
+## Strate arbustive
+
+Les classes LiDAR **3 et 4** — végétation basse et moyenne — voyagent depuis toujours dans
+`lidar_subset.laz`. Elles ne pesaient que dans le modèle de surface et l’occlusion : rien ne
+les affichait, alors qu’elles portent la garrigue, les ronces et le sous-bois cévenols.
+
+`poc.py terrain` en tire `understory.npy` — hauteur au-dessus du sol des classes 3 et 4 — dans
+la même lecture du LAZ que le MNT et la canopée, donc sans coût supplémentaire. Le GLB en fait
+une nappe sous le nœud `Sousbois`, et le visualiseur une bascule « Strate arbustive ».
+
+| Mesure | Valleraugue 200 m | Hort-de-Dieu 500 m |
+| --- | --- | --- |
+| Emprise sous canopée | 27 % | 89 % |
+| Emprise en strate arbustive | 14 % | 47 % |
+| **Continuité verticale** | **8 %** | **39 %** |
+| Coût dans `scene.glb` | 1,4 Mo (6 %) | 13,0 Mo (26 %) |
+
+La continuité verticale est la superposition d’une strate basse et d’un houppier au-dessus.
+C’est par elle qu’un feu de surface gagne la canopée, et elle ne se lit sur aucune des deux
+couches prise séparément — d’où l’intérêt de la mesurer pour l’étude des **obligations légales
+de débroussaillement**. Elle s’affiche dans la console de `poc.py terrain`, et `canopy.tif`
+comme `understory.tif` sont directement ouvrables dans un SIG.
+
+Le rendu est une nappe qui épouse le relief, **pas des buissons individuels** : le LiDAR aérien
+mesure ici une hauteur de couvert, pas des sujets qu’on pourrait dénombrer. La strate s’arrête
+à `VEGETATION_MIN_HEIGHT_M`, au-delà duquel la cellule relève des houppiers.
+
+Réglages : `UNDERSTORY`, `UNDERSTORY_MIN_HEIGHT_M`, `UNDERSTORY_COVERAGE`,
+`UNDERSTORY_SMOOTHING_M`.
 
 ## Eau et ponts
 
@@ -484,9 +554,16 @@ le plus fort sur les plus bas. C’est un défaut de calage entre produits, ampl
 relief (57 m de dénivelé sur 200 m). L’emprise WMS demandée est bien honorée exactement, ce
 qui a été vérifié en comparant deux requêtes volontairement décalées.
 
-La correction est une translation constante, appliquée **de façon identique au terrain et aux
-toitures** par une transformation unique — trois conventions d’orientation se croisent ici et
-un signe divergent passerait inaperçu.
+La correction est une translation constante, appliquée **de façon identique au terrain, aux
+toitures et au nuage LiDAR** par une transformation unique — trois conventions d’orientation
+se croisent ici et un signe divergent passerait inaperçu.
+
+Le nuage n’a pas de coordonnées de texture : il projette la photographie depuis la position
+Lambert-93 de chacun de ses points, et reçoit donc le calage par un uniforme plutôt que par la
+matrice de texture des deux autres. Les curseurs de calage du panneau le déplacent au même
+titre, sans recalculer les 750 000 couleurs. C’est nécessaire, et pas seulement confortable :
+les deux représentations servent précisément à se comparer, et un curseur qui n’aurait bougé
+que le terrain aurait fait mentir cette comparaison sur l’écart qu’elle sert à mesurer.
 
 Le critère de recalage est colorimétrique (rouge moins bleu) : une zone d’ombre, sombre et
 uniforme, piégerait un critère de variance ou de gradient, mais ne peut jamais maximiser la
@@ -572,6 +649,30 @@ chaque ouverture.
   séparément, dans un accordéon replié à la demande — elles sont six et on n’y revient pas à
   chaque ouverture. Une
   couche absente de la scène chargée désactive sa bascule plutôt que de la laisser sans effet ;
+- les préréglages **Sol nu**, **Végétation**, **Nuage source** et **Superposé** changent
+  uniquement la représentation : caméra, lumière, repère Lambert-93 recentré et exagération
+  verticale restent identiques. Le nuage n’est transféré qu’au premier choix de l’un des deux
+  derniers ;
+- **Superposé** est le seul mode où le nuage et le modèle coexistent. C’est celui qui répond à
+  « la reconstruction est-elle fidèle ? » : décocher toutes les classes sauf « Bâtiment » pose
+  la mesure des toits sur les volumes Roofer, et les écarts se lisent sans chiffre
+  intermédiaire. Le nuage y bascule d’emblée en couleurs de classe — deux images
+  photo-texturées se confondraient là où il s’agit précisément de les distinguer — et reçoit un
+  léger biais de profondeur, sans quoi ses points grésilleraient contre le terrain qu’ils ont
+  eux-mêmes servi à interpoler. Ce biais vaut **dix centimètres en espace vue**, et non une
+  valeur de profondeur normalisée : exprimé ainsi, il représentait sept mètres à cent mètres de
+  la caméra et une trentaine à deux cents, si bien que la végétation d’arrière-plan traversait
+  les façades qui auraient dû la masquer ;
+- **Nuage source** ouvre ses propres réglages, qui n’ont de sens que là : la couleur des points
+  bascule entre orthophotographie, classification, réflectance et altitude, la taille se règle
+  au curseur, et chaque classe de la légende se masque d’une case à cocher — sans rien retirer
+  du fichier, les effectifs affichés restent ceux du nuage transféré. Les points sont
+  dimensionnés en mètres d’après le pas de décimation, et non en pixels : ils se referment en
+  surface quand on approche, au lieu de se trouer. **« Feuillage forcé en vert »** ramène la
+  teinte des seules classes végétales dans le domaine des verts : en couleur
+  d’orthophotographie, un point de végétation prend sinon la teinte de ce qui se trouve à son
+  aplomb — toiture, route, rocher —, et les houppiers se constellent de blanc et de rose. La
+  luminosité, qui porte le relief, n’est pas touchée ; décocher rend l’image brute ;
 - **POV** aligne sur une seule ligne, à côté de son titre, trois boutons carrés : vue générale,
   point central de la scène — dont l’intitulé vient de `SCENE_CENTRE_LABEL`, le modèle étant
   recentré sur le milieu de son emprise —, vue des toitures. Chacun déplace la caméra par

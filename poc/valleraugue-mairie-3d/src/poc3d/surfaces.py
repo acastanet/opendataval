@@ -178,18 +178,90 @@ def bridge_surface(
 
 
 def _window_sum(values: np.ndarray, radius: int) -> np.ndarray:
-    """Somme locale carrée, bornée à la grille, par image intégrale."""
+    """Somme locale carrée, bornée à la grille.
+
+    ``uniform_filter`` calcule la moyenne ; la somme s'en déduit par le nombre de cellules de
+    la fenêtre. Le mode ``constant`` reproduit le comportement de l'image intégrale écrite ici
+    auparavant : au bord, ce qui manque compte pour zéro, et non pour la valeur du bord.
+    """
     if radius < 1:
         return values.astype(np.float64, copy=True)
-    padded = np.pad(values, radius, mode="constant", constant_values=0)
-    integral = np.pad(padded, ((1, 0), (1, 0)), mode="constant").cumsum(0).cumsum(1)
+    from scipy.ndimage import uniform_filter
+
     width = radius * 2 + 1
-    return (
-        integral[width:, width:]
-        - integral[:-width, width:]
-        - integral[width:, :-width]
-        + integral[:-width, :-width]
+    return uniform_filter(
+        values.astype(np.float64), size=width, mode="constant", cval=0.0
+    ) * (width * width)
+
+
+# Sous cette surface, une tache de strate basse est un résidu de classification et non un
+# buisson : quelques cellules isolées au milieu d'un toit ou d'une route. Le seuil vaut en
+# mètres carrés pour ne pas dépendre de la maille, qui change d'une emprise à l'autre.
+MINIMUM_UNDERSTORY_PATCH_M2 = 4.0
+
+
+def understory_blanket(
+    understory: np.ndarray,
+    terrain: np.ndarray,
+    resolution: float,
+    *,
+    minimum_height: float,
+    maximum_height: float,
+    coverage: float,
+    smoothing: float,
+) -> Nappe:
+    """Tapis de végétation basse et moyenne, tiré des classes LiDAR 3 et 4.
+
+    Ces deux strates ne comptaient que dans le modèle de surface et l'occlusion : rien ne les
+    montrait, alors que ce sont elles qui portent la garrigue, les ronces et le sous-bois
+    cévenols. Le rendu est une nappe qui épouse le relief, et non des buissons individuels :
+    le LiDAR aérien mesure ici une hauteur de couvert, pas des sujets qu'on pourrait
+    dénombrer. Inventer des volumes séparés serait ajouter de la fiction à une mesure.
+
+    ``maximum_height`` évite le double emploi avec les houppiers : au-delà, la cellule
+    appartient à un arbre, que la végétation haute traite déjà pour son compte.
+    """
+    from skimage.morphology import remove_small_objects
+
+    if understory.shape != terrain.shape:
+        raise ValueError("understory.npy et terrain.npy ne partagent pas la même grille")
+    if resolution <= 0:
+        raise ValueError("La résolution de la strate arbustive doit être positive")
+    if not 0.0 <= coverage <= 1.0:
+        raise ValueError("UNDERSTORY_COVERAGE doit rester entre 0 et 1")
+    if minimum_height < 0 or smoothing < 0:
+        raise ValueError("Les hauteurs et le lissage de la strate ne peuvent pas être négatifs")
+    if maximum_height <= minimum_height:
+        raise ValueError("UNDERSTORY_MIN_HEIGHT_M doit rester sous VEGETATION_MIN_HEIGHT_M")
+
+    covered = (
+        np.isfinite(understory)
+        & (understory >= minimum_height)
+        & (understory < maximum_height)
     )
+    # Le nettoyage précède la mesure de densité : sans lui, une poignée de cellules parasites
+    # suffirait à faire lever un lambeau de tapis au milieu d'une toiture.
+    minimum_cells = max(1, int(round(MINIMUM_UNDERSTORY_PATCH_M2 / (resolution * resolution))))
+    covered = remove_small_objects(covered, min_size=minimum_cells)
+    if not covered.any():
+        return Nappe(np.full(understory.shape, np.nan))
+
+    radius = max(0, int(round(smoothing / resolution)))
+    covered_count = _window_sum(covered.astype(np.float64), radius)
+    available_count = _window_sum(np.ones(understory.shape, dtype=np.float64), radius)
+    dense = covered & (covered_count / available_count >= coverage)
+    if not dense.any():
+        return Nappe(np.full(understory.shape, np.nan))
+
+    smoothed = np.divide(
+        _window_sum(np.where(covered, understory, 0.0), radius),
+        covered_count,
+        out=np.zeros_like(terrain, dtype=np.float64),
+        where=covered_count > 0,
+    )
+    elevations = np.full(understory.shape, np.nan)
+    elevations[dense] = terrain[dense] + np.maximum(smoothed[dense], minimum_height)
+    return Nappe(elevations)
 
 
 def canopy_massif(

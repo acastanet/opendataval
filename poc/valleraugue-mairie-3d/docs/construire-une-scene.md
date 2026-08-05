@@ -35,7 +35,7 @@ Une scène traverse quatre étages, dont un seul demande Docker.
         ┌──────────────────────────────────────────────────────────────┐
  ③      │ poc.py --config config/<id>.conf all                         │  natif Windows
         │   validate → terrain → vegetation → ortho → geology →        │  ~ 2 à 6 min
-        │   glb → web                                                  │
+        │   glb → source → web                                         │
         │   render/scene.glb + render/scene.json                       │
         └──────────────────────────────────────────────────────────────┘
                                    ↓
@@ -205,12 +205,44 @@ enchaîne, sur la dernière exécution complète du `OUTPUT_DIR` :
 | Étape | Entrées | Sorties | Ce qui peut échouer |
 | --- | --- | --- | --- |
 | `validate` | `lidar_subset.laz`, `roofer_output/` | `poc-validation.md` | nuage plus court que l'emprise du terrain |
-| `terrain` | points LiDAR de classe 2 | `terrain.tif/.tfw/.prj/.npy`, `canopy.npy`, `surface.npy`, `water.npy`, `bridge.npy` | taux de mailles mesurées faible sous couvert boisé |
+| `terrain` | points LiDAR de classe 2 ; classes 3/4/5/6 pour le MNS | `terrain.tif/.npy`, `canopy.npy/.tif`, `understory.npy/.tif`, `surface.npy`, `water.npy`, `bridge.npy` | taux de mailles mesurées faible sous couvert boisé |
 | `vegetation` | classe LiDAR 5, WFS BD Forêt V2 facultatif | `trees.json` | repli générique si le WFS est indisponible |
 | `ortho` | WMS Géoplateforme | `orthophoto.jpg`, `orthophoto.json` | service indisponible, emprise hors couverture |
 | `geology` | archive BD Charm-50 du département, en cache dans `.work/geology/` | `render/geology.png`, `geology-pick.png`, `geology.json` | `GEOLOGY_DEPARTMENT` vide ou faux, InfoTerre indisponible, département non harmonisé : la scène se charge sans la couche |
 | `glb` | tout ce qui précède | `render/scene.glb`, `scene.json`, `buildings.json` | toiture dégradée sans emprise : conservation signalée de la géométrie Roofer |
+| `source` | `lidar_subset.laz`, `terrain.npy`, `surface.npy` et `orthophoto.jpg` facultatifs, `render/scene.json` pour le calage | `render/source-points.glb`, `source-points.json` | plafond inférieur au nombre de classes présentes |
 | `web` | `render/` de toutes les emprises | `web/` complet | — |
+
+Le nuage témoin est plafonné par `SOURCE_POINT_LIMIT` (750 000 par défaut) et décimé par
+`SOURCE_POINT_VOXEL_M` (0,4 m) : un point est retenu par voxel, le premier du fichier, jamais
+un barycentre — le nuage reste une sélection de mesures réelles. La grille s’élargit d’un
+facteur ∛2 tant que le plafond n’est pas tenu, ce qui rend le réglage transposable d’une
+emprise à l’autre sans retouche. Les classes rares sont réinjectées jusqu’à un plancher, lui
+même plié au budget : aucune classe présente ne disparaît, comme avec l’échantillonnage
+stratifié que `SOURCE_POINT_VOXEL_M=0` rétablit.
+
+Sur l’emprise 200 m, 1 923 514 points deviennent 744 933 — le budget à cinq mille points près
+— mais avec une densité étale en volume : coefficient de variation par mètre cube **0,66
+contre 0,80** pour l’échantillonnage pris dans l’ordre du fichier, et 17 points au lieu de 22
+dans le mètre cube le plus chargé. C’est ce qui fait qu’une façade se lit comme une surface.
+
+`SOURCE_POINT_COLOR` choisit ce qui est **cuit** dans `COLOR_0` : `ortho` échantillonne
+l’orthophotographie recalée — la pratique que décrit l’IGN pour l’exploitation architecturale
+du LiDAR HD — et `classification` garde la palette par classe. Le calage se relit dans
+`render/scene.json`, écrit par `glb` juste avant, pour que le nuage et le modèle portent la
+même translation. Sans photographie disponible, le repli sur les classes est automatique et
+la fiche JSON l’annonce sous `bakedColorMode`.
+
+L’occlusion ambiante y est cuite comme sur le terrain et le bâti : le nuage était le seul
+objet de la scène à ne pas la recevoir. Elle est à la fois multipliée dans `COLOR_0`, pour
+tout moteur glTF, et transportée dans l’attribut applicatif `_LIDAR` — quatre canaux
+`uint8` portant classification, réflectance cadrée sur ses centiles, occlusion et une
+réserve. C’est de là que le visualiseur tire ses quatre modes de couleur et son filtre par
+classe, sans rien réassembler.
+
+La fiche JSON conserve les effectifs complets et affichés, le pas de voxel employé,
+l’espacement moyen, les dimensions LAS, les URL COPC amont et le SHA-256 du LAZ.
+`SOURCE_POINTS=0` désactive cette représentation sans toucher au modèle.
 
 La validation est bloquante et c'est voulu : `create_terrain` comble les cellules vides par
 propagation de la moyenne des voisines. Une bande non couverte recevrait un relief lisse,

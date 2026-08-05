@@ -1,7 +1,35 @@
 laspy[lazrs]>=2.5,<3
 numpy>=2,<3
 Pillow>=10,<13
-# Lecteur de Shapefile en Python pur, pour la BD Charm-50 du BRGM. Ce n'est pas une pile SIG :
-# aucun binaire, aucun GEOS ni GDAL. Le découpage sur l'emprise est assuré par la rastérisation,
-# shapely serait donc à la fois interdit ici et inutile.
+# Lecteur de Shapefile en Python pur, pour la BD Charm-50 du BRGM. Il précède l'arrivée de la
+# pile SIG ci-dessous et lui survit : la géologie se rastérise sur l'emprise sans jamais avoir
+# besoin d'un moteur géométrique.
 pyshp>=2.3,<3
+
+# --- Traitement raster et pile SIG ---------------------------------------------------------
+# Le POC s'est longtemps tenu à quatre dépendances, réimplémentant à la main filtre maximum,
+# morphologie, sommes glissantes et point-dans-polygone. La segmentation des houppiers a clos
+# l'arbitrage : réécrire un watershed par marqueurs et des moments d'inertie de région n'a pas
+# de sens quand `scikit-image` les fournit, testés, depuis quinze ans.
+#
+# Les roues Windows de ces paquets embarquent chacune leur copie de GDAL, GEOS et PROJ. Elles
+# cohabitent aujourd'hui sans conflit — `poc.py check` le vérifie à chaque exécution, parce
+# qu'une divergence de version se manifesterait par un plantage à l'import et non par un
+# message clair.
+
+# `ndimage.maximum_filter` pour les cimes, `ndimage.uniform_filter` pour les nappes.
+# Borne haute contrainte : scipy 1.18 abandonne Python 3.11, sur lequel tourne le POC. Relever
+# cette borne impose donc de faire passer toute la chaîne à Python 3.12 ou plus.
+scipy>=1.15,<1.18
+# `segmentation.watershed` segmente les houppiers, `measure.regionprops` en tire aire, axes et
+# orientation, `morphology.remove_small_objects` nettoie la strate arbustive.
+scikit-image>=0.25,<0.27
+# Point-dans-polygone robuste — trous et multipolygones compris — et index spatial.
+shapely>=2.0,<3
+# Lecture des réponses WFS et jointure spatiale des cimes sur les formations végétales.
+# Amène `pyproj`, qui permet enfin d'écrire le CRS dans les VLR du nuage LiDAR témoin.
+geopandas>=1.0,<2
+# GeoTIFF géoréférencés : le terrain, mais aussi le modèle de hauteur de canopée et la strate
+# arbustive, qui deviennent exploitables dans un SIG pour l'étude des obligations légales de
+# débroussaillement.
+rasterio>=1.3,<2

@@ -54,11 +54,25 @@ http://:80 {
 		@glb path *.glb
 		header @glb Content-Type "model/gltf-binary"
 
-		# Les scènes gardent le même nom d'une publication à l'autre : la revalidation par
-		# ETag est ce qui évite de servir une géométrie périmée pendant un an.
-		header /assets/* Cache-Control "public, max-age=86400"
-		header /vendor/* Cache-Control "public, max-age=86400"
-		header Cache-Control "public, max-age=0, must-revalidate"
+		# Géométrie, textures et bibliothèques : leur contenu ne change qu'en même temps que
+		# le manifeste qui les référence, un jour de cache est donc sans risque.
+		@cache-long {
+			path /assets/* /vendor/*
+			not path *.json
+		}
+		header @cache-long Cache-Control "public, max-age=86400"
+
+		# Les manifestes décident quels fichiers le visualiseur ira chercher : ils sont
+		# revalidés à chaque chargement, faute de quoi une scène ajoutée resterait invisible
+		# pour les visiteurs récents jusqu'à l'expiration de leur cache.
+		@manifestes path *.json
+		header @manifestes Cache-Control "public, max-age=0, must-revalidate"
+
+		# Un `header` SANS matcher écrase toutes les règles ci-dessus quel que soit son
+		# emplacement dans le bloc — vérifié dans les deux ordres. D'où ce matcher négatif :
+		# sans lui, les deux règles précédentes seraient mortes et tout serait revalidé.
+		@reste not path /assets/* /vendor/*
+		header @reste Cache-Control "public, max-age=0, must-revalidate"
 
 		encode zstd gzip
 		file_server {

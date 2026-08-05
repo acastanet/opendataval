@@ -14,6 +14,7 @@ from poc3d.surfaces import (
     WATER_CLASS,
     bridge_surface,
     canopy_massif,
+    understory_blanket,
     fit_plane,
     surface_triangles,
     water_surface,
@@ -220,6 +221,121 @@ class CanopyMassifTest(unittest.TestCase):
         )
         selected = np.isfinite(nappe.elevations)
         self.assertTrue((nappe.elevations[selected] >= terrain[selected]).all())
+
+
+class UnderstoryBlanketTest(unittest.TestCase):
+    """La strate arbustive : classes LiDAR 3 et 4, que rien ne montrait jusqu'ici."""
+
+    def _understory(self, shape: tuple[int, int] = (20, 20)) -> np.ndarray:
+        return np.full(shape, np.nan)
+
+    def test_produit_un_tapis_sur_une_plage_couverte(self) -> None:
+        terrain = np.full((20, 20), 300.0)
+        understory = self._understory()
+        understory[4:16, 4:16] = 1.5
+        nappe = understory_blanket(
+            understory,
+            terrain,
+            1.0,
+            minimum_height=0.5,
+            maximum_height=4.0,
+            coverage=0.35,
+            smoothing=2.0,
+        )
+        self.assertGreater(nappe.cells, 0)
+        selected = np.isfinite(nappe.elevations)
+        # Le tapis se pose sur le terrain, à la hauteur mesurée de la strate.
+        self.assertTrue((nappe.elevations[selected] >= 300.5).all())
+        self.assertTrue((nappe.elevations[selected] <= 302.0).all())
+
+    def test_ignore_ce_qui_releve_deja_des_houppiers(self) -> None:
+        """Au-delà de VEGETATION_MIN_HEIGHT_M, la cellule est un arbre : la végétation
+        haute la traite pour son compte, et la compter deux fois doublerait le couvert."""
+        terrain = np.full((20, 20), 300.0)
+        understory = self._understory()
+        understory[4:16, 4:16] = 9.0
+        nappe = understory_blanket(
+            understory,
+            terrain,
+            1.0,
+            minimum_height=0.5,
+            maximum_height=4.0,
+            coverage=0.35,
+            smoothing=2.0,
+        )
+        self.assertTrue(nappe.is_empty())
+
+    def test_ignore_un_couvert_ras(self) -> None:
+        terrain = np.full((20, 20), 300.0)
+        understory = self._understory()
+        understory[4:16, 4:16] = 0.2
+        nappe = understory_blanket(
+            understory,
+            terrain,
+            1.0,
+            minimum_height=0.5,
+            maximum_height=4.0,
+            coverage=0.35,
+            smoothing=2.0,
+        )
+        self.assertTrue(nappe.is_empty())
+
+    def test_elimine_une_tache_de_bruit_de_classification(self) -> None:
+        """Trois cellules isolées au milieu d'une toiture ne sont pas un buisson."""
+        terrain = np.full((20, 20), 300.0)
+        understory = self._understory()
+        understory[10, 10:12] = 1.5
+        nappe = understory_blanket(
+            understory,
+            terrain,
+            1.0,
+            minimum_height=0.5,
+            maximum_height=4.0,
+            coverage=0.0,
+            smoothing=1.0,
+        )
+        self.assertTrue(nappe.is_empty())
+
+    def test_suit_le_relief(self) -> None:
+        terrain = np.arange(400, dtype=np.float64).reshape(20, 20) + 250.0
+        understory = np.full((20, 20), 1.0)
+        nappe = understory_blanket(
+            understory,
+            terrain,
+            1.0,
+            minimum_height=0.5,
+            maximum_height=4.0,
+            coverage=0.35,
+            smoothing=2.0,
+        )
+        selected = np.isfinite(nappe.elevations)
+        self.assertTrue(selected.any())
+        self.assertTrue((nappe.elevations[selected] > terrain[selected]).all())
+
+    def test_refuse_des_grilles_desaccordees(self) -> None:
+        with self.assertRaises(ValueError):
+            understory_blanket(
+                np.zeros((4, 4)),
+                np.zeros((5, 5)),
+                1.0,
+                minimum_height=0.5,
+                maximum_height=4.0,
+                coverage=0.35,
+                smoothing=2.0,
+            )
+
+    def test_refuse_un_plafond_sous_le_plancher(self) -> None:
+        """Sans cette garde, la strate serait vide sans que rien ne le signale."""
+        with self.assertRaises(ValueError):
+            understory_blanket(
+                np.zeros((4, 4)),
+                np.zeros((4, 4)),
+                1.0,
+                minimum_height=5.0,
+                maximum_height=4.0,
+                coverage=0.35,
+                smoothing=2.0,
+            )
 
 
 class SurfaceTrianglesTest(unittest.TestCase):

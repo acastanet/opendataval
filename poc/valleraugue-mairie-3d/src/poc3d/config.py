@@ -148,6 +148,8 @@ class PocConfig:
             )
         if self.get_float("TERRAIN_RESOLUTION_M", 1.0) <= 0:
             raise ValueError("TERRAIN_RESOLUTION_M doit être supérieur à zéro")
+        if self.get_int("SOURCE_POINT_LIMIT", 750_000) < 0:
+            raise ValueError("SOURCE_POINT_LIMIT doit être positif ou nul (sans plafond)")
         self.terrain_margin
         self.scene_centre_wgs84
 

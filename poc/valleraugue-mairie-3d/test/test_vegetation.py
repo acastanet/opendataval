@@ -16,6 +16,7 @@ from poc3d.vegetation import (
     CROWN_CENTRE_FRACTION,
     CROWN_HALF_HEIGHT_FRACTION,
     CROWN_VERTICES,
+    LANDCOVER_WFS_LAYER,
     REFERENCE_FOLIAGE,
     Tree,
     classify_forest_types,
@@ -105,6 +106,103 @@ class DetectTreesTest(unittest.TestCase):
             config = _config(Path(directory), "VEGETATION_MIN_HEIGHT_M=0\n")
             with self.assertRaises(ValueError):
                 detect_trees(config, np.zeros((8, 8)), np.zeros((8, 8)))
+
+
+def _ellipse(
+    shape: tuple[int, int],
+    row: int,
+    column: int,
+    height: float,
+    row_axis: float,
+    column_axis: float,
+) -> np.ndarray:
+    """Houppier synthétique elliptique, pour éprouver l'orientation mesurée."""
+    rows, columns = np.indices(shape)
+    radial = np.hypot((rows - row) / row_axis, (columns - column) / column_axis)
+    return np.where(radial <= 1.0, height * (1.0 - radial), np.nan)
+
+
+class SegmentCrownsTest(unittest.TestCase):
+    """La segmentation par ligne de partage des eaux, chantier du rayon de houppier."""
+
+    def test_deux_cimes_jointives_se_partagent_le_couvert(self) -> None:
+        """Le cas que le profil radial ratait : entre deux arbres qui se touchent, la
+        canopée ne retombe jamais, et la couronne allait au plafond faute de crête."""
+        with TemporaryDirectory() as directory:
+            config = _config(Path(directory))
+            canopy = np.fmax(
+                _cone((40, 40), 20, 18, 20.0, 8.0), _cone((40, 40), 20, 22, 20.0, 8.0)
+            )
+            trees = detect_trees(config, canopy, np.zeros((40, 40)))
+            self.assertEqual(len(trees), 2)
+            for tree in trees:
+                self.assertIsNotNone(tree.crown_area)
+                self.assertGreater(tree.crown_area, 0.0)
+                # Aucun des deux n'atteint le plafond : c'est la crête qui les borne.
+                self.assertLess(tree.crown, 6.0)
+            # Les deux bassins sont disjoints : leur somme ne peut pas dépasser le couvert.
+            covered = float(np.isfinite(canopy).sum())
+            self.assertLessEqual(sum(tree.crown_area for tree in trees), covered)
+            # Le couvert est symétrique : les deux houppiers doivent l'être aussi.
+            first, second = (tree.crown_area for tree in trees)
+            self.assertAlmostEqual(first, second, delta=0.25 * max(first, second))
+
+    def test_un_arbre_isole_reste_circulaire(self) -> None:
+        with TemporaryDirectory() as directory:
+            config = _config(Path(directory))
+            trees = detect_trees(
+                config, _cone((40, 40), 20, 20, 14.0, 5.0), np.zeros((40, 40))
+            )
+            self.assertEqual(len(trees), 1)
+            self.assertGreater(trees[0].crown_ratio, 0.85)
+
+    def test_mesure_l_orientation_d_un_houppier_allonge(self) -> None:
+        """Un houppier ovale doit être restitué ovale, et dans le bon sens : c'est ce que
+        le tirage pseudo-aléatoire de la silhouette ne pouvait pas faire."""
+        with TemporaryDirectory() as directory:
+            config = _config(Path(directory))
+            trees = detect_trees(
+                config,
+                _ellipse((40, 40), 20, 20, 20.0, row_axis=3.0, column_axis=9.0),
+                np.zeros((40, 40)),
+            )
+            self.assertEqual(len(trees), 1)
+            self.assertLess(trees[0].crown_ratio, 0.75)
+            # Grand axe est-ouest : sa composante vers le sud est nulle. Le signe du vecteur
+            # propre est arbitraire, l'axe non — c'est le sinus qui porte le résultat.
+            self.assertLess(abs(math.sin(trees[0].crown_angle)), 0.2)
+
+            trees = detect_trees(
+                config,
+                _ellipse((40, 40), 20, 20, 20.0, row_axis=9.0, column_axis=3.0),
+                np.zeros((40, 40)),
+            )
+            self.assertEqual(len(trees), 1)
+            self.assertLess(trees[0].crown_ratio, 0.75)
+            self.assertGreater(abs(math.sin(trees[0].crown_angle)), 0.8)
+
+    def test_le_reglage_rend_le_profil_radial(self) -> None:
+        with TemporaryDirectory() as directory:
+            config = _config(Path(directory), "VEGETATION_CROWN_SEGMENTATION=0\n")
+            trees = detect_trees(
+                config, _cone((40, 40), 20, 20, 14.0, 4.0), np.zeros((40, 40))
+            )
+            self.assertEqual(len(trees), 1)
+            self.assertIsNone(trees[0].crown_area)
+            self.assertIsNone(trees[0].crown_ratio)
+            self.assertGreater(trees[0].crown, 1.0)
+
+    def test_une_cime_d_une_seule_cellule_ne_fait_pas_echouer_la_scene(self) -> None:
+        """Un pic isolé d'une cellule n'a pas d'ellipse : sa covariance est nulle."""
+        with TemporaryDirectory() as directory:
+            config = _config(Path(directory))
+            canopy = np.full((40, 40), np.nan)
+            canopy[20, 20] = 12.0
+            trees = detect_trees(config, canopy, np.zeros((40, 40)))
+            self.assertEqual(len(trees), 1)
+            self.assertEqual(trees[0].crown_ratio, 1.0)
+            self.assertEqual(trees[0].crown_angle, 0.0)
+            self.assertEqual(trees[0].crown, 1.2)
 
 
 class CreateVegetationTest(unittest.TestCase):
@@ -245,6 +343,28 @@ class TreeShapeTest(unittest.TestCase):
             )
             self.assertGreaterEqual(ovality, 0.85)
             self.assertLessEqual(ovality, 1.15)
+
+    def test_prefere_l_ellipse_mesuree_au_tirage(self) -> None:
+        """Dès que la segmentation a mesuré la couronne, le CRC n'a plus rien à dire."""
+        mesure = Tree(
+            x=12.34,
+            y=56.78,
+            ground=100.0,
+            height=9.0,
+            crown=3.0,
+            crown_area=28.3,
+            crown_ratio=0.25,
+            crown_angle=0.7,
+        )
+        rotation, ovality = tree_shape(mesure)
+        self.assertAlmostEqual(rotation, 0.7)
+        # Le rapport mesuré passe sous le garde-fou : c'est lui qui doit borner l'ovalité.
+        self.assertAlmostEqual(ovality, 1.0 / math.sqrt(0.35))
+
+    def test_conserve_le_tirage_sans_mesure(self) -> None:
+        sans_mesure = Tree(x=12.34, y=56.78, ground=100.0, height=9.0, crown=3.0)
+        _, ovality = tree_shape(sans_mesure)
+        self.assertLessEqual(ovality, 1.15)
 
 
 class CrownReliefTest(unittest.TestCase):
@@ -431,6 +551,81 @@ class ForestTypeTest(unittest.TestCase):
             with patch("poc3d.vegetation.urllib.request.urlopen", return_value=Response()):
                 with self.assertRaises(RuntimeError):
                     download_forest_types(_config(Path(directory)))
+
+
+class LandcoverTest(unittest.TestCase):
+    """Le second recours par la BD TOPO, sur ce que BD Forêt laisse générique."""
+
+    def _bdtopo(self, nature: str) -> dict:
+        return {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[0, 0], [20, 0], [20, 20], [0, 20], [0, 0]]],
+                    },
+                    "properties": {"nature": nature},
+                }
+            ],
+        }
+
+    def test_lit_la_nature_de_la_bd_topo(self) -> None:
+        """La BD TOPO nomme son attribut `nature` là où BD Forêt dit `essence`."""
+        trees = [Tree(10.0, 10.0, 0.0, 8.0, 3.0)]
+        classified = classify_forest_types(trees, self._bdtopo("Forêt fermée de feuillus"))
+        self.assertEqual(classified[0].foliage, "deciduous")
+        self.assertEqual(classified[0].essence, "Forêt fermée de feuillus")
+
+    def test_type_une_haie_que_bd_foret_ignore(self) -> None:
+        """BD Forêt ne cartographie que des massifs d'au moins 5 000 m² : une haie de bord
+        de village n'y figure pas, et c'est précisément ce que la BD TOPO apporte."""
+        trees = [Tree(10.0, 10.0, 0.0, 8.0, 3.0)]
+        classified = classify_forest_types(trees, self._bdtopo("Haie"))
+        self.assertEqual(classified[0].foliage, "deciduous")
+
+    def test_ne_reclasse_pas_une_cime_deja_typee(self) -> None:
+        """Le second recours ne doit pas défaire le premier : BD Forêt décrit l'essence,
+        la BD TOPO seulement la forme du couvert."""
+        trees = [Tree(10.0, 10.0, 0.0, 8.0, 3.0, foliage="conifer", essence="Conifères")]
+        classified = classify_forest_types(trees, self._bdtopo("Forêt fermée de feuillus"))
+        self.assertEqual(classified[0].foliage, "conifer")
+        self.assertEqual(classified[0].essence, "Conifères")
+
+    def test_laisse_generique_une_nature_sans_essence(self) -> None:
+        """« Lande ligneuse » et « Bois » ne disent rien de l'essence : les typer serait
+        inventer une silhouette que la donnée ne porte pas."""
+        for nature in ("Lande ligneuse", "Bois", "Forêt ouverte"):
+            with self.subTest(nature=nature):
+                trees = [Tree(10.0, 10.0, 0.0, 8.0, 3.0)]
+                classified = classify_forest_types(trees, self._bdtopo(nature))
+                self.assertEqual(classified[0].foliage, "generic")
+
+    def test_interroge_la_couche_demandee(self) -> None:
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return json.dumps(
+                    {"type": "FeatureCollection", "features": []}
+                ).encode("utf-8")
+
+        with TemporaryDirectory() as directory:
+            with patch(
+                "poc3d.vegetation.urllib.request.urlopen", return_value=Response()
+            ) as mocked:
+                download_forest_types(_config(Path(directory)), LANDCOVER_WFS_LAYER)
+        self.assertIn("BDTOPO_V3%3Azone_de_vegetation", mocked.call_args.args[0].full_url)
+
+    def test_une_emprise_sans_formation_laisse_les_arbres_intacts(self) -> None:
+        trees = [Tree(10.0, 10.0, 0.0, 8.0, 3.0)]
+        vide = {"type": "FeatureCollection", "features": []}
+        self.assertEqual(classify_forest_types(trees, vide), trees)
 
 
 if __name__ == "__main__":

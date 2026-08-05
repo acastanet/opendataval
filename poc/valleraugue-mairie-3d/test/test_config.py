@@ -65,6 +65,17 @@ class ConfigTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "SCENE_CENTRE_WGS84"):
                 config.validate()
 
+    def test_refuse_un_plafond_de_points_negatif(self) -> None:
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / "poc.conf"
+            source.write_text(
+                'POC_BBOX="0 0 100 100"\nEXPECTED_WIDTH_M=100\n'
+                "EXPECTED_HEIGHT_M=100\nSOURCE_POINT_LIMIT=-1\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "SOURCE_POINT_LIMIT"):
+                PocConfig.load(Path(directory), source).validate()
+
     def test_toutes_les_configurations_versionnees_portent_un_titre(self) -> None:
         """Sans titre, une scène n'apparaît dans le sélecteur que par sa taille — et deux
         communes modélisées au même format y deviennent indiscernables."""

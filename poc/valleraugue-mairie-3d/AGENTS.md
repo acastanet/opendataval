@@ -14,12 +14,18 @@ complet et le contrat destiné à une interface de construction sont dans
 [`docs/construire-une-scene.md`](docs/construire-une-scene.md), qui est la
 référence à lire avant toute modification de la chaîne.
 
-La chaîne d’enrichissement doit rester native sous Windows. Ne pas y introduire
-Docker, WSL, PDAL, GDAL ni une dépendance à un logiciel SIG. L’interdit porte sur
-cette chaîne et sur elle seule : Docker est présent en amont, pour Roofer, et en
-aval, pour le Caddy qui sert le visualiseur. La reconstruction Roofer est une
-étape amont distincte : les entrées attendues sont `lidar_subset.laz` et
-`roofer_output/*.city.jsonl` dans un dossier `run-*`.
+La chaîne d’enrichissement doit rester native sous Windows et s’installer par un
+`venv` et un `pip install` : ni conda, ni OSGeo4W, ni logiciel à piloter à la
+main. C’est la seule contrainte d’outillage. Les bibliothèques SIG dont les roues
+Windows sont autoportantes — `shapely`, `pyproj`, `geopandas`, `rasterio` — sont
+en place et doivent être préférées à une réimplémentation. PDAL n’en fait pas
+partie, faute de roue `pip` : l’introduire remplacerait la procédure
+d’installation, ce qui se décide et ne se subit pas.
+
+Docker reste présent en amont, pour Roofer, et en aval, pour le Caddy qui sert le
+visualiseur. La reconstruction Roofer est une étape amont distincte : les entrées
+attendues sont `lidar_subset.laz` et `roofer_output/*.city.jsonl` dans un dossier
+`run-*`.
 
 Cette étape amont est décrite dans [`docs/lidar-roofer.md`](docs/lidar-roofer.md) :
 elle tourne dans un conteneur Docker, depuis un clone du dépôt
@@ -170,7 +176,8 @@ les configurations, les commandes documentées, les rapports ou les commits.
 
 Préserver les sorties Roofer existantes : les commandes d’enrichissement
 peuvent remplacer uniquement leurs propres produits (`terrain.*`, `canopy.npy`,
-`surface.npy`, `water.npy`, `bridge.npy`, `trees.json`, `orthophoto.*`,
+`canopy.tif`, `surface.npy`, `understory.npy`, `understory.tif`, `water.npy`,
+`bridge.npy`, `trees.json`, `orthophoto.*`,
 `render/` — y compris `render/geology.png`, `render/geology-pick.png` et
 `render/geology.json` — et `web/`). Le cache des archives BRGM vit hors de
 l’exécution, dans `.work/geology/`, puisqu’il se partage entre scènes.

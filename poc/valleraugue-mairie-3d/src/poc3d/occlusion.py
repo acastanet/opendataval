@@ -17,11 +17,16 @@ contribution de cet azimut vaut cos²(H) — d'où la moyenne ci-dessous.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
 import math
 
 import numpy as np
 
 from .raster import GridSampler
+
+if TYPE_CHECKING:
+    from .config import PocConfig
 
 
 # Le pas d'échantillonnage le long d'un rayon ne descend pas sous la maille : plus fin, il
@@ -163,4 +168,41 @@ def bake_occlusion(
         GridSampler(clearance(surface, terrain, resolution, radius_m), xmin, ymax, resolution),
         max(0.0, min(1.0, strength)),
         float(np.median(view)),
+    )
+
+
+def load_occlusion(
+    config: "PocConfig", run_dir: Path, grid: np.ndarray | None
+) -> BakedOcclusion | None:
+    """Prépare l'occlusion cuite, ou ``None`` si elle est désactivée ou inapplicable.
+
+    L'absence de modèle de surface n'est pas une erreur : les exécutions antérieures à son
+    introduction restent exploitables, simplement sans occlusion.
+
+    Elle vit ici et non dans ``glb.py`` parce que l'assemblage de la scène n'est plus son seul
+    appelant : le nuage LiDAR témoin la cuit lui aussi, et les deux doivent lire exactement les
+    mêmes réglages.
+    """
+    if not config.get_bool("AMBIENT_OCCLUSION", True) or grid is None:
+        return None
+    surface_path = run_dir / "surface.npy"
+    if not surface_path.is_file():
+        print("AVERTISSEMENT : surface.npy absent, occlusion ambiante non cuite.")
+        return None
+    surface = np.load(surface_path)
+    if surface.shape != grid.shape:
+        print("AVERTISSEMENT : surface.npy ne correspond pas au terrain, occlusion ignorée.")
+        return None
+    xmin, _, _, ymax = config.terrain_bbox
+    resolution = config.get_float("TERRAIN_RESOLUTION_M", 1.0)
+    print("Cuisson de l'occlusion ambiante (facteur de vue du ciel)…")
+    return bake_occlusion(
+        surface,
+        grid,
+        xmin,
+        ymax,
+        resolution,
+        azimuths=config.get_int("OCCLUSION_AZIMUTHS", 16),
+        radius_m=config.get_float("OCCLUSION_RADIUS_M", 30.0),
+        strength=config.get_float("OCCLUSION_STRENGTH", 0.6),
     )

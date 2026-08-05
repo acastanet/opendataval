@@ -146,7 +146,70 @@
            pliables — elles sont cinq et on ne les touche pas à chaque fois — mais les points de
            vue tiennent sur une ligne et ne gagneraient rien à l'être. -->
       <details id="layersControls" class="controls accordion" open>
-        <summary>Couches</summary>
+        <summary>Couches et représentation</summary>
+        <div id="comparisonControls" class="comparison-controls">
+          <p class="control-label">Représentation 3D</p>
+          <fieldset class="render-modes comparison-modes" aria-label="Représentation 3D">
+          <label>
+            <input type="radio" name="comparisonMode" value="bare" />
+            <span>Sol nu</span>
+          </label>
+          <label>
+            <input type="radio" name="comparisonMode" value="vegetation" checked />
+            <span>Végétation</span>
+          </label>
+          <label>
+            <input type="radio" name="comparisonMode" value="source" />
+            <span>Nuage source</span>
+          </label>
+          <!-- La seule représentation où les deux coexistent : c'est celle qui montre l'écart
+               entre ce que le LiDAR a mesuré et ce que la reconstruction en a fait. -->
+          <label>
+            <input type="radio" name="comparisonMode" value="overlay" />
+            <span>Superposé</span>
+          </label>
+          </fieldset>
+          <p id="comparisonModeDescription" class="mode-description">
+            Même terrain et même caméra, avec végétation LiDAR et orthophotographie.
+          </p>
+          <!-- Réglages propres au nuage LiDAR : ils n'ont de sens que dans sa représentation,
+               et l'encombrement du panneau se paie à chaque ouverture de la scène. -->
+          <div id="sourcePointControls" class="source-point-controls" hidden>
+            <label class="select-row">
+              <span>Couleur des points</span>
+              <select id="pointColorMode">
+                <option value="ortho" selected>Orthophotographie</option>
+                <option value="classification">Classification</option>
+                <option value="intensity">Intensité (réflectance)</option>
+                <option value="elevation">Altitude</option>
+              </select>
+            </label>
+            <!-- Ne concerne que la couleur d’orthophotographie : les autres modes ne peuvent
+                 pas sortir de leur palette. -->
+            <label class="switch-row">
+              <span>Feuillage forcé en vert</span>
+              <input id="foliageGreenToggle" type="checkbox" checked />
+            </label>
+            <label class="range-row">
+              <span>Taille des points</span>
+              <output id="pointSizeValue">×1,0</output>
+              <input id="pointSize" type="range" min="40" max="320" value="100" />
+            </label>
+            <p class="notice">
+              Les points sont dimensionnés en mètres, d’après l’espacement mesuré du nuage :
+              ils se referment en surface quand on approche au lieu de se trouer. Décocher une
+              classe la masque à l’écran sans rien retirer du fichier.
+            </p>
+            <p class="notice">
+              En couleur d’orthophotographie, un point de végétation prend la teinte de ce qui
+              se trouve à son aplomb dans l’image — une toiture, une route, un rocher : les
+              houppiers se constellent de points blancs et roses. La correction ramène la teinte
+              des seules classes végétales dans le domaine des verts, sans toucher à leur
+              luminosité, qui porte le relief. Décocher rend l’image brute, qui reste la mesure.
+            </p>
+          </div>
+          <div id="sourcePointLegend" class="source-point-legend" hidden></div>
+        </div>
         <label class="switch-row">
           <span>Terrain IGN</span>
           <input id="terrainToggle" type="checkbox" checked />
@@ -162,6 +225,12 @@
         <label class="switch-row">
           <span>Canopée dense</span>
           <input id="canopyToggle" type="checkbox" checked />
+        </label>
+        <!-- Classes LiDAR 3 et 4 : la garrigue et le sous-bois, qui portent la continuité
+             verticale du combustible sous les houppiers. -->
+        <label class="switch-row">
+          <span>Strate arbustive</span>
+          <input id="understoryToggle" type="checkbox" checked />
         </label>
         <label class="switch-row">
           <span>Eau</span>
@@ -256,8 +325,8 @@
             </label>
             <p class="notice">
               L’orthophotographie n’est pas toujours calée sur les données bâties. Ces deux
-              réglages la déplacent sur le terrain <em>et</em> sur les toitures à la fois,
-              jusqu’à ce que les toits de la photo rejoignent les volumes.
+              réglages la déplacent sur le terrain, sur les toitures <em>et</em> sur le nuage
+              LiDAR à la fois, jusqu’à ce que les toits de la photo rejoignent les volumes.
             </p>
             <label class="range-row">
               <span>Calage de la photo — est</span>

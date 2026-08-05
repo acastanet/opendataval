@@ -590,6 +590,80 @@ class VegetationNodeTest(unittest.TestCase):
                 self.assertAlmostEqual(math.dist(normal, (0.0, 0.0, 0.0)), 1.0, places=6)
 
 
+class UnderstoryNappeTest(unittest.TestCase):
+    """Le chargement de la strate arbustive dans la scène assemblée."""
+
+    def _config(self, root: Path, extra: str = "") -> PocConfig:
+        config_file = root / "poc.conf"
+        config_file.write_text(
+            'POC_BBOX="0 0 20 20"\nTERRAIN_MARGIN_M=0\nTERRAIN_RESOLUTION_M=1\n'
+            "VEGETATION_MIN_HEIGHT_M=4\n" + extra,
+            encoding="utf-8",
+        )
+        return PocConfig.load(root, config_file)
+
+    def test_charge_la_nappe_en_groupe_distinct(self) -> None:
+        from poc3d.glb import _load_nappes
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "run-test"
+            run_dir.mkdir()
+            understory = np.full((20, 20), np.nan)
+            understory[4:16, 4:16] = 1.5
+            np.save(run_dir / "understory.npy", understory)
+            groups = _load_nappes(
+                self._config(root), run_dir, 0.0, (10.0, 10.0), np.full((20, 20), 300.0)
+            )
+            self.assertIn("understory", groups)
+            self.assertTrue(groups["understory"].positions)
+
+    def test_une_execution_anterieure_reste_exploitable(self) -> None:
+        """Sans `understory.npy`, la scène doit se produire sans la strate, pas échouer."""
+        from poc3d.glb import _load_nappes
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "run-test"
+            run_dir.mkdir()
+            groups = _load_nappes(
+                self._config(root), run_dir, 0.0, (10.0, 10.0), np.full((20, 20), 300.0)
+            )
+            self.assertNotIn("understory", groups)
+
+    def test_le_reglage_ecarte_la_nappe(self) -> None:
+        from poc3d.glb import _load_nappes
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "run-test"
+            run_dir.mkdir()
+            understory = np.full((20, 20), np.nan)
+            understory[4:16, 4:16] = 1.5
+            np.save(run_dir / "understory.npy", understory)
+            groups = _load_nappes(
+                self._config(root, "UNDERSTORY=0\n"),
+                run_dir,
+                0.0,
+                (10.0, 10.0),
+                np.full((20, 20), 300.0),
+            )
+            self.assertNotIn("understory", groups)
+
+    def test_une_grille_desaccordee_ne_fait_pas_echouer_la_scene(self) -> None:
+        from poc3d.glb import _load_nappes
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "run-test"
+            run_dir.mkdir()
+            np.save(run_dir / "understory.npy", np.full((8, 8), 1.5))
+            groups = _load_nappes(
+                self._config(root), run_dir, 0.0, (10.0, 10.0), np.full((20, 20), 300.0)
+            )
+            self.assertNotIn("understory", groups)
+
+
 class PaletteTest(unittest.TestCase):
     def test_attribue_une_teinte_stable(self) -> None:
         """Un bâtiment doit garder sa couleur d'une génération de scène à l'autre."""

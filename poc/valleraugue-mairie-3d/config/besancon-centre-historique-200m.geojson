@@ -1,0 +1,80 @@
+{
+  "type": "FeatureCollection",
+  "name": "besancon-centre-historique-200m",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "besancon-centre-historique-200m-centre",
+        "name": "Besançon — Centre historique",
+        "role": "scene_centre",
+        "requested_wgs84": [
+          6.0219666667,
+          47.2240944444
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          6.02196346,
+          47.22409352
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "besancon-centre-historique-200m-emprise",
+        "name": "Emprise 200 × 200 m — Besançon — Centre historique",
+        "role": "processing_bbox",
+        "crs_processing": "EPSG:2154",
+        "bbox_l93": [
+          928520.0,
+          6684697.0,
+          928720.0,
+          6684897.0
+        ],
+        "width_m": 200,
+        "height_m": 200,
+        "area_m2": 40000,
+        "buffer_m": 15.0,
+        "lidar_tiles": [
+          "LHD_FXX_0928_6685"
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              6.02059238,
+              47.22322835
+            ],
+            [
+              6.02323341,
+              47.22315946
+            ],
+            [
+              6.02333458,
+              47.22495867
+            ],
+            [
+              6.02069346,
+              47.22502756
+            ],
+            [
+              6.02059238,
+              47.22322835
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

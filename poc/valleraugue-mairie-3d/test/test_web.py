@@ -29,6 +29,7 @@ class _InterfaceParser(HTMLParser):
         super().__init__()
         self.ids: set[str] = set()
         self.render_modes: set[str] = set()
+        self.comparison_modes: set[str] = set()
         self.accordions = 0
         self.expert_accordions = 0
         self.first_level_sections = 0
@@ -55,6 +56,8 @@ class _InterfaceParser(HTMLParser):
             self.render_modes.add(str(values["value"]))
             if self._expert_depth is not None:
                 self.render_modes_in_expert = True
+        if tag == "input" and values.get("name") == "comparisonMode" and values.get("value"):
+            self.comparison_modes.add(str(values["value"]))
 
     def handle_endtag(self, tag: str) -> None:
         if tag != "details":
@@ -84,6 +87,7 @@ def _write_run(
     scene: bool,
     roofer: bool = True,
     geology: bool = False,
+    source_points: bool = False,
 ) -> Path:
     run_dir = root / output / name
     if roofer:
@@ -100,6 +104,9 @@ def _write_run(
             (render / "geology.png").write_bytes(b"\x89PNG")
             (render / "geology-pick.png").write_bytes(b"\x89PNG")
             (render / "geology.json").write_text('{"formations": []}\n', encoding="utf-8")
+        if source_points:
+            (render / "source-points.glb").write_bytes(b"glTF")
+            (render / "source-points.json").write_text("{}\n", encoding="utf-8")
     return run_dir
 
 
@@ -125,6 +132,20 @@ class LatestSceneRunTest(unittest.TestCase):
 
 
 class AvailableScenesTest(unittest.TestCase):
+    def test_annonce_le_nuage_source_seulement_s_il_est_complet(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = _write_config(root, "poc-200m", 200, "output-200m")
+            run_dir = _write_run(
+                root, "output-200m", "run-200", scene=True, source_points=True
+            )
+            manifest = available_scenes(PocConfig.load(root, source), run_dir)[0].as_manifest()
+            self.assertEqual(manifest["sourcePoints"], "assets/source-points.glb")
+            self.assertEqual(manifest["sourcePointsMetadata"], "assets/source-points.json")
+            (run_dir / "render" / "source-points.json").unlink()
+            incomplete = available_scenes(PocConfig.load(root, source), run_dir)[0].as_manifest()
+            self.assertNotIn("sourcePoints", incomplete)
+
     def test_place_l_execution_preparee_en_tete(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -304,6 +325,21 @@ class ViewerInterfaceTest(unittest.TestCase):
         self.assertNotIn('<dl class="metrics">', panel)
         self.assertEqual(panel.count('class="metrics__separator"'), 2)
 
+    def test_compare_quatre_representations_dans_le_meme_visualiseur(self) -> None:
+        """Trois représentations exclusives, plus celle qui superpose les deux dernières."""
+        self.assertEqual(
+            self.parser.comparison_modes, {"bare", "vegetation", "source", "overlay"}
+        )
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("async function loadSourcePoints()", script)
+        self.assertIn('setRenderMode("model")', script)
+        # Quatre choix ne tiennent pas sur une ligne du panneau : « Nuage source » y serait
+        # tronqué, et un intitulé coupé rend le sélecteur illisible.
+        styles = (ROOT / "viewer" / "styles.css").read_text(encoding="utf-8")
+        self.assertRegex(
+            styles, r"\.comparison-modes \{[^}]*grid-template-columns: repeat\(2, 1fr\)"
+        )
+
     def test_signale_la_vue_active_et_l_ecran_mobile_avance(self) -> None:
         panel = self.document.split('<aside id="controlPanel"', 1)[1].split("</aside>", 1)[0]
         styles = (ROOT / "viewer" / "styles.css").read_text(encoding="utf-8")
@@ -468,6 +504,76 @@ class ViewerInterfaceTest(unittest.TestCase):
             r'node: "Canopee",[\s\S]*?castsShadow: true,[\s\S]*?receivesShadow: false,',
         )
         self.assertRegex(script, r"PERSISTED_INPUTS = \[[^\]]*\"canopyToggle\"")
+
+    def test_dimensionne_le_nuage_lidar_en_metres(self) -> None:
+        """Le défaut d'origine du nuage : des points de taille fixe en pixels, donc un voile
+        uniforme de loin et un semis troué de près. La taille se tire désormais de
+        l'espacement mesuré, et une régression ici ne se verrait qu'à l'œil."""
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("sizeAttenuation: true", script)
+        self.assertNotIn("sizeAttenuation: false", script)
+        # Le pas de la décimation prime sur l'espacement moyen : c'est lui qui dit à quelle
+        # distance se trouve le point voisin, et donc ce qu'un disque doit couvrir.
+        self.assertIn("sourcePointsMetadata?.voxelM", script)
+        self.assertIn("sourcePointsMetadata?.spacingM", script)
+        # Sans bornes, l'atténuation donne des disques énormes au ras du sol et un nuage
+        # évaporé en vue générale : les deux extrémités doivent rester tenues.
+        self.assertIn("clamp( gl_PointSize, uPointSizeClamp.x, uPointSizeClamp.y )", script)
+        self.assertIn("gl_PointCoord", script)
+
+    def test_expose_les_modes_de_couleur_du_nuage_lidar(self) -> None:
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        for identifier in ("pointColorMode", "pointSize", "sourcePointControls"):
+            self.assertIn(identifier, self.parser.ids)
+        self.assertRegex(script, r"PERSISTED_INPUTS = \[[^\]]*\"pointColorMode\"")
+        self.assertRegex(script, r"PERSISTED_INPUTS = \[[^\]]*\"pointSize\"")
+        # L'occlusion cuite voyage dans le troisième canal de `_LIDAR` : elle doit survivre
+        # au changement de mode, sinon le relief disparaît hors de la couleur assemblée.
+        self.assertIn("lidar.array[offset + 2] / 255", script)
+        self.assertIn("function configurePointColorModes(metadata)", script)
+
+    def test_superpose_le_nuage_au_modele_reconstruit(self) -> None:
+        """La représentation où les deux coexistent : c'est elle qui montre l'écart entre ce
+        que le LiDAR a mesuré et ce que la reconstruction en a fait. Les trois autres modes
+        restent exclusifs, et le nuage doit se charger pour celle-ci comme pour « source »."""
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("function showsSourcePoints(mode)", script)
+        self.assertRegex(script, r"COMPARISON_DESCRIPTIONS = \{[\s\S]*?overlay:")
+        # Le modèle reste visible en superposition, et lui seul disparaît sous le nuage seul.
+        self.assertIn('model.visible = mode !== "source"', script)
+        self.assertIn("sourcePoints.visible = showsSourcePoints(mode)", script)
+        self.assertIn("if (showsSourcePoints(mode)) loadSourcePoints()", script)
+        # Sans biais, les points se battent en profondeur avec le terrain interpolé depuis
+        # eux : les deux coïncident, et le rendu grésille.
+        self.assertIn("function applyPointDepthBias()", script)
+        # Le biais se pose en espace vue, où il vaut des mètres. Exprimé en profondeur
+        # normalisée — `gl_Position.z -= uDepthBias * gl_Position.w` —, il valait une distance
+        # croissant comme le carré de l'éloignement : une trentaine de mètres à deux cents, de
+        # quoi faire passer la végétation d'arrière-plan devant les façades qui la masquaient.
+        self.assertIn("mvPosition.z += uDepthBias", script)
+        self.assertIn("gl_Position = projectionMatrix * mvPosition", script)
+        self.assertNotIn("gl_Position.z -= uDepthBias", script)
+        self.assertRegex(script, r"POINT_DEPTH_BIAS_M = [\d.]+")
+
+    def test_recale_l_orthophotographie_sur_le_nuage_aussi(self) -> None:
+        """Le nuage n'a pas de coordonnées de texture : il projette la photo depuis la
+        position de chaque point. Sans cet uniform, les curseurs de calage déplaceraient le
+        terrain et les toitures en laissant le nuage en place, et la comparaison des deux
+        représentations mentirait sur le décalage qu'elle sert précisément à mesurer."""
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("function applyPointOrtho()", script)
+        self.assertIn("uOrthoOffset", script)
+        self.assertIn("texture2D( uOrtho, vOrthoUv )", script)
+        # Le calage total, et non le seul réglage manuel : le nuage part de la photo brute
+        # là où le terrain porte déjà le décalage cuit dans ses coordonnées de texture.
+        self.assertRegex(script, r"function applyPointOrtho\(\)[\s\S]*?totalOrthoOffset\(\)")
+        self.assertRegex(script, r"function applyOrthoOffset\(\)[\s\S]*?applyPointOrtho\(\)")
+
+    def test_filtre_les_classes_sans_toucher_au_fichier(self) -> None:
+        script = (ROOT / "viewer" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("hiddenPointClasses", script)
+        self.assertIn("function applyPointClassFilter()", script)
+        self.assertIn("aVisible", script)
 
     def test_tire_l_identite_de_la_scene_et_non_du_document(self) -> None:
         """Le nom du lieu ne peut plus être écrit en dur : le sélecteur change de commune."""

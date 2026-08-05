@@ -165,12 +165,13 @@ class EnrichmentTest(unittest.TestCase):
     def test_produit_la_canopee_et_le_modele_de_surface(self) -> None:
         """L'occlusion cuite et la végétation lisent ces deux dérivés, pas le nuage brut."""
         with TemporaryDirectory() as directory:
-            # Une cime de classe 5 à 8 m au-dessus du sol, sur la cellule nord-ouest.
+            # Les trois strates végétales et le bâti alimentent le MNS. Seule la classe 5
+            # porte cependant une hauteur de canopée exploitable comme cime.
             extra = (
-                np.array([0.25]),
-                np.array([1.75]),
-                np.array([18.0]),
-                np.array([5], dtype=np.uint8),
+                np.array([0.25, 1.25, 0.25, 1.25]),
+                np.array([1.75, 1.75, 0.75, 0.75]),
+                np.array([18.0, 15.0, 16.0, 20.0]),
+                np.array([5, 3, 4, 6], dtype=np.uint8),
             )
             config, run_dir = _prepare_run(Path(directory), extra_points=extra)
             create_terrain(config, run_dir)
@@ -182,7 +183,96 @@ class EnrichmentTest(unittest.TestCase):
             self.assertTrue(np.isnan(canopy[1, 1]))
             # Le modèle de surface reste une altitude absolue, jamais sous le terrain.
             self.assertAlmostEqual(float(surface[0, 0]), 18.0)
+            self.assertAlmostEqual(float(surface[0, 1]), 15.0)
+            self.assertAlmostEqual(float(surface[1, 0]), 16.0)
+            self.assertAlmostEqual(float(surface[1, 1]), 20.0)
             self.assertTrue((surface >= terrain).all())
+
+    def test_produit_la_strate_arbustive_depuis_les_classes_3_et_4(self) -> None:
+        """Les classes 3 et 4 ne pesaient que dans le MNS : rien ne les mesurait pour
+        elles-mêmes, alors que le maximum par cellule était déjà calculé."""
+        with TemporaryDirectory() as directory:
+            extra = (
+                np.array([0.25, 1.25, 0.25, 1.25]),
+                np.array([1.75, 1.75, 0.75, 0.75]),
+                np.array([18.0, 15.0, 16.0, 20.0]),
+                np.array([5, 3, 4, 6], dtype=np.uint8),
+            )
+            config, run_dir = _prepare_run(Path(directory), extra_points=extra)
+            create_terrain(config, run_dir)
+            understory = np.load(run_dir / "understory.npy")
+            # Cellule (0,1) : point de classe 3 à 15 m sur un sol à 11 m.
+            self.assertAlmostEqual(float(understory[0, 1]), 4.0)
+            # Cellule (1,0) : point de classe 4 à 16 m sur un sol à 12 m.
+            self.assertAlmostEqual(float(understory[1, 0]), 4.0)
+            # La classe 5 est de la canopée et la classe 6 du bâti : ni l'une ni l'autre
+            # n'appartient à la strate basse.
+            self.assertTrue(np.isnan(understory[0, 0]))
+            self.assertTrue(np.isnan(understory[1, 1]))
+
+    def test_le_reglage_retire_la_strate_arbustive(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config, run_dir = _prepare_run(root)
+            create_terrain(config, run_dir)
+            self.assertTrue((run_dir / "understory.npy").is_file())
+            config_file = root / "sans-strate.conf"
+            config_file.write_text(
+                'POC_BBOX="0 0 2 2"\nTERRAIN_RESOLUTION_M=1\nTERRAIN_MARGIN_M=0\n'
+                "UNDERSTORY=0\n",
+                encoding="utf-8",
+            )
+            create_terrain(PocConfig.load(root, config_file), run_dir)
+            # Le produit d'une exécution antérieure doit disparaître, faute de quoi la scène
+            # continuerait d'afficher une strate que la configuration a désactivée.
+            self.assertFalse((run_dir / "understory.npy").is_file())
+            self.assertFalse((run_dir / "understory.tif").is_file())
+
+
+class GeoTiffTest(unittest.TestCase):
+    """Le géoréférencement vit désormais dans le GeoTIFF, plus dans un worldfile à côté."""
+
+    def test_ecrit_le_crs_et_la_transformation_dans_le_fichier(self) -> None:
+        import rasterio
+
+        with TemporaryDirectory() as directory:
+            config, run_dir = _prepare_run(Path(directory))
+            terrain_tif, _ = create_terrain(config, run_dir)
+            with rasterio.open(terrain_tif) as raster:
+                self.assertEqual(raster.crs.to_epsg(), 2154)
+                self.assertEqual(raster.transform.c, 0.0)
+                self.assertEqual(raster.transform.f, 2.0)
+                self.assertEqual(raster.res, (1.0, 1.0))
+
+    def test_supprime_le_worldfile_d_une_execution_anterieure(self) -> None:
+        """Un `.tfw` resté en place prime sur les métadonnées dans plusieurs SIG, et
+        décalerait la couche sans que rien ne le signale."""
+        with TemporaryDirectory() as directory:
+            config, run_dir = _prepare_run(Path(directory))
+            (run_dir / "terrain.tfw").write_text("obsolete\n", encoding="ascii")
+            (run_dir / "terrain.prj").write_text("obsolete\n", encoding="ascii")
+            create_terrain(config, run_dir)
+            self.assertFalse((run_dir / "terrain.tfw").exists())
+            self.assertFalse((run_dir / "terrain.prj").exists())
+
+    def test_sort_la_canopee_exploitable_dans_un_sig(self) -> None:
+        import rasterio
+
+        with TemporaryDirectory() as directory:
+            extra = (
+                np.array([0.25]),
+                np.array([1.75]),
+                np.array([18.0]),
+                np.array([5], dtype=np.uint8),
+            )
+            config, run_dir = _prepare_run(Path(directory), extra_points=extra)
+            create_terrain(config, run_dir)
+            with rasterio.open(run_dir / "canopy.tif") as raster:
+                self.assertEqual(raster.crs.to_epsg(), 2154)
+                hauteurs = raster.read(1)
+            self.assertAlmostEqual(float(hauteurs[0, 0]), 8.0, places=5)
+            # Les cellules sans mesure traversent le GeoTIFF en NaN, comme dans le .npy.
+            self.assertTrue(np.isnan(hauteurs[1, 1]))
 
 
 class TerrainResolutionTest(unittest.TestCase):

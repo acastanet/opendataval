@@ -30,6 +30,23 @@ TERRAIN_BLEND_M=3
 # Profondeur de la tranche sous le terrain qu'elle borde, et non jusqu'à une altitude
 # commune : 6 m suffisent à fermer la nappe quel que soit le dénivelé de l'emprise.
 TERRAIN_EDGE_SKIRT_M=6
+# Nuage LiDAR témoin séparé du modèle : chargé uniquement quand l'utilisateur choisit la
+# vue « Nuage source ». Le plafond limite le poids web, et source-points.json donne les
+# effectifs avant/après ainsi que le SHA-256 du LAZ.
+SOURCE_POINTS=1
+SOURCE_POINT_LIMIT=750000
+# Pas de la grille de décimation. Un point est retenu par voxel, ce qui répartit la densité
+# dans le volume au lieu de la prendre dans l'ordre du fichier : à budget de points égal, une
+# façade se lit comme une surface et non comme une grappe. La grille s'élargit d'elle-même
+# tant que le plafond n'est pas tenu, ce qui rend le réglage valable quelle que soit
+# l'emprise. Mettre 0 rétablit l'échantillonnage stratifié par classe.
+SOURCE_POINT_VOXEL_M=0.4
+# Couleur cuite dans le nuage : « ortho » l'échantillonne dans l'orthophotographie recalée,
+# comme le fait l'IGN pour l'exploitation architecturale du LiDAR HD, « classification »
+# garde la palette par classe. Le visualiseur bascule ensuite librement entre classification,
+# réflectance et altitude ; seule la photographie doit être cuite, faute d'être calculable à
+# l'affichage. Hors couverture, le repli est automatique.
+SOURCE_POINT_COLOR=ortho
 # 630 m de côté sur 4096 px, soit 15 cm/pixel contre 11 sur l'emprise 200 m. Monter plus haut
 # se heurterait aux limites de la Géoplateforme.
 ORTHO_SIZE_PX=4096
@@ -44,15 +61,23 @@ VEGETATION_MIN_HEIGHT_M=4
 # Fenêtre de détection des cimes, exprimée en mètres : elle ne suit pas la maille du terrain
 # et n'a donc pas à être retouchée ici.
 VEGETATION_PEAK_WINDOW_M=5
-# Plafond du rayon de couronne, le rayon lui-même restant mesuré sur le profil radial. Le
-# critère de retombée surestime les houppiers d'un couvert continu, où le profil ne retombe
-# jamais entre deux arbres jointifs : ce plafond est donc ce qui tranche pour près de la
-# moitié des sujets. Valeur reprise à l'œil dans le visualiseur.
+# Plafond du rayon de couronne. Avec la segmentation, il n'est plus qu'un garde-fou contre un
+# arbre de lisière qui annexerait tout un versant ; au profil radial, il tranchait pour près de
+# la moitié des sujets. `trees.json` porte le compte de ceux qu'il borne encore.
+# Valeur reprise à l'œil dans le visualiseur.
 VEGETATION_MAX_CROWN_M=6.4
+# Mesure du houppier par ligne de partage des eaux sur le modèle de hauteur de canopée : les
+# cimes servent de marqueurs et deux arbres jointifs se partagent la vallée qui les sépare.
+# 0 rétablit le profil radial des exécutions antérieures, pour comparer sur une emprise réelle.
+VEGETATION_CROWN_SEGMENTATION=1
 # Teinte chaque houppier avec la couleur réelle de l'arbre, lue dans l'orthophotographie.
 VEGETATION_TINT_FROM_ORTHO=1
 # Silhouette feuillu/conifère/mixte mesurée par BD Forêt V2 ; repli générique hors couverture.
 VEGETATION_FOREST_TYPES=1
+# Second recours sur les cimes que BD Forêt laisse génériques, par la BD TOPO : celle-ci
+# cartographie haies, landes ligneuses, bois et forêts ouvertes, là où BD Forêt ne décrit que
+# des massifs d'au moins 5 000 m². Non bloquant lui aussi.
+VEGETATION_LANDCOVER=1
 # Relief du houppier, en fraction de son rayon : le rayon de chaque sommet est tiré autour de
 # sa valeur nominale, de façon stable pour un arbre donné. La rotation et l'ovalité cassaient
 # la répétition d'un arbre au suivant, pas la régularité de chacun — un icosaèdre reste une
@@ -63,6 +88,21 @@ VEGETATION_CROWN_IRREGULARITY=0.18
 CANOPY_MASSIF=1
 CANOPY_MASSIF_COVERAGE=0.6
 CANOPY_MASSIF_SMOOTHING_M=5
+# Strate arbustive : tapis de végétation basse et moyenne tiré des classes LiDAR 3 et 4. Ces
+# deux classes ne pesaient que dans le modèle de surface et l'occlusion, alors qu'elles portent
+# la garrigue et le sous-bois — et la continuité verticale du combustible qui décide de la
+# propagation d'un feu du sol vers les houppiers.
+UNDERSTORY=1
+# Plancher de la strate. Sous ce seuil, la mesure décrit surtout le bruit du sol et les herbes
+# rases, que le terrain restitue déjà. Le plafond, lui, n'est pas réglable ici : c'est
+# VEGETATION_MIN_HEIGHT_M, au-delà duquel la cellule appartient à un arbre.
+UNDERSTORY_MIN_HEIGHT_M=0.5
+# Fraction de cellules végétalisées exigée dans le voisinage. Plus bas que la canopée dense :
+# un sous-bois est par nature discontinu, et le seuil de celle-ci n'en laisserait rien.
+UNDERSTORY_COVERAGE=0.35
+# Rayon de lissage du sommet du tapis, en mètres. Court : la strate épouse le relief de près,
+# et l'aplanir sur plusieurs mètres lui ferait franchir murets et talus.
+UNDERSTORY_SMOOTHING_M=2
 # Eau (classe LiDAR 9) et tabliers de pont (classe 17), déjà présents dans lidar_subset.laz.
 WATER=1
 # Relèvement de la nappe au-dessus de l'altitude mesurée. La nappe et le terrain

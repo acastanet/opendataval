@@ -600,6 +600,19 @@ input[type="checkbox"]:disabled {
   margin-top: 0;
 }
 
+.comparison-controls {
+  margin-bottom: 9px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(27, 36, 48, 0.1);
+}
+
+.control-label {
+  margin: 0 2px 6px;
+  color: rgba(27, 36, 48, 0.72);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .render-modes {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -609,6 +622,12 @@ input[type="checkbox"]:disabled {
   border: 0;
   border-radius: 11px;
   background: rgba(27, 36, 48, 0.07);
+}
+
+/* Quatre représentations, sur deux rangs : « Nuage source » et « Superposé » ne tiennent pas
+   dans un quart de panneau, et les tronquer rendrait le choix illisible. */
+.comparison-modes {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .render-modes label {
@@ -647,6 +666,11 @@ input[type="checkbox"]:disabled {
   outline-offset: 1px;
 }
 
+.render-modes input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 /* Reprendre une bascule de texture à la main fait diverger l'état réel du préréglage
    affiché : la pastille s'estompe plutôt que de mentir sur le mode en cours. */
 .render-modes[data-custom="true"] input:checked + span {
@@ -662,6 +686,63 @@ input[type="checkbox"]:disabled {
   color: rgba(27, 36, 48, 0.54);
   font-size: 0.68rem;
   line-height: 1.4;
+}
+
+.source-point-controls {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.source-point-controls[hidden] {
+  display: none;
+}
+
+.source-point-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 8px;
+  margin: 7px 2px 0;
+  font-size: 0.65rem;
+}
+
+.source-point-legend[hidden] {
+  display: none;
+}
+
+.source-point-legend label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.source-point-legend input {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: currentColor;
+}
+
+/* Une classe masquée reste lisible dans la légende : c'est elle qui dit ce qu'on ne voit
+   plus, et l'effacer complètement rendrait le filtre difficile à défaire. */
+.source-point-legend label:has(input:not(:checked)) {
+  opacity: 0.45;
+}
+
+.source-point-legend .dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.source-point-legend .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quality-legend {

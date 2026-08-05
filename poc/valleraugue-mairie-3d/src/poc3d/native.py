@@ -9,7 +9,13 @@ from .config import PocConfig, latest_run
 
 # `shapefile` est le nom d'import de pyshp : sans lui ici, une installation incomplète ne se
 # manifesterait qu'au milieu de l'étape `geology`, après le téléchargement de l'archive.
-REQUIRED_MODULES = ("laspy", "numpy", "PIL", "shapefile")
+REQUIRED_MODULES = ("laspy", "numpy", "PIL", "shapefile", "scipy", "skimage")
+
+# Ces quatre-là embarquent chacun leur propre copie de GDAL, GEOS ou PROJ dans leur roue
+# Windows. Des versions divergentes ne produisent pas de message clair : le premier `import`
+# échoue sur une DLL introuvable, au milieu d'une étape et non au démarrage. Les importer
+# ensemble ici est le seul contrôle qui attrape cela avant qu'il ne coûte une exécution.
+GEOSPATIAL_MODULES = ("shapely", "pyproj", "geopandas", "rasterio")
 
 
 def check_environment(config: PocConfig) -> Path:
@@ -17,7 +23,7 @@ def check_environment(config: PocConfig) -> Path:
     if sys.version_info < (3, 11):
         raise RuntimeError("Python 3.11 ou supérieur est requis")
     versions: list[str] = []
-    for name in REQUIRED_MODULES:
+    for name in (*REQUIRED_MODULES, *GEOSPATIAL_MODULES):
         try:
             module = import_module(name)
         except ImportError as error:

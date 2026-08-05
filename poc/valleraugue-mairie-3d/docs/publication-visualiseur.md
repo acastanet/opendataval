@@ -40,42 +40,44 @@ web/
 ├── styles.css
 ├── favicon.svg
 ├── viewer-manifest.json
-├── assets/
-│   ├── scene.glb         23 Mo   ← emprise 200 m, scène chargée par défaut
-│   ├── scene.json                  métadonnées de traçabilité
-│   ├── buildings.json   357 Ko     attributs BD TOPO par bâtiment
-│   ├── geology.png       23 Ko     carte géologique BRGM, chargée à la demande
-│   ├── geology-pick.png  18 Ko     carte d'identifiants, jamais affichée
-│   ├── geology.json       2 Ko     légende et provenance de la couche
-│   ├── scenes.json                 manifeste du sélecteur de scènes
-│   └── scenes/
-│       ├── poc-600m/
-│       │   ├── scene.glb   57,5 Mo   ← Valleraugue, emprise 600 m
-│       │   ├── scene.json
-│       │   ├── buildings.json 979 Ko
-│       │   └── geology.*      53 Ko
-│       ├── notre-dame-rouviere-200m/
-│       │   ├── scene.glb   18,7 Mo   ← Notre-Dame-de-la-Rouvière, emprise 200 m
-│       │   ├── scene.json
-│       │   ├── buildings.json
-│       │   └── geology.*      37 Ko
-│       └── creyssensac-et-pissot-200m/
-│           ├── scene.glb   17,9 Mo   ← Creyssensac-et-Pissot, emprise 200 m
-│           ├── scene.json
-│           ├── buildings.json
-│           └── geology.*      44 Ko
-└── vendor/               2,3 Mo    Three.js 0.178.0 + addons (MIT)
+├── assets/                          ← la scène par défaut, à la racine
+│   ├── scene.glb        21,9 Mio  ← emprise 200 m, scène chargée au démarrage
+│   ├── scene.json                   métadonnées de traçabilité
+│   ├── buildings.json    351 Kio    attributs BD TOPO par bâtiment
+│   ├── geology.png        23 Kio    carte géologique BRGM, chargée à la demande
+│   ├── geology-pick.png   18 Kio    carte d'identifiants, jamais affichée
+│   ├── geology.json        2 Kio    légende et provenance de la couche
+│   ├── scenes.json                  manifeste du sélecteur de scènes
+│   └── scenes/                      ← les huit autres, un dossier chacune
+│       ├── poc-600m/          scene.glb 101,1 Mio  Valleraugue, emprise 600 m
+│       ├── balcon-du-vertige-500m/       39,5 Mio  Gorges de la Jonte
+│       ├── hort-de-dieu-500m/            35,6 Mio  Mont Aigoual
+│       ├── col-de-perjuret-600m/         34,9 Mio  Col de Perjuret
+│       ├── chaos-nimes-le-vieux-500m/    22,9 Mio  Chaos de Nîmes-le-Vieux
+│       ├── notre-dame-rouviere-200m/     17,9 Mio  Notre-Dame-de-la-Rouvière
+│       ├── creyssensac-et-pissot-200m/   17,1 Mio  Creyssensac-et-Pissot
+│       └── poc/                           7,4 Mio  Valleraugue, emprise 100 m
+└── vendor/               2,6 Mio    Three.js 0.178.0 + addons (MIT)
 ```
 
-Total mesuré au 30 juillet 2026 : **155,4 Mio**, fichiers précompressés compris, pour quatre
-scènes. Décision retenue : **toutes les scènes assemblées**, une emprise 200 m en scène par
-défaut. L'ordre n'est pas cosmétique — la première scène du manifeste est celle que le
-navigateur télécharge au chargement, et 23 Mo contre 57,5 Mo change l'expérience du premier
+Chaque dossier de `assets/scenes/` porte les mêmes fichiers que la racine : `scene.glb`,
+`scene.json`, `buildings.json` et les trois `geology.*`, chacun doublé de son `.gz`.
+
+Total mesuré au 2 août 2026 : **405 Mio** pour **neuf scènes**, précompression comprise —
+c'est ce que rend `du -sh publication`. Hors `.gz`, le contenu utile pèse 302,6 Mio ; les
+versions précompressées ajoutent 102,7 Mio, soit **34 % de surcoût sur disque et au
+transfert**, prix assumé de `precompressed` (§ 4), qui exige les deux fichiers côte à côte.
+
+Décision retenue : **toutes les scènes assemblées**, une emprise 200 m en scène par défaut.
+L'ordre n'est pas cosmétique — la première scène du manifeste est celle que le navigateur
+télécharge au chargement, et 21,9 Mio contre 101,1 Mio change l'expérience du premier
 visiteur. Les autres ne partent que si on les choisit dans le sélecteur.
 
 Le décompte ci-dessus est celui d'un état donné : `poc.py web` publie **toute** scène dont la
-configuration porte un `render/scene.glb`, et le total croît d'une vingtaine de mégaoctets par
-scène 200 m ajoutée. Le vérifier avant chaque mise en ligne.
+configuration porte un `render/scene.glb`, et le total croît d'une vingtaine de mébioctets par
+scène 200 m ajoutée — davantage pour une emprise 500 ou 600 m, qui pèse deux à cinq fois plus.
+Le vérifier avant chaque mise en ligne plutôt que de reprendre les chiffres de ce document :
+ils ont déjà quintuplé depuis sa première rédaction.
 
 La carte géologique ne pèse pas dans cette balance : **250 Ko pour cinq scènes**, aplats de
 couleur que le PNG compresse très efficacement. C'est aussi pourquoi elle est publiée hors du
@@ -97,7 +99,8 @@ Depuis `poc/valleraugue-mairie-3d`, avec le `.venv` du POC :
 
 La configuration passée détermine la scène par défaut : elle est la première entrée du
 manifeste, donc celle que le navigateur télécharge au chargement. Préparer depuis une emprise
-200 m. Ne pas préparer depuis `poc-600m.conf`, qui imposerait 57,5 Mo au premier visiteur.
+200 m. Ne pas préparer depuis `poc-600m.conf`, qui imposerait **101,1 Mio** au premier
+visiteur — 26,2 Mio même une fois compressés, contre 7,3 Mio pour la 200 m.
 
 **Cette étape n'est pas facultative.** Les dossiers `web/` présents sur le poste peuvent
 précéder les dernières modifications du visualiseur : au 30 juillet 2026,
@@ -112,7 +115,18 @@ Contrôles à passer avant d'aller plus loin :
    ceux de `viewer/` (comparer les tailles ou les empreintes) ;
 3. tous les `scene.glb` / `scene.json` référencés par le manifeste existent bien, ainsi que
    les trois fichiers `geology.*` des entrées qui portent une clé `configuration.geology` ;
-4. chaque entrée porte un `title` — sans lui, deux scènes de même taille sont indiscernables.
+4. les `title` sont présents **et deux à deux distincts** — contrôler la présence ne suffit
+   pas : trois entrées portent aujourd'hui le même titre `Valleraugue` (`poc`, `poc-200m`,
+   `poc-600m`), et le sélecteur les rend alors indiscernables tout en passant le contrôle.
+
+Le point 4 se vérifie en une commande, depuis le dossier préparé :
+
+```bash
+python -c "import json;t=[s['title'] for s in json.load(open('assets/scenes.json',encoding='utf-8'))];print(len(t),'entrees,',len(set(t)),'titres distincts')"
+```
+
+Les deux nombres doivent être égaux. Sinon, distinguer les titres homonymes par leur emprise
+via `SCENE_TITLE` dans le `.conf` concerné (§ 8).
 
 Une entrée **sans** clé `geology` n'est pas un défaut : la scène a été assemblée avant cette
 couche, ou son département n'est pas renseigné. Le visualiseur désactive alors la bascule avec
@@ -131,33 +145,63 @@ Copy-Item -Recurse $source .\publication
 ```
 
 `publication/` est déjà exclu par le [`.gitignore`](../.gitignore) du POC. Les GLB **ne sont
-jamais versionnés** : 81 Mo par publication dans l'historique Git, pour un artefact
+jamais versionnés** : 405 Mio par publication dans l'historique Git, pour un artefact
 reproductible en une commande, ne se justifie pas. Git LFS n'est pas une solution de repli ici.
+
+Le `Remove-Item` puis `Copy-Item` repart d'un dossier vide à chaque fois, ce qui impose de
+recompresser l'intégralité des 302,6 Mio même quand une seule scène a changé. C'est le prix de
+la simplicité et de la certitude qu'aucun fichier périmé ne subsiste ; sur une publication de
+routine, ce sont les deux tiers du temps de préparation. Le cas échéant, une copie
+différentielle (`robocopy /MIR`) suivie d'un gzip conditionnel supprimerait ce coût — à ne
+tenter qu'en connaissance de cause, car un `.gz` oublié plus vieux que sa source est un défaut
+silencieux.
 
 ### Précompression
 
-Mesures sur les scènes réelles : `gzip -6` ramène la 200 m de 23 Mo à **7,5 Mo** et la 600 m de
-57,5 Mo à **18,9 Mo**. La géométrie en `float32` domine le fichier, pas les textures JPEG qu'il
-embarque — la compression vaut donc largement le détour, mais compresser 57,5 Mo à la volée
-coûte environ **1,3 s de CPU par requête non mise en cache**. Précompresser une fois :
+Mesures refaites le 2 août 2026 sur les scènes réelles, en `gzip -6` :
+
+| Scène | Source | Compressée | Durée |
+| --- | --- | --- | --- |
+| 200 m par défaut | 21,9 Mio | **7,2 Mio** | 0,79 s |
+| 600 m | 101,1 Mio | **26,0 Mio** | 2,60 s |
+
+La géométrie en `float32` domine le fichier, pas les textures JPEG qu'il embarque — la
+compression vaut donc largement le détour, mais compresser la 600 m à la volée coûterait
+**2,6 s de CPU par requête non mise en cache**. Précompresser une fois :
 
 ```bash
 # Git Bash, depuis poc/valleraugue-mairie-3d/publication
-find . -name '*.glb' -o -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.json' \
-  -o -name '*.png' \
-  | xargs -I{} gzip -9 -k -f {}
+find . \( -name '*.glb' -o -name '*.js' -o -name '*.css' -o -name '*.html' \
+          -o -name '*.json' -o -name '*.png' \) -print0 \
+  | xargs -0 -P 8 -n 1 gzip -6 -k -f
 ```
 
+**Utiliser `-6`, pas `-9`.** Sur ces GLB, `-9` est plus lent *et* produit un fichier **plus
+gros** — sa recherche de correspondances plus agressive tombe moins bien sur de la géométrie
+`float32` :
+
+| | 200 m | 600 m |
+| --- | --- | --- |
+| `gzip -6` | 7 529 167 o en 0,79 s | 27 212 816 o en **2,60 s** |
+| `gzip -9` | 7 625 615 o en 3,96 s | 27 510 027 o en **16,03 s** |
+
+Soit, sur la 600 m, **six fois le temps pour 297 Ko de plus à transférer**. Sur l'ensemble de
+la publication, `-6` ramène l'étape de près d'une minute à une dizaine de secondes, que le
+`-P 8` divise encore. Les parenthèses autour des `-name` sont nécessaires dès qu'une action
+suit ; `-print0` / `-xargs -0` protègent les chemins à espaces.
+
 **Les `.png` en font partie, contre toute attente.** Un PNG porte déjà un flux deflate et ne
-devrait rien gagner à être regzippé ; les cartes géologiques, elles, tombent de 23 Ko à
-**3,5 Ko**, soit un facteur 6,7. La raison tient au contenu : une carte drapée ne compte que
+devrait rien gagner à être regzippé ; les cartes géologiques, elles, tombent de 23 374 o à
+**3 473 o**, soit un facteur 6,7. La raison tient au contenu : une carte drapée ne compte que
 quelques aplats de couleur, si bien que le flux compressé produit par Pillow reste lui-même
-très répétitif d'une ligne à l'autre. Le cas est vérifiable en une commande — `gzip -9 -c
+très répétitif d'une ligne à l'autre. Le cas est vérifiable en une commande — `gzip -6 -c
 assets/geology.png | wc -c` — et il ne se généralise pas aux PNG photographiques.
 
-Caddy servira le `.gz` aux clients qui l'acceptent via `precompressed` (§ 4). Ajouter les `.zst`
-avec `zstd -19 -k` si l'outil est disponible : Caddy les préfère, mais leur absence n'est pas
-bloquante.
+Caddy servira le `.gz` aux clients qui l'acceptent via `precompressed` (§ 4). Les `.zst`, que
+Caddy préfère, sont un bonus : `zstd` n'est **pas** livré avec Git Bash, et `-19` sur 302 Mio
+coûterait des dizaines de minutes pour un gain marginal sur des GLB. Si l'outil est là,
+`zstd -12 --long -k` sur les seuls `*.glb` est le bon compromis. Leur absence n'est pas
+bloquante : `precompressed zstd gzip` retombe sur le `.gz`.
 
 ## 4. Route Caddy
 
@@ -174,11 +218,25 @@ Ajouter ce bloc au [`Caddyfile`](../../../Caddyfile), **avant** le `handle` fina
 		@glb path *.glb
 		header @glb Content-Type "model/gltf-binary"
 
-		# Les scènes gardent le même nom d'une publication à l'autre : la revalidation par
-		# ETag est ce qui évite de servir une géométrie périmée pendant un an.
-		header /assets/* Cache-Control "public, max-age=86400"
-		header /vendor/* Cache-Control "public, max-age=86400"
-		header Cache-Control "public, max-age=0, must-revalidate"
+		# Géométrie, textures et bibliothèques : leur contenu ne change qu'en même temps que
+		# le manifeste qui les référence, un jour de cache est donc sans risque.
+		@cache-long {
+			path /assets/* /vendor/*
+			not path *.json
+		}
+		header @cache-long Cache-Control "public, max-age=86400"
+
+		# Les manifestes décident quels fichiers le visualiseur ira chercher : ils sont
+		# revalidés à chaque chargement, faute de quoi une scène ajoutée resterait invisible
+		# pour les visiteurs récents jusqu'à l'expiration de leur cache.
+		@manifestes path *.json
+		header @manifestes Cache-Control "public, max-age=0, must-revalidate"
+
+		# Un `header` SANS matcher écrase toutes les règles ci-dessus quel que soit son
+		# emplacement dans le bloc — vérifié dans les deux ordres. D'où ce matcher négatif :
+		# sans lui, les deux règles précédentes seraient mortes et tout serait revalidé.
+		@reste not path /assets/* /vendor/*
+		header @reste Cache-Control "public, max-age=0, must-revalidate"
 
 		encode zstd gzip
 		file_server {
@@ -198,6 +256,37 @@ Points à ne pas simplifier :
 - **`precompressed` dans `file_server`, avec `encode`.** Caddy sert d'abord le `.zst` ou le
   `.gz` déjà produit ; `encode` ne prend le relais que pour ce qui n'a pas de version
   précompressée sur disque.
+- **Aucune directive `header` sans matcher dans ce bloc.** Voir ci-dessous : c'est le piège le
+  plus coûteux de la configuration, et il ne produit aucune erreur.
+
+### Le `header` sans matcher écrase tous les autres
+
+La rédaction précédente de ce bloc plaçait un `header Cache-Control "…"` sans matcher après
+les deux règles `/assets/*` et `/vendor/*`. **Ces deux règles étaient mortes** : tout le
+visualiseur, GLB et `vendor/` compris, était servi en `max-age=0, must-revalidate`.
+
+Le comportement a été vérifié sur un Caddy 2 réel, en plaçant le `header` sans matcher avant
+puis après les règles spécifiques : il l'emporte **dans les deux cas**. Ce n'est donc pas une
+question d'ordre, et aucun réordonnancement ne corrige le défaut — il faut rendre les matchers
+mutuellement exclusifs, d'où le `@reste not path …`. Rien dans les journaux ne le signale, et
+`caddy validate` accepte les deux versions.
+
+Conséquence pratique tant que le défaut était en place : chaque chargement de page revalidait
+les 2,6 Mio de `vendor/` et la scène courante, fichier par fichier. Les réponses étaient des
+`304` — la bande passante était donc préservée — mais la latence d'une requête conditionnelle
+par fichier était payée à chaque visite.
+
+Vérification, après `docker compose up -d --build caddy` :
+
+```bash
+for f in index.html assets/scenes.json assets/scene.glb vendor/three.module.js; do
+  printf '%-32s %s\n' "$f" \
+    "$(curl -sI "http://localhost:8080/valleraugue-3d/$f" | grep -i '^cache-control')"
+done
+```
+
+Attendu : `max-age=86400` sur le `.glb` et sur `vendor/`, `must-revalidate` sur `index.html`
+et sur **tous** les `.json`, y compris ceux imbriqués dans `assets/scenes/<id>/`.
 
 ### CSP : autoriser les textures GLB en `blob:`
 
@@ -243,7 +332,8 @@ extraits de relief (`./apps/web/public/relief:/srv/relief:ro`) :
 Compléter ensuite le [`.dockerignore`](../../../.dockerignore) :
 
 ```
-# Sorties du POC 3D (~1 Go) : servies par un volume runtime, jamais dans un contexte de build.
+# Sorties du POC 3D (plusieurs Go) : servies par un volume runtime, jamais dans un contexte
+# de build.
 poc/**/output*/
 poc/**/publication/
 poc/**/.venv/
@@ -251,8 +341,10 @@ poc/**/.work*/
 ```
 
 Ce point vaut d'être corrigé indépendamment de la publication : `poc/valleraugue-mairie-3d`
-pèse **1,0 Go** aujourd'hui et rien ne l'exclut du contexte envoyé au démon Docker à chaque
-`docker compose build caddy`.
+pèse **8,8 Go** au 2 août 2026 — les `output-*/` de neuf scènes, dont ce document annonçait
+encore 1,0 Go — et rien ne l'exclurait du contexte envoyé au démon Docker à chaque
+`docker compose build caddy`. Vérifier que les quatre entrées sont bien présentes avant tout
+`--build` : leur absence ne provoque pas d'erreur, seulement plusieurs minutes d'attente.
 
 ### Une seule source, y compris derrière Nginx
 
@@ -305,7 +397,9 @@ Après `docker compose up -d caddy`, sur le port publié (`8080` en local) :
 | `curl -I http://localhost:8080/valleraugue-3d` | `308` vers `/valleraugue-3d/` |
 | `curl -I http://localhost:8080/valleraugue-3d/` | `200`, `text/html` |
 | `curl -sI -H 'Accept-Encoding: gzip' .../assets/scene.glb` | `Content-Encoding: gzip`, `Content-Type: model/gltf-binary` |
-| `curl -I .../assets/scenes.json` | `200`, autant d'entrées que de scènes publiées |
+| `curl -s .../assets/scenes.json` | autant d'entrées que de scènes publiées, la plus légère en premier, titres deux à deux distincts |
+| `curl -sI .../assets/scenes.json` | `Cache-Control: …must-revalidate` — **pas** `max-age=86400` (§ 4) |
+| `curl -sI .../assets/scene.glb` | `Cache-Control: public, max-age=86400` |
 | `curl -I .../favicon.svg` | `200`, `Content-Type: image/svg+xml` |
 | `curl -sI -H 'Accept-Encoding: gzip' .../assets/geology.png` | `200`, `Content-Encoding: gzip`, `Content-Type: image/png` |
 | `curl -s .../assets/geology.json` | `source`, `scale`, `retrievedAt` et une liste `formations` non vide |
@@ -314,14 +408,25 @@ Après `docker compose up -d caddy`, sur le port publié (`8080` en local) :
 | Bascule « Carte géologique BRGM » | la carte se drape, la légende se remplit, le clic nomme la formation — sans erreur CSP |
 | Sélecteur de scènes | bascule vers chaque autre scène et retour, sans erreur ; le titre de l'en-tête et l'onglet suivent |
 | Dialogue « Informations sur les données » | section licence présente |
-| `curl -I .../assets/../index.html` | pas d'évasion hors de `/srv/valleraugue-3d` |
+| `curl -I --path-as-is '.../assets/../../etc/passwd'` | pas d'évasion hors de `/srv/valleraugue-3d` |
+
+Deux lignes de ce tableau méritent leur justification, parce qu'une rédaction plus naturelle
+ne vérifie rien :
+
+- **`curl -s`, pas `curl -I`, sur `scenes.json`.** `-I` émet un `HEAD` : il n'y a pas de corps,
+  donc aucune entrée à compter. La version précédente de cette recette demandait de compter
+  des entrées dans une réponse vide.
+- **`--path-as-is` sur le test d'évasion.** Sans lui, curl résout `..` **côté client** et
+  envoie une requête déjà normalisée : le serveur ne voit jamais la traversée, et le test
+  réussit quoi qu'il arrive. Viser hors de la racine (`../../etc/passwd`), pas un fichier qui
+  existe à l'intérieur.
 
 Rendre compte de la publication en indiquant l'URL servie, les scènes publiées avec leur run
 (`run-AAAAMMJJ-HHMMSS`) et le volume monté, puis proposer le commit des seules modifications
 versionnées : `Caddyfile`, `docker-compose.yml`, `.dockerignore` et ce document. Le contenu de
 `publication/` ne fait **jamais** partie du commit.
 
-### État au 1er août 2026
+### État au 2 août 2026
 
 | Élément | État |
 | --- | --- |
@@ -333,13 +438,16 @@ versionnées : `Caddyfile`, `docker-compose.yml`, `.dockerignore` et ce document
 | Nginx public en proxy vers Caddy (§ 5) | **en place** |
 | CSP `connect-src ... blob:` et favicon | **en place** |
 | CSP pour la carte géologique (§ 4) | **rien à faire** — même origine, couverte par `'self'` |
-| Scènes assemblées | huit : Valleraugue 200 m et 600 m, Notre-Dame-de-la-Rouvière 200 m, Creyssensac-et-Pissot 200 m, Col de Perjuret 600 m, Chaos de Nîmes-le-Vieux 500 m, Balcon du Vertige 500 m, Hort de Dieu 500 m |
-| Carte géologique BRGM | produite pour les huit, sur trois départements (030 Gard, 048 Lozère, 024 Dordogne) |
+| `Cache-Control` sur `/assets/*` et `/vendor/*` (§ 4) | **corrigé le 2 août** — les règles étaient écrasées par un `header` sans matcher |
+| Scènes assemblées | **neuf** : Valleraugue 100 m, 200 m et 600 m, Notre-Dame-de-la-Rouvière 200 m, Creyssensac-et-Pissot 200 m, Col de Perjuret 600 m, Chaos de Nîmes-le-Vieux 500 m, Gorges de la Jonte 500 m, Mont Aigoual 500 m |
+| Carte géologique BRGM | produite pour les neuf, sur trois départements (030 Gard, 048 Lozère, 024 Dordogne) |
+| Volume de `publication/` | **405 Mio**, 137 fichiers |
+| Titres du manifeste | **9 entrées, 7 titres distincts** — `poc`, `poc-200m` et `poc-600m` s'appellent tous « Valleraugue » (§ 2, contrôle 4) |
 
-Seule `poc.conf`, l'emprise 100 m historique, n'est pas assemblée et n'entre donc pas dans le
-manifeste. Ce tableau vieillit vite : l'état réel se relit en une commande — `curl -s
-.../assets/scenes.json` en ligne, ou la sortie de `poc.py web`, qui énumère les scènes
-proposées au sélecteur.
+Contrairement à ce qu'affirmaient les rédactions précédentes, `poc.conf` — l'emprise 100 m
+historique — **est** assemblée et **entre bien** dans le manifeste, en dernière position. Ce
+tableau vieillit vite : l'état réel se relit en une commande — `curl -s .../assets/scenes.json`
+en ligne, ou la sortie de `poc.py web`, qui énumère les scènes proposées au sélecteur.
 
 Le visualiseur est en ligne. Caddy est l'unique source des fichiers ; Nginx ne fait que
 relayer la route publique.
@@ -373,11 +481,14 @@ La séquence complète, depuis un point sur une carte, est dans
    `poc.py web` devient la première entrée du manifeste, donc la scène que tout visiteur
    télécharge à l'ouverture. Préparer depuis la nouvelle scène si on veut la mettre en avant,
    depuis l'ancienne sinon — mais jamais depuis une 600 m.
-2. **Vérifier le volume.** Chaque scène 200 m ajoute une vingtaine de mégaoctets au dossier
-   publié, et autant à transférer. `du -sh publication` avant d'envoyer.
-3. **Vérifier les titres.** Chaque entrée de `assets/scenes.json` doit porter un `title` :
-   sans lui, deux scènes de même taille sont indiscernables dans le menu. Le titre vient de
-   `SCENE_TITLE` dans le `.conf` de la scène.
+2. **Vérifier le volume.** Une scène 200 m ajoute une vingtaine de mébioctets au dossier
+   publié ; une 500 ou 600 m, de 35 à 100 Mio. Multiplier par 1,34 pour le volume réellement
+   transféré, `.gz` compris. `du -sh publication` avant d'envoyer.
+3. **Vérifier les titres, et leur unicité.** Chaque entrée de `assets/scenes.json` doit porter
+   un `title`, et deux entrées ne doivent pas porter le même : le sélecteur n'affiche rien
+   d'autre, et trois « Valleraugue » y sont aujourd'hui indiscernables. Le titre vient de
+   `SCENE_TITLE` dans le `.conf` de la scène ; y faire figurer l'emprise lève l'ambiguïté.
+   Le contrôle est au § 2.
 
 ### Ce qu'il ne faut pas refaire
 

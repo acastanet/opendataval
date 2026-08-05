@@ -37,6 +37,7 @@ def parser() -> ArgumentParser:
         ("geology", "Rastérise la carte géologique BRGM BD Charm-50 sur l'emprise."),
         ("sun", "Retrouve la position solaire de l'orthophotographie par ses ombres."),
         ("glb", "Assemble terrain, orthophoto et bâtiments dans scene.glb."),
+        ("source", "Produit le nuage LiDAR témoin, coloré par classification."),
         ("web", "Prépare le visualiseur web local et ses dépendances."),
         ("enhance", "Enrichit la dernière sortie Roofer : terrain, ortho, GLB et web."),
         ("all", "Alias de enhance pour une exécution Windows Python complète."),
@@ -91,6 +92,13 @@ def _enhance(config: PocConfig, run_dir: Path) -> None:
     if config.get_bool("GEOLOGY", True):
         _geology(config, run_dir)
     create_scene_glb(config, run_dir)
+    if config.get_bool("SOURCE_POINTS", True):
+        from .source_points import create_source_points
+
+        create_source_points(config, run_dir)
+    else:
+        for name in ("source-points.glb", "source-points.json"):
+            (run_dir / "render" / name).unlink(missing_ok=True)
     prepare_viewer(config, run_dir)
 
 
@@ -195,6 +203,10 @@ def execute(args: Namespace) -> None:
         report_ortho_sun(config)
     elif args.command == "glb":
         create_scene_glb(config)
+    elif args.command == "source":
+        from .source_points import create_source_points
+
+        create_source_points(config)
     elif args.command == "web":
         prepare_viewer(config)
         # Le manifeste recense toutes les emprises : c'est le seul moment où l'on voit

@@ -173,9 +173,15 @@ let buildings = null;
 let model = null;
 let currentMetadata = null;
 let currentEntry = null;
+let sourcePoints = null;
+let sourcePointsMetadata = null;
+let sourcePointsToken = 0;
+let sourcePointsCloud = null;
+let hiddenPointClasses = new Set();
 let selectedBuilding = null;
 let hoveredBuilding = null;
 let renderMode = "ortho";
+let comparisonMode = "vegetation";
 // Le mode de rendu est un préréglage des bascules de texture : dès qu'on en reprend une à la
 // main, l'état réel n'est plus celui du préréglage, et le panneau doit le dire.
 let customTextures = false;
@@ -201,6 +207,17 @@ const optionalLayers = [
     absent: "La scène chargée ne contient pas de massif de canopée dense.",
     castsShadow: true,
     receivesShadow: false,
+    object: null,
+  },
+  {
+    // Contrairement aux houppiers, la strate arbustive reçoit les ombres : c'est sur elle
+    // que se projettent celles des arbres qui la couvrent, et c'est ce contact qui rend
+    // lisible la continuité verticale entre le sol et la canopée.
+    node: "Sousbois",
+    toggle: "#understoryToggle",
+    absent: "Aucune végétation basse ou moyenne (classes LiDAR 3 et 4) dans cette emprise.",
+    castsShadow: true,
+    receivesShadow: true,
     object: null,
   },
   {
@@ -590,6 +607,593 @@ function restoreRenderMode(mode, custom) {
   describeRenderMode();
   const radio = document.querySelector(`input[name="renderMode"][value="${renderMode}"]`);
   if (radio) radio.checked = true;
+}
+
+const COMPARISON_DESCRIPTIONS = {
+  bare: "Sol classé 2 et bâtiments, sans végétation ni photographie aérienne.",
+  vegetation: "Même terrain et même caméra, avec végétation LiDAR et orthophotographie.",
+  source: "Points du LAZ colorés par classification, sans interprétation géométrique.",
+  overlay: "Nuage mesuré posé sur le modèle reconstruit : l'écart entre les deux se lit directement.",
+};
+
+function describeComparisonMode(message = null) {
+  const description = document.querySelector("#comparisonModeDescription");
+  const legend = document.querySelector("#sourcePointLegend");
+  const controls = document.querySelector("#sourcePointControls");
+  legend.hidden = !showsSourcePoints(comparisonMode) || !sourcePointsMetadata;
+  controls.hidden = legend.hidden;
+  if (message) {
+    description.textContent = message;
+    return;
+  }
+  if (showsSourcePoints(comparisonMode) && sourcePointsMetadata) {
+    const rendered = sourcePointsMetadata.renderedPoints.toLocaleString("fr-FR");
+    const total = sourcePointsMetadata.sourcePoints.toLocaleString("fr-FR");
+    const mode = document.querySelector("#pointColorMode").value;
+    const over = comparisonMode === "overlay" ? "Sur le modèle reconstruit : " : "";
+    description.textContent =
+      `${over}${rendered} points affichés sur ${total} dans le LAZ ; ` +
+      `${POINT_COLOR_DESCRIPTIONS[mode] ?? "couleurs par classe"}.`;
+    return;
+  }
+  description.textContent = COMPARISON_DESCRIPTIONS[comparisonMode];
+}
+
+function updateSourcePointLegend(metadata) {
+  const legend = document.querySelector("#sourcePointLegend");
+  const counts = metadata.renderedClassificationCounts ?? {};
+  legend.replaceChildren(
+    ...Object.entries(counts).map(([code, count]) => {
+      const row = document.createElement("label");
+      const item = metadata.classificationLegend?.[code] ?? {
+        label: `Classe ${code}`,
+        color: "rgb(222, 194, 90)",
+      };
+      // La légende sert aussi de filtre : rien n'est retiré du fichier, seul l'affichage
+      // change, ce qui permet d'isoler le sol ou le bâti sans réassembler la scène.
+      const toggle = document.createElement("input");
+      toggle.type = "checkbox";
+      toggle.checked = !hiddenPointClasses.has(Number(code));
+      toggle.addEventListener("change", () => {
+        if (toggle.checked) hiddenPointClasses.delete(Number(code));
+        else hiddenPointClasses.add(Number(code));
+        applyPointClassFilter();
+        saveState();
+      });
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = item.color;
+      const label = document.createElement("span");
+      label.className = "label";
+      label.textContent = `${item.label} · ${count.toLocaleString("fr-FR")}`;
+      label.title = `${label.textContent} — décocher pour masquer cette classe`;
+      row.append(toggle, dot, label);
+      return row;
+    }),
+  );
+  legend.hidden = !showsSourcePoints(comparisonMode);
+}
+
+// Bornes en pixels de la taille d'un point. Sans le plancher, le nuage s'évapore dès qu'on
+// prend de la hauteur ; sans le plafond, l'atténuation en fait des disques énormes au ras du
+// sol, où la caméra passe le plus clair de son temps.
+const pointSizeClamp = { value: new THREE.Vector2(1.2, 26) };
+
+// Le nuage échantillonne l'orthophotographie au shader, à partir de la position Lambert-93
+// de chaque point, au lieu de se contenter de la couleur cuite dans `COLOR_0`. C'est ce qui
+// met les curseurs de calage au travail sur lui aussi : la photo n'est pas toujours calée sur
+// les données bâties, et un recalage qui déplacerait le terrain et les toitures en laissant le
+// nuage en place ferait mentir la comparaison des deux représentations.
+const pointOrtho = {
+  uOrtho: { value: null },
+  // Calage total en mètres — celui cuit à la production et celui des curseurs.
+  uOrthoOffset: { value: new THREE.Vector2() },
+  uOrthoExtent: { value: 1 },
+  uOrthoMix: { value: 0 },
+  // Contrainte de teinte du feuillage : bornes en degrés, et saturation plancher. Les valeurs
+  // viennent de `source-points.json`, pour que le shader et la couleur cuite appliquent la
+  // même correction ; celles-ci ne servent que de repli pour un nuage produit avant elle.
+  uFoliageGreen: { value: 0 },
+  uFoliageHue: { value: new THREE.Vector2(80, 140) },
+  uFoliageSaturation: { value: 0.25 },
+  // Bornes des codes de classification concernés. Les trois strates végétales sont contiguës
+  // (3, 4, 5), un intervalle suffit donc là où un test d'appartenance coûterait une boucle par
+  // sommet. `foliageGreenSettings` vérifie cette contiguïté avant de s'y fier.
+  uFoliageClasses: { value: new THREE.Vector2(3, 5) },
+};
+
+// Repli des seuils, aligné sur les constantes de `source_points.py`.
+const FOLIAGE_GREEN_FALLBACK = { hueMin: 80, hueMax: 140, saturationMin: 0.25, classes: [3, 4, 5] };
+
+// Superposé au modèle, le nuage se bat en profondeur avec les surfaces que ses propres points
+// ont servi à construire — le terrain est interpolé depuis la classe 2, il coïncide donc avec
+// elle à quelques centimètres près, et le rendu se met à grésiller. Un biais rapproche les
+// points de la caméra juste assez pour qu'ils gagnent, sans les décoller visiblement : c'est
+// une correction d'affichage, pas un déplacement de la mesure.
+//
+// Il s'exprime en **mètres**, et c'est tout le sujet. Écrit d'abord en profondeur normalisée
+// — `gl_Position.z -= biais * gl_Position.w` —, il valait une distance qui croissait comme le
+// carré de l'éloignement : à peu près 7 m à cent mètres de la caméra, une trentaine à deux
+// cents. Les points passaient alors devant les bâtiments qui auraient dû les masquer, et la
+// végétation d'arrière-plan traversait les façades. Appliqué en espace vue, le décalage reste
+// celui qu'on a réglé, quelle que soit la distance.
+const POINT_DEPTH_BIAS_M = 0.1;
+const pointDepthBias = { value: 0 };
+
+// Le nuage LiDAR est le seul objet de la scène rendu en points : son matériau porte donc
+// trois besoins qu'aucun matériau standard ne couvre — une taille bornée en pixels, une
+// silhouette ronde et un filtre par classe. Tout tient dans un patch de shader ; le
+// visualiseur n'a toujours qu'une chaîne de rendu, sans passe de post-traitement.
+function patchPointsMaterial(material) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uPointSizeClamp = pointSizeClamp;
+    shader.uniforms.uDepthBias = pointDepthBias;
+    Object.assign(shader.uniforms, pointOrtho);
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        attribute float aVisible;
+        attribute vec4 aLidar;
+        uniform vec2 uPointSizeClamp;
+        uniform vec2 uOrthoOffset;
+        uniform float uOrthoExtent;
+        uniform float uDepthBias;
+        uniform vec2 uFoliageClasses;
+        varying float vVisible;
+        varying float vShade;
+        varying float vFoliage;
+        varying vec2 vOrthoUv;`,
+      )
+      .replace(
+        "#include <logdepthbuf_vertex>",
+        `gl_PointSize = clamp( gl_PointSize, uPointSizeClamp.x, uPointSizeClamp.y );
+        vVisible = aVisible;
+        if ( aVisible < 0.5 ) gl_PointSize = 0.0;
+        // L'occlusion cuite voyage dans le troisième canal, en octets non normalisés.
+        vShade = aLidar.z / 255.0;
+        // La classification voyage dans le premier, au même format. Le demi-pas de part et
+        // d'autre absorbe l'imprécision du transfert en flottant.
+        vFoliage = step( uFoliageClasses.x - 0.5, aLidar.x ) * step( aLidar.x, uFoliageClasses.y + 0.5 );
+
+        // Reprise exacte de \`ortho_uv\` : la scène est recentrée sur le milieu de son
+        // emprise, u croît vers l'est et v vers le sud — d'où le signe du calage nord.
+        vOrthoUv = vec2(
+          0.5 + ( position.x + uOrthoOffset.x ) / uOrthoExtent,
+          0.5 + ( position.z - uOrthoOffset.y ) / uOrthoExtent
+        );
+        #include <logdepthbuf_vertex>`,
+      )
+      .replace(
+        "#include <project_vertex>",
+        `#include <project_vertex>
+        // Le biais se pose ici, en espace vue, où il vaut des mètres. La caméra regarde vers
+        // les z négatifs : ajouter rapproche. La reprojection est nécessaire, la position
+        // écran venant d'être calculée à partir du point non décalé.
+        mvPosition.z += uDepthBias;
+        gl_Position = projectionMatrix * mvPosition;`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        uniform sampler2D uOrtho;
+        uniform float uOrthoMix;
+        uniform float uFoliageGreen;
+        uniform vec2 uFoliageHue;
+        uniform float uFoliageSaturation;
+        varying float vVisible;
+        varying float vShade;
+        varying float vFoliage;
+        varying vec2 vOrthoUv;
+
+        // Un point de végétation prend la couleur de ce qui se trouve à son aplomb dans
+        // l'orthophotographie — toiture, route, rocher. Les houppiers se constellent alors de
+        // points blancs et roses, comme s'ils poussaient du bâti. Ramener la teinte dans le
+        // domaine des verts corrige cela sans toucher à la valeur, qui porte tout le relief.
+        vec3 rgbToHsv( vec3 rgb ) {
+          float high = max( rgb.r, max( rgb.g, rgb.b ) );
+          float low = min( rgb.r, min( rgb.g, rgb.b ) );
+          float delta = high - low;
+          float hue = 0.0;
+          if ( delta > 1e-6 ) {
+            if ( high == rgb.r ) hue = mod( ( rgb.g - rgb.b ) / delta, 6.0 );
+            else if ( high == rgb.g ) hue = ( rgb.b - rgb.r ) / delta + 2.0;
+            else hue = ( rgb.r - rgb.g ) / delta + 4.0;
+          }
+          return vec3( hue * 60.0, high > 1e-6 ? delta / high : 0.0, high );
+        }
+
+        vec3 hsvToRgb( vec3 hsv ) {
+          vec3 k = mod( hsv.x / 60.0 + vec3( 5.0, 3.0, 1.0 ), 6.0 );
+          return hsv.z - hsv.z * hsv.y * max( vec3( 0.0 ), min( min( k, 4.0 - k ), vec3( 1.0 ) ) );
+        }
+
+        // La texture est décodée en linéaire par le matériel, alors que les seuils sont lus sur
+        // une palette sRGB : l'aller-retour par la gamma les remet dans leur espace. Une
+        // approximation en 2,2 suffit — on contraint une teinte d'affichage, pas une mesure.
+        vec3 constrainToGreen( vec3 linear ) {
+          vec3 hsv = rgbToHsv( pow( linear, vec3( 1.0 / 2.2 ) ) );
+          hsv.x = clamp( hsv.x, uFoliageHue.x, uFoliageHue.y );
+          hsv.y = max( hsv.y, uFoliageSaturation );
+          return pow( hsvToRgb( hsv ), vec3( 2.2 ) );
+        }`,
+      )
+      .replace(
+        "void main() {",
+        `void main() {
+        // Une taille nulle n'est pas garantie : plusieurs pilotes la ramènent à un pixel.
+        if ( vVisible < 0.5 ) discard;
+        vec2 fromCentre = gl_PointCoord - vec2( 0.5 );
+        if ( dot( fromCentre, fromCentre ) > 0.25 ) discard;`,
+      )
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+        // La texture est déclarée en sRGB : le décodage est fait par le matériel, la valeur
+        // lue est donc déjà linéaire et une seconde conversion la délaverait.
+        if ( uOrthoMix > 0.5 ) {
+          vec3 sampled = texture2D( uOrtho, vOrthoUv ).rgb;
+          // La contrainte précède l'occlusion : appliquée après, son plancher de saturation
+          // rattraperait l'assombrissement et éclaircirait les points à l'ombre.
+          if ( uFoliageGreen > 0.5 && vFoliage > 0.5 ) sampled = constrainToGreen( sampled );
+          diffuseColor.rgb = sampled * vShade;
+        }`,
+      );
+  };
+  material.customProgramCacheKey = () => "lidar-points";
+  return material;
+}
+
+// Seuils de la contrainte de teinte, tels que la production les a publiés. Les recopier ici
+// aurait créé deux constantes tenues en parallèle, qui divergeraient sans que rien ne le dise :
+// le nuage porte les siennes, et le repli ne sert qu'à ceux produits avant leur introduction.
+function foliageGreenSettings() {
+  const published = sourcePointsMetadata?.foliageGreen;
+  if (!published) return FOLIAGE_GREEN_FALLBACK;
+  const classes = published.classes ?? FOLIAGE_GREEN_FALLBACK.classes;
+  // L'intervalle passé au shader suppose des codes contigus. Ils le sont (3, 4, 5) ; si une
+  // évolution les disperse, mieux vaut ne rien corriger que corriger la mauvaise classe.
+  const low = Math.min(...classes);
+  const high = Math.max(...classes);
+  if (high - low + 1 !== classes.length) {
+    console.warn("Classes de feuillage non contiguës : contrainte de teinte ignorée.", classes);
+    return null;
+  }
+  return { ...FOLIAGE_GREEN_FALLBACK, ...published, classes };
+}
+
+// Le nuage reprend la texture du terrain, celle-là même que les curseurs déplacent. Rien n'est
+// recalculé sur les 750 000 points : le calage est un uniform, il suit le curseur au pixel.
+function applyPointOrtho() {
+  const texture = orthoTexture();
+  const extent = orthoExtentM();
+  const mode = document.querySelector("#pointColorMode").value;
+  const total = totalOrthoOffset();
+  pointOrtho.uOrtho.value = texture;
+  pointOrtho.uOrthoExtent.value = extent || 1;
+  pointOrtho.uOrthoOffset.value.set(total.east, total.north);
+  // Sans texture ni emprise connue, le nuage garde la couleur assemblée : c'est le cas d'une
+  // scène produite hors couverture, et l'échantillonnage y rendrait du noir.
+  pointOrtho.uOrthoMix.value = mode === "ortho" && texture && extent ? 1 : 0;
+
+  const foliage = foliageGreenSettings();
+  const wanted = document.querySelector("#foliageGreenToggle")?.checked ?? true;
+  pointOrtho.uFoliageGreen.value = foliage && wanted ? 1 : 0;
+  if (foliage) {
+    pointOrtho.uFoliageHue.value.set(foliage.hueMin, foliage.hueMax);
+    pointOrtho.uFoliageSaturation.value = foliage.saturationMin;
+    pointOrtho.uFoliageClasses.value.set(
+      Math.min(...foliage.classes),
+      Math.max(...foliage.classes),
+    );
+  }
+}
+
+function applyPointDepthBias() {
+  pointDepthBias.value = comparisonMode === "overlay" ? POINT_DEPTH_BIAS_M : 0;
+}
+
+// Le GLB porte la classification, la réflectance et l'occlusion dans un attribut applicatif
+// `_LIDAR`, que le chargeur glTF expose en `_lidar`. Le renommer et lui adjoindre la
+// visibilité met tout ce que le shader manipule sous des noms qui se lisent.
+function prepareSourcePointAttributes(geometry) {
+  const lidar = geometry.getAttribute("_lidar");
+  if (lidar) geometry.setAttribute("aLidar", lidar);
+  else {
+    // Nuage produit avant l'introduction de l'attribut : les modes dérivés retombent alors
+    // sur la couleur assemblée, sans quoi la scène refuserait de s'afficher.
+    const count = geometry.getAttribute("position").count;
+    const empty = new Uint8Array(count * 4).fill(255);
+    for (let index = 0; index < count; index += 1) empty[index * 4] = 0;
+    geometry.setAttribute("aLidar", new THREE.BufferAttribute(empty, 4));
+  }
+  const count = geometry.getAttribute("position").count;
+  geometry.setAttribute(
+    "aVisible",
+    new THREE.BufferAttribute(new Uint8Array(count).fill(1), 1),
+  );
+  // La couleur assemblée doit survivre au passage par les autres modes : l'attribut `color`
+  // est réécrit sur place à chaque bascule, celui-ci reste la référence.
+  const color = geometry.getAttribute("color");
+  geometry.setAttribute(
+    "aBakedColor",
+    new THREE.BufferAttribute(color.array.slice(), color.itemSize, color.normalized),
+  );
+}
+
+function pointSizeFactor() {
+  return Number(document.querySelector("#pointSize").value) / 100;
+}
+
+// Un disque doit couvrir la maille qui l'a produit, donc valoir plus que son pas : le facteur
+// a été calé à l'écran sur l'emprise 200 m, en vue rapprochée — 0,4 m laissait voir le ciel
+// entre les tuiles, 0,9 m referme les toitures sans empâter les houppiers.
+const POINT_SIZE_TO_SPACING = 2.2;
+
+// Le nuage est dimensionné en mètres, d'après le pas de la décimation qui l'a produit — le
+// voxel quand il est actif, l'espacement moyen sinon. Un réglage en pixels était le défaut
+// d'origine : constant à toute distance, il donnait un voile uniforme de loin et un nuage
+// troué de près, exactement l'inverse du souhaitable.
+function applyPointSize() {
+  const output = document.querySelector("#pointSizeValue");
+  const factor = pointSizeFactor();
+  output.textContent = `×${factor.toFixed(1).replace(".", ",")}`;
+  if (!sourcePointsCloud) return;
+  const spacing = Math.max(
+    Number(sourcePointsMetadata?.voxelM) || 0,
+    Number(sourcePointsMetadata?.spacingM) || 0.25,
+  );
+  sourcePointsCloud.material.size = spacing * POINT_SIZE_TO_SPACING * factor;
+  sourcePointsCloud.material.needsUpdate = true;
+}
+
+function applyPointClassFilter() {
+  if (!sourcePointsCloud) return;
+  const geometry = sourcePointsCloud.geometry;
+  const classes = geometry.getAttribute("aLidar");
+  const visible = geometry.getAttribute("aVisible");
+  for (let index = 0; index < visible.count; index += 1) {
+    visible.array[index] = hiddenPointClasses.has(classes.array[index * 4]) ? 0 : 1;
+  }
+  visible.needsUpdate = true;
+}
+
+const POINT_COLOR_DESCRIPTIONS = {
+  ortho: "couleurs de l’orthophotographie IGN",
+  classification: "couleurs par classe LiDAR",
+  intensity: "réflectance mesurée, cadrée sur ses centiles",
+  elevation: "altitude relative au point le plus bas",
+};
+
+// Rampe altimétrique : sombre en fond de vallée, claire sur les crêtes. Quatre arrêts
+// suffisent à lire un relief, et une rampe plus bavarde se lirait comme une carte. Les
+// teintes s'écrivent en entiers : une chaîne « #rrggbb » se confondrait avec un sélecteur
+// d'identifiant, que la préparation du visualiseur contrôle par recherche textuelle.
+const ELEVATION_RAMP = [0x1d3b58, 0x2f7f6f, 0xc2a75a, 0xf2ece1];
+const UNKNOWN_CLASS_COLOR = 0xdec25a;
+
+function rampColor(stops, position) {
+  const span = (stops.length - 1) * Math.min(Math.max(position, 0), 1);
+  const index = Math.min(Math.floor(span), stops.length - 2);
+  const low = new THREE.Color().setHex(stops[index], THREE.SRGBColorSpace);
+  const high = new THREE.Color().setHex(stops[index + 1], THREE.SRGBColorSpace);
+  return low.lerp(high, span - index);
+}
+
+// Le mode photo n'est proposé que si la scène porte une orthophotographie — soit dans sa
+// texture, que le nuage échantillonne, soit cuite dans ses couleurs pour les scènes assemblées
+// avant cet échantillonnage. Une option muette vaut mieux que silencieusement inopérante.
+function configurePointColorModes(metadata) {
+  const select = document.querySelector("#pointColorMode");
+  const available = Boolean(orthoTexture()) || (metadata?.bakedColorMode ?? "ortho") === "ortho";
+  const option = select.querySelector('option[value="ortho"]');
+  option.disabled = !available;
+  option.title = option.disabled ? "Cette scène a été assemblée sans orthophotographie." : "";
+  if (option.disabled && select.value === "ortho") select.value = "classification";
+}
+
+function applyPointColorMode() {
+  const mode = document.querySelector("#pointColorMode").value;
+  if (!sourcePointsCloud) return;
+  const geometry = sourcePointsCloud.geometry;
+  const baked = geometry.getAttribute("aBakedColor");
+  const lidar = geometry.getAttribute("aLidar");
+  const color = geometry.getAttribute("color");
+  const positions = geometry.getAttribute("position");
+  const legend = sourcePointsMetadata?.classificationLegend ?? {};
+  applyPointOrtho();
+  if (mode === (sourcePointsMetadata?.bakedColorMode ?? "ortho")) {
+    color.array.set(baked.array);
+    color.needsUpdate = true;
+    describeComparisonMode();
+    return;
+  }
+  const palette = new Map();
+  for (const [code, item] of Object.entries(legend)) {
+    palette.set(Number(code), new THREE.Color().setStyle(item.color, THREE.SRGBColorSpace));
+  }
+  const fallback = new THREE.Color().setHex(UNKNOWN_CLASS_COLOR, THREE.SRGBColorSpace);
+  let lowest = Infinity;
+  let highest = -Infinity;
+  if (mode === "elevation") {
+    for (let index = 0; index < positions.count; index += 1) {
+      const height = positions.getY(index);
+      if (height < lowest) lowest = height;
+      if (height > highest) highest = height;
+    }
+  }
+  const span = highest - lowest || 1;
+  const tint = new THREE.Color();
+  for (let index = 0; index < color.count; index += 1) {
+    const offset = index * 4;
+    // L'occlusion cuite voyage dans le troisième canal : elle doit survivre au changement
+    // de mode, sans quoi le relief disparaîtrait dès qu'on quitte la couleur assemblée.
+    const shade = lidar.array[offset + 2] / 255;
+    if (mode === "intensity") {
+      const value = lidar.array[offset + 1] / 255;
+      tint.setRGB(value, value, value, THREE.SRGBColorSpace);
+    } else if (mode === "elevation") {
+      tint.copy(rampColor(ELEVATION_RAMP, (positions.getY(index) - lowest) / span));
+    } else {
+      // Classification, et repli du mode photo quand la scène n'en porte pas : mieux vaut la
+      // teinte de classe qu'un nuage noir échantillonné dans une texture absente.
+      tint.copy(palette.get(lidar.array[offset]) ?? fallback);
+    }
+    color.array[offset] = Math.round(tint.r * shade * 255);
+    color.array[offset + 1] = Math.round(tint.g * shade * 255);
+    color.array[offset + 2] = Math.round(tint.b * shade * 255);
+    color.array[offset + 3] = 255;
+  }
+  color.needsUpdate = true;
+  describeComparisonMode();
+}
+
+function setLayerChecked(selector, visible) {
+  const toggle = document.querySelector(selector);
+  if (!toggle || toggle.disabled) return;
+  toggle.checked = visible;
+}
+
+async function loadSourcePoints() {
+  if (sourcePoints) return true;
+  if (!currentEntry?.sourcePoints) return false;
+  const entry = currentEntry;
+  const token = ++sourcePointsToken;
+  describeComparisonMode("Chargement du nuage LiDAR témoin…");
+  setStatus("loading", "Chargement du nuage LiDAR témoin…");
+  try {
+    const [gltf, metadata] = await Promise.all([
+      loadModel(`./${entry.sourcePoints}`),
+      fetch(`./${entry.sourcePointsMetadata}`).then((response) => {
+        if (!response.ok) throw new Error("métadonnées du nuage absentes");
+        return response.json();
+      }),
+    ]);
+    if (token !== sourcePointsToken || entry !== currentEntry) {
+      disposeObject(gltf.scene);
+      return false;
+    }
+    sourcePoints = gltf.scene;
+    sourcePointsMetadata = metadata;
+    configurePointColorModes(metadata);
+    updateSourcePointLegend(metadata);
+    sourcePoints.traverse((object) => {
+      if (!object.isPoints) return;
+      const previous = object.material;
+      object.material = patchPointsMaterial(
+        new THREE.PointsMaterial({
+          name: "Nuage LiDAR HD",
+          // La taille définitive est posée par `applyPointSize`, qui la tire de l'espacement
+          // mesuré du nuage. Elle est ici en mètres, jamais en pixels.
+          size: 0.25,
+          sizeAttenuation: true,
+          vertexColors: true,
+        }),
+      );
+      previous?.dispose();
+      object.frustumCulled = false;
+      prepareSourcePointAttributes(object.geometry);
+      sourcePointsCloud = object;
+    });
+    applyPointSize();
+    applyPointClassFilter();
+    applyPointColorMode();
+    sourcePoints.scale.y = Number(document.querySelector("#verticalScale").value) / 100;
+    sourcePoints.visible = showsSourcePoints(comparisonMode);
+    scene.add(sourcePoints);
+    describeComparisonMode();
+    updateDataInformation(currentMetadata, currentEntry);
+    setStatus(
+      "ready",
+      showsSourcePoints(comparisonMode) ? "Nuage LiDAR prêt" : "Scène prête",
+    );
+    return true;
+  } catch (error) {
+    if (token === sourcePointsToken) {
+      console.error(error);
+      setComparisonMode("vegetation");
+      describeComparisonMode(`Nuage source indisponible : ${error.message}. Retour au modèle.`);
+      setStatus("error", "Nuage LiDAR indisponible — modèle rétabli");
+    }
+    return false;
+  }
+}
+
+function showsSourcePoints(mode) {
+  return mode === "source" || mode === "overlay";
+}
+
+function setComparisonMode(mode) {
+  if (!(mode in COMPARISON_DESCRIPTIONS)) return;
+  const radioOf = (value) =>
+    document.querySelector(`input[name="comparisonMode"][value="${value}"]`);
+  if (showsSourcePoints(mode) && radioOf(mode).disabled) return;
+  // Un préréglage s'applique quand on choisit un mode, pas quand on le retrouve : la fonction
+  // est rappelée à chaque chargement de scène, et écraser alors la couleur des points
+  // reviendrait à défaire à chaque changement d'emprise ce que l'utilisateur a réglé.
+  const previous = comparisonMode;
+  comparisonMode = mode;
+  const radio = radioOf(mode);
+  if (radio) radio.checked = true;
+  // Le modèle disparaît sous le nuage seul, et coexiste avec lui en superposition.
+  if (model) model.visible = mode !== "source";
+  if (sourcePoints) sourcePoints.visible = showsSourcePoints(mode);
+  applyPointDepthBias();
+
+  if (mode === "overlay" && previous !== "overlay") {
+    // La superposition ne vaut que si le nuage tranche sur le modèle. Les deux en couleurs
+    // d'orthophotographie se confondraient exactement là où il s'agit de les distinguer :
+    // le préréglage bascule donc sur la classification, comme les autres modes posent leurs
+    // couches. Le sélecteur reste libre ensuite.
+    const colorMode = document.querySelector("#pointColorMode");
+    if (colorMode.value === "ortho") {
+      colorMode.value = "classification";
+      applyPointColorMode();
+    }
+    setRenderMode("ortho");
+  }
+
+  if (mode === "bare") {
+    setLayerChecked("#terrainToggle", true);
+    setLayerChecked("#buildingsToggle", true);
+    setLayerChecked("#vegetationToggle", false);
+    setLayerChecked("#canopyToggle", false);
+    // « Sol nu » veut dire sol nu : la strate arbustive est de la végétation, et la laisser
+    // en place masquerait précisément le terrain que ce mode sert à regarder.
+    setLayerChecked("#understoryToggle", false);
+    setLayerChecked("#waterToggle", true);
+    setLayerChecked("#bridgeToggle", true);
+    setRenderMode("model");
+  } else if (mode === "vegetation") {
+    setLayerChecked("#terrainToggle", true);
+    setLayerChecked("#buildingsToggle", true);
+    setLayerChecked("#vegetationToggle", true);
+    setLayerChecked("#canopyToggle", true);
+    setLayerChecked("#understoryToggle", true);
+    setLayerChecked("#waterToggle", true);
+    setLayerChecked("#bridgeToggle", true);
+    setRenderMode("ortho");
+  }
+  if (terrain) terrain.visible = document.querySelector("#terrainToggle").checked;
+  if (buildings) buildings.visible = document.querySelector("#buildingsToggle").checked;
+  for (const entry of optionalLayers) {
+    if (entry.object) entry.object.visible = document.querySelector(entry.toggle).checked;
+  }
+  describeComparisonMode();
+  if (showsSourcePoints(mode)) loadSourcePoints();
+}
+
+function configureComparisonModes() {
+  const available = Boolean(currentEntry?.sourcePoints && currentEntry?.sourcePointsMetadata);
+  for (const value of ["source", "overlay"]) {
+    const radio = document.querySelector(`input[name="comparisonMode"][value="${value}"]`);
+    radio.disabled = !available;
+    radio.closest("label").title = available
+      ? ""
+      : "Cette scène a été produite sans nuage LiDAR témoin.";
+  }
+  if (!available && showsSourcePoints(comparisonMode)) comparisonMode = "vegetation";
 }
 
 function publishPanelSize() {
@@ -1226,7 +1830,7 @@ function updateDataInformation(metadata, entry) {
   addDataSection(
     sections,
     "Méthode de reconstruction",
-    "Roofer LoD2.2 reconstruit les volumes depuis le LiDAR HD et les emprises BD TOPO. Le terrain est rasterisé, raccordé sous le bâti, puis l’orthophotographie est drapée sur le sol et projetée sur les toitures.",
+    "Roofer LoD2.2 reconstruit les volumes depuis le LiDAR HD et les emprises BD TOPO. Le MNT vient de la classe sol 2 ; le MNS ajoute les végétations 3/4/5 et le bâti 6. Le terrain est raccordé sous le bâti, puis l’orthophotographie est drapée sur le sol et projetée sur les toitures.",
     { wide: true },
   );
   addDataSection(
@@ -1243,6 +1847,21 @@ function updateDataInformation(metadata, entry) {
     ],
     { list: true, wide: true },
   );
+  if (sourcePointsMetadata) {
+    addDataSection(
+      sections,
+      "Nuage LiDAR témoin",
+      [
+        `${sourcePointsMetadata.renderedPoints.toLocaleString("fr-FR")} points affichés sur ${sourcePointsMetadata.sourcePoints.toLocaleString("fr-FR")} dans ${sourcePointsMetadata.sourceFile}.`,
+        `Jeu de données : ${sourcePointsMetadata.datasetUrl}.`,
+        `Échantillonnage : ${sourcePointsMetadata.sampling}.`,
+        `Dimensions : ${sourcePointsMetadata.dimensions.join(", ")}.`,
+        `Empreinte SHA-256 du LAZ : ${sourcePointsMetadata.sourceSha256}.`,
+        ...(sourcePointsMetadata.copcSources ?? []).map((url) => `Source COPC : ${url}`),
+      ],
+      { list: true, wide: true },
+    );
+  }
   // Obligation de la Licence Ouverte 2.0, sous laquelle l'IGN diffuse ces trois jeux : la
   // mention de paternité doit accompagner la réutilisation, donc la publication en ligne.
   // La révision de Three.js est lue dans la bibliothèque et non recopiée : la version servie
@@ -1407,7 +2026,7 @@ function disposeObject(root) {
   root?.traverse((object) => {
     // Les contours de sélection sont des lignes, pas des maillages : les oublier ici faisait
     // fuir une géométrie par bâtiment survolé, à chaque changement d'emprise.
-    if (!object.isMesh && !object.isLine) return;
+    if (!object.isMesh && !object.isLine && !object.isPoints) return;
     object.geometry?.dispose();
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     materials.filter(Boolean).forEach((material) => {
@@ -1419,6 +2038,15 @@ function disposeObject(root) {
 
 function disposeModel() {
   if (!model) return;
+  sourcePointsToken += 1;
+  if (sourcePoints) {
+    scene.remove(sourcePoints);
+    disposeObject(sourcePoints);
+    sourcePoints = null;
+  }
+  sourcePointsMetadata = null;
+  sourcePointsCloud = null;
+  document.querySelector("#sourcePointLegend").replaceChildren();
   clearBuildingSelection();
   setHovered(null);
   setQualityColors(false);
@@ -1533,6 +2161,9 @@ function applyOrthoOffset() {
   // `offset` alimente la matrice de texture, que le rendu recalcule seul : lever
   // `needsUpdate` renverrait les 4096 pixels de côté au GPU à chaque cran du curseur.
   texture.offset.set(manual.east / extent, -manual.north / extent);
+  // Le nuage n'a pas de coordonnées de texture : il projette la photo depuis la position de
+  // chaque point, et suit donc le même calage par un uniform plutôt que par cette matrice.
+  applyPointOrtho();
   document.querySelector("#orthoOffsetFeedback").textContent = "";
 }
 
@@ -1548,23 +2179,28 @@ function resetOrthoOffset() {
 // Les réglages qui ont un équivalent dans le `.conf` se recopient par le même chemin : le
 // presse-papiers quand le navigateur l'autorise, et le texte à l'écran sinon — refuser la copie
 // sans montrer la valeur laisserait l'utilisateur devant un réglage qu'il ne peut pas reporter.
-async function copyForConfiguration(lines, feedbackSelector) {
+async function copyForConfiguration(lines, feedbackSelector, commands = "glb") {
   const feedback = document.querySelector(feedbackSelector);
   try {
     await navigator.clipboard.writeText(lines);
     feedback.textContent =
-      "Copié — à coller dans le .conf de la scène et dans son .example, puis relancer glb.";
+      `Copié — à coller dans le .conf de la scène et dans son .example, puis relancer ${commands}.`;
   } catch (error) {
     feedback.textContent = `Copie refusée par le navigateur : ${lines.replace(/\n/g, "  ")}`;
   }
 }
 
+// Deux commandes et non une : `glb` recuit les coordonnées de texture du terrain et des
+// toitures, `source` la couleur que le nuage porte dans son `COLOR_0`. Le visualiseur, lui,
+// prend le nouveau calage dès `glb`, puisqu'il le relit dans `scene.json` — mais un nuage
+// exporté vers un autre moteur garderait l'ancien tant que `source` n'a pas été rejoué.
 async function copyOrthoOffset() {
   const total = totalOrthoOffset();
   await copyForConfiguration(
     `ORTHO_OFFSET_EAST=${total.east.toFixed(2)}\n` +
       `ORTHO_OFFSET_NORTH=${total.north.toFixed(2)}\n`,
     "#orthoOffsetFeedback",
+    "glb puis source",
   );
 }
 
@@ -1862,6 +2498,7 @@ function adopt(entry, metadata, gltf) {
   disposeModel();
   currentMetadata = metadata;
   currentEntry = entry;
+  configureComparisonModes();
   document.querySelector("#buildingCount").textContent = metadata.buildings.toLocaleString("fr-FR");
   const [xmin, ymin, xmax, ymax] = metadata.bbox;
   document.querySelector("#extent").textContent = `${(xmax - xmin).toFixed(0)} × ${(ymax - ymin).toFixed(0)} m`;
@@ -1938,6 +2575,7 @@ function adopt(entry, metadata, gltf) {
   applySunMeasureLock(metadata);
   fitSunToModel();
   setStatus("ready", "Scène prête");
+  setComparisonMode(comparisonMode);
 }
 
 function loadModel(url, onProgress) {
@@ -2024,6 +2662,7 @@ const PERSISTED_INPUTS = [
   "buildingsToggle",
   "vegetationToggle",
   "canopyToggle",
+  "understoryToggle",
   "waterToggle",
   "bridgeToggle",
   "terrainTextureToggle",
@@ -2046,6 +2685,9 @@ const PERSISTED_INPUTS = [
   "crownX",
   "crownY",
   "crownZ",
+  "pointColorMode",
+  "foliageGreenToggle",
+  "pointSize",
 ];
 
 // Les sections sont repérées par leur identifiant, pas par leur rang : un réglage inséré au
@@ -2067,7 +2709,9 @@ function saveState() {
   const state = {
     inputs,
     renderMode,
+    comparisonMode,
     customTextures,
+    hiddenPointClasses: [...hiddenPointClasses],
     panelVisible: !controlPanel.classList.contains("panel--hidden"),
     expertOpen: expertControls.open,
     sections,
@@ -2099,7 +2743,11 @@ function restoreState() {
     else input.value = String(value);
   }
   if (state.renderMode in RENDER_MODE_DESCRIPTIONS) renderMode = state.renderMode;
+  if (state.comparisonMode in COMPARISON_DESCRIPTIONS) comparisonMode = state.comparisonMode;
   customTextures = Boolean(state.customTextures);
+  hiddenPointClasses = new Set(
+    (Array.isArray(state.hiddenPointClasses) ? state.hiddenPointClasses : []).map(Number),
+  );
   if (state.panelVisible === false) setPanelVisible(false);
   expertControls.open = Boolean(state.expertOpen);
   for (const section of panelSections()) {
@@ -2110,6 +2758,7 @@ function restoreState() {
   // afficheraient les valeurs par défaut à côté de curseurs déjà déplacés.
   applyTerrainOpacity();
   applyCrownScale();
+  applyPointSize();
   const scale = Number(document.querySelector("#verticalScale").value) / 100;
   document.querySelector("#verticalValue").textContent = `×${scale.toFixed(1).replace(".", ",")}`;
   updateSun();
@@ -2118,6 +2767,11 @@ function restoreState() {
   describeRenderMode();
   const radio = document.querySelector(`input[name="renderMode"][value="${renderMode}"]`);
   if (radio) radio.checked = true;
+  const comparisonRadio = document.querySelector(
+    `input[name="comparisonMode"][value="${comparisonMode}"]`,
+  );
+  if (comparisonRadio) comparisonRadio.checked = true;
+  describeComparisonMode();
   return state;
 }
 
@@ -2165,6 +2819,12 @@ for (const selector of ["#terrainTextureToggle", "#roofTextureToggle"]) {
 for (const input of document.querySelectorAll('input[name="renderMode"]')) {
   input.addEventListener("change", (event) => {
     if (event.target.checked) setRenderMode(event.target.value);
+  });
+}
+
+for (const input of document.querySelectorAll('input[name="comparisonMode"]')) {
+  input.addEventListener("change", (event) => {
+    if (event.target.checked) setComparisonMode(event.target.value);
   });
 }
 
@@ -2238,10 +2898,17 @@ for (const id of ["#displayExposure", "#displayContrast"]) {
 document.querySelector("#toneMapping").addEventListener("change", applyDisplayTuning);
 document.querySelector("#contrastLighting").addEventListener("click", applyContrastLightingPreset);
 
+document.querySelector("#pointColorMode").addEventListener("change", applyPointColorMode);
+// La contrainte vit dans le shader : rien à réassembler, la bascule est immédiate. C'est ce
+// qui permet de la comparer à l'orthophotographie brute, qui reste la mesure.
+document.querySelector("#foliageGreenToggle").addEventListener("change", applyPointOrtho);
+document.querySelector("#pointSize").addEventListener("input", applyPointSize);
+
 document.querySelector("#verticalScale").addEventListener("input", (event) => {
   const scale = Number(event.target.value) / 100;
   document.querySelector("#verticalValue").textContent = `×${scale.toFixed(1).replace(".", ",")}`;
   if (model) model.scale.y = scale;
+  if (sourcePoints) sourcePoints.scale.y = scale;
 });
 // L'exagération verticale grandit la scène : le frustum d'ombre doit suivre, mais au
 // relâchement seulement — le recalculer à chaque pixel de curseur ne servirait à rien.

@@ -99,10 +99,15 @@ SKIRT_COLOR = _srgb("#8C8377")
 WATER_COLOR = _srgb("#78939D", 0.58)
 # Béton et pierre du tablier, plus froid que les enduits de façade pour s'en distinguer.
 BRIDGE_COLOR = _srgb("#9A968E")
+# Strate arbustive : plus sombre et nettement plus jaune que le feuillage des houppiers.
+# Garrigue, ronces et sous-bois cévenols ne sont pas du vert de canopée, et surtout la nappe
+# se lit sous les arbres — une teinte proche de la leur l'y ferait disparaître.
+UNDERSTORY_COLOR = _srgb("#5E6435")
 
 
 FLOAT = 5126
 UNSIGNED_INT = 5125
+UNSIGNED_BYTE = 5121
 ARRAY_BUFFER = 34962
 ELEMENT_ARRAY_BUFFER = 34963
 
@@ -153,15 +158,19 @@ class GlbBuilder:
 
     def _accessor(
         self,
-        values: list[tuple[float, ...]] | list[int],
+        values: list[tuple[float, ...]] | list[tuple[int, ...]] | list[int],
         *,
         component_type: int,
         value_type: str,
         target: int,
+        normalized: bool = False,
     ) -> int:
         if component_type == FLOAT:
             flat = [component for value in values for component in value]  # type: ignore[union-attr]
             payload = struct.pack(f"<{len(flat)}f", *flat)
+        elif component_type == UNSIGNED_BYTE:
+            flat = [component for value in values for component in value]  # type: ignore[union-attr]
+            payload = bytes(flat)
         else:
             flat = list(values)  # type: ignore[arg-type]
             payload = struct.pack(f"<{len(flat)}I", *flat)
@@ -172,6 +181,8 @@ class GlbBuilder:
             "count": len(values),
             "type": value_type,
         }
+        if normalized:
+            accessor["normalized"] = True
         if values and value_type in {"VEC2", "VEC3"}:
             width = len(values[0])  # type: ignore[arg-type,index]
             accessor["min"] = [
@@ -231,6 +242,44 @@ class GlbBuilder:
         self.textures.append({"sampler": sampler_index, "source": len(self.images) - 1})
         return len(self.textures) - 1
 
+    def array_accessor(
+        self,
+        array,
+        *,
+        component_type: int,
+        value_type: str,
+        target: int = ARRAY_BUFFER,
+        normalized: bool = False,
+    ) -> int:
+        """Accessor écrit directement depuis un tableau numpy, sans listes intermédiaires.
+
+        Un nuage LiDAR porte des centaines de milliers de points : les convertir en listes de
+        tuples Python pour les repacker ensuite coûte un ordre de grandeur de plus que d'en
+        recopier les octets — mesuré à 0,22 s contre 0,02 s pour 750 000 positions. Le reste
+        du builder travaille sur des listes et continue de le faire ; seule la géométrie de
+        masse passe par ici.
+        """
+        import numpy as np
+
+        dtype = {FLOAT: "<f4", UNSIGNED_BYTE: "<u1", UNSIGNED_INT: "<u4"}[component_type]
+        values = np.ascontiguousarray(array, dtype=dtype)
+        view = self._view(values.tobytes(), target)
+        accessor: dict = {
+            "bufferView": view,
+            "componentType": component_type,
+            "count": int(values.shape[0]),
+            "type": value_type,
+        }
+        if normalized:
+            accessor["normalized"] = True
+        # La spécification n'exige `min`/`max` que sur POSITION, mais le builder les pose déjà
+        # sur tous les VEC2/VEC3 : garder la même règle évite deux comportements à expliquer.
+        if values.size and value_type in {"VEC2", "VEC3"}:
+            accessor["min"] = values.min(axis=0).tolist()
+            accessor["max"] = values.max(axis=0).tolist()
+        self.accessors.append(accessor)
+        return len(self.accessors) - 1
+
     def primitive(
         self,
         positions: list[tuple[float, float, float]],
@@ -268,6 +317,45 @@ class GlbBuilder:
             ),
             "material": material,
             "mode": 4,
+        }
+
+    def point_primitive(
+        self,
+        positions,
+        colors,
+        material: int,
+        extra_attributes: dict[str, object] | None = None,
+    ) -> dict:
+        """Nuage glTF en points, coloré sans gonfler chaque canal en float32.
+
+        ``extra_attributes`` accueille les attributs applicatifs du nuage LiDAR, dont le nom
+        doit commencer par un tiret bas comme l'exige glTF 2.0. Chacun est un tableau
+        ``uint8`` de quatre canaux : la spécification impose d'aligner les éléments d'attribut
+        sur quatre octets, un scalaire ``uint8`` non entrelacé serait non conforme, et quatre
+        canaux ne coûtent pas plus qu'un seul aligné.
+        """
+        if len(positions) != len(colors):
+            raise ValueError("Chaque point doit porter une couleur")
+        attributes = {
+            "POSITION": self.array_accessor(
+                positions, component_type=FLOAT, value_type="VEC3"
+            ),
+            "COLOR_0": self.array_accessor(
+                colors, component_type=UNSIGNED_BYTE, value_type="VEC4", normalized=True
+            ),
+        }
+        for name, values in (extra_attributes or {}).items():
+            if not name.startswith("_"):
+                raise ValueError(f"Attribut glTF applicatif attendu sous _NOM : {name!r}")
+            if len(values) != len(positions):  # type: ignore[arg-type]
+                raise ValueError(f"{name} doit porter une valeur par point")
+            attributes[name] = self.array_accessor(
+                values, component_type=UNSIGNED_BYTE, value_type="VEC4"
+            )
+        return {
+            "attributes": attributes,
+            "material": material,
+            "mode": 0,
         }
 
     def add_mesh(self, name: str, primitives: list[dict], extras: dict | None = None) -> int | None:
@@ -1073,7 +1161,7 @@ def _load_nappes(
     """
     import numpy as np
 
-    from .surfaces import canopy_massif, load_nappe, surface_triangles
+    from .surfaces import canopy_massif, load_nappe, surface_triangles, understory_blanket
 
     xmin, _, _, ymax = config.terrain_bbox
     resolution = config.get_float("TERRAIN_RESOLUTION_M", 1.0)
@@ -1136,42 +1224,52 @@ def _load_nappes(
                     ):
                         _append_triangle(group, list(triangle))
                     groups["massif"] = group
+
+    if config.get_bool("UNDERSTORY", True) and terrain_grid is not None:
+        understory_path = run_dir / "understory.npy"
+        if not understory_path.is_file():
+            # Une exécution antérieure à la strate arbustive reste parfaitement exploitable :
+            # elle produit la scène sans elle, comme une emprise sans cours d'eau.
+            print("AVERTISSEMENT : understory.npy absent, strate arbustive ignorée.")
+        else:
+            try:
+                nappe = understory_blanket(
+                    np.load(understory_path),
+                    terrain_grid,  # type: ignore[arg-type]
+                    resolution,
+                    minimum_height=config.get_float("UNDERSTORY_MIN_HEIGHT_M", 0.5),
+                    maximum_height=config.get_float("VEGETATION_MIN_HEIGHT_M", 4.0),
+                    coverage=config.get_float("UNDERSTORY_COVERAGE", 0.35),
+                    smoothing=config.get_float("UNDERSTORY_SMOOTHING_M", 2.0),
+                )
+            except ValueError as error:
+                print(f"AVERTISSEMENT : strate arbustive ignorée ({error}).")
+            else:
+                if not nappe.is_empty():
+                    group = SurfaceGroup()
+                    for triangle in surface_triangles(
+                        nappe.elevations,
+                        xmin,
+                        ymax,
+                        resolution,
+                        centre,
+                        base_elevation,
+                    ):
+                        _append_triangle(group, list(triangle))
+                    groups["understory"] = group
+                    print(f"Strate arbustive : {nappe.cells} cellules")
     return groups
 
 
 def _load_occlusion(config: PocConfig, run_dir: Path, grid: object | None):
-    """Prépare l'occlusion cuite, ou ``None`` si elle est désactivée ou inapplicable.
+    """Occlusion cuite de la scène. L'implémentation vit dans ``occlusion.py``.
 
-    L'absence de modèle de surface n'est pas une erreur : les exécutions antérieures à son
-    introduction restent exploitables, simplement sans occlusion.
+    Le nuage LiDAR témoin la cuit désormais lui aussi : la fonction a été déplacée pour que
+    les deux appelants lisent les mêmes réglages, et cet alias garde le point d'appel local.
     """
-    import numpy as np
+    from .occlusion import load_occlusion
 
-    from .occlusion import bake_occlusion
-
-    if not config.get_bool("AMBIENT_OCCLUSION", True) or grid is None:
-        return None
-    surface_path = run_dir / "surface.npy"
-    if not surface_path.is_file():
-        print("AVERTISSEMENT : surface.npy absent, occlusion ambiante non cuite.")
-        return None
-    surface = np.load(surface_path)
-    if surface.shape != grid.shape:  # type: ignore[union-attr]
-        print("AVERTISSEMENT : surface.npy ne correspond pas au terrain, occlusion ignorée.")
-        return None
-    xmin, _, _, ymax = config.terrain_bbox
-    resolution = config.get_float("TERRAIN_RESOLUTION_M", 1.0)
-    print("Cuisson de l'occlusion ambiante (facteur de vue du ciel)…")
-    return bake_occlusion(
-        surface,
-        grid,  # type: ignore[arg-type]
-        xmin,
-        ymax,
-        resolution,
-        azimuths=config.get_int("OCCLUSION_AZIMUTHS", 16),
-        radius_m=config.get_float("OCCLUSION_RADIUS_M", 30.0),
-        strength=config.get_float("OCCLUSION_STRENGTH", 0.6),
-    )
+    return load_occlusion(config, run_dir, grid)  # type: ignore[arg-type]
 
 
 def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
@@ -1321,6 +1419,11 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
     else:
         canopy_color = FOLIAGE_FALLBACK
     canopy_material = builder.add_material("Canopée", canopy_color, roughness=0.95)
+    # Double face : la nappe se voit par en dessous depuis une rue en contrebas, comme celle
+    # de l'eau, et une strate basse aperçue par sa tranche disparaîtrait en simple face.
+    understory_material = builder.add_material(
+        "Sous-bois", UNDERSTORY_COLOR, roughness=0.98
+    )
 
     terrain_primitives = [
         builder.primitive(
@@ -1387,6 +1490,7 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
         ("water", "Eau", water_material),
         ("bridge", "Ponts", bridge_material),
         ("massif", "Canopee", canopy_material),
+        ("understory", "Sousbois", understory_material),
     ):
         group = nappes.get(name)
         if group and group.positions:
@@ -1409,6 +1513,10 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
         "minElevation": terrain.min_elevation,
         "maxElevation": terrain.max_elevation,
         "terrainResolutionM": config.get_float("TERRAIN_RESOLUTION_M", 1.0),
+        # Contrat des deux représentations altimétriques : le terrain est le sol classé 2,
+        # tandis que le MNS scientifique ajoute les trois strates végétales et le bâti.
+        "bareGroundClasses": [2],
+        "surfaceClasses": [2, 3, 4, 5, 6],
         # Côté de l'emprise que couvre l'orthophotographie, marge du terrain comprise. C'est
         # l'échelle qui convertit un calage en mètres vers des coordonnées de texture : sans
         # elle, le visualiseur ne saurait pas de combien décaler l'image pour un mètre demandé.
@@ -1428,6 +1536,7 @@ def create_scene_glb(config: PocConfig, run_dir: Path | None = None) -> Path:
         "water": "water" in nappes,
         "bridges": "bridge" in nappes,
         "canopy": "massif" in nappes,
+        "understory": "understory" in nappes,
         "foliageTinted": bool(tints),
         "foliageKinds": {
             kind: sum(1 for tree in trees if tree.foliage == kind)
