@@ -33,12 +33,13 @@ test("GET /api/v2 renvoie la landing HTML listant les microservices", async (t) 
 
   assert.equal(response.statusCode, 200);
   assert.match(String(response.headers["content-type"]), /text\/html/);
-  for (const name of ["Geography", "Weather", "Weather Vigilance", "Fire Detection", "Associations", "Gateway", "Map"]) {
+  for (const name of ["Geography", "Weather", "Weather Vigilance", "Fire Detection", "Associations", "OLD — Débroussaillement", "Gateway", "Map"]) {
     assert.ok(response.body.includes(name), `landing doit mentionner ${name}`);
   }
   assert.ok(response.body.includes("/api/v2/geography/resolve"));
   assert.ok(response.body.includes("/api/v2/demo/fire"));
   assert.ok(response.body.includes("/api/v2/demo/map"));
+  assert.ok(response.body.includes("/api/v2/demo/old"));
   assert.ok(response.body.includes('href="/valfeu/"'));
 });
 

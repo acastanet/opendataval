@@ -1,7 +1,7 @@
 # Gateway Service
 
 > Point d’entrée unique des API v2 (`/api/v2/*`). Aucune logique métier, aucun accès direct à la base.
-> Dernière mise à jour : 2026-07-27 · Dernière vérification : 2026-07-27
+> Dernière mise à jour : 2026-08-02 · Dernière vérification : 2026-08-02
 > Code : `apps/gateway-service/`
 
 ## Rôle
@@ -28,6 +28,7 @@ Il conserve aussi un pont temporaire en lecture seule vers le monolithe historiq
 | `/api/v2/weather/temperature` | `weather-service:/internal/v1/weather/temperature` | `GET` |
 | `/api/v2/vigilance` | Résolution éventuelle du département, puis `weather-vigilance-service` | `GET` |
 | `/api/v2/fire/nearby` | `fire-detection-service:/v1/fire/nearby`, rayon et historique obligatoires | `GET` |
+| `/api/v2/old/perimetre` | `old-service:/internal/v1/old/perimetre`, calcul indicatif bâtiment/cadastre/PLU | `GET` |
 | `/api/v2/legacy/*` | `api:/api/*`, pont historique en lecture seule | `GET`, `HEAD` |
 
 Format d’erreur public privilégié :
@@ -103,6 +104,7 @@ Le pont `/api/v2/legacy/*` :
 - `weather-service` : température ponctuelle ;
 - `weather-vigilance-service` : vigilance officielle départementale ;
 - `fire-detection-service` : détection stateless de suspicions de feu ;
+- `old-service` : applicabilité OLD et calcul du périmètre indicatif ;
 - aucune base de données, aucun cache et aucune file de messages.
 
 ## Inventaire des API v2
@@ -115,6 +117,7 @@ Le pont `/api/v2/legacy/*` :
 | Weather | `apps/weather-service` | `/api/v2/weather/temperature` | Température ponctuelle et contexte territorial. |
 | Weather Vigilance | `services/weather-vigilance` | `/api/v2/vigilance` | Vigilance officielle MétéoFrance et bulletins optionnels. |
 | Fire Detection | `services/fire-detection` | `/api/v2/fire/nearby` | Suspicions satellitaires FIRMS/EUMETSAT, rayon et historique fournis par l’appelant. |
+| OLD | `apps/old-service` | `/api/v2/old/perimetre` | Zonage OLD et tampon indicatif d’un bâtiment, enrichi du cadastre et du PLU. |
 | Legacy | `apps/api` | `/api/v2/legacy/*` | Pont historique en lecture seule (`GET`, `HEAD`). |
 
 Le catalogue d’affichage et les démos sont définis dans `apps/gateway-service/src/services-catalog.ts`. L’état live est fourni par `GET /api/v2/status` ; il est indicatif et ne remplace pas une requête fonctionnelle.
@@ -135,6 +138,8 @@ Le catalogue d’affichage et les démos sont définis dans `apps/gateway-servic
 | `VIGILANCE_SERVICE_TIMEOUT_MS` | `3000` | Délai Weather Vigilance |
 | `FIRE_DETECTION_SERVICE_URL` | `http://fire-detection-service:3000` | Cible détection incendie |
 | `FIRE_DETECTION_SERVICE_TIMEOUT_MS` | `20000` | Délai agrégé FIRMS/EUMETSAT |
+| `OLD_SERVICE_URL` | `http://old-service:3000` | Cible du calcul OLD |
+| `OLD_SERVICE_TIMEOUT_MS` | `15000` | Délai maximal du calcul OLD |
 | `APP_VERSION` | `GIT_SHA` puis `dev` | Version exposée |
 
 Les URL doivent utiliser HTTP ou HTTPS. Les délais doivent être des entiers strictement positifs ; une configuration invalide arrête le processus au démarrage.
@@ -153,6 +158,7 @@ curl -i "http://localhost:8080/api/v2/geography/resolve?lat=44.0812&lon=3.6421"
 curl -i "http://localhost:8080/api/v2/weather/temperature?lat=44.0812&lon=3.6421"
 curl -i "http://localhost:8080/api/v2/vigilance?department_code=30"
 curl -i "http://localhost:8080/api/v2/fire/nearby?lat=44.0812&lon=3.6415&radius_km=5&history_days=1"
+curl -i "http://localhost:8080/api/v2/old/perimetre?lon=3.68302778&lat=44.06455556"
 curl -i http://localhost:8080/api/v2/legacy/health
 ```
 

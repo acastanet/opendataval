@@ -52,6 +52,8 @@ services:
       FIRE_DETECTION_SERVICE_TIMEOUT_MS: ${FIRE_DETECTION_SERVICE_TIMEOUT_MS:-20000}
       ASSOCIATION_SERVICE_URL: http://association-service:3000
       ASSOCIATION_SERVICE_TIMEOUT_MS: ${ASSOCIATION_SERVICE_TIMEOUT_MS:-5000}
+      OLD_SERVICE_URL: http://old-service:3000
+      OLD_SERVICE_TIMEOUT_MS: ${OLD_SERVICE_TIMEOUT_MS:-15000}
       MAP_SERVICE_URL: http://map-service:3000
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
@@ -61,6 +63,7 @@ services:
       - weather-vigilance-service
       - fire-detection-service
       - association-service
+      - old-service
     expose:
       - "3000"
     healthcheck:
@@ -116,6 +119,28 @@ services:
       - "3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  old-service:
+    build:
+      context: .
+      dockerfile: apps/old-service/Dockerfile
+    image: opendataval-old:latest
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      OLD_API_CARTO_URL: ${OLD_API_CARTO_URL:-https://apicarto.ign.fr/api}
+      OLD_WFS_URL: ${OLD_WFS_URL:-https://data.geopf.fr/wfs/ows}
+      OLD_UPSTREAM_TIMEOUT_MS: ${OLD_UPSTREAM_TIMEOUT_MS:-10000}
+      OLD_BUILDING_SEARCH_RADIUS_METERS: ${OLD_BUILDING_SEARCH_RADIUS_METERS:-75}
+      APP_VERSION: ${APP_VERSION:-dev}
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 5

@@ -1,4 +1,24 @@
 ---
 import SectionLayout from "../layouts/SectionLayout.astro";
+import SectionAuto from "../components/SectionAuto.astro";
 ---
-<SectionLayout slug="risques" />
+<SectionLayout slug="risques">
+  <aside class="outil-old">
+    <div>
+      <p class="sur-titre">Obligations légales de débroussaillement</p>
+      <h2>Préparer le périmètre autour d’une construction</h2>
+      <p>Vérifiez le zonage OLD et calculez une surface indicative depuis le bâtiment, le cadastre et le document d’urbanisme.</p>
+    </div>
+    <a href="/old/">Ouvrir l’outil OLD →</a>
+  </aside>
+  <SectionAuto slug="risques" />
+</SectionLayout>
+
+<style>
+  .outil-old { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1.2rem; margin-bottom: 2rem; padding: 1.2rem; border: 1px solid var(--border); border-top: 4px solid #b5533c; background: var(--surface); }
+  .sur-titre { margin: 0 0 0.35rem; color: var(--muted); font-size: 0.7rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+  h2 { margin: 0; font-family: var(--font-display); }
+  p { margin: 0.45rem 0 0; line-height: 1.5; }
+  a { padding: 0.7rem 0.9rem; border: 1px solid #17384b; background: #17384b; color: #fff; font-weight: 800; text-decoration: none; white-space: nowrap; }
+  @media (max-width: 680px) { .outil-old { grid-template-columns: 1fr; } a { justify-self: start; } }
+</style>

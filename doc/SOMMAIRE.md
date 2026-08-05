@@ -1,7 +1,7 @@
 # Sommaire de la documentation — OpenData Val-d'Aigoual
 
 > Index de toute la documentation du dépôt. Point d'entrée : [`architecture/ARCHITECTURE-GENERALE.md`](architecture/ARCHITECTURE-GENERALE.md).
-> Sommaire généré le : 2026-07-24
+> Sommaire mis à jour le : 2026-08-02
 
 La colonne **MàJ** indique la dernière modification de contenu (dernier commit) ; **Vérif.** la dernière vérification de pertinence lors du rangement de la doc.
 
@@ -21,6 +21,7 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 | [microservice/README.md](microservice/README.md) | Index, dépendances et validation rapide des microservices v2 | 2026-07-24 | 2026-07-24 |
 | [microservice/gateway-service/README.md](microservice/gateway-service/README.md) | Gateway : point d'entrée `/api/v2/*`, proxys, santé et routage Vigilance | 2026-07-24 | 2026-07-24 |
 | [microservice/geography-service/README.md](microservice/geography-service/README.md) | Geography : territoire, adresse et altitude d'un point | 2026-07-24 | 2026-07-24 |
+| [microservice/old-service/README.md](microservice/old-service/README.md) | OLD : audit du plan, contrat, calcul bâtiment/cadastre/PLU et limites réglementaires | 2026-08-02 | 2026-08-02 |
 | [microservice/geography-service/audit.md](microservice/geography-service/audit.md) | Audit de couverture du geography-service | 2026-07-23 | 2026-07-23 |
 | [microservice/geography-service/operations.md](microservice/geography-service/operations.md) | Exploitation et diagnostic geography-service | 2026-07-23 | 2026-07-23 |
 | [microservice/geography-service/parity-report.md](microservice/geography-service/parity-report.md) | Rapport de parité vs API historique | 2026-07-23 | 2026-07-23 |
@@ -43,6 +44,7 @@ La colonne **MàJ** indique la dernière modification de contenu (dernier commit
 | Fichier | Description | MàJ | Vérif. |
 |---|---|---|---|
 | [application/feu-val/README.md](application/feu-val/README.md) | valfeu : application de terrain `/valfeu/` (carte, position, suspicions satellitaires) | 2026-07-27 | 2026-07-27 |
+| [application/old/README.md](application/old/README.md) | Outil `/old/` : périmètre indicatif OLD, carte IGN et exports | 2026-08-02 | 2026-08-02 |
 
 ## v1 — Monolithe & mini-applications
 

@@ -360,6 +360,38 @@ export const SERVICES: ServiceDescriptor[] = [
     ],
   },
   {
+    id: "old",
+    name: "OLD — Débroussaillement",
+    role: "Vérifie l’applicabilité des obligations légales de débroussaillement et propose un périmètre indicatif depuis le bâtiment, le cadastre et le PLU.",
+    repo: "apps/old-service",
+    method: "GET",
+    publicRoute: "/api/v2/old/perimetre",
+    healthUrl: (config) =>
+      `${baseUrl(config.oldServiceUrl, "http://old-service:3000")}/health`,
+    demo: [
+      {
+        name: "lat",
+        label: "Latitude",
+        type: "number",
+        example: "44.06455556",
+      },
+      {
+        name: "lon",
+        label: "Longitude",
+        type: "number",
+        example: "3.68302778",
+      },
+      {
+        name: "distance_m",
+        label: "Profondeur du tampon (m)",
+        type: "number",
+        example: "50",
+        optional: true,
+        hint: "50 m par défaut. Le résultat reste indicatif et doit être confronté aux règles locales.",
+      },
+    ],
+  },
+  {
     id: "legacy",
     name: "Legacy (pont historique)",
     role: "Pont en lecture seule vers le monolithe historique /api/*. GET et HEAD uniquement.",
