@@ -166,7 +166,7 @@ export const SERVICES: ServiceDescriptor[] = [
     role: "Styles, tuiles, relief et légendes cartographiques, servis directement par Caddy.",
     repo: "apps/map-service",
     method: "GET",
-    publicRoute: "/api/v2/map/styles/territoire.json",
+    publicRoute: "/api/v2/map/styles/carte.json",
     healthUrl: (config) => `${baseUrl(config.mapServiceUrl, "http://map-service:3000")}/health`,
     demo: [],
     hasDemo: true,

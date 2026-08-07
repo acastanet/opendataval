@@ -591,7 +591,7 @@ const CLIENT_SCRIPT = `
     }
     clearMapFallback();
     try {
-      state.map = new window.maplibregl.Map({ container: "map", style: "/api/v2/map/styles/plan.json", center: [origin.lon, origin.lat], zoom: 12, attributionControl: true });
+      state.map = new window.maplibregl.Map({ container: "map", style: "/api/v2/map/styles/carte.json?fond=plan&ombrage=aucun", center: [origin.lon, origin.lat], zoom: 12, attributionControl: true });
       state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
       state.map.on("load", function () { state.mapReady = true; addMapLayers(); });
       state.map.on("error", function () {

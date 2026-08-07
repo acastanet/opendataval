@@ -139,7 +139,7 @@ test("la démo fire active le tracé des détections sur la carte", async (t) =>
   assert.ok(response.body.includes("Rayon du pixel"));
 });
 
-test("la démo map charge MapLibre depuis map-service et propose les styles", async (t) => {
+test("la démo map charge MapLibre depuis map-service et pilote le style unique", async (t) => {
   const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
   t.after(() => app.close());
 
@@ -147,12 +147,12 @@ test("la démo map charge MapLibre depuis map-service et propose les styles", as
 
   assert.equal(response.statusCode, 200);
   assert.ok(response.body.includes("/api/v2/map/vendor/maplibre-gl.js"));
-  assert.ok(response.body.includes("/api/v2/map/styles/territoire.json"));
-  assert.ok(response.body.includes('id="map-style"'));
-  assert.ok(response.body.includes("Hypsométrique"));
+  assert.ok(response.body.includes("/api/v2/map/styles/carte.json"));
   assert.ok(response.body.includes('id="map-fond"'));
   assert.ok(response.body.includes('id="map-geologie"'));
-  assert.ok(response.body.includes('id="map-relief"'));
+  assert.ok(response.body.includes('id="map-teintes"'));
+  assert.ok(response.body.includes('id="map-ombrage"'));
+  assert.ok(response.body.includes('id="map-terrain"'));
   assert.ok(response.body.includes("Afficher le relief en 3D"));
   assert.ok(response.body.includes('id="map-exageration"'));
   assert.ok(response.body.includes('id="map-style-json"'));
@@ -160,6 +160,72 @@ test("la démo map charge MapLibre depuis map-service et propose les styles", as
   assert.ok(response.body.includes('id="map-activity"'));
   assert.ok(response.body.includes("/api/v2/map/legends"));
   assert.ok(!response.body.includes("unpkg.com"));
+  // Les styles nommés ont fusionné : plus aucun sélecteur de style dans la page.
+  assert.ok(!response.body.includes('id="map-style"'));
+  assert.ok(!response.body.includes("territoire.json"));
+});
+
+test("la démo map expose les cinq préréglages d'ombrage et leur intention", async (t) => {
+  const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/api/v2/demo/map" });
+
+  assert.equal(response.statusCode, 200);
+  for (const prereglage of ["aucun", "doux", "naturel", "sculpte", "multi"]) {
+    assert.ok(response.body.includes(`<option value="${prereglage}"`), `préréglage ${prereglage} absent`);
+  }
+  assert.ok(response.body.includes('value="naturel" selected'));
+  assert.ok(response.body.includes("Multi-directions"));
+  assert.ok(response.body.includes("Quatre sources lumineuses"));
+  assert.ok(response.body.includes("ombrage=aucun|doux|naturel|sculpte|multi"));
+});
+
+test("la démo map propose la définition haute résolution du relief", async (t) => {
+  const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/api/v2/demo/map" });
+
+  assert.equal(response.statusCode, 200);
+  assert.ok(response.body.includes('id="map-altitude"'));
+  assert.ok(response.body.includes("altitude=standard|hd"));
+  assert.ok(response.body.includes("RGE ALTI"));
+  assert.ok(response.body.includes('value="standard" selected'));
+});
+
+test("la démo map place les réglages dans un bandeau à onglets et explicite leur effet", async (t) => {
+  const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/api/v2/demo/map" });
+
+  assert.equal(response.statusCode, 200);
+  // Mise en page : carte large à gauche, bandeau collant à droite.
+  assert.ok(response.body.includes('<main class="wide">'));
+  assert.ok(response.body.includes('class="split"'));
+  assert.ok(response.body.includes('class="map map--stage"'));
+  assert.ok(response.body.includes('id="map-panel"'));
+  // Onglets du bandeau.
+  assert.ok(response.body.includes('role="tablist"'));
+  assert.ok(response.body.includes('id="panel-map-options"'));
+  assert.ok(response.body.includes('id="tab-map-style-json"'));
+  assert.ok(response.body.includes('id="tab-map-legend"'));
+  assert.ok(response.body.includes('id="panel-map-activity"'));
+  // Chaque réglage annonce son paramètre de requête et peut être neutralisé.
+  assert.ok(response.body.includes("fond=plan|photo|satellite|nu"));
+  assert.ok(response.body.includes("geologie=true"));
+  assert.ok(response.body.includes("teintes=true"));
+  assert.ok(response.body.includes("exageration=1.3"));
+  assert.ok(response.body.includes('id="option-exageration"'));
+  assert.ok(response.body.includes('class="option__inactive"'));
+  assert.ok(response.body.includes("reste sans effet"));
+  // Le script du bandeau est inline : on vérifie qu'il reste analysable.
+  const scripts = [...response.body.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
+    .map((match) => match[1] ?? "")
+    .filter((script) => script.trim() !== "");
+  assert.ok(scripts.length >= 1);
+  for (const script of scripts) assert.doesNotThrow(() => new Function(script));
 });
 
 test("la démo vigilance vide le code département lors d'une localisation", async (t) => {

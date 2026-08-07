@@ -62,7 +62,7 @@ décalage `UTC+1` ou `UTC+2` selon la date.
 | Ressource | Chemin | Servi par |
 |---|---|---|
 | MapLibre GL JS + CSS | `/api/v2/map/vendor/maplibre-gl.{js,css}` | map-service, **directement via Caddy** |
-| Style et tuiles | `/api/v2/map/styles/plan.json`, `/api/v2/map/tiles/plan/{z}/{x}/{y}.png` | map-service |
+| Style et tuiles | `/api/v2/map/styles/carte.json?fond=plan&ombrage=aucun`, `/api/v2/map/tiles/plan/{z}/{x}/{y}.png` | map-service |
 | Suspicions de feu | `/api/v2/fire/nearby?lat&lon&radius_km&history_days` | gateway → fire-detection-service |
 | Contexte du point | `/api/v2/geography/resolve?lat&lon&horizontalAccuracyMeters&positionSource` | gateway → geography-service |
 
@@ -83,7 +83,7 @@ En cas d’indisponibilité réelle de MapLibre, l’élément `#map` **est cons
 | Symptôme | Cause probable | Action |
 |---|---|---|
 | « Carte indisponible » avec bouton Réessayer | map-service arrêté, ou page ouverte sur le port du gateway au lieu de Caddy | `docker compose up -d map-service` ; utiliser `http://localhost:8080/…` |
-| Carte grise, HUD « Fond de carte indisponible » | Style ou tuiles en erreur, MapLibre chargé | Vérifier `/api/v2/map/styles/plan.json` et une tuile `…/tiles/plan/12/2076/1478.png` |
+| Carte grise, HUD « Fond de carte indisponible » | Style ou tuiles en erreur, MapLibre chargé | Vérifier `/api/v2/map/styles/carte.json` et une tuile `…/tiles/plan/12/2076/1478.png` |
 | « Sources satellite : incomplètes » | `data_status` dégradé ou une source amont muette | Comportement nominal : le bandeau prévient que l’absence de point ne vaut pas absence de feu |
 | « Données feu indisponibles » | fire-detection-service injoignable ou en erreur | Le message reprend le code d’erreur et la référence de support (`requestId`) ; bouton Réessayer |
 | Bouton « Ma position » sans effet | Contexte non sécurisé ou autorisation refusée | La géolocalisation exige HTTPS ou `localhost` ; le message précise la cause (refus, indisponible, délai dépassé) |
@@ -93,7 +93,7 @@ Contrôle rapide de bout en bout :
 ```powershell
 docker compose up -d --build gateway
 curl.exe -sI http://localhost:8080/valfeu/
-curl.exe -s  http://localhost:8080/api/v2/map/styles/plan.json
+curl.exe -s  http://localhost:8080/api/v2/map/styles/carte.json
 curl.exe -sI http://localhost:8080/api/v2/map/vendor/maplibre-gl.js
 ```
 

@@ -75,7 +75,7 @@ Contrôle via Caddy après déploiement :
 curl -fsS http://localhost:8080/api/v2/gateway
 curl -fsS "http://localhost:8080/api/v2/geography/resolve?lat=44.0812&lon=3.6421"
 curl -fsS "http://localhost:8080/api/v2/weather/temperature?lat=44.0812&lon=3.6421"
-curl -fsS http://localhost:8080/api/v2/map/styles/territoire.json
+curl -fsS http://localhost:8080/api/v2/map/styles/carte.json
 curl -fsS "http://localhost:8080/api/v2/vigilance?department_code=30"
 curl -fsS "http://localhost:8080/api/v2/old/perimetre?lon=3.68302778&lat=44.06455556"
 curl -fsS "http://localhost:8080/api/v2/itineraire/poids-lourd?lon_depart=3.641467&lat_depart=44.081192&lon_arrivee=3.6103&lat_arrivee=43.9925&hauteur_m=4.1&largeur_m=2.55&longueur_m=16.5&poids_t=38&charge_essieu_t=11.5&nb_essieux=5&matieres_dangereuses=0"

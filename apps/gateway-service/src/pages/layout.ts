@@ -34,6 +34,8 @@ export interface PageOptions {
   showBackLink?: boolean;
   /** Balises additionnelles déjà sûres injectées avant `</head>` (ex. Leaflet). */
   head?: string;
+  /** Élargit la zone de contenu (démo carte : scène + bandeau latéral). */
+  wide?: boolean;
 }
 
 const STYLES = `
@@ -74,12 +76,15 @@ body {
 }
 a { color: var(--accent); }
 main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+main.wide { max-width: 1440px; }
 header.site {
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   padding: 1rem 1.25rem;
 }
 header.site .inner { max-width: 960px; margin: 0 auto; display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
+/* En-tête et pied alignés sur la zone de contenu élargie (démo carte). */
+body:has(main.wide) header.site .inner, body:has(main.wide) footer.site { max-width: 1440px; }
 header.site h1 { font-size: 1.15rem; margin: 0; }
 header.site .tag { color: var(--muted); font-size: .85rem; }
 .back { display: inline-block; margin-bottom: 1rem; font-size: .9rem; }
@@ -133,7 +138,7 @@ form.demo { display: grid; gap: 1rem; margin-top: 1.5rem; }
   color: var(--text);
   font: inherit;
 }
-.field .hint { color: var(--muted); font-size: .8rem; }
+.hint, .field .hint { color: var(--muted); font-size: .8rem; }
 .export-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .45rem .9rem; margin-top: .5rem; }
 .export-columns label { display: flex; align-items: flex-start; gap: .4rem; font-size: .9rem; }
 .called-url { font-family: ui-monospace, monospace; font-size: .82rem; word-break: break-all; }
@@ -165,6 +170,40 @@ pre.result {
 .btn-secondary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .map { height: 300px; width: 100%; border: 1px solid var(--border); border-radius: 10px; margin-top: .75rem; background: var(--code-bg); }
 .map-fallback { display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: .9rem; padding: 1rem; }
+/* Scène cartographique à gauche, bandeau de réglages à droite : la carte reste
+   visible pendant qu'on modifie les options, pour en comparer l'effet. */
+.split { display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr) 23rem; align-items: start; margin-top: 1.25rem; }
+.split__stage { position: sticky; top: 1rem; min-width: 0; }
+.map--stage { height: min(72vh, 720px); margin-top: 0; }
+.panel {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: .9rem;
+}
+.panel .tabs { position: sticky; top: 0; z-index: 1; background: var(--surface); overflow-x: auto; }
+.panel .tab { white-space: nowrap; }
+.panel .field { max-width: none; }
+.panel pre.result { max-height: 22rem; overflow-y: auto; }
+.panel h3 { margin: 0 0 .35rem; font-size: .95rem; }
+.option { border-top: 1px solid var(--border); padding: .7rem 0; display: flex; flex-direction: column; gap: .3rem; }
+.option:first-of-type { border-top: none; padding-top: .25rem; }
+.option__effect { color: var(--muted); font-size: .82rem; }
+.option__param { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem; background: var(--code-bg); border-radius: 6px; padding: .1rem .35rem; align-self: flex-start; }
+.option[data-inactive="true"] { opacity: .55; }
+.option__inactive { color: var(--warn-fg); font-size: .8rem; }
+.option__inactive:empty { display: none; }
+.activity { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+.activity li { border: 1px solid var(--border); border-radius: 8px; padding: .35rem .5rem; font-size: .8rem; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; }
+  .split__stage, .panel { position: static; max-height: none; }
+  .map--stage { height: 60vh; }
+}
 .tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--border); margin-bottom: .75rem; }
 .tab {
   background: none;
@@ -206,7 +245,7 @@ footer.site { max-width: 960px; margin: 2.5rem auto 0; padding: 1rem 1.25rem; bo
 
 /** Rend un document HTML complet à partir d'un corps déjà sûr. */
 export function renderPage(options: PageOptions): string {
-  const { title, version, body, showBackLink, head } = options;
+  const { title, version, body, showBackLink, head, wide } = options;
   const back = showBackLink
     ? `<a class="back" href="/api/v2">&larr; Retour à l'accueil des API v2</a>`
     : "";
@@ -216,12 +255,15 @@ export function renderPage(options: PageOptions): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
+<!-- Sans déclaration, le navigateur réclame /favicon.ico, que rien ne sert. -->
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="mask-icon" href="/favicon.svg" color="#1f6feb">
 <style>${STYLES}</style>
 ${head ?? ""}
 </head>
 <body>
 <header class="site"><div class="inner"><h1>OpenDataVal &mdash; API v2</h1><span class="tag">Gateway &middot; ${escapeHtml(version)}</span></div></header>
-<main>
+<main${wide ? ` class="wide"` : ""}>
 ${back}
 ${body}
 </main>

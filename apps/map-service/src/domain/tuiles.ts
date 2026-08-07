@@ -21,6 +21,16 @@ export function bboxWebMercator({ z, x, y }: CoordonneesTuile): [number, number,
   return [minX, minY, maxX, maxY];
 }
 
+/** Inverse de la projection Web Mercator : abscisse en mètres vers longitude en degrés. */
+export function lonWebMercator(x: number): number {
+  return (x / ORIGINE_MERCATOR) * 180;
+}
+
+/** Inverse de la projection Web Mercator : ordonnée en mètres vers latitude en degrés. */
+export function latWebMercator(y: number): number {
+  return (Math.atan(Math.sinh((y / ORIGINE_MERCATOR) * Math.PI)) * 180) / Math.PI;
+}
+
 export function cleTuile(source: string, tuile: CoordonneesTuile, variante = ""): string {
   return `${source}:${tuile.z}:${tuile.x}:${tuile.y}:${variante}`;
 }

@@ -3,7 +3,7 @@
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import "../styles/map-controls.css";
-  import { urlStyle, RELIEF_SOURCE_ID } from "../lib/carte";
+  import { urlStyle, RELIEF_TERRAIN_SOURCE_ID } from "../lib/carte";
 
   const STATIONS = [
     { code: "Y200001001", nom: "Mont Aigoual", lon: 3.5814, lat: 44.1216, alt: 1567 },
@@ -88,7 +88,9 @@
     const coucheCarte = map.getLayer("basemap-plan");
     const couchePhoto = map.getLayer("basemap-photo");
 
-    map.setTerrain({ source: RELIEF_SOURCE_ID, exaggeration: 1.8 });
+    // Source dédiée au terrain : la partager avec l'ombrage ferait chuter d'un cran le
+    // zoom des tuiles d'altitude sur lesquelles celui-ci est calculé.
+    map.setTerrain({ source: RELIEF_TERRAIN_SOURCE_ID, exaggeration: 1.8 });
     if (terrain) map.setLayoutProperty("relief-hillshade", "visibility", "visible");
     if (coucheCarte) map.setLayoutProperty("basemap-plan", "visibility", presentation === "route" ? "visible" : "none");
     if (couchePhoto) map.setLayoutProperty("basemap-photo", "visibility", presentation === "aerien" ? "visible" : "none");

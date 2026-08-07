@@ -205,7 +205,7 @@ test("la carte n'est initialisée qu'une fois les scripts différés exécutés"
 
   assert.equal(maps.length, 1);
   assert.equal(maps[0]?.container, "map");
-  assert.equal(maps[0]?.style, "/api/v2/map/styles/plan.json");
+  assert.equal(maps[0]?.style, "/api/v2/map/styles/carte.json?fond=plan&ombrage=aucun");
   assert.equal(element("map").classes.has("map-fallback"), false);
 });
 

@@ -8,8 +8,12 @@ import {
   RELIEF_ATTRIBUTION,
   RELIEF_BOUNDS,
   RELIEF_MAXZOOM,
+  RELIEF_TILESIZE,
+  TERRAIN_TILESIZE,
   gabaritTuilesRadar as gabaritRadarPartage,
   prefixerId,
+  type DefinitionRelief,
+  type PrereglageOmbrage,
 } from "@opendata-vda/shared/carto";
 
 export const BASE_CARTE = "/api/v2/map";
@@ -20,6 +24,34 @@ export const IGN_WMTS = (layer: string, format: string): string => {
   if (!fond) throw new Error(`Fond IGN non autorisé : ${layer}`);
   return `${BASE_CARTE}/tiles/${fond.id}/{z}/{x}/{y}.${fond.extension}`;
 };
+export interface OptionsCarte {
+  prefixe?: string;
+  fond?: "plan" | "photo" | "satellite" | "nu";
+  geologie?: boolean;
+  /** Teintes hypsométriques (couche `relief-color`). */
+  teintes?: boolean;
+  ombrage?: PrereglageOmbrage;
+  /** `hd` remplace les archives locales par le RGE ALTI 1 m, plus fin au zoom. */
+  altitude?: DefinitionRelief;
+  terrain?: boolean;
+  exageration?: number;
+}
+
+/** URL du style unique servi par map-service. Toutes les couches y sont présentes ; les options ne pilotent que leur visibilité. */
+export function urlCarte(options: OptionsCarte = {}): string {
+  const params = new URLSearchParams();
+  if (options.prefixe) params.set("prefixe", options.prefixe);
+  if (options.fond) params.set("fond", options.fond);
+  if (options.geologie !== undefined) params.set("geologie", options.geologie ? "1" : "0");
+  if (options.teintes !== undefined) params.set("teintes", options.teintes ? "1" : "0");
+  if (options.ombrage) params.set("ombrage", options.ombrage);
+  if (options.altitude) params.set("altitude", options.altitude);
+  if (options.terrain !== undefined) params.set("terrain", options.terrain ? "1" : "0");
+  if (options.exageration !== undefined) params.set("exageration", String(options.exageration));
+  const query = params.toString();
+  return `${BASE_CARTE}/styles/carte.json${query ? `?${query}` : ""}`;
+}
+
 export type NomStyle = "plan" | "territoire" | "relief" | "hypsometrique";
 export interface OptionsStyle {
   prefixe?: string;
@@ -30,16 +62,24 @@ export interface OptionsStyle {
   relief?: boolean;
 }
 
+/**
+ * @deprecated Les quatre styles nommés ont fusionné en un style unique paramétrable.
+ * Cet adaptateur traduit l'ancien nom en options et sera retiré une fois les îlots
+ * migrés vers {@link urlCarte}.
+ */
 export function urlStyle(nom: NomStyle, options: OptionsStyle = {}): string {
-  const params = new URLSearchParams();
-  if (options.prefixe) params.set("prefixe", options.prefixe);
-  if (options.fond) params.set("fond", options.fond);
-  if (options.terrain !== undefined) params.set("terrain", options.terrain ? "1" : "0");
-  if (options.exageration !== undefined) params.set("exageration", String(options.exageration));
-  if (options.geologie !== undefined) params.set("geologie", options.geologie ? "1" : "0");
-  if (options.relief !== undefined) params.set("relief", options.relief ? "1" : "0");
-  const query = params.toString();
-  return `${BASE_CARTE}/styles/${nom}.json${query ? `?${query}` : ""}`;
+  const reliefImpose = nom === "relief" || nom === "hypsometrique";
+  return urlCarte({
+    prefixe: options.prefixe,
+    fond: nom === "plan" ? "plan" : options.fond,
+    geologie: nom === "plan" ? false : options.geologie,
+    teintes: nom === "hypsometrique",
+    // La page relief pilote elle-même la méthode d'ombrage : le préréglage multi lui
+    // fournit les quatre teintes sans lesquelles le multidirectionnel n'aurait qu'une source.
+    ombrage: nom === "hypsometrique" ? "multi" : reliefImpose || options.relief ? "naturel" : "aucun",
+    terrain: reliefImpose ? options.terrain ?? true : options.terrain,
+    exageration: options.exageration,
+  });
 }
 
 export const BASEMAPS = FONDS_CARTOGRAPHIQUES.map((fond) => ({
@@ -352,24 +392,40 @@ export function ajouterCoucheCarte(
 
 export const RELIEF_PROTOCOL = "aigoualdem";
 export const RELIEF_SOURCE_ID = IDS_CARTOGRAPHIQUES.sources.relief;
+export const RELIEF_TERRAIN_SOURCE_ID = IDS_CARTOGRAPHIQUES.sources.terrain;
 const RELIEF_HILLSHADE_ID = IDS_CARTOGRAPHIQUES.couches.hillshade;
 export const PALETTE_HYPSOMETRIQUE = PALETTE_PARTAGEE.map(({ altitude, couleur }) => ({ altitude, couleur }));
 
 /** Compatibilité temporaire : les îlots peuvent conserver cet appel, aucun protocole custom n'est enregistré. */
 export function enregistrerProtocolePmtiles(_addProtocol: (scheme: string, loader: unknown) => void): void {}
 
+/** Identifiant de la source d'altitude réservée au terrain 3D. */
+export function idSourceTerrain(prefixe?: string): string {
+  return prefixerId(RELIEF_TERRAIN_SOURCE_ID, prefixe);
+}
+
+function descripteurRelief(tailleTuile: number) {
+  return {
+    type: "raster-dem" as const,
+    tiles: [BASE_CARTE + "/relief/{z}/{x}/{y}.webp"],
+    encoding: "terrarium" as const,
+    tileSize: tailleTuile,
+    maxzoom: RELIEF_MAXZOOM,
+    bounds: [...RELIEF_BOUNDS] as number[],
+    attribution: RELIEF_ATTRIBUTION,
+  };
+}
+
+/**
+ * Ajoute les deux sources d'altitude si le style servi ne les porte pas déjà : l'une pour
+ * l'ombrage, l'autre pour le terrain. Les garder séparées évite que le terrain fasse
+ * chuter d'un cran le zoom des tuiles sur lesquelles l'ombrage est calculé.
+ */
 export function ajouterSourceRelief(map: maplibregl.Map, prefixe?: string): void {
   const sourceId = idSourceRelief(prefixe);
-  if (map.getSource(sourceId)) return;
-  map.addSource(sourceId, {
-    type: "raster-dem",
-    tiles: [BASE_CARTE + "/relief/{z}/{x}/{y}.png"],
-    encoding: "terrarium",
-    tileSize: 512,
-    maxzoom: RELIEF_MAXZOOM,
-    bounds: [...RELIEF_BOUNDS],
-    attribution: RELIEF_ATTRIBUTION,
-  });
+  if (!map.getSource(sourceId)) map.addSource(sourceId, descripteurRelief(RELIEF_TILESIZE));
+  const terrainId = idSourceTerrain(prefixe);
+  if (!map.getSource(terrainId)) map.addSource(terrainId, descripteurRelief(TERRAIN_TILESIZE));
 }
 
 export function activerRelief(map: maplibregl.Map, exageration: number, prefixe?: string): void {
@@ -386,11 +442,11 @@ export function activerRelief(map: maplibregl.Map, exageration: number, prefixe?
   } else {
     map.setLayoutProperty(hillshadeId, "visibility", "visible");
   }
-  map.setTerrain({ source: sourceId, exaggeration: exageration });
+  map.setTerrain({ source: idSourceTerrain(prefixe), exaggeration: exageration });
 }
 
 export function reglerExagerationRelief(map: maplibregl.Map, exageration: number, prefixe?: string): void {
-  if (map.getTerrain()) map.setTerrain({ source: idSourceRelief(prefixe), exaggeration: exageration });
+  if (map.getTerrain()) map.setTerrain({ source: idSourceTerrain(prefixe), exaggeration: exageration });
 }
 
 export function desactiverRelief(map: maplibregl.Map, prefixe?: string): void {
