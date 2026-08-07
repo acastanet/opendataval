@@ -60,47 +60,57 @@ export type RelationSpatiale = typeof RELATIONS_SPATIALES[number];
 export const DISPONIBILITES = ["available", "not_found", "not_applicable", "source_unavailable", "error"] as const;
 export type Disponibilite = typeof DISPONIBILITES[number];
 
+/**
+ * Champs scalaires « toujours présents, éventuellement `null` » (ex. `url: string | null`)
+ * plutôt qu'optionnels (`url?: string`) : un round-trip JSON (`versManifesteJson` /
+ * `depuisManifesteJson` dans `apps/site-service`) ne peut pas distinguer une clé absente
+ * d'une clé valant `undefined`, alors qu'il distingue sans ambiguïté absent et `null`. Seuls
+ * les blocs structurels dont l'absence a un sens propre (`resolution`, `selection`, `scene`…)
+ * restent optionnels.
+ */
 export interface SourceDonnee {
   producer: string;
   dataset: string;
-  url?: string | null;
-  license?: string | null;
+  url: string | null;
+  license: string | null;
 }
 
 export interface TemporaliteDonnee {
   observedAt: string | null;
   retrievedAt: string;
-  referencePeriod?: string | null;
+  referencePeriod: string | null;
 }
 
 export interface ResolutionDonnee {
-  spatialM?: number | null;
+  spatialM: number | null;
 }
 
 export interface SelectionDonnee {
-  method?: string | null;
+  method: string | null;
   automaticChoice?: unknown;
   humanChoice?: unknown;
-  reviewReason?: string | null;
+  reviewReason: string | null;
 }
 
 export interface StatutDonnee {
   availability: Disponibilite;
-  freshness?: string | null;
-  review?: string | null;
+  freshness: string | null;
+  review: string | null;
 }
 
 /** Une information intégrée à une dalle : toujours traçable spatialement, temporellement et méthodologiquement (`03-DATA-CONTRACT.md`). */
 export interface DonneeDalle {
   key: string;
   value: unknown;
-  unit?: string | null;
+  unit: string | null;
   sphere: Sphere;
   spatialRelation: RelationSpatiale;
-  distanceM?: number | null;
+  distanceM: number | null;
   source: SourceDonnee;
   time: TemporaliteDonnee;
+  /** Bloc structurel : absent signifie « résolution non documentée », pas « résolution nulle ». */
   resolution?: ResolutionDonnee;
+  /** Bloc structurel : absent signifie « aucune sélection à tracer ». */
   selection?: SelectionDonnee;
   status: StatutDonnee;
 }
@@ -124,13 +134,15 @@ export interface IdentiteDalle {
   heightM: 200;
   areaM2: number;
   geometryWgs84: PolygoneGeoJSON;
+  /** Bloc structurel optionnel en théorie ; `empriseDalle` le fournit systématiquement en pratique. */
   geometryProjected?: PolygoneGeoJSON;
-  address?: string | null;
+  address: string | null;
 }
 
 export interface ProductionDalle {
   createdAt: string;
   pipelineVersion: string;
+  /** Bloc structurel : absent tant qu'aucune source versionnée n'a encore contribué. */
   dataVersions?: Record<string, string>;
 }
 
@@ -145,9 +157,9 @@ export type DonneesParSphere = { [sphere in Sphere]?: DonneeDalle[] };
 
 export interface RevueDalle {
   status: StatutRevue;
-  reviewedAt?: string | null;
-  reviewedBy?: string | null;
-  notes?: string | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  notes: string | null;
 }
 
 export interface ManifesteDalle {
@@ -155,6 +167,7 @@ export interface ManifesteDalle {
   identity: IdentiteDalle;
   production: ProductionDalle;
   status: EtatDalle;
+  /** Bloc structurel : absent tant qu'aucune scène 3D n'est raccordée. */
   scene?: SceneDalle;
   data: DonneesParSphere;
   quality?: Record<string, unknown>;

@@ -4,30 +4,38 @@ Ce fichier est opérationnel et peut évoluer. Les contrats stables sont décrit
 
 ## P0 — Contrats
 
-- [ ] Ajouter le schéma JSON du manifeste.
-- [ ] Ajouter les types TypeScript correspondants.
-- [ ] Ajouter les enums du cycle de vie.
-- [ ] Ajouter les enums de relation spatiale.
-- [ ] Tester le schéma.
+- [x] Ajouter le schéma JSON du manifeste (`schemas/tile-manifest.schema.json`).
+- [x] Ajouter les types TypeScript correspondants (`packages/shared/src/dalle.ts`).
+- [x] Ajouter les enums du cycle de vie (`ETATS_DALLE`, `STATUTS_REVUE`).
+- [x] Ajouter les enums de relation spatiale (`RELATIONS_SPATIALES`, `SPHERES`, `DISPONIBILITES`).
+- [x] Tester le schéma (`packages/shared/test/manifeste.test.ts`, validation Ajv).
 
 ## P1 — Géométrie d’instance
 
-- [ ] Réutiliser la projection WGS84 → Lambert-93 déjà disponible
+- [x] Réutiliser la projection WGS84 → Lambert-93 déjà disponible
       (`packages/shared/src/lambert93.ts`), ne pas la réimplémenter.
-- [ ] Ajouter la projection inverse Lambert-93 → WGS84, absente aujourd'hui.
-- [ ] Génération du carré ±100 m.
-- [ ] Retour WGS84 via la projection inverse (pas d'approximation en degrés).
-- [ ] Tests de déterminisme.
-- [ ] Tests de dimensions.
+- [x] Ajouter la projection inverse Lambert-93 → WGS84 (`wgs84DepuisLambert93`).
+- [x] Génération du carré ±100 m (`packages/shared/src/dalle-geometrie.ts`, `empriseDalle`).
+- [x] Retour WGS84 via la projection inverse (pas d'approximation en degrés).
+- [x] Tests de déterminisme.
+- [x] Tests de dimensions.
 
 ## P2 — Persistance d’instance
 
-- [ ] Génération `tile_id`.
-- [ ] Création du répertoire.
-- [ ] Écriture atomique du manifeste.
-- [ ] Lecture d’une instance.
-- [ ] Gestion des états.
-- [ ] Journal minimal.
+- [x] Génération `tile_id` (`apps/site-service/src/tile-id.ts`, séquence `sites.tile_id_seq`
+      posée par `db/migrations/013_sites.sql`, ADR-007).
+- [x] Création du répertoire (`ecrireManifesteAtomique`, `apps/site-service/src/manifeste.ts`).
+- [x] Écriture atomique du manifeste (fichier temporaire + `rename`).
+- [x] Lecture d’une instance (`lireManifeste` / `getInstance`).
+- [x] Gestion des états (`transitionerInstance`, `apps/site-service/src/instances.ts`,
+      appuyée sur `transitionValide` de `dalle.ts`).
+- [x] Journal minimal (`apps/site-service/src/journal.ts`, table `sites.evenements`).
+
+Non couvert par ce lot, à faire en P3 : les routes HTTP elles-mêmes (`createInstance`,
+`getInstance`, `transitionerInstance` sont des fonctions pures, pas encore exposées en
+`/api/v2/sites/*`), et l'exécution réelle de la migration `013_sites.sql` contre une base
+(non testée ici faute de PostgreSQL en environnement de test — seules les requêtes SQL
+envoyées à un pool factice sont vérifiées).
 
 ## P3 — Squelette `site-service`
 
