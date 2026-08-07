@@ -39,11 +39,20 @@ envoyées à un pool factice sont vérifiées).
 
 ## P3 — Squelette `site-service`
 
-- [ ] Route de création.
-- [ ] Route de lecture.
-- [ ] Déclenchement de fabrication.
-- [ ] Gestion d’erreur.
-- [ ] Premier adaptateur vers un service déjà existant.
+- [x] Route de création (`POST /internal/v1/sites`, `apps/site-service/src/app.ts`).
+- [x] Route de lecture (`GET /internal/v1/sites/:tileId`).
+- [x] Déclenchement de fabrication (`POST /internal/v1/sites/:tileId/build`,
+      `apps/site-service/src/fabrication.ts`).
+- [x] Gestion d’erreur (validation 400, instance introuvable 404, transition
+      refusée 409, échec interne 500).
+- [x] Premier adaptateur vers un service déjà existant
+      (`apps/site-service/src/adapters/geography.ts`, commune/adresse/altitude
+      depuis `geography-service`, exigé par `05-M1-VERTICAL-SLICE.md`).
+
+Non couvert par ce lot, à faire plus tard : le câblage gateway/Caddy/
+docker-compose (aucune route `site-service` n'est encore publique), les routes
+`review`/`publish` (P6), et le rejeu idempotent d'une fabrication déjà
+`generated` (voir `04-SITE-SERVICE.md` § « Idempotence »).
 
 ## P4 — Raccord scène
 

@@ -257,6 +257,9 @@ importers:
       '@opendata-vda/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      fastify:
+        specifier: ^5.1.0
+        version: 5.10.0
       pg:
         specifier: ^8.13.1
         version: 8.22.0

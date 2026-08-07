@@ -16,6 +16,7 @@
     "dev:vigilance": "npm --prefix services/weather-vigilance run dev",
     "dev:fire-detection": "npm --prefix services/fire-detection run dev",
     "dev:worker": "pnpm --filter worker dev",
+    "dev:site-service": "pnpm --filter site-service dev",
     "dev:meteo-v2": "pnpm --filter meteo-web dev",
     "dev:meteo-v2:mock": "pnpm --filter meteo-web dev:mock",
     "worker:once": "pnpm --filter worker run once",

@@ -8,26 +8,27 @@ Il orchestre. Il ne réimplémente pas les métiers des autres services.
 
 ## API minimale visée pour M1
 
-Le dépôt expose tous ses services v2 sous `/api/v2/<domaine>` via un proxy du
-`gateway-service`, référencé dans son catalogue de présentation
-(`apps/gateway-service/src/services-catalog.ts`) et sondé par
-`/api/v2/status` (voir `apps/gateway-service/src/geologie-proxy.ts` comme
-exemple de proxy à suivre). `site-service` respecte cette convention :
+Les services internes du dépôt n'exposent pas directement `/api/v2/*` : ils
+portent des routes `/internal/v1/<domaine>/...`, que le `gateway-service`
+proxy en `/api/v2/<domaine>/...` (voir `geography-service`, qui expose
+`/internal/v1/geography/resolve`, proxyé par
+`apps/gateway-service/src/geography-proxy.ts`). `site-service` (lot P3, code
+dans `apps/site-service/src/app.ts`) suit cette convention :
 
 ```http
-POST /api/v2/sites
-GET  /api/v2/sites/:tileId
-POST /api/v2/sites/:tileId/build
-POST /api/v2/sites/:tileId/review
-POST /api/v2/sites/:tileId/publish
+POST /internal/v1/sites
+GET  /internal/v1/sites/:tileId
+POST /internal/v1/sites/:tileId/build
+POST /internal/v1/sites/:tileId/review     — pas encore implémentée, voir P6
+POST /internal/v1/sites/:tileId/publish    — pas encore implémentée, voir P6
 ```
 
-**Seules les routes de lecture (`GET`) et la page de consultation publique sont
-routées par Caddy/gateway en M1.** Les routes d'écriture
-(`build`/`review`/`publish`) restent accessibles sur le port interne du
-service, non exposées publiquement, tant que l'authentification de
-l'interface de supervision n'est pas décidée. Voir ADR-006 dans
-[`09-DECISIONS.md`](09-DECISIONS.md).
+**Seules les routes de lecture (`GET`) et la page de consultation publique
+seront un jour routées par Caddy/gateway.** Toutes les routes d'écriture
+(`POST`, y compris la création) restent, pour tout M1, accessibles uniquement
+sur le port interne du service — le câblage gateway/Caddy lui-même reste à
+faire, tant que l'authentification de l'interface de supervision n'est pas
+décidée. Voir ADR-006 dans [`09-DECISIONS.md`](09-DECISIONS.md).
 
 ## Création
 
@@ -62,7 +63,7 @@ Chaque source intégrée au site devrait être appelée via un adaptateur fin :
 ```text
 site-service
     │
-    ├── adapters/geography
+    ├── adapters/geography   — implémenté (lot P3), commune/adresse/altitude
     ├── adapters/map
     ├── adapters/bss
     ├── adapters/weather
@@ -88,6 +89,12 @@ Une erreur sur la géométrie de la dalle ou l’écriture du manifeste est en r
 Relancer une étape de fabrication ne doit pas corrompre l’instance.
 
 Prévoir des étapes identifiables et relançables.
+
+Le lot P3 satisfait la première moitié de cette règle sans la seconde : `POST
+.../build` sur une instance déjà `generated` échoue proprement (409, transition
+refusée par `transitionValide`) plutôt que de corrompre le manifeste, mais ne
+relance pas non plus l'enrichissement. Un vrai rejeu (ex. reprendre après un
+échec réseau sans dupliquer les données déjà écrites) reste à faire.
 
 ## Journal de production
 
