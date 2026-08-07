@@ -22,6 +22,12 @@ import {
   APP_MANIFEST,
   renderAppTerrain,
 } from "./pages/app-terrain.js";
+import {
+  renderSiteInstance,
+  renderSiteInstanceIndisponible,
+  renderSiteInstanceIntrouvable,
+  type ManifesteDalleVue,
+} from "./pages/site-instance.js";
 
 export interface BuildAppOptions {
   config?: GatewayConfig;
@@ -196,6 +202,34 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
         });
       }
       return sendHtml(reply, renderDemo(config, service));
+    },
+  );
+
+  // Consultation d'une dalle OpenDataVdA : le gateway récupère le manifeste côté serveur
+  // depuis la route interne de site-service (jamais exposée directement, ADR-006) et rend
+  // une page HTML complète — pas de route JSON publique pour cette lecture (ADR-008).
+  app.get<{ Params: { tileId: string } }>(
+    "/api/v2/sites/:tileId",
+    async (request: FastifyRequest<{ Params: { tileId: string } }>, reply: FastifyReply) => {
+      const baseUrl = config.siteServiceUrl ?? "http://site-service:3000";
+      const upstream = new URL(
+        `${baseUrl}/internal/v1/sites/${encodeURIComponent(request.params.tileId)}`,
+      );
+      try {
+        const response = await fetchImpl(upstream, {
+          headers: { accept: "application/json" },
+          signal: AbortSignal.timeout(config.siteServiceTimeoutMs ?? 5_000),
+        });
+        if (response.status === 404) {
+          return sendHtml(reply.code(404), renderSiteInstanceIntrouvable(config, request.params.tileId));
+        }
+        if (!response.ok) throw new Error(`site-service a répondu HTTP ${response.status}`);
+        const manifeste = (await response.json()) as ManifesteDalleVue;
+        return sendHtml(reply, renderSiteInstance(config, manifeste));
+      } catch (error) {
+        request.log.error({ err: error, upstream: "site-service" }, "échec de récupération de l'instance");
+        return sendHtml(reply.code(502), renderSiteInstanceIndisponible(config));
+      }
     },
   );
 

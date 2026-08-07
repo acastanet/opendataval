@@ -137,7 +137,14 @@ domaine public.
 
 Fichiers/contrats impactés :
 
-`04-SITE-SERVICE.md`, `Caddyfile`, `docker-compose.yml` (à la mise en œuvre).
+`04-SITE-SERVICE.md`, `Caddyfile`, `docker-compose.yml`.
+
+Mise en œuvre (lot P5) : `apps/site-service/src/app.ts` n'expose que
+`/internal/v1/sites/*`, jamais routé par Caddy. Le gateway (routes publiques)
+n'en proxy que la lecture, voir ADR-008. `docker-compose.yml` connecte
+`site-service` à la base et à `geography-service` sans l'exposer via `caddy`
+(pas d'entrée `/api/v2/sites` dans le `Caddyfile` : tout `/api/v2/*` transite
+déjà par le gateway).
 
 ## ADR-007 — Stockage des instances sur volume nommé, index en PostgreSQL
 
@@ -191,3 +198,8 @@ devoir changer de mode de rendu.
 Fichiers/contrats impactés :
 
 `01-ARCHITECTURE.md`, `04-SITE-SERVICE.md`.
+
+Mise en œuvre (lot P5) : `apps/gateway-service/src/pages/site-instance.ts`
+(rendu), route `GET /api/v2/sites/:tileId` dans `apps/gateway-service/src/app.ts`
+(récupération côté serveur du manifeste via l'URL interne de `site-service`,
+jamais exposée telle quelle au navigateur).

@@ -60,6 +60,8 @@ services:
       GEOLOGIE_SERVICE_TIMEOUT_MS: ${GEOLOGIE_SERVICE_TIMEOUT_MS:-45000}
       GEOLOGIE_SYNTHESE_TIMEOUT_MS: ${GEOLOGIE_SYNTHESE_TIMEOUT_MS:-60000}
       MAP_SERVICE_URL: http://map-service:3000
+      SITE_SERVICE_URL: http://site-service:3000
+      SITE_SERVICE_TIMEOUT_MS: ${SITE_SERVICE_TIMEOUT_MS:-5000}
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
       - api
@@ -71,6 +73,7 @@ services:
       - old-service
       - itineraire-service
       - geologie-service
+      - site-service
     expose:
       - "3000"
     healthcheck:
@@ -180,6 +183,38 @@ services:
       GEOLOGIE_INFOTERRE_MAX_IMAGES: ${GEOLOGIE_INFOTERRE_MAX_IMAGES:-2}
       GEOLOGIE_DEBUG_ENABLED: ${GEOLOGIE_DEBUG_ENABLED:-false}
       APP_VERSION: ${APP_VERSION:-dev}
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  site-service:
+    build:
+      context: .
+      dockerfile: apps/site-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-opendata}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD doit etre defini dans .env}
+      POSTGRES_DB: ${POSTGRES_DB:-opendata_vda}
+      GEOGRAPHY_SERVICE_URL: http://geography-service:3000
+      GEOGRAPHY_SERVICE_TIMEOUT_MS: ${GEOGRAPHY_SERVICE_TIMEOUT_MS:-5000}
+      SITE_SERVICE_DEMO_SCENE_URL: ${SITE_SERVICE_DEMO_SCENE_URL:-/valleraugue-3d/assets/scenes/maison-200m/scene.glb}
+      APP_VERSION: ${APP_VERSION:-dev}
+    volumes:
+      - site_instances:/data/instances
+    depends_on:
+      db:
+        condition: service_healthy
+      geography-service:
+        condition: service_started
     expose:
       - "3000"
     healthcheck:
@@ -437,3 +472,4 @@ volumes:
   association_data:
   valhalla_tiles:
   itineraire_data:
+  site_instances:

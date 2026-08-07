@@ -61,18 +61,31 @@ docker-compose (aucune route `site-service` n'est encore publique), les routes
 - [x] Rattacher une scène existante pour la première démonstration
       (`apps/site-service/src/adapters/scene.ts`, pointe vers le GLB déjà publié par
       `poc/valleraugue-mairie-3d` sous `/valleraugue-3d/assets/scenes/maison-200m/scene.glb`).
-- [ ] Afficher la scène dans la page d’instance — reporté à P5 : aucune page d'instance
-      n'existe encore (ADR-008 prévoit son rendu par `gateway-service`, pas encore construit).
+- [x] Afficher la scène dans la page d’instance — livré au lot P5
+      (`apps/gateway-service/src/pages/site-instance.ts`, `<model-viewer>`).
 - [ ] Remplacer ensuite par la génération automatique réelle — c'est le lot P8
       (« industrialisation du pipeline 3D »).
 
 ## P5 — Première page dalle
 
-- [ ] Identité.
-- [ ] 3D.
-- [ ] information locale minimale.
-- [ ] source/provenance.
-- [ ] statut de fabrication/revue.
+Servie par `gateway-service` à `GET /api/v2/sites/:tileId` (ADR-008), qui
+récupère le manifeste côté serveur depuis la route interne de `site-service` —
+aucune route JSON publique n'est ajoutée pour cette lecture.
+
+- [x] Identité (`apps/gateway-service/src/pages/site-instance.ts`) : titre,
+      `tile_id`, adresse, centre, emprise, surface, date de création.
+- [x] 3D : `<model-viewer>` (Google, chargé depuis unpkg avec intégrité SRI
+      vérifiée) sur l'URL de `manifeste.scene.glb` ; message explicite si
+      aucune scène n'est rattachée.
+- [x] Information locale minimale : données groupées par sphère, avec valeur,
+      unité et badge de disponibilité.
+- [x] Source/provenance : chaque donnée affiche producteur + date de
+      récupération ; une section « Provenance » liste les sources distinctes.
+- [x] Statut de fabrication/revue : badges `status`/`review.status`.
+
+6 tests (`apps/gateway-service/test/site-instance.test.ts`) couvrent le rendu
+nominal, l'absence de scène, l'absence de donnée, l'échappement HTML, et les
+réponses 404/502 de `site-service`.
 
 ## P6 — Revue / publication minimale
 

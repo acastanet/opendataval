@@ -21,6 +21,8 @@ export interface GatewayConfig {
   geologieServiceTimeoutMs?: number;
   geologieSyntheseTimeoutMs?: number;
   mapServiceUrl?: string;
+  siteServiceUrl?: string;
+  siteServiceTimeoutMs?: number;
   version: string;
 }
 
@@ -134,6 +136,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
     mapServiceUrl: normalizeHttpUrl(
       env.MAP_SERVICE_URL?.trim() || "http://map-service:3000",
       "MAP_SERVICE_URL",
+    ),
+    siteServiceUrl: normalizeHttpUrl(
+      env.SITE_SERVICE_URL?.trim() || "http://site-service:3000",
+      "SITE_SERVICE_URL",
+    ),
+    siteServiceTimeoutMs: positiveInteger(
+      env.SITE_SERVICE_TIMEOUT_MS,
+      5_000,
+      "SITE_SERVICE_TIMEOUT_MS",
     ),
     version: env.APP_VERSION?.trim() || env.GIT_SHA?.trim() || "dev",
   };

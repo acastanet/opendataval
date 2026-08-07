@@ -170,6 +170,18 @@ pre.result {
 .btn-secondary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .map { height: 300px; width: 100%; border: 1px solid var(--border); border-radius: 10px; margin-top: .75rem; background: var(--code-bg); }
 .map-fallback { display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: .9rem; padding: 1rem; }
+.scene-3d { height: min(60vh, 480px); width: 100%; border: 1px solid var(--border); border-radius: 10px; margin-top: .75rem; background: var(--code-bg); }
+.sphere-block { margin-top: 1.25rem; }
+.sphere-block h3 { display: flex; align-items: center; gap: .5rem; }
+.sphere-dot { width: .7rem; height: .7rem; border-radius: 999px; display: inline-block; background: var(--muted); }
+.donnee-list { list-style: none; margin: .5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
+.donnee-item { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: .6rem .75rem; }
+.donnee-item .ligne { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.donnee-item .cle { font-weight: 600; }
+.donnee-item .valeur { font-size: 1rem; }
+.donnee-item .provenance { color: var(--muted); font-size: .8rem; margin-top: .2rem; }
+.sources-list { list-style: none; margin: .5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+.sources-list li { border-top: 1px solid var(--border); padding-top: .35rem; font-size: .85rem; }
 /* Scène cartographique à gauche, bandeau de réglages à droite : la carte reste
    visible pendant qu'on modifie les options, pour en comparer l'effet. */
 .split { display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr) 23rem; align-items: start; margin-top: 1.25rem; }
