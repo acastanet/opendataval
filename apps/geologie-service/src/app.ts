@@ -1,7 +1,10 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
 import { createBrgmClient, ErreurBrgm, type BrgmClient } from "./clients/brgm.js";
+import { createInfoterreClient, type InfoterreClient } from "./clients/infoterre.js";
 import type { GeologieConfig } from "./config.js";
+import { registerSyntheseRoutes } from "./routes/synthese.js";
 import { createCacheMemoire, type CacheMemoire } from "./services/cache.js";
+import { createSyntheseurLlm, type Syntheseur } from "./services/llm-interpretation.js";
 import { rechercherOuvragesProches } from "./services/recherche-bss.js";
 import { createReranker, type Reranker } from "./services/reranker.js";
 import type { OuvrageBss } from "./types.js";
@@ -9,6 +12,8 @@ import type { OuvrageBss } from "./types.js";
 export interface GeologieClients {
   brgm: BrgmClient;
   reranker: Reranker;
+  infoterre?: InfoterreClient;
+  syntheseur?: Syntheseur;
 }
 
 type CacheBrgm = CacheMemoire<{ ouvrages: OuvrageBss[]; tronque: boolean }>;
@@ -66,6 +71,8 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     options.config.cacheTtlSeconds,
     options.config.cacheMaxEntries,
   );
+  const infoterre = clients.infoterre ?? createInfoterreClient(options.config, fetchImpl);
+  const syntheseur = clients.syntheseur ?? createSyntheseurLlm(options.config, fetchImpl);
 
   app.addHook("onSend", async (request, reply, payload) => {
     reply.header("x-request-id", request.id);
@@ -129,11 +136,13 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     proches,
   );
 
+  registerSyntheseRoutes(app, { infoterre, syntheseur, config: options.config });
+
   app.setErrorHandler((failure, request, reply) => {
-    request.log.error({ err: failure }, "recherche BSS BRGM en erreur");
+    request.log.error({ err: failure }, "requête géologie en erreur");
     return reply.code(500).send(erreur(
       "GEOLOGIE_CALCULATION_FAILED",
-      "La recherche d'ouvrages BSS n'a pas pu être calculée.",
+      "La requête n'a pas pu être traitée.",
       true,
       request.id,
     ));

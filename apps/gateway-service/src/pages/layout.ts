@@ -234,6 +234,9 @@ pre.result {
 .kv .v { font-weight: 600; font-size: .95rem; overflow-wrap: anywhere; }
 .kv .v.big { font-size: 1.6rem; }
 .summary-note { color: var(--muted); font-size: .85rem; margin: .25rem 0 0; }
+.btn-synthese { align-self: flex-start; margin-top: .35rem; }
+.synthese-zone { margin-top: .5rem; padding-top: .5rem; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: .5rem; }
+.synthese-scan img { max-width: 100%; border-radius: 6px; border: 1px solid var(--border); }
 .badges { display: flex; gap: .35rem; flex-wrap: wrap; }
 .badge[data-level="green"] { background: var(--ok-bg); color: var(--ok-fg); }
 .badge[data-level="yellow"] { background: var(--warn-bg); color: var(--warn-fg); }

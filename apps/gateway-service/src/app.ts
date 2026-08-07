@@ -12,7 +12,7 @@ import { registerFireDetectionProxy } from "./fire-detection-proxy.js";
 import { registerAssociationProxy } from "./association-proxy.js";
 import { registerOldProxy } from "./old-proxy.js";
 import { registerItineraireProxy } from "./itineraire-proxy.js";
-import { registerGeologieProxy } from "./geologie-proxy.js";
+import { registerGeologieProxy, registerGeologieSyntheseProxy } from "./geologie-proxy.js";
 import { registerStatusRoute } from "./status-route.js";
 import { findService } from "./services-catalog.js";
 import { renderLanding } from "./pages/landing.js";
@@ -209,6 +209,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   registerOldProxy(app, config, fetchImpl);
   registerItineraireProxy(app, config, fetchImpl);
   registerGeologieProxy(app, config, fetchImpl);
+  registerGeologieSyntheseProxy(app, config, fetchImpl);
 
   app.setErrorHandler((error, request, reply) => {
     const normalized = normalizeError(error);

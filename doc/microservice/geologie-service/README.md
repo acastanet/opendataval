@@ -19,8 +19,10 @@ Aucune donnée géologique n’est inventée : la nature brute du BRGM (`nature_
 toujours restituée telle quelle, et le LLM reçoit pour instruction explicite de ne
 déduire aucune lithologie absente des données.
 
-MVP volontairement limité à un rayon de 5 km, sans base de données, sans lecture de PDF
-ni RAG documentaire, et sans intégration cartographique (à venir dans un lot ultérieur).
+MVP volontairement limité à un rayon de 5 km et sans base de données. La démo affiche
+désormais les 10 résultats sur une carte, et propose optionnellement, fiche par fiche,
+une synthèse et une interprétation de la coupe géologique à partir du contenu réel de la
+fiche InfoTerre (voir [Synthèse géologique interprétée](#synthèse-géologique-interprétée-optionnelle)).
 
 ## Routes
 
@@ -28,6 +30,8 @@ ni RAG documentaire, et sans intégration cartographique (à venir dans un lot u
 |---|---|---|
 | `GET /api/v2/geologie/bss/proches` | publique via gateway | Recherche par pertinence |
 | `GET /internal/v1/geologie/bss/proches` | réseau interne | Cible du gateway |
+| `GET /api/v2/geologie/bss/synthese` | publique via gateway | Synthèse et coupe géologique interprétée d'une fiche |
+| `GET /internal/v1/geologie/bss/synthese` | réseau interne | Cible du gateway |
 | `GET /health` | interne | Vie du processus |
 | `GET /ready` | interne | Processus prêt |
 
@@ -109,6 +113,44 @@ Le service fonctionne intégralement sans clé API (`GEOLOGIE_LLM_API_KEY` vide)
 erreur HTTP, réponse non-JSON ou sortie invalide déclenchent le même repli — jamais
 d’exception visible côté route.
 
+## Synthèse géologique interprétée (optionnelle)
+
+`GET /api/v2/geologie/bss/synthese?reference=<ancien_code_bss>` récupère la fiche
+InfoTerre publique de l'ouvrage (`http://ficheinfoterre.brgm.fr/InfoterreFiche/ficheBss.action`),
+en extrait le tableau de log géologique déjà présent en HTML et les scans de coupe
+géologique disponibles, convertit jusqu'à `GEOLOGIE_INFOTERRE_MAX_IMAGES` scans TIFF en PNG,
+puis produit une synthèse en français. C'est une action **coûteuse** (site tiers + éventuel
+appel LLM vision) : elle n'est déclenchée que sur action explicite de l'utilisateur (un
+bouton par fiche sur la démo), jamais automatiquement lors de la recherche `/bss/proches`.
+
+`reference` doit correspondre au format BSS réel (`\d{5}[A-Z]\d{4}/désignation`, ex.
+`09372X0012/MONNA`) : validé par regex côté route (400 rapide) et côté client HTTP
+(défense en profondeur). Le serveur reconstruit toujours lui-même l'URL InfoTerre à partir
+de cette référence — aucune URL n'est jamais acceptée telle quelle depuis le client
+(anti-SSRF). Les scans ne sont récupérés que depuis `ficheinfoterre.brgm.fr` ; toute URL
+résolue vers un autre hôte est rejetée.
+
+Cascade de repli, exposée dans `methode_synthese` :
+
+1. **`llm_vision`** — le LLM répond en recevant le log structuré *et* jusqu'à 2 scans
+   convertis en PNG (un seul appel réseau, jamais un appel par image).
+2. **`llm_texte`** — aucune image exploitable (pas de scan de coupe, scan illisible ou
+   trop volumineux), mais le LLM répond à partir du seul log structuré.
+3. **`structure_seule`** — repli 100 % déterministe, sans LLM, toujours disponible :
+   un résumé du log est généré directement à partir des données structurées.
+
+Le passage d'une étape à l'autre ne lève jamais d'exception : seule l'indisponibilité de
+la fiche InfoTerre elle-même (site injoignable, timeout) fait échouer la requête (502/504),
+comme le fait le BRGM sur `/bss/proches`. Tout le reste (section HTML non reconnue, scan
+illisible, LLM en panne) est absorbé et remonté dans `avertissements`, sans jamais renvoyer
+un résultat vide silencieusement.
+
+Exemple :
+
+```bash
+curl -fsS "http://localhost:8080/api/v2/geologie/bss/synthese?reference=09372X0012/MONNA"
+```
+
 ## Vérification réelle du cas de référence
 
 Contrôle effectué le 2026-08-07 contre le WFS BRGM en production, avec reranking LLM actif
@@ -142,8 +184,15 @@ rangs 1, 3, 4, 6 et 7 plutôt que de monopoliser le haut du classement.
 | `GEOLOGIE_LLM_URL` | `https://llm.ilaas.fr/v1/chat/completions` | passerelle LLM compatible OpenAI |
 | `GEOLOGIE_LLM_MODEL` | `mistral-medium-latest` | modèle utilisé pour le reranking |
 | `GEOLOGIE_LLM_API_KEY` | *(vide)* | secret serveur ; vide = repli déterministe direct, sans appel réseau |
-| `GEOLOGIE_LLM_TIMEOUT_MS` | `20000` | délai de l’appel LLM |
-| `GEOLOGIE_LLM_MAX_TOKENS` | `1500` | `max_tokens` de la requête LLM |
+| `GEOLOGIE_LLM_TIMEOUT_MS` | `20000` | délai de l’appel LLM (reranking) |
+| `GEOLOGIE_LLM_MAX_TOKENS` | `1500` | `max_tokens` de la requête LLM (reranking) |
+| `GEOLOGIE_LLM_VISION_MODEL` | `mistral-medium-latest` | modèle utilisé pour la synthèse (avec ou sans image) |
+| `GEOLOGIE_LLM_VISION_TIMEOUT_MS` | `45000` | délai de l’appel LLM de synthèse (plus long : peut inclure des images) |
+| `GEOLOGIE_LLM_SYNTHESE_MAX_TOKENS` | `700` | `max_tokens` de la requête LLM de synthèse |
+| `GEOLOGIE_INFOTERRE_TIMEOUT_MS` | `15000` | délai des appels à InfoTerre (fiche et scans) |
+| `GEOLOGIE_INFOTERRE_MAX_SCAN_BYTES` | `5000000` | taille maximale acceptée pour un scan téléchargé |
+| `GEOLOGIE_INFOTERRE_IMAGE_WIDTH_PX` | `1400` | largeur cible de conversion TIFF → PNG |
+| `GEOLOGIE_INFOTERRE_MAX_IMAGES` | `2` | nombre maximal de scans envoyés au LLM par fiche |
 | `GEOLOGIE_DEBUG_ENABLED` | `false` | autorise `?debug=true` à exposer les scores intermédiaires |
 | `APP_VERSION` | `dev` | version exposée par la santé |
 
@@ -180,6 +229,16 @@ GeoJSON réel figé (`test/fixtures/`), sans appel réseau.
   maximum observé en pratique est 92.
 - Pas de cache de la sortie LLM : seule la réponse BRGM normalisée est mise en cache, le
   scoring et la diversification étant recalculés à chaque requête (coût négligeable).
+- L'extraction du HTML InfoTerre repose sur des regex tolérantes contre un site tiers non
+  versionné (balisage irrégulier confirmé, ex. `<td>` non refermés) : verrouillée par des
+  fixtures réelles, elle échoue explicitement (`avertissements`) plutôt que de renvoyer un
+  résultat vide silencieux si la structure de la page venait à changer.
+- Le support vision du LLM ILAAS n'est pas garanti contractuellement ; `methode_synthese`
+  peut ne jamais valoir `"llm_vision"` selon la disponibilité du modèle — le service reste
+  pleinement fonctionnel dans ce cas (`structure_seule`). Validé empiriquement fonctionnel
+  avec `mistral-medium-latest` le 2026-08-07.
+- Plafond de `GEOLOGIE_INFOTERRE_MAX_IMAGES` scans et un seul appel LLM par fiche, pour
+  maîtriser le coût (scraping tiers + appel vision).
 
 ## Références
 

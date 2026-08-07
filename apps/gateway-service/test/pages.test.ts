@@ -33,13 +33,14 @@ test("GET /api/v2 renvoie la landing HTML listant les microservices", async (t) 
 
   assert.equal(response.statusCode, 200);
   assert.match(String(response.headers["content-type"]), /text\/html/);
-  for (const name of ["Geography", "Weather", "Weather Vigilance", "Fire Detection", "Associations", "OLD — Débroussaillement", "Gateway", "Map"]) {
+  for (const name of ["Geography", "Weather", "Weather Vigilance", "Fire Detection", "Associations", "OLD — Débroussaillement", "Gateway", "Map", "Géologie — BSS BRGM"]) {
     assert.ok(response.body.includes(name), `landing doit mentionner ${name}`);
   }
   assert.ok(response.body.includes("/api/v2/geography/resolve"));
   assert.ok(response.body.includes("/api/v2/demo/fire"));
   assert.ok(response.body.includes("/api/v2/demo/map"));
   assert.ok(response.body.includes("/api/v2/demo/old"));
+  assert.ok(response.body.includes("/api/v2/demo/geologie"));
   assert.ok(response.body.includes('href="/valfeu/"'));
 });
 
@@ -137,6 +138,35 @@ test("la démo fire active le tracé des détections sur la carte", async (t) =>
   assert.ok(response.body.includes("Sources satellitaires"));
   assert.ok(response.body.includes("Puissance radiative"));
   assert.ok(response.body.includes("Rayon du pixel"));
+});
+
+test("la démo géologie propose lat/lon/rayon, la géolocalisation et un résumé dédié", async (t) => {
+  const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/api/v2/demo/geologie" });
+
+  assert.equal(response.statusCode, 200);
+  assert.ok(response.body.includes('name="lat"'));
+  assert.ok(response.body.includes('name="lon"'));
+  assert.ok(response.body.includes('name="rayon"'));
+  assert.ok(response.body.includes('value="5000"'));
+  assert.ok(response.body.includes(">Me localiser<"));
+  assert.ok(response.body.includes('id="map"'));
+  assert.ok(response.body.includes('"serviceId":"geologie"'));
+  assert.ok(response.body.includes('"basePath":"/api/v2/geologie/bss/proches"'));
+  // Le résumé dédié (et non le repli générique) doit être enregistré côté client.
+  assert.ok(response.body.includes("geologie: geologieView"));
+  assert.ok(response.body.includes("Fiche InfoTerre"));
+  assert.ok(response.body.includes("Classement affiné par IA"));
+  // Partie A — marqueurs cliquables sur la carte pour les 10 résultats.
+  assert.ok(response.body.includes('"drawGeologieResults":true'));
+  assert.ok(response.body.includes("drawGeologieMarkers"));
+  // Partie B — bouton d'analyse par fiche (optionnel, un par ouvrage).
+  assert.ok(response.body.includes("btn-synthese"));
+  assert.ok(response.body.includes("ancien_code_bss"));
+  assert.ok(response.body.includes("renderSynthese"));
+  assert.ok(response.body.includes("/api/v2/geologie/bss/synthese?reference="));
 });
 
 test("la démo map charge MapLibre depuis map-service et pilote le style unique", async (t) => {

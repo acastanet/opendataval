@@ -39,6 +39,15 @@ export interface GeologieConfig {
   llmTimeoutMs: number;
   llmMaxTokens: number;
 
+  llmVisionModel: string;
+  llmVisionTimeoutMs: number;
+  llmSyntheseMaxTokens: number;
+
+  infoterreTimeoutMs: number;
+  infoterreMaxScanBytes: number;
+  infoterreImageWidthPx: number;
+  infoterreMaxImages: number;
+
   debugEnabled: boolean;
 }
 
@@ -68,6 +77,23 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GeologieConfig
     llmApiKey: env.GEOLOGIE_LLM_API_KEY?.trim() || "",
     llmTimeoutMs: positiveInteger(env.GEOLOGIE_LLM_TIMEOUT_MS, 20_000, "GEOLOGIE_LLM_TIMEOUT_MS"),
     llmMaxTokens: positiveInteger(env.GEOLOGIE_LLM_MAX_TOKENS, 1_500, "GEOLOGIE_LLM_MAX_TOKENS"),
+
+    llmVisionModel: env.GEOLOGIE_LLM_VISION_MODEL?.trim() || "mistral-medium-latest",
+    llmVisionTimeoutMs: positiveInteger(env.GEOLOGIE_LLM_VISION_TIMEOUT_MS, 45_000, "GEOLOGIE_LLM_VISION_TIMEOUT_MS"),
+    llmSyntheseMaxTokens: positiveInteger(env.GEOLOGIE_LLM_SYNTHESE_MAX_TOKENS, 700, "GEOLOGIE_LLM_SYNTHESE_MAX_TOKENS"),
+
+    infoterreTimeoutMs: positiveInteger(env.GEOLOGIE_INFOTERRE_TIMEOUT_MS, 15_000, "GEOLOGIE_INFOTERRE_TIMEOUT_MS"),
+    infoterreMaxScanBytes: positiveInteger(
+      env.GEOLOGIE_INFOTERRE_MAX_SCAN_BYTES,
+      5_000_000,
+      "GEOLOGIE_INFOTERRE_MAX_SCAN_BYTES",
+    ),
+    infoterreImageWidthPx: positiveInteger(
+      env.GEOLOGIE_INFOTERRE_IMAGE_WIDTH_PX,
+      1_400,
+      "GEOLOGIE_INFOTERRE_IMAGE_WIDTH_PX",
+    ),
+    infoterreMaxImages: positiveInteger(env.GEOLOGIE_INFOTERRE_MAX_IMAGES, 2, "GEOLOGIE_INFOTERRE_MAX_IMAGES"),
 
     debugEnabled: boolean(env.GEOLOGIE_DEBUG_ENABLED, false),
   };

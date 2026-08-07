@@ -16,6 +16,8 @@ const config: GeologieConfig = {
   brgmWfsUrl: "http://brgm.test", brgmTimeoutMs: 1000, brgmMaxFeatures: 500,
   cacheTtlSeconds: 3600, cacheMaxEntries: 10,
   llmUrl: "http://llm.test", llmModel: "test-model", llmApiKey: "", llmTimeoutMs: 1000, llmMaxTokens: 500,
+  llmVisionModel: "test-vision-model", llmVisionTimeoutMs: 1000, llmSyntheseMaxTokens: 500,
+  infoterreTimeoutMs: 1000, infoterreMaxScanBytes: 5_000_000, infoterreImageWidthPx: 1400, infoterreMaxImages: 2,
   debugEnabled: false,
 };
 
@@ -118,6 +120,20 @@ test("un cercle vide renvoie 200 avec une liste de résultats vide", async (t) =
   const body = response.json();
   assert.equal(body.selection.candidates_in_radius, 0);
   assert.deepEqual(body.results, []);
+});
+
+test("chaque résultat expose son ancien code BSS, sans régression sur les champs existants", async (t) => {
+  const app = buildApp({ config, clients: clients(), logger: false });
+  t.after(() => app.close());
+  const response = await app.inject({ method: "GET", url: `/api/v2/geologie/bss/proches?lat=${LAT}&lon=${LON}` });
+  const body = response.json();
+  assert.ok(body.results.length > 0);
+  for (const resultat of body.results) {
+    assert.ok("ancien_code_bss" in resultat);
+    assert.ok(typeof resultat.ancien_code_bss === "string" || resultat.ancien_code_bss === null);
+    assert.ok(typeof resultat.bss_id === "string");
+    assert.ok(typeof resultat.fiche_infoterre === "string" || resultat.fiche_infoterre === null);
+  }
 });
 
 test("le rang de distance est conservé dans chaque résultat", async (t) => {

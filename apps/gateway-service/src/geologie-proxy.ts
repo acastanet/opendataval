@@ -71,3 +71,61 @@ export function registerGeologieProxy(
     },
   );
 }
+
+function validSynthese(query: Record<string, unknown>): boolean {
+  const reference = query.reference;
+  return typeof reference === "string" && reference.length > 0 && reference.length <= 120;
+}
+
+/**
+ * Proxy dédié pour l'analyse à la demande d'une fiche BRGM (log + scan + LLM vision) : timeout
+ * plus long que `/bss/proches` car cette route déclenche un scraping tiers et un éventuel appel
+ * LLM avec image, et n'est appelée que sur action explicite de l'utilisateur (bouton).
+ */
+export function registerGeologieSyntheseProxy(
+  app: FastifyInstance,
+  config: GatewayConfig,
+  fetchImpl: FetchLike,
+): void {
+  app.get<{ Querystring: Record<string, unknown> }>(
+    "/api/v2/geologie/bss/synthese",
+    async (
+      request: FastifyRequest<{ Querystring: Record<string, unknown> }>,
+      reply: FastifyReply,
+    ) => {
+      if (!validSynthese(request.query)) {
+        return reply.code(400).send({
+          error: {
+            code: "INVALID_QUERY",
+            message: "Le paramètre reference est obligatoire.",
+            retryable: false,
+          },
+          requestId: request.id,
+        });
+      }
+      const baseUrl = config.geologieServiceUrl ?? "http://geologie-service:3000";
+      const upstream = new URL(`${baseUrl}/internal/v1/geologie/bss/synthese`);
+      const reference = request.query.reference;
+      if (typeof reference === "string") upstream.searchParams.set("reference", reference);
+      try {
+        const response = await fetchImpl(upstream, {
+          headers: { accept: "application/json", "x-request-id": request.id },
+          signal: AbortSignal.timeout(config.geologieSyntheseTimeoutMs ?? 60_000),
+        });
+        reply.header("content-type", response.headers.get("content-type") ?? "application/json");
+        return reply.code(response.status).send(Buffer.from(await response.arrayBuffer()));
+      } catch (error) {
+        const normalized = failure(error);
+        request.log.error({ err: error, upstream: "geologie-service" }, normalized.code);
+        return reply.code(normalized.status).send({
+          error: {
+            code: normalized.code,
+            message: normalized.message,
+            retryable: true,
+          },
+          requestId: request.id,
+        });
+      }
+    },
+  );
+}

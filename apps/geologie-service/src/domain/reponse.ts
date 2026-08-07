@@ -19,6 +19,7 @@ export interface ResultatReponse {
   latitude: number | null;
   longitude: number | null;
   fiche_infoterre: string | null;
+  ancien_code_bss: string | null;
   debug?: {
     geological_value_score: number;
     proximity_score: number;
@@ -79,6 +80,7 @@ export function construireReponse(params: {
       latitude: candidat.latitude,
       longitude: candidat.longitude,
       fiche_infoterre: candidat.fiche_infoterre,
+      ancien_code_bss: candidat.ancien_code_bss,
       ...(params.debug && {
         debug: {
           geological_value_score: candidat.geological_value_score,

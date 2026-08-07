@@ -577,6 +577,47 @@ const DEMO_SCRIPT = `
       });
   });
 
+  // --- Synthèse géologique à la demande (bouton par fiche, coûteux : scraping + LLM vision) ---
+  if (summaryOut) {
+    summaryOut.addEventListener("click", function (event) {
+      var btn = event.target && event.target.closest ? event.target.closest(".btn-synthese") : null;
+      if (!btn) return;
+      var reference = btn.getAttribute("data-reference");
+      var card = btn.closest(".kv");
+      var zone = card ? card.querySelector(".synthese-zone") : null;
+      if (!reference || !zone) return;
+
+      btn.disabled = true;
+      var libelleInitial = btn.textContent;
+      btn.textContent = "Analyse en cours…";
+      zone.hidden = false;
+      zone.textContent = "Analyse en cours…";
+
+      fetch("/api/v2/geologie/bss/synthese?reference=" + encodeURIComponent(reference), {
+        headers: { accept: "application/json" },
+      })
+        .then(function (response) {
+          return response.text().then(function (text) {
+            var parsed = null;
+            try { parsed = JSON.parse(text); } catch (e) {}
+            var payload = response.ok
+              ? parsed
+              : { error: (parsed && parsed.error) || { message: "HTTP " + response.status } };
+            if (window.__presenters && window.__presenters.renderSynthese) {
+              window.__presenters.renderSynthese(zone, payload);
+            }
+          });
+        })
+        .catch(function (error) {
+          zone.textContent = "Échec de la requête : " + String(error);
+        })
+        .then(function () {
+          btn.disabled = false;
+          btn.textContent = libelleInitial;
+        });
+    });
+  }
+
   if (!cfg.hasCoordinates) return;
 
   // --- Champs géographiques : lecture/écriture des coordonnées ---
@@ -634,7 +675,10 @@ const DEMO_SCRIPT = `
 
     window.__map = {
       recenter: function (lat, lon) { if (map) { map.setView([lat, lon], 12); moveMarker(lat, lon); } },
-      onResult: function (data) { if (cfg.drawDetections) drawFire(data); },
+      onResult: function (data) {
+        if (cfg.drawDetections) drawFire(data);
+        if (cfg.drawGeologieResults) drawGeologieMarkers(data);
+      },
     };
   }
   function moveMarker(lat, lon) {
@@ -780,6 +824,48 @@ const DEMO_SCRIPT = `
     return p;
   }
 
+  // Place un marqueur par ouvrage BSS retourné, avec une popup résumant son intérêt et un
+  // lien direct vers sa fiche InfoTerre.
+  function drawGeologieMarkers(data) {
+    if (!map || !overlays) return;
+    overlays.clearLayers();
+    var results = Array.isArray(data.results) ? data.results : [];
+    var latlngs = [];
+    results.forEach(function (result) {
+      if (typeof result.latitude !== "number" || typeof result.longitude !== "number") return;
+      var point = [result.latitude, result.longitude];
+      latlngs.push(point);
+      var marker = L.circleMarker(point, {
+        radius: 7,
+        color: "#1f6feb",
+        weight: 2,
+        fillColor: "#1f6feb",
+        fillOpacity: 0.6,
+      });
+      var popup = document.createElement("div");
+      popup.appendChild(popupLine("Rang", "#" + result.rank));
+      popup.appendChild(popupLine("Désignation", result.designation || result.bss_id));
+      popup.appendChild(popupLine("Nature", result.nature_brgm));
+      popup.appendChild(popupLine("Distance", typeof result.distance_m === "number" ? result.distance_m.toFixed(0) + " m" : "—"));
+      popup.appendChild(popupLine("Pertinence", typeof result.relevance_score === "number" ? result.relevance_score + "/100" : "—"));
+      if (result.reason) popup.appendChild(popupLine("Raison", result.reason));
+      if (result.fiche_infoterre) {
+        var link = document.createElement("a");
+        link.href = result.fiche_infoterre;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        link.textContent = "Fiche InfoTerre ↗";
+        popup.appendChild(link);
+      }
+      marker.bindPopup(popup);
+      marker.bindTooltip(result.designation || result.bss_id);
+      marker.addTo(overlays);
+    });
+    if (latlngs.length > 0) {
+      try { map.fitBounds(L.latLngBounds(latlngs), { padding: [20, 20] }); } catch (e) {}
+    }
+  }
+
   // --- Bouton « Me localiser » ---
   var locateBtn = document.getElementById("locate-btn");
   var locateStatus = document.getElementById("locate-status");
@@ -840,6 +926,7 @@ export function renderDemo(config: GatewayConfig, service: ServiceDescriptor): s
     sourceField: fieldNames.has("positionSource") ? "positionSource" : null,
     clearOnLocate: service.demo.filter((field) => field.clearedByGeolocation).map((field) => field.name),
     drawDetections: service.id === "fire",
+    drawGeologieResults: service.id === "geologie",
     exportColumns: service.id === "associations"
       ? ASSOCIATION_EXPORT_COLUMNS.map(([key, label]) => ({ key, label }))
       : [],

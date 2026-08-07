@@ -23,6 +23,8 @@ function config(overrides: Partial<GeologieConfig> = {}): GeologieConfig {
     cacheTtlSeconds: 3600, cacheMaxEntries: 10,
     llmUrl: "http://llm.test/v1/chat/completions", llmModel: "mistral-medium-latest",
     llmApiKey: "cle-de-test", llmTimeoutMs: 1000, llmMaxTokens: 1500,
+    llmVisionModel: "mistral-medium-latest", llmVisionTimeoutMs: 1000, llmSyntheseMaxTokens: 700,
+    infoterreTimeoutMs: 1000, infoterreMaxScanBytes: 5_000_000, infoterreImageWidthPx: 1400, infoterreMaxImages: 2,
     debugEnabled: false,
     ...overrides,
   };

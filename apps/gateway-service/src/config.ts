@@ -19,6 +19,7 @@ export interface GatewayConfig {
   itineraireServiceTimeoutMs?: number;
   geologieServiceUrl?: string;
   geologieServiceTimeoutMs?: number;
+  geologieSyntheseTimeoutMs?: number;
   mapServiceUrl?: string;
   version: string;
 }
@@ -124,6 +125,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig 
       env.GEOLOGIE_SERVICE_TIMEOUT_MS,
       45_000,
       "GEOLOGIE_SERVICE_TIMEOUT_MS",
+    ),
+    geologieSyntheseTimeoutMs: positiveInteger(
+      env.GEOLOGIE_SYNTHESE_TIMEOUT_MS,
+      60_000,
+      "GEOLOGIE_SYNTHESE_TIMEOUT_MS",
     ),
     mapServiceUrl: normalizeHttpUrl(
       env.MAP_SERVICE_URL?.trim() || "http://map-service:3000",
