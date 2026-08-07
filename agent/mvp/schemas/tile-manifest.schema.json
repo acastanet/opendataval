@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opendata-vda.example/schemas/tile-manifest.schema.json",
+  "title": "OpenDataVdA Tile Manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "identity",
+    "production",
+    "status",
+    "data",
+    "review"
+  ],
+  "$defs": {
+    "sphere": {
+      "enum": [
+        "atmosphere",
+        "hydrosphere",
+        "biosphere",
+        "anthroposphere",
+        "lithosphere",
+        "risks"
+      ]
+    },
+    "spatial_relation": {
+      "enum": [
+        "intersects",
+        "contains",
+        "nearest",
+        "hydrologically_related",
+        "administrative",
+        "model_at_point",
+        "derived",
+        "remote_detection"
+      ]
+    },
+    "availability": {
+      "enum": [
+        "available",
+        "not_found",
+        "not_applicable",
+        "source_unavailable",
+        "error"
+      ]
+    },
+    "donnee": {
+      "type": "object",
+      "required": ["key", "sphere", "spatial_relation", "source", "time", "status"],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {},
+        "unit": {
+          "type": ["string", "null"]
+        },
+        "sphere": {
+          "$ref": "#/$defs/sphere"
+        },
+        "spatial_relation": {
+          "$ref": "#/$defs/spatial_relation"
+        },
+        "distance_m": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "source": {
+          "type": "object",
+          "required": ["producer", "dataset"],
+          "properties": {
+            "producer": { "type": "string" },
+            "dataset": { "type": "string" },
+            "url": { "type": ["string", "null"] },
+            "license": { "type": ["string", "null"] }
+          },
+          "additionalProperties": true
+        },
+        "time": {
+          "type": "object",
+          "required": ["observed_at", "retrieved_at"],
+          "properties": {
+            "observed_at": { "type": ["string", "null"], "format": "date-time" },
+            "retrieved_at": { "type": "string", "format": "date-time" },
+            "reference_period": { "type": ["string", "null"] }
+          },
+          "additionalProperties": true
+        },
+        "resolution": {
+          "type": "object",
+          "properties": {
+            "spatial_m": { "type": ["number", "null"] }
+          },
+          "additionalProperties": true
+        },
+        "selection": {
+          "type": "object",
+          "properties": {
+            "method": { "type": ["string", "null"] },
+            "automatic_choice": {},
+            "human_choice": {},
+            "review_reason": { "type": ["string", "null"] }
+          },
+          "additionalProperties": true
+        },
+        "status": {
+          "type": "object",
+          "required": ["availability"],
+          "properties": {
+            "availability": { "$ref": "#/$defs/availability" },
+            "freshness": { "type": ["string", "null"] },
+            "review": { "type": ["string", "null"] }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "identity": {
+      "type": "object",
+      "required": [
+        "tile_id",
+        "center",
+        "width_m",
+        "height_m",
+        "area_m2",
+        "geometry_wgs84"
+      ],
+      "properties": {
+        "tile_id": {
+          "type": "string",
+          "pattern": "^ODV-[0-9]{4}-[0-9]{6}$"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "center": {
+          "type": "object",
+          "required": [
+            "lat",
+            "lon"
+          ],
+          "properties": {
+            "lat": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "lon": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          "additionalProperties": false
+        },
+        "width_m": {
+          "const": 200
+        },
+        "height_m": {
+          "const": 200
+        },
+        "area_m2": {
+          "type": "number",
+          "minimum": 39960,
+          "maximum": 40040
+        },
+        "geometry_wgs84": {
+          "type": "object"
+        },
+        "geometry_projected": {
+          "type": "object"
+        },
+        "address": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "production": {
+      "type": "object",
+      "required": [
+        "created_at",
+        "pipeline_version"
+      ],
+      "properties": {
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "pipeline_version": {
+          "type": "string"
+        },
+        "data_versions": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    },
+    "status": {
+      "enum": [
+        "created",
+        "collecting",
+        "generated",
+        "review_required",
+        "approved",
+        "published",
+        "failed"
+      ]
+    },
+    "scene": {
+      "type": "object",
+      "properties": {
+        "glb": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "terrain": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "orthophoto": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "data": {
+      "type": "object",
+      "description": "Regroupement exclusif par les six sphères produit. L'échelle spatiale (local/proximité/contexte) n'est pas un second axe de classement : elle est déjà portée par spatial_relation et distance_m à l'intérieur de chaque donnée (voir 03-DATA-CONTRACT.md).",
+      "properties": {
+        "atmosphere": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/donnee" }
+        },
+        "hydrosphere": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/donnee" }
+        },
+        "biosphere": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/donnee" }
+        },
+        "anthroposphere": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/donnee" }
+        },
+        "lithosphere": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/donnee" }
+        },
+        "risks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/donnee" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "quality": {
+      "type": "object"
+    },
+    "provenance": {
+      "type": "array"
+    },
+    "review": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_started",
+            "pending",
+            "approved",
+            "changes_requested"
+          ]
+        },
+        "reviewed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "reviewed_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
