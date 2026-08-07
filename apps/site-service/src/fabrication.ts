@@ -4,9 +4,11 @@ import { transitionerInstance } from "./instances.js";
 import { ecrireManifesteAtomique, lireManifeste, repertoireInstance } from "./manifeste.js";
 import { demarrerEtape, terminerEtape } from "./journal.js";
 import type { ClientGeographie } from "./adapters/geography.js";
+import type { ClientScene } from "./adapters/scene.js";
 
 export interface ClientsFabrication {
   geographie: ClientGeographie;
+  scene: ClientScene;
 }
 
 function fusionnerDonnees(manifeste: ManifesteDalle, donnees: DonneeDalle[]): ManifesteDalle {
@@ -19,11 +21,11 @@ function fusionnerDonnees(manifeste: ManifesteDalle, donnees: DonneeDalle[]): Ma
 
 /**
  * Déclenche l'enrichissement minimal de M1 (`05-M1-VERTICAL-SLICE.md`) : appelle
- * l'adaptateur géographie, fusionne son résultat dans le manifeste, puis fait progresser
- * l'instance jusqu'à `generated`. L'appel à l'adaptateur est journalisé mais non bloquant —
- * un échec y compris inattendu vide simplement la liste de données plutôt que d'interrompre
- * la fabrication ; seule l'écriture du manifeste reste bloquante
- * (`04-SITE-SERVICE.md` § « Tolérance aux pannes »).
+ * l'adaptateur géographie et l'adaptateur de scène (lot P4), fusionne leurs résultats dans le
+ * manifeste, puis fait progresser l'instance jusqu'à `generated`. Les deux appels sont
+ * journalisés mais non bloquants — un échec, y compris inattendu, laisse simplement la
+ * donnée ou la scène absente plutôt que d'interrompre la fabrication ; seule l'écriture du
+ * manifeste reste bloquante (`04-SITE-SERVICE.md` § « Tolérance aux pannes »).
  */
 export async function lancerFabrication(
   pool: pg.Pool,
@@ -46,7 +48,16 @@ export async function lancerFabrication(
     await terminerEtape(pool, etapeEnrichissement, "echec", (error as Error).message);
   }
 
-  const enrichi = fusionnerDonnees(manifeste, donnees);
+  const etapeScene = await demarrerEtape(pool, tileId, "rattachement_scene");
+  let scene: ManifesteDalle["scene"] = undefined;
+  try {
+    scene = (await clients.scene.rattacher()) ?? undefined;
+    await terminerEtape(pool, etapeScene, "succes");
+  } catch (error) {
+    await terminerEtape(pool, etapeScene, "echec", (error as Error).message);
+  }
+
+  const enrichi = { ...fusionnerDonnees(manifeste, donnees), ...(scene ? { scene } : {}) };
   const etapeEcriture = await demarrerEtape(pool, tileId, "ecriture_manifeste_enrichi");
   try {
     await ecrireManifesteAtomique(dir, enrichi);

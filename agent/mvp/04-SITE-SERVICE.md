@@ -64,6 +64,9 @@ Chaque source intégrée au site devrait être appelée via un adaptateur fin :
 site-service
     │
     ├── adapters/geography   — implémenté (lot P3), commune/adresse/altitude
+    ├── adapters/scene       — implémenté (lot P4), rattachement provisoire
+    │                           d'une scène POC déjà publiée (voir 01-ARCHITECTURE.md
+    │                           § « Pipeline 3D » pour le contrat de `SceneDalle.glb`)
     ├── adapters/map
     ├── adapters/bss
     ├── adapters/weather

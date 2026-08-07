@@ -79,7 +79,19 @@ lancée à la main, un environnement Python natif Windows, et un paramètre
 `site-service` est un chantier à part entière, tracé au lot P8 du
 [`08-BACKLOG.md`](08-BACKLOG.md). M1 se raccorde à une scène déjà produite par ce
 POC (voir [`05-M1-VERTICAL-SLICE.md`](05-M1-VERTICAL-SLICE.md), § « Acceptable
-temporairement »).
+temporairement », et le lot P4 du backlog).
+
+**Contrat de l'actif attaché (`identity.scene` du manifeste, type `SceneDalle` dans
+`packages/shared/src/dalle.ts`)** : `glb` est une **URL**, pas un chemin de système de
+fichiers local à `site-service`. Pour M1, elle pointe vers le GLB déjà publié par le POC
+(`poc/valleraugue-mairie-3d/publication/assets/scenes/<id>/scene.glb`, servi par Caddy sous
+`/valleraugue-3d/…` — voir `poc/valleraugue-mairie-3d/AGENTS.md` § « Ce que la POC touche à
+la racine du dépôt »), pas un fichier copié dans `instances/<tile_id>/scene/`. Ce
+rattachement est **provisoire et non géométrique** : la scène référencée décrit un lieu réel
+du POC (« maison-200m »), pas nécessairement les coordonnées de la dalle créée. `terrain` et
+`orthophoto` restent `null` en M1 : le GLB du POC embarque déjà terrain, bâti et végétation
+en un seul actif. `terrain`/`orthophoto` séparés ne prennent sens qu'avec un pipeline
+produisant ces couches indépendamment (lot P8).
 
 ### Services métiers existants
 

@@ -56,10 +56,15 @@ docker-compose (aucune route `site-service` n'est encore publique), les routes
 
 ## P4 — Raccord scène
 
-- [ ] Définir le contrat d’un actif 3D.
-- [ ] Rattacher une scène existante pour la première démonstration.
-- [ ] Afficher la scène dans la page d’instance.
-- [ ] Remplacer ensuite par la génération automatique réelle.
+- [x] Définir le contrat d’un actif 3D (`SceneDalle` dans `packages/shared/src/dalle.ts` ;
+      `glb` est une URL servie, pas un chemin local — voir `01-ARCHITECTURE.md` § « Pipeline 3D »).
+- [x] Rattacher une scène existante pour la première démonstration
+      (`apps/site-service/src/adapters/scene.ts`, pointe vers le GLB déjà publié par
+      `poc/valleraugue-mairie-3d` sous `/valleraugue-3d/assets/scenes/maison-200m/scene.glb`).
+- [ ] Afficher la scène dans la page d’instance — reporté à P5 : aucune page d'instance
+      n'existe encore (ADR-008 prévoit son rendu par `gateway-service`, pas encore construit).
+- [ ] Remplacer ensuite par la génération automatique réelle — c'est le lot P8
+      (« industrialisation du pipeline 3D »).
 
 ## P5 — Première page dalle
 

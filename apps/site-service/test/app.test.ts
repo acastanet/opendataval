@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { buildApp } from "../src/app.js";
 import type { SiteServiceConfig } from "../src/config.js";
 import type { ClientGeographie } from "../src/adapters/geography.js";
+import type { ClientScene } from "../src/adapters/scene.js";
 import { poolFactice } from "./helpers.js";
 
 async function dossierTemporaire(): Promise<string> {
@@ -21,17 +22,19 @@ function configTest(instancesDir: string): SiteServiceConfig {
     migrationsDir: "unused",
     geographyServiceUrl: "http://geography-service.test",
     geographyServiceTimeoutMs: 1000,
+    demoSceneGlbUrl: "/valleraugue-3d/assets/scenes/maison-200m/scene.glb",
   };
 }
 
 const CLIENT_GEOGRAPHIE_VIDE: ClientGeographie = { resoudre: async () => [] };
+const CLIENT_SCENE_VIDE: ClientScene = { rattacher: async () => null };
 
 test("POST /internal/v1/sites crée une instance et renvoie 201 avec le manifeste", async (t) => {
   const racine = await dossierTemporaire();
   t.after(() => rm(racine, { recursive: true, force: true }));
 
   const { pool } = poolFactice();
-  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE }, logger: false });
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
   t.after(() => app.close());
 
   const response = await app.inject({
@@ -52,7 +55,7 @@ test("POST /internal/v1/sites refuse un corps sans coordonnées exploitables", a
   t.after(() => rm(racine, { recursive: true, force: true }));
 
   const { pool } = poolFactice();
-  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE }, logger: false });
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
   t.after(() => app.close());
 
   const response = await app.inject({ method: "POST", url: "/internal/v1/sites", payload: { lat: "pas un nombre" } });
@@ -65,7 +68,7 @@ test("POST /internal/v1/sites renvoie 400 pour des coordonnées hors bornes", as
   t.after(() => rm(racine, { recursive: true, force: true }));
 
   const { pool } = poolFactice();
-  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE }, logger: false });
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
   t.after(() => app.close());
 
   const response = await app.inject({ method: "POST", url: "/internal/v1/sites", payload: { lat: 200, lon: 3 } });
@@ -78,7 +81,7 @@ test("GET /internal/v1/sites/:tileId relit l'instance créée, 404 sinon", async
   t.after(() => rm(racine, { recursive: true, force: true }));
 
   const { pool } = poolFactice();
-  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE }, logger: false });
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
   t.after(() => app.close());
 
   const creation = await app.inject({ method: "POST", url: "/internal/v1/sites", payload: { lat: 44.064555, lon: 3.683027 } });
@@ -98,7 +101,7 @@ test("POST /internal/v1/sites/:tileId/build fait progresser l'instance jusqu'à 
   t.after(() => rm(racine, { recursive: true, force: true }));
 
   const { pool } = poolFactice();
-  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE }, logger: false });
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
   t.after(() => app.close());
 
   const creation = await app.inject({ method: "POST", url: "/internal/v1/sites", payload: { lat: 44.064555, lon: 3.683027 } });
@@ -109,12 +112,48 @@ test("POST /internal/v1/sites/:tileId/build fait progresser l'instance jusqu'à 
   assert.equal(build.json().status, "generated");
 });
 
+test("POST /internal/v1/sites/:tileId/build attache la scène renvoyée par l'adaptateur", async (t) => {
+  const racine = await dossierTemporaire();
+  t.after(() => rm(racine, { recursive: true, force: true }));
+
+  const { pool } = poolFactice();
+  const clientScene: ClientScene = {
+    rattacher: async () => ({ glb: "/valleraugue-3d/assets/scenes/maison-200m/scene.glb", terrain: null, orthophoto: null }),
+  };
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: clientScene }, logger: false });
+  t.after(() => app.close());
+
+  const creation = await app.inject({ method: "POST", url: "/internal/v1/sites", payload: { lat: 44.064555, lon: 3.683027 } });
+  const tileId = creation.json().identity.tileId;
+
+  const build = await app.inject({ method: "POST", url: `/internal/v1/sites/${tileId}/build` });
+  assert.equal(build.statusCode, 200);
+  assert.equal(build.json().scene.glb, "/valleraugue-3d/assets/scenes/maison-200m/scene.glb");
+});
+
+test("le client de scène par défaut attache l'URL configurée sans stub explicite", async (t) => {
+  const racine = await dossierTemporaire();
+  t.after(() => rm(racine, { recursive: true, force: true }));
+
+  const { pool } = poolFactice();
+  // Pas de `clients` fourni : exerce le câblage réel de buildApp (creerClientSceneProvisoire).
+  const app = buildApp({ config: configTest(racine), pool, logger: false });
+  t.after(() => app.close());
+
+  const creation = await app.inject({ method: "POST", url: "/internal/v1/sites", payload: { lat: 44.064555, lon: 3.683027 } });
+  const tileId = creation.json().identity.tileId;
+
+  const build = await app.inject({ method: "POST", url: `/internal/v1/sites/${tileId}/build` });
+  assert.equal(build.statusCode, 200);
+  assert.equal(build.json().scene.glb, "/valleraugue-3d/assets/scenes/maison-200m/scene.glb");
+});
+
 test("POST /internal/v1/sites/:tileId/build renvoie 404 pour une instance introuvable", async (t) => {
   const racine = await dossierTemporaire();
   t.after(() => rm(racine, { recursive: true, force: true }));
 
   const { pool } = poolFactice();
-  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE }, logger: false });
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
   t.after(() => app.close());
 
   const response = await app.inject({ method: "POST", url: "/internal/v1/sites/ODV-2026-999999/build" });
@@ -126,7 +165,7 @@ test("expose /health et /ready", async (t) => {
   t.after(() => rm(racine, { recursive: true, force: true }));
 
   const { pool } = poolFactice();
-  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE }, logger: false });
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
   t.after(() => app.close());
 
   const health = await app.inject({ method: "GET", url: "/health" });

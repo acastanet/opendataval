@@ -3,6 +3,7 @@ import type pg from "pg";
 import { createInstance, getInstance, type CreationDalle } from "./instances.js";
 import { lancerFabrication, type ClientsFabrication } from "./fabrication.js";
 import { creerClientGeographie } from "./adapters/geography.js";
+import { creerClientSceneProvisoire } from "./adapters/scene.js";
 import type { SiteServiceConfig } from "./config.js";
 
 export interface BuildAppOptions {
@@ -28,11 +29,12 @@ function corpsCreation(body: unknown): CreationDalle | null {
 }
 
 /**
- * Squelette du lot P3 (`agent/mvp/08-BACKLOG.md`) : création, lecture et déclenchement de
- * fabrication d'une instance. Routes en `/internal/v1/sites/*`, sur le modèle de
- * `geography-service` — seule la lecture sera un jour proxyée en `/api/v2/sites/*` par le
+ * Squelette des lots P3/P4 (`agent/mvp/08-BACKLOG.md`) : création, lecture et déclenchement
+ * de fabrication d'une instance — qui enrichit désormais le manifeste avec une donnée
+ * géographique et une scène 3D provisoire. Routes en `/internal/v1/sites/*`, sur le modèle
+ * de `geography-service` — seule la lecture sera un jour proxyée en `/api/v2/sites/*` par le
  * gateway (ADR-006, `agent/mvp/09-DECISIONS.md`) ; ce câblage gateway/Caddy reste hors
- * périmètre de ce lot. Revue et publication (P6) ne sont pas encore exposées ici.
+ * périmètre. Revue et publication (P6) ne sont pas encore exposées ici.
  */
 export function buildApp(options: BuildAppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? true, requestIdHeader: "x-request-id", trustProxy: true });
@@ -44,6 +46,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       timeoutMs: options.config.geographyServiceTimeoutMs,
       fetchImpl,
     }),
+    scene: creerClientSceneProvisoire({ glbUrl: options.config.demoSceneGlbUrl }),
   };
 
   app.addHook("onSend", async (request, reply, payload) => {

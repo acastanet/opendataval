@@ -15,6 +15,22 @@ function httpUrl(value: string | undefined, fallback: string, name: string): str
   return parsed.toString().replace(/\/$/, "");
 }
 
+/**
+ * Chemin relatif au domaine servi par Caddy (ex. `/valleraugue-3d/...`) ou URL HTTP(S)
+ * complète. La scène de démonstration M1 est servie par Caddy depuis
+ * `poc/valleraugue-mairie-3d/publication/`, hors du réseau interne des services — une URL
+ * relative au domaine public, pas un chemin de système de fichiers, est donc le bon contrat.
+ */
+function cheminOuUrl(value: string | undefined, fallback: string, name: string): string {
+  const trimmed = value?.trim() || fallback;
+  if (trimmed.startsWith("/")) return trimmed;
+  const parsed = new URL(trimmed);
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error(`${name} doit être un chemin relatif au domaine (commençant par /) ou une URL HTTP(S)`);
+  }
+  return parsed.toString();
+}
+
 export interface SiteServiceConfig {
   host: string;
   port: number;
@@ -27,6 +43,14 @@ export interface SiteServiceConfig {
   /** Premier adaptateur du lot P3 (`agent/mvp/08-BACKLOG.md`) : géographie/adresse/altitude. */
   geographyServiceUrl: string;
   geographyServiceTimeoutMs: number;
+
+  /**
+   * Raccord de scène provisoire du lot P4 (`agent/mvp/08-BACKLOG.md`) :
+   * URL de la scène déjà publiée par `poc/valleraugue-mairie-3d` (« maison-200m », même
+   * emprise 200 m que la dalle MVP, ADR-004), attachée telle quelle en attendant le
+   * déclenchement réel du pipeline (lot P8). Ne décrit pas géométriquement la dalle créée.
+   */
+  demoSceneGlbUrl: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): SiteServiceConfig {
@@ -47,6 +71,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): SiteServiceCon
       env.GEOGRAPHY_SERVICE_TIMEOUT_MS,
       5_000,
       "GEOGRAPHY_SERVICE_TIMEOUT_MS",
+    ),
+
+    demoSceneGlbUrl: cheminOuUrl(
+      env.SITE_SERVICE_DEMO_SCENE_URL,
+      "/valleraugue-3d/assets/scenes/maison-200m/scene.glb",
+      "SITE_SERVICE_DEMO_SCENE_URL",
     ),
   };
 }
