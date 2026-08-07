@@ -56,6 +56,8 @@ services:
       OLD_SERVICE_TIMEOUT_MS: ${OLD_SERVICE_TIMEOUT_MS:-15000}
       ITINERAIRE_SERVICE_URL: http://itineraire-service:3000
       ITINERAIRE_SERVICE_TIMEOUT_MS: ${ITINERAIRE_SERVICE_TIMEOUT_MS:-30000}
+      GEOLOGIE_SERVICE_URL: http://geologie-service:3000
+      GEOLOGIE_SERVICE_TIMEOUT_MS: ${GEOLOGIE_SERVICE_TIMEOUT_MS:-45000}
       MAP_SERVICE_URL: http://map-service:3000
       APP_VERSION: ${APP_VERSION:-dev}
     depends_on:
@@ -67,6 +69,7 @@ services:
       - association-service
       - old-service
       - itineraire-service
+      - geologie-service
     expose:
       - "3000"
     healthcheck:
@@ -139,6 +142,35 @@ services:
       OLD_WFS_URL: ${OLD_WFS_URL:-https://data.geopf.fr/wfs/ows}
       OLD_UPSTREAM_TIMEOUT_MS: ${OLD_UPSTREAM_TIMEOUT_MS:-10000}
       OLD_BUILDING_SEARCH_RADIUS_METERS: ${OLD_BUILDING_SEARCH_RADIUS_METERS:-75}
+      APP_VERSION: ${APP_VERSION:-dev}
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  geologie-service:
+    build:
+      context: .
+      dockerfile: apps/geologie-service/Dockerfile
+    image: opendataval-geologie:latest
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      GEOLOGIE_BRGM_WFS_URL: ${GEOLOGIE_BRGM_WFS_URL:-https://mapsref.brgm.fr/wxs/infoterre/catalogue}
+      GEOLOGIE_BRGM_TIMEOUT_MS: ${GEOLOGIE_BRGM_TIMEOUT_MS:-20000}
+      GEOLOGIE_BRGM_MAX_FEATURES: ${GEOLOGIE_BRGM_MAX_FEATURES:-500}
+      GEOLOGIE_CACHE_TTL_SECONDS: ${GEOLOGIE_CACHE_TTL_SECONDS:-21600}
+      GEOLOGIE_CACHE_MAX_ENTRIES: ${GEOLOGIE_CACHE_MAX_ENTRIES:-200}
+      GEOLOGIE_LLM_URL: ${GEOLOGIE_LLM_URL:-https://llm.ilaas.fr/v1/chat/completions}
+      GEOLOGIE_LLM_MODEL: ${GEOLOGIE_LLM_MODEL:-mistral-medium-latest}
+      GEOLOGIE_LLM_API_KEY: ${GEOLOGIE_LLM_API_KEY:-}
+      GEOLOGIE_LLM_TIMEOUT_MS: ${GEOLOGIE_LLM_TIMEOUT_MS:-20000}
+      GEOLOGIE_LLM_MAX_TOKENS: ${GEOLOGIE_LLM_MAX_TOKENS:-1500}
+      GEOLOGIE_DEBUG_ENABLED: ${GEOLOGIE_DEBUG_ENABLED:-false}
       APP_VERSION: ${APP_VERSION:-dev}
     expose:
       - "3000"

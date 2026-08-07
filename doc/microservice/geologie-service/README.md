@@ -1,0 +1,187 @@
+# Geologie Service
+
+> Recherche des ouvrages géologiques BSS BRGM les plus **pertinents** autour d’un point,
+> pas simplement les plus proches.
+> Dernière mise à jour et vérification : 2026-08-07
+> Code : `apps/geologie-service/`
+
+## Périmètre fonctionnel
+
+À partir d’un point GPS et d’un rayon (≤ 5 km), le service interroge le WFS `BSS_TOTAL`
+du BRGM, normalise les ouvrages trouvés, leur attribue un score déterministe combinant
+richesse géologique et proximité, en diversifie la sélection pour éviter qu’un cluster
+d’ouvrages quasi identiques ne monopolise le résultat, puis confie le classement final
+à un LLM (au plus un appel réseau). Le service **retombe automatiquement sur un
+classement déterministe** si le LLM est absent, indisponible ou renvoie une sortie
+invalide — la disponibilité du BRGM ne dépend jamais de celle du LLM.
+
+Aucune donnée géologique n’est inventée : la nature brute du BRGM (`nature_brgm`) est
+toujours restituée telle quelle, et le LLM reçoit pour instruction explicite de ne
+déduire aucune lithologie absente des données.
+
+MVP volontairement limité à un rayon de 5 km, sans base de données, sans lecture de PDF
+ni RAG documentaire, et sans intégration cartographique (à venir dans un lot ultérieur).
+
+## Routes
+
+| Route | Exposition | Rôle |
+|---|---|---|
+| `GET /api/v2/geologie/bss/proches` | publique via gateway | Recherche par pertinence |
+| `GET /internal/v1/geologie/bss/proches` | réseau interne | Cible du gateway |
+| `GET /health` | interne | Vie du processus |
+| `GET /ready` | interne | Processus prêt |
+
+Paramètres :
+
+| Paramètre | Règle |
+|---|---|
+| `lat` | obligatoire, entre -90 et 90 |
+| `lon` | obligatoire, entre -180 et 180 |
+| `rayon` | facultatif, `5000` par défaut, entre 1 et 5000 m — au-delà, 400 explicite |
+| `debug` | facultatif, `true` pour exposer les scores intermédiaires (ignoré si `GEOLOGIE_DEBUG_ENABLED=false`) |
+
+Exemple local :
+
+```bash
+curl -fsS "http://localhost:8080/api/v2/geologie/bss/proches?lat=44.06455556&lon=3.68302778&rayon=5000"
+```
+
+## Sources et calcul
+
+| Besoin | Source | Appel |
+|---|---|---|
+| Ouvrages BSS | BRGM InfoTerre | WFS 1.1.0 `GetFeature`, `TYPENAME=BSS_TOTAL`, `SRSNAME=EPSG:2154`, `BBOX` en Lambert-93 |
+| Reranking | Passerelle ILAAS (compatible OpenAI) | `POST /v1/chat/completions`, modèle `mistral-medium-latest` |
+
+Pipeline :
+
+```text
+validation lat/lon/rayon
+    → WGS84 → Lambert-93 (packages/shared/src/lambert93.ts, partagé avec map-service)
+    → requête BBOX WFS BRGM (ou cache mémoire, TTL configurable)
+    → filtrage cercle exact (distance euclidienne réelle en Lambert-93)
+    → normalisation (flags non exclusifs : is_borehole, is_sounding, is_core_sample,
+      has_geological_section, has_geological_section_document, has_geological_section_scan)
+    → score déterministe (geological_value_score 0-100, proximity_score, base_score 70/30)
+    → candidats protégés (plus proche, meilleur forage documenté, meilleur sondage,
+      meilleur carottage, meilleure coupe géologique — départage par distance croissante)
+    → diversification MMR (selection_score = 0.75 × base_score − 25 × similarité max
+      avec la shortlist déjà retenue), jusqu’à 15 candidats
+    → reranking LLM (1 appel maximum, sortie strictement validée) ou repli déterministe
+    → top 10
+```
+
+**Aucun pré-filtrage par distance** n’intervient avant le scoring : tous les ouvrages du
+cercle sont considérés, car certains carottages déterminants se trouvent près de la
+limite des 5 km (cf. cas de référence ci-dessous).
+
+### Score géologique (`geological_value_score`, 0–100)
+
+| Critère | Points |
+|---|---|
+| Carottage explicite (`mode_execution` contient CAROTT) | +30 |
+| Coupe géologique déclarée | +20 |
+| Document `COUPE-GEOLOGIQUE` | +10 |
+| Scan de coupe disponible | +5 |
+| Sondage (`SONDAGE*`) | +10 |
+| Forage (`FORAGE`) | +8 |
+| Profondeur renseignée | +5 |
+| Bonus de profondeur | 0 à +5 (paliers 10/25/50/100 m) |
+| Documents géologiques complémentaires (hors `COUPE-GEOLOGIQUE`, déjà comptée) | 0 à +7 |
+
+`proximity_score = 100 / (1 + (distance_m / 2500)²)` — décroissance douce, volontairement
+non linéaire : un ouvrage riche à 4,9 km peut dépasser une source banale à 1,5 km.
+`base_score = 0,70 × geological_value_score + 0,30 × proximity_score`.
+
+### Similarité et diversification
+
+`similarite(a, b)` ∈ [0, 1] : cluster géographique < 200 m (+0,40), même nature BRGM
+(+0,15), même mode d’exécution (+0,15), documents similaires — indice de Jaccard
+(+0,20), profondeur proche (+0,10, seulement si les deux sont connues). Une absence
+commune d’information (mode vide des deux côtés, profondeur inconnue) ne compte jamais
+comme une ressemblance.
+
+### Fallback LLM
+
+Le service fonctionne intégralement sans clé API (`GEOLOGIE_LLM_API_KEY` vide) : le top
+10 devient alors les 10 premiers candidats du classement déterministe, et
+`selection.ranking_method` vaut `"deterministic"` au lieu de `"llm_reranked"`. Timeout,
+erreur HTTP, réponse non-JSON ou sortie invalide déclenchent le même repli — jamais
+d’exception visible côté route.
+
+## Vérification réelle du cas de référence
+
+Contrôle effectué le 2026-08-07 contre le WFS BRGM en production, avec reranking LLM actif
+(`lat=44.06455556`, `lon=3.68302778`, `rayon=5000`) :
+
+| Élément | Résultat |
+|---|---|
+| Ouvrages trouvés en BBOX | 54 |
+| Candidats dans le cercle exact | 44 |
+| Taille de la shortlist | 15 |
+| Résultats retournés | 10 |
+| `ranking_method` | `llm_reranked` |
+| BSS002DKFG (MONNA, forage 97 m, coupe+scan) | rang 2 (distance_rank 1) |
+| BSS002DKEC (VA-2A, sondage carotté 14 m, coupe+perméabilité) | **rang 1** (distance_rank 39) |
+
+VA-2A, le 40ᵉ ouvrage le plus proche, ressort en tête du classement de pertinence grâce
+à sa richesse géologique — exactement le comportement recherché. Le cluster des cinq
+sondages carottés quasi identiques (VA-1A à VA-5A) est diversifié : ils occupent les
+rangs 1, 3, 4, 6 et 7 plutôt que de monopoliser le haut du classement.
+
+## Configuration
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `PORT` | `3000` | port HTTP interne |
+| `GEOLOGIE_BRGM_WFS_URL` | `https://mapsref.brgm.fr/wxs/infoterre/catalogue` | WFS BSS BRGM |
+| `GEOLOGIE_BRGM_TIMEOUT_MS` | `20000` | délai de l’appel BRGM |
+| `GEOLOGIE_BRGM_MAX_FEATURES` | `500` | `MAXFEATURES` de la requête WFS |
+| `GEOLOGIE_CACHE_TTL_SECONDS` | `21600` | durée de vie du cache mémoire (réponse BRGM normalisée) |
+| `GEOLOGIE_CACHE_MAX_ENTRIES` | `200` | taille maximale du cache (éviction FIFO) |
+| `GEOLOGIE_LLM_URL` | `https://llm.ilaas.fr/v1/chat/completions` | passerelle LLM compatible OpenAI |
+| `GEOLOGIE_LLM_MODEL` | `mistral-medium-latest` | modèle utilisé pour le reranking |
+| `GEOLOGIE_LLM_API_KEY` | *(vide)* | secret serveur ; vide = repli déterministe direct, sans appel réseau |
+| `GEOLOGIE_LLM_TIMEOUT_MS` | `20000` | délai de l’appel LLM |
+| `GEOLOGIE_LLM_MAX_TOKENS` | `1500` | `max_tokens` de la requête LLM |
+| `GEOLOGIE_DEBUG_ENABLED` | `false` | autorise `?debug=true` à exposer les scores intermédiaires |
+| `APP_VERSION` | `dev` | version exposée par la santé |
+
+## Développement et validation
+
+```bash
+pnpm dev:geologie
+pnpm check:geologie
+pnpm check:map        # non-régression de la projection Lambert-93 partagée
+pnpm check:gateway
+docker compose up --build geologie-service gateway caddy
+```
+
+Test d’intégration réel (hors CI, appelle le BRGM en production) :
+
+```bash
+GEOLOGIE_TEST_LIVE=true pnpm --filter geologie-service test
+```
+
+Les tests unitaires couvrent la conversion Lambert-93, la construction de la BBOX et le
+filtrage cercle, la normalisation (dont le piège de casse `coupe_geologique = "Presente"`,
+non `"PRESENTE"`), le scoring, la similarité, la diversification (avec les deux ouvrages
+de référence BSS002DKFG et BSS002DKEC), le reranker (validation stricte de la sortie LLM,
+extraction JSON robuste, fallback) et la route HTTP de bout en bout, sur un fixture
+GeoJSON réel figé (`test/fixtures/`), sans appel réseau.
+
+## Limites connues
+
+- La détection du carottage repose uniquement sur `mode_execution` : le BRGM n’expose
+  aucun champ dédié.
+- La fiche InfoTerre est fournie en `http://`, jamais en `https://` côté BRGM.
+- Le barème de score géologique plafonne théoriquement à 100, mais aucune combinaison
+  réaliste de `nature_brgm` (FORAGE et SONDAGE s’excluent) n’atteint ce plafond : le
+  maximum observé en pratique est 92.
+- Pas de cache de la sortie LLM : seule la réponse BRGM normalisée est mise en cache, le
+  scoring et la diversification étant recalculés à chaque requête (coût négligeable).
+
+## Références
+
+- [BRGM InfoTerre — service WFS](https://mapsref.brgm.fr/wxs/infoterre/catalogue)
+- [BRGM — Banque du Sous-Sol](https://infoterre.brgm.fr/page/banque-sous-sol-bss)

@@ -403,6 +403,38 @@ export const SERVICES: ServiceDescriptor[] = [
     hasDemo: true,
   },
   {
+    id: "geologie",
+    name: "Géologie — BSS BRGM",
+    role: "Recherche les ouvrages géologiques (BSS BRGM) les plus pertinents autour d’un point, en combinant distance, richesse géologique et diversité, avec reranking optionnel par LLM.",
+    repo: "apps/geologie-service",
+    method: "GET",
+    publicRoute: "/api/v2/geologie/bss/proches",
+    healthUrl: (config) =>
+      `${baseUrl(config.geologieServiceUrl, "http://geologie-service:3000")}/health`,
+    demo: [
+      {
+        name: "lat",
+        label: "Latitude",
+        type: "number",
+        example: "44.06455556",
+      },
+      {
+        name: "lon",
+        label: "Longitude",
+        type: "number",
+        example: "3.68302778",
+      },
+      {
+        name: "rayon",
+        label: "Rayon de recherche (m)",
+        type: "number",
+        example: "5000",
+        optional: true,
+        hint: "5000 m par défaut, plafonné à 5000 m.",
+      },
+    ],
+  },
+  {
     id: "legacy",
     name: "Legacy (pont historique)",
     role: "Pont en lecture seule vers le monolithe historique /api/*. GET et HEAD uniquement.",

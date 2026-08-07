@@ -8,7 +8,7 @@ Place implementation files under a module’s `src/` directory and unit tests be
 
 ## API v2 Service Inventory
 
-The authoritative presentation catalogue is `apps/gateway-service/src/services-catalog.ts`. The gateway exposes Gateway (`/api/v2/gateway`), Geography (`/api/v2/geography/resolve`), Weather (`/api/v2/weather/temperature`), Weather Vigilance (`/api/v2/vigilance`), Fire Detection (`/api/v2/fire/nearby`, with explicit required radius/history), the mobile Terrain app (`/api/v2/app/`), and the read-only Legacy bridge (`/api/v2/legacy/*`). Map (`/api/v2/map/*`) is deliberately routed directly by Caddy to `apps/map-service`; it provides styles, tiles, terrain, and legends. Check `/api/v2/status` for live service state.
+The authoritative presentation catalogue is `apps/gateway-service/src/services-catalog.ts`. The gateway exposes Gateway (`/api/v2/gateway`), Geography (`/api/v2/geography/resolve`), Weather (`/api/v2/weather/temperature`), Weather Vigilance (`/api/v2/vigilance`), Fire Detection (`/api/v2/fire/nearby`, with explicit required radius/history), Geologie (`/api/v2/geologie/bss/proches`, BRGM BSS boreholes ranked by relevance with optional LLM reranking and deterministic fallback), the mobile Terrain app (`/api/v2/app/`), and the read-only Legacy bridge (`/api/v2/legacy/*`). Map (`/api/v2/map/*`) is deliberately routed directly by Caddy to `apps/map-service`; it provides styles, tiles, terrain, and legends. Check `/api/v2/status` for live service state.
 
 ## Build, Test, and Development Commands
 
@@ -20,6 +20,7 @@ pnpm dev:web                 # Astro/Svelte development server
 pnpm dev:gateway             # gateway-service in watch mode
 pnpm check:gateway           # TypeScript check and gateway tests
 pnpm check:map               # TypeScript check and map-service tests
+pnpm check:geologie          # TypeScript check and geologie-service tests
 pnpm check:fire-detection    # TypeScript check and fire-service tests
 pnpm build:web               # production web build
 pnpm test:e2e                # Playwright browser tests

@@ -11,6 +11,7 @@
     "./sections": "./src/sections.ts",
     "./catalogue": "./src/catalogue.ts",
     "./carto": "./src/carto.ts",
+    "./lambert93": "./src/lambert93.ts",
     "./indicateurs": "./src/indicateurs.ts",
     "./stations-meteo": "./src/stationsMeteo.ts",
     "./localisations-meteo": "./src/localisationsMeteo.ts",
