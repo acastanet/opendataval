@@ -48,13 +48,26 @@ echo Liberation du port 4322 pour Meteo V2...
 powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4322 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }"
 
 echo.
+echo Construction des images Docker (cache pnpm partage, reprises automatiques en cas de coupure reseau)...
+echo.
+%COMPOSE_CMD% build
+if errorlevel 1 (
+    echo.
+    echo ECHEC de la construction des images Docker ^(voir le detail ci-dessus, souvent un timeout npm/pnpm^).
+    echo Astuce : relance simplement ce script, le cache pnpm deja telecharge sera reutilise.
+    echo.
+    pause
+    exit /b 1
+)
+
+echo.
 echo Relance de la stack OpenDataVdA et de ses microservices...
 echo.
 echo Adresses locales :
 echo   - Portail OpenDataVdA       : http://localhost:8080/
 echo   - Accueil des services V2   : http://localhost:8080/api/v2
 echo   - Etat des services V2      : http://localhost:8080/api/v2/status
-echo   - Cartographie              : http://localhost:8080/api/v2/map/styles/territoire.json
+echo   - Cartographie              : http://localhost:8080/api/v2/map/styles/carte.json
 echo   - Mini-app Incendies        : http://localhost:8080/incendies/
 echo   - Mini-app Meteo            : http://localhost:8080/meteo/essentiel/
 echo   - Mini-app Eau              : http://localhost:8080/eau/
@@ -77,6 +90,6 @@ if errorlevel 1 (
 
 start "OpenDataVdA - ouverture navigateur" /min cmd /c "timeout /t 12 /nobreak >nul & start http://localhost:8080/api/v2"
 
-%COMPOSE_CMD% up --build
+%COMPOSE_CMD% up
 
 pause
