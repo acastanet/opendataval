@@ -1,7 +1,7 @@
 PYTHON ?= .venv/Scripts/python.exe
 CONFIG ?= config/poc-200m.conf
 
-.PHONY: check test validate terrain ortho geology glb web enhance all serve scenes
+.PHONY: check test validate terrain ortho geology glb web publish enhance all serve scenes
 
 check:
 	$(PYTHON) poc.py --config $(CONFIG) check
@@ -29,6 +29,9 @@ glb:
 
 web:
 	$(PYTHON) poc.py --config $(CONFIG) web
+
+publish:
+	$(PYTHON) poc.py --config $(CONFIG) publish
 
 enhance:
 	$(PYTHON) poc.py --config $(CONFIG) enhance

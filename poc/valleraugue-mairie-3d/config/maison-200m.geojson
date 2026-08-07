@@ -1,0 +1,80 @@
+{
+  "type": "FeatureCollection",
+  "name": "maison-200m",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "maison-200m-centre",
+        "name": "Maison",
+        "role": "scene_centre",
+        "requested_wgs84": [
+          3.6829786337524157,
+          44.064624561932256
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.68297452,
+          44.06462259
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "maison-200m-emprise",
+        "name": "Emprise 200 × 200 m — Maison",
+        "role": "processing_bbox",
+        "crs_processing": "EPSG:2154",
+        "bbox_l93": [
+          754616.0,
+          6329650.0,
+          754816.0,
+          6329850.0
+        ],
+        "width_m": 200,
+        "height_m": 200,
+        "area_m2": 40000,
+        "buffer_m": 15.0,
+        "lidar_tiles": [
+          "LHD_FXX_0754_6330"
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              3.68171559,
+              44.06373038
+            ],
+            [
+              3.68421186,
+              44.06371481
+            ],
+            [
+              3.6842335,
+              44.06551479
+            ],
+            [
+              3.68173715,
+              44.06553036
+            ],
+            [
+              3.68171559,
+              44.06373038
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -48,6 +48,22 @@ def parser() -> ArgumentParser:
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--no-open", action="store_true", help="N'ouvre pas le navigateur.")
 
+    publish = subparsers.add_parser(
+        "publish",
+        help="Régénère, contrôle et publie le visualiseur (remplace la procédure manuelle).",
+    )
+    publish.add_argument(
+        "--jobs", type=int, help="Threads de compression gzip (défaut : nombre de cœurs)."
+    )
+    publish.add_argument(
+        "--destination", help="Dossier de publication (défaut : publication/ du POC)."
+    )
+    publish.add_argument(
+        "--skip-web",
+        action="store_true",
+        help="Ne pas régénérer web/ avant de publier — déconseillé, cf. docs/publication-visualiseur.md § 9.",
+    )
+
     # `scene` est la seule sous-commande à ignorer `--config` : elle en fabrique une.
     new_scene = subparsers.add_parser(
         "scene",
@@ -228,6 +244,15 @@ def execute(args: Namespace) -> None:
             config,
             port=args.port,
             open_browser=not args.no_open,
+        )
+    elif args.command == "publish":
+        from .publish import publish_viewer
+
+        publish_viewer(
+            config,
+            regenerate=not args.skip_web,
+            destination=Path(args.destination) if args.destination else None,
+            jobs=args.jobs,
         )
     else:
         raise ValueError(f"Commande inconnue : {args.command}")

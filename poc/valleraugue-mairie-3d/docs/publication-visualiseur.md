@@ -89,76 +89,86 @@ Le seul état conservé côté client est un `localStorage` de réglages d'affic
 aucune mesure d'audience, aucune donnée personnelle : `buildings.json` ne porte que des
 attributs BD TOPO publics (identifiants `cleabs`, hauteurs, dates, matériaux).
 
-## 2. Produire le dossier à publier
+## 2. Produire et contrôler le dossier à publier
 
-Depuis `poc/valleraugue-mairie-3d`, avec le `.venv` du POC :
+Depuis `poc/valleraugue-mairie-3d`, avec le `.venv` du POC, une seule commande régénère `web/`,
+passe les contrôles ci-dessous et publie :
 
 ```powershell
-.\.venv\Scripts\python.exe poc.py --config config\poc-200m.conf web
+.\.venv\Scripts\python.exe poc.py --config config\poc-200m.conf publish
 ```
+
+Elle enchaîne ce que les § 2 et § 3 décrivaient comme une suite d'étapes manuelles :
+régénération (`poc.py web`), détection d'un visualiseur périmé (déjà en place via
+`viewer_is_stale`), les quatre contrôles ci-dessous, la synchronisation vers `publication/`
+(§ 3) et la précompression (§ 3). Toute étape en échec interrompt la publication avant qu'un
+fichier ne change sous `publication/` — plus de dossier à moitié à jour.
 
 La configuration passée détermine la scène par défaut : elle est la première entrée du
-manifeste, donc celle que le navigateur télécharge au chargement. Préparer depuis une emprise
-200 m. Ne pas préparer depuis `poc-600m.conf`, qui imposerait **101,1 Mio** au premier
+manifeste, donc celle que le navigateur télécharge au chargement. Publier depuis une emprise
+200 m. Ne pas publier depuis `poc-600m.conf`, qui imposerait **101,1 Mio** au premier
 visiteur — 26,2 Mio même une fois compressés, contre 7,3 Mio pour la 200 m.
 
-**Cette étape n'est pas facultative.** Les dossiers `web/` présents sur le poste peuvent
-précéder les dernières modifications du visualiseur : au 30 juillet 2026,
-`output-600m/run-20260729-225523/web/app.js` pesait 29 Ko contre 64 Ko pour
-`viewer/app.js`. Publier un `web/` périmé met en ligne une ancienne interface sans que rien ne
-le signale.
+**La régénération n'est pas facultative** — `poc.py publish` la fait par défaut, avec raison :
+les dossiers `web/` présents sur le poste peuvent précéder les dernières modifications du
+visualiseur, et publier un `web/` périmé met en ligne une ancienne interface sans que rien ne
+le signale. `--skip-web` existe pour republier sans réassembler (§ 8), pas pour contourner ce
+garde-fou de routine.
 
-Contrôles à passer avant d'aller plus loin :
+Contrôles passés automatiquement par `publish` (fonction `check_manifest`,
+`src/poc3d/publish.py`) :
 
-1. `assets/scenes.json` contient une entrée par scène assemblée, une 200 m d'abord ;
-2. `index.html`, `app.js`, `styles.css` et `favicon.svg` du dossier `web/` sont identiques à
-   ceux de `viewer/` (comparer les tailles ou les empreintes) ;
-3. tous les `scene.glb` / `scene.json` référencés par le manifeste existent bien, ainsi que
+1. `assets/scenes.json` contient une entrée par scène assemblée ;
+2. tous les `scene.glb` / `scene.json` référencés par le manifeste existent bien, ainsi que
    les trois fichiers `geology.*` des entrées qui portent une clé `configuration.geology` ;
-4. les `title` sont présents **et deux à deux distincts** — contrôler la présence ne suffit
-   pas : trois entrées portent aujourd'hui le même titre `Valleraugue` (`poc`, `poc-200m`,
-   `poc-600m`), et le sélecteur les rend alors indiscernables tout en passant le contrôle.
+3. `index.html`, `app.js`, `styles.css` et `favicon.svg` de `web/` sont identiques à ceux de
+   `viewer/` — c'est `viewer_is_stale`, appelé avant les contrôles du manifeste ;
+4. les `label` du sélecteur sont présents **et deux à deux distincts**.
 
-Le point 4 se vérifie en une commande, depuis le dossier préparé :
-
-```bash
-python -c "import json;t=[s['title'] for s in json.load(open('assets/scenes.json',encoding='utf-8'))];print(len(t),'entrees,',len(set(t)),'titres distincts')"
-```
-
-Les deux nombres doivent être égaux. Sinon, distinguer les titres homonymes par leur emprise
-via `SCENE_TITLE` dans le `.conf` concerné (§ 8).
+Le contrôle 4 porte sur le `label`, pas sur le `title` : c'est `entry.label` que
+`populateScenes` affiche dans le sélecteur
+([viewer/app.js](../viewer/app.js), fonction `populateScenes`), et `_scene_label`
+(`src/poc3d/web.py`) y accole déjà l'emprise — « Valleraugue · 100 m », « · 200 m »,
+« · 600 m » — précisément pour que des `title` homonymes n'y soient jamais indiscernables. Là
+où l'ambiguïté était réelle, c'est dans l'en-tête et l'onglet, qui n'affichent que le `title` :
+les trois emprises Valleraugue portent depuis un `SCENE_SUBTITLE` qui les distingue (« ·
+emprise 100/200/600 m »).
 
 Une entrée **sans** clé `geology` n'est pas un défaut : la scène a été assemblée avant cette
 couche, ou son département n'est pas renseigné. Le visualiseur désactive alors la bascule avec
 son explication. Ce qui serait un défaut, c'est une clé présente pointant sur un fichier
-absent — d'où le contrôle 3.
+absent — d'où le contrôle 2, qui l'empêche désormais d'atteindre `publication/`.
 
 ## 3. Figer un chemin de déploiement stable
 
 Le dossier source est horodaté : le monter directement lierait Caddy à une exécution précise et
-casserait la route à la préparation suivante. Copier le contenu vers un chemin fixe :
+casserait la route à la préparation suivante. `poc.py publish` copie le contenu vers un chemin
+fixe, `sync_tree` dans `src/poc3d/publish.py` :
 
 ```powershell
-$source = Resolve-Path .\output-200m\run-*\web | Select-Object -Last 1
-Remove-Item -Recurse -Force .\publication -ErrorAction SilentlyContinue
-Copy-Item -Recurse $source .\publication
+.\.venv\Scripts\python.exe poc.py --config config\poc-200m.conf publish
 ```
 
 `publication/` est déjà exclu par le [`.gitignore`](../.gitignore) du POC. Les GLB **ne sont
-jamais versionnés** : 405 Mio par publication dans l'historique Git, pour un artefact
-reproductible en une commande, ne se justifie pas. Git LFS n'est pas une solution de repli ici.
+jamais versionnés** : plusieurs centaines de mébioctets par publication dans l'historique Git,
+pour un artefact reproductible en une commande, ne se justifie pas. Git LFS n'est pas une
+solution de repli ici.
 
-Le `Remove-Item` puis `Copy-Item` repart d'un dossier vide à chaque fois, ce qui impose de
-recompresser l'intégralité des 302,6 Mio même quand une seule scène a changé. C'est le prix de
-la simplicité et de la certitude qu'aucun fichier périmé ne subsiste ; sur une publication de
-routine, ce sont les deux tiers du temps de préparation. Le cas échéant, une copie
-différentielle (`robocopy /MIR`) suivie d'un gzip conditionnel supprimerait ce coût — à ne
-tenter qu'en connaissance de cause, car un `.gz` oublié plus vieux que sa source est un défaut
-silencieux.
+**La synchronisation ne repart pas d'un dossier vide.** Contrairement à un `Remove-Item` suivi
+d'un `Copy-Item`, `sync_tree` compare chaque fichier de `web/` à son homologue dans
+`publication/` (taille, puis date de modification) et ne recopie que ce qui a changé — sur une
+publication de routine où seule l'interface bouge, quatre fichiers au lieu de plusieurs
+centaines de mébioctets. Elle reste sûre pour autant : tout fichier de `publication/` qui n'a
+plus de source est supprimé, `.gz` compris — c'est le défaut silencieux qu'une copie
+différentielle mal outillée laisserait passer (un `.gz` plus vieux que sa source, ou orphelin
+d'un fichier disparu). L'ordre d'écriture protège aussi le visiteur qui arriverait en pleine
+synchronisation : les données de `assets/` et `vendor/` d'abord, puis `assets/scenes.json` et
+`viewer-manifest.json` qui les référencent, l'interface (`index.html`, `app.js`, `styles.css`)
+en dernier — jamais un manifeste qui pointe sur une scène pas encore arrivée.
 
 ### Précompression
 
-Mesures refaites le 2 août 2026 sur les scènes réelles, en `gzip -6` :
+Mesures faites le 2 août 2026 sur les scènes réelles, en `gzip -6` :
 
 | Scène | Source | Compressée | Durée |
 | --- | --- | --- | --- |
@@ -167,28 +177,22 @@ Mesures refaites le 2 août 2026 sur les scènes réelles, en `gzip -6` :
 
 La géométrie en `float32` domine le fichier, pas les textures JPEG qu'il embarque — la
 compression vaut donc largement le détour, mais compresser la 600 m à la volée coûterait
-**2,6 s de CPU par requête non mise en cache**. Précompresser une fois :
+**2,6 s de CPU par requête non mise en cache**. `compress_tree` (`src/poc3d/publish.py`)
+précompresse chaque fichier éligible sur un pool de threads (`os.cpu_count()` par défaut,
+`--jobs` pour l'ajuster), et ne refait que les `.gz` absents ou plus anciens que leur source —
+le même principe incrémental que la synchronisation, plus besoin de Git Bash ni de
+`find | xargs`.
 
-```bash
-# Git Bash, depuis poc/valleraugue-mairie-3d/publication
-find . \( -name '*.glb' -o -name '*.js' -o -name '*.css' -o -name '*.html' \
-          -o -name '*.json' -o -name '*.png' \) -print0 \
-  | xargs -0 -P 8 -n 1 gzip -6 -k -f
-```
-
-**Utiliser `-6`, pas `-9`.** Sur ces GLB, `-9` est plus lent *et* produit un fichier **plus
-gros** — sa recherche de correspondances plus agressive tombe moins bien sur de la géométrie
-`float32` :
+**Niveau `6`, pas `9` : c'est câblé en dur (`GZIP_LEVEL`), pas un choix laissé à la commande.**
+Sur ces GLB, `-9` est plus lent *et* produit un fichier **plus gros** — sa recherche de
+correspondances plus agressive tombe moins bien sur de la géométrie `float32` :
 
 | | 200 m | 600 m |
 | --- | --- | --- |
 | `gzip -6` | 7 529 167 o en 0,79 s | 27 212 816 o en **2,60 s** |
 | `gzip -9` | 7 625 615 o en 3,96 s | 27 510 027 o en **16,03 s** |
 
-Soit, sur la 600 m, **six fois le temps pour 297 Ko de plus à transférer**. Sur l'ensemble de
-la publication, `-6` ramène l'étape de près d'une minute à une dizaine de secondes, que le
-`-P 8` divise encore. Les parenthèses autour des `-name` sont nécessaires dès qu'une action
-suit ; `-print0` / `-xargs -0` protègent les chemins à espaces.
+Soit, sur la 600 m, **six fois le temps pour 297 Ko de plus à transférer**.
 
 **Les `.png` en font partie, contre toute attente.** Un PNG porte déjà un flux deflate et ne
 devrait rien gagner à être regzippé ; les cartes géologiques, elles, tombent de 23 374 o à
@@ -397,7 +401,7 @@ Après `docker compose up -d caddy`, sur le port publié (`8080` en local) :
 | `curl -I http://localhost:8080/valleraugue-3d` | `308` vers `/valleraugue-3d/` |
 | `curl -I http://localhost:8080/valleraugue-3d/` | `200`, `text/html` |
 | `curl -sI -H 'Accept-Encoding: gzip' .../assets/scene.glb` | `Content-Encoding: gzip`, `Content-Type: model/gltf-binary` |
-| `curl -s .../assets/scenes.json` | autant d'entrées que de scènes publiées, la plus légère en premier, titres deux à deux distincts |
+| `curl -s .../assets/scenes.json` | autant d'entrées que de scènes publiées, la plus légère en premier, labels deux à deux distincts |
 | `curl -sI .../assets/scenes.json` | `Cache-Control: …must-revalidate` — **pas** `max-age=86400` (§ 4) |
 | `curl -sI .../assets/scene.glb` | `Cache-Control: public, max-age=86400` |
 | `curl -I .../favicon.svg` | `200`, `Content-Type: image/svg+xml` |
@@ -459,12 +463,16 @@ mise à jour ne rejoue que ce que le changement impose.
 
 | Ce qui a changé | Étapes à rejouer |
 | --- | --- |
-| Le visualiseur (`viewer/index.html`, `app.js`, `styles.css`, `favicon.svg`) | § 2 → § 3 → transfert → § 7 |
-| Une scène existante réassemblée (`poc.py all`) | § 2 → § 3 → transfert → § 7 |
-| **Une scène ajoutée** (`poc.py scene` puis étape amont puis `poc.py all`) | § 2 → § 3 → transfert → § 7, en contrôlant le volume total et l'ordre du manifeste |
+| Le visualiseur (`viewer/index.html`, `app.js`, `styles.css`, `favicon.svg`) | `poc.py publish` → transfert → § 7 |
+| Une scène existante réassemblée (`poc.py all`) | `poc.py publish` → transfert → § 7 |
+| **Une scène ajoutée** (`poc.py scene` puis étape amont puis `poc.py all`) | `poc.py publish` → transfert → § 7, en contrôlant le volume total et l'ordre du manifeste |
 | Le `Caddyfile` ou le `docker-compose.yml` | `docker compose up -d --build caddy`, puis § 7 |
 | La route Nginx publique | `nginx -t`, `systemctl reload nginx`, puis comparaison des empreintes publique/tailnet |
 | Rien du tout, seulement les données amont | rien : le GLB publié ne change pas tant qu'il n'est pas réassemblé |
+
+`poc.py publish` régénère `web/` par défaut avant de synchroniser et précompresser : c'est
+l'équivalent de l'ancien § 2 → § 3. `--skip-web` saute la régénération pour republier un `web/`
+déjà à jour (rare : la synchronisation incrémentale rend cette économie marginale, cf. § 3).
 
 Le **transfert** vers le serveur est décrit dans
 [`publication-tailscale.md`](publication-tailscale.md). En local, `docker compose up -d caddy`
@@ -477,18 +485,19 @@ Une scène apparaît dans le sélecteur du seul fait que sa configuration existe
 La séquence complète, depuis un point sur une carte, est dans
 [`construire-une-scene.md`](construire-une-scene.md) ; côté publication, trois points seulement :
 
-1. **Régénérer le dossier depuis une emprise 200 m** (§ 2). La configuration passée à
-   `poc.py web` devient la première entrée du manifeste, donc la scène que tout visiteur
-   télécharge à l'ouverture. Préparer depuis la nouvelle scène si on veut la mettre en avant,
-   depuis l'ancienne sinon — mais jamais depuis une 600 m.
+1. **Publier depuis une emprise 200 m** (§ 2), avec `poc.py publish`. La configuration passée
+   devient la première entrée du manifeste, donc la scène que tout visiteur télécharge à
+   l'ouverture. Publier depuis la nouvelle scène si on veut la mettre en avant, depuis
+   l'ancienne sinon — mais jamais depuis une 600 m.
 2. **Vérifier le volume.** Une scène 200 m ajoute une vingtaine de mébioctets au dossier
-   publié ; une 500 ou 600 m, de 35 à 100 Mio. Multiplier par 1,34 pour le volume réellement
-   transféré, `.gz` compris. `du -sh publication` avant d'envoyer.
-3. **Vérifier les titres, et leur unicité.** Chaque entrée de `assets/scenes.json` doit porter
-   un `title`, et deux entrées ne doivent pas porter le même : le sélecteur n'affiche rien
-   d'autre, et trois « Valleraugue » y sont aujourd'hui indiscernables. Le titre vient de
-   `SCENE_TITLE` dans le `.conf` de la scène ; y faire figurer l'emprise lève l'ambiguïté.
-   Le contrôle est au § 2.
+   publié ; une 500 ou 600 m, de 35 à 100 Mio ; une 2000 m peut dépasser 200 Mio (`borie-2000m`
+   en porte 230 à elle seule). Multiplier par 1,3 environ pour le volume réellement transféré,
+   `.gz` compris — le rapport imprimé par `publish` donne les deux totaux directement.
+3. **Vérifier les labels, et leur unicité.** `check_manifest` (§ 2) refuse de publier si deux
+   entrées de `assets/scenes.json` partagent le même `label` — c'est lui, et non le `title`, que
+   le sélecteur affiche. `_scene_label` (`src/poc3d/web.py`) accole déjà l'emprise au `title`,
+   ce qui suffit en général ; une ambiguïté résiduelle se lève en distinguant les `SCENE_TITLE`
+   ou en enrichissant `SCENE_SUBTITLE`, affiché dans l'en-tête et l'onglet.
 
 ### Ce qu'il ne faut pas refaire
 

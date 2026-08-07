@@ -2,7 +2,7 @@
 # vue centré. Ces trois valeurs alimentent le sélecteur de scènes et l'en-tête de la page ;
 # sans elles, deux emprises de même taille sur deux communes seraient indiscernables.
 SCENE_TITLE="Valleraugue"
-SCENE_SUBTITLE="Val-d'Aigoual · IGN LiDAR HD"
+SCENE_SUBTITLE="Val-d'Aigoual · IGN LiDAR HD · emprise 100 m"
 SCENE_CENTRE_LABEL="Mairie"
 # Point de référence en WGS84, conservé pour la traçabilité : le pipeline travaille en
 # Lambert-93 et ne le relit pas.

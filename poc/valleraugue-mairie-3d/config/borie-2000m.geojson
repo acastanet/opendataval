@@ -1,0 +1,91 @@
+{
+  "type": "FeatureCollection",
+  "name": "borie-2000m",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "borie-2000m-centre",
+        "name": "Borie",
+        "role": "scene_centre",
+        "requested_wgs84": [
+          3.687461,
+          44.066706
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.68745597,
+          44.06670969
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "borie-2000m-emprise",
+        "name": "Emprise 2000 × 2000 m — Borie",
+        "role": "processing_bbox",
+        "crs_processing": "EPSG:2154",
+        "bbox_l93": [
+          754073.0,
+          6328985.0,
+          756073.0,
+          6330985.0
+        ],
+        "width_m": 2000,
+        "height_m": 2000,
+        "area_m2": 4000000,
+        "buffer_m": 15.0,
+        "lidar_tiles": [
+          "LHD_FXX_0754_6332",
+          "LHD_FXX_0755_6332",
+          "LHD_FXX_0756_6332",
+          "LHD_FXX_0754_6331",
+          "LHD_FXX_0755_6331",
+          "LHD_FXX_0756_6331",
+          "LHD_FXX_0754_6330",
+          "LHD_FXX_0755_6330",
+          "LHD_FXX_0756_6330",
+          "LHD_FXX_0754_6329",
+          "LHD_FXX_0755_6329",
+          "LHD_FXX_0756_6329"
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              3.67486727,
+              44.05778744
+            ],
+            [
+              3.69982733,
+              44.05763075
+            ],
+            [
+              3.70004862,
+              44.07563054
+            ],
+            [
+              3.67508067,
+              44.07578727
+            ],
+            [
+              3.67486727,
+              44.05778744
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

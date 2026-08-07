@@ -1,17 +1,34 @@
+# Scène « Maison » — 200 × 200 m.
+#
+# Généré par :
+#   poc.py scene --lat 44.064625 --lon 3.682979 --side 200 --title "Maison" --subtitle "IGN LiDAR HD" --centre-label "Point central" --id maison-200m --resolution 0.5 --margin 15 --ortho-px 2048 --output-dir "./output-maison-200m" --write
+# Retoucher ce fichier à la main est prévu ; le régénérer écrase les retouches.
+#
+# Centre : 44.064623, 3.682975 en WGS84, soit 754716, 6329750 en Lambert-93.
+# Dalles LiDAR HD couvrant le terrain : LHD_FXX_0754_6330.
+#
+# L'emprise reste carrée à dessein. La requête WMS l'est, et toute la calibration de
+# l'orthophotographie raisonne en pixels carrés : sur une bbox rectangulaire, le masque bâti
+# déborderait du rapport d'aspect et le recalage rendrait un chiffre faux sans rien signaler.
+
 # Identité de la scène : titre du visualiseur, surtitre de provenance et libellé du point de
-# vue centré. Ces trois valeurs alimentent le sélecteur de scènes et l'en-tête de la page ;
-# sans elles, deux emprises de même taille sur deux communes seraient indiscernables.
-SCENE_TITLE="Valleraugue"
-SCENE_SUBTITLE="Val-d'Aigoual · IGN LiDAR HD · emprise 100 m"
-SCENE_CENTRE_LABEL="Mairie"
+# vue centré. Ces trois valeurs alimentent le sélecteur de scènes et l'en-tête de la page.
+SCENE_TITLE="Maison"
+SCENE_SUBTITLE="IGN LiDAR HD"
+SCENE_CENTRE_LABEL="Point central"
 # Point de référence en WGS84, conservé pour la traçabilité : le pipeline travaille en
 # Lambert-93 et ne le relit pas.
-SCENE_CENTRE_WGS84="44.081089 3.641219"
+SCENE_CENTRE_WGS84="44.064623 3.682975"
 
-POC_BBOX="751306 6331501 751406 6331601"
-EXPECTED_WIDTH_M=100
-EXPECTED_HEIGHT_M=100
+POC_BBOX="754616 6329650 754816 6329850"
+EXPECTED_WIDTH_M=200
+EXPECTED_HEIGHT_M=200
 HTTP_USER_AGENT="OpenDataVdA-POC/2.0"
+# Maille du terrain. À 0,5 m la donnée porte environ trois points sol par cellule au centre
+# d'un village et le 95e centile du résidu chute de moitié sur les ruptures de pente —
+# terrasses et murs de soutènement. Au-delà de 300 m de côté, le nombre de mailles croît en
+# carré : la maille métrique évite une scène intransportable pour un détail invisible à
+# cette distance de vue.
 TERRAIN_RESOLUTION_M=0.5
 TERRAIN_MARGIN_M=15
 TERRAIN_BLEND_M=3
@@ -35,19 +52,24 @@ SOURCE_POINT_VOXEL_M=0.4
 # réflectance et altitude ; seule la photographie doit être cuite, faute d'être calculable à
 # l'affichage. Hors couverture, le repli est automatique.
 SOURCE_POINT_COLOR=ortho
-ORTHO_SIZE_PX=1024
+# 230 m de côté sur 2048 px, soit 11 cm/pixel.
+# Monter plus haut se heurterait aux limites de la Géoplateforme, qui plafonne la requête
+# WMS à 4096 pixels.
+ORTHO_SIZE_PX=2048
 BUILDING_SKIRT_M=2
 BUILDING_SKIRT_MIN_M=1
 BUILDING_SKIRT_MAX_M=8
 # Remplace les toitures signalées comme dégradées par Roofer par une extrusion LoD1 franche.
 DEGRADED_ROOF_LOD1=1
+# Proxys de végétation haute reconstruits depuis la classe LiDAR 5.
 VEGETATION=1
 VEGETATION_MIN_HEIGHT_M=4
+# Fenêtre de détection des cimes, exprimée en mètres : elle ne suit pas la maille du terrain
+# et n'a donc pas à être retouchée ici.
 VEGETATION_PEAK_WINDOW_M=5
 # Plafond du rayon de couronne. Avec la segmentation, il n'est plus qu'un garde-fou contre un
 # arbre de lisière qui annexerait tout un versant ; au profil radial, il tranchait pour près de
 # la moitié des sujets. `trees.json` porte le compte de ceux qu'il borne encore.
-# Valeur reprise à l'œil dans le visualiseur.
 VEGETATION_MAX_CROWN_M=6.4
 # Mesure du houppier par ligne de partage des eaux sur le modèle de hauteur de canopée : les
 # cimes servent de marqueurs et deux arbres jointifs se partagent la vallée qui les sépare.
@@ -55,7 +77,8 @@ VEGETATION_MAX_CROWN_M=6.4
 VEGETATION_CROWN_SEGMENTATION=1
 # Teinte chaque houppier avec la couleur réelle de l'arbre, lue dans l'orthophotographie.
 VEGETATION_TINT_FROM_ORTHO=1
-# Silhouette feuillu/conifère/mixte mesurée par BD Forêt V2 ; repli générique hors couverture.
+# Classe la silhouette en feuillu, conifère ou mixte depuis le WFS officiel BD Forêt V2.
+# Un échec du service conserve le profil générique et ne bloque pas la scène.
 VEGETATION_FOREST_TYPES=1
 # Second recours sur les cimes que BD Forêt laisse génériques, par la BD TOPO : celle-ci
 # cartographie haies, landes ligneuses, bois et forêts ouvertes, là où BD Forêt ne décrit que
@@ -67,7 +90,8 @@ VEGETATION_LANDCOVER=1
 # boule à facettes dès qu'on l'approche. Aucun triangle ni octet de plus. 0 rétablit la
 # géométrie régulière.
 VEGETATION_CROWN_IRREGULARITY=0.18
-# Nappe de couvert continu sous les proxys individuels. Désactivée hors de l'emprise 600 m.
+# Nappe de couvert continu sous les proxys individuels. Le défaut reste désactivé : elle est
+# réservée aux grandes emprises dont la densité rend les houppiers isolés insuffisants.
 CANOPY_MASSIF=0
 CANOPY_MASSIF_COVERAGE=0.6
 CANOPY_MASSIF_SMOOTHING_M=5
@@ -88,15 +112,20 @@ UNDERSTORY_COVERAGE=0.35
 UNDERSTORY_SMOOTHING_M=2
 # Eau (classe LiDAR 9) et tabliers de pont (classe 17), déjà présents dans lidar_subset.laz.
 WATER=1
+# Relèvement de la nappe au-dessus de l'altitude mesurée. La nappe et le terrain
+# s'entrecroisent : quelques centimètres suffisent à éviter que le raccord ne se lise en
+# damier, sans supprimer les bancs de galets émergents.
 WATER_LIFT_M=0.2
 BRIDGES=1
 BRIDGE_THICKNESS_M=1.0
+# Occlusion ambiante cuite en COLOR_0 : assombrit ruelles et pieds de murs dans tout moteur.
 AMBIENT_OCCLUSION=1
 OCCLUSION_AZIMUTHS=16
 OCCLUSION_RADIUS_M=30
 OCCLUSION_STRENGTH=0.6
-# Calibration de l'orthophotographie, mesurée sur l'image par `poc.py sun`.
-# Ne décommenter que pour forcer des valeurs connues par ailleurs.
+# Calibration de l'orthophotographie, à mesurer sur l'image par `poc.py sun` une fois
+# l'exécution amont faite. L'emprise étant carrée, la mesure s'applique : ne décommenter que
+# pour forcer des valeurs connues par ailleurs.
 #ORTHO_SUN_AZIMUTH_DEG=95
 #ORTHO_SUN_ELEVATION_DEG=35
 #ORTHO_OFFSET_EAST=-0.34
@@ -108,11 +137,12 @@ ORTHO_WMS_URL="https://data.geopf.fr/wms-r/wms"
 # partagée par toutes les scènes du même département. Le BRGM n'étant pas la Géoplateforme,
 # l'étape ne bloque jamais : hors ligne ou hors couverture, la scène se produit sans la carte.
 GEOLOGY=1
-# Numéro du département de l'emprise, sur trois chiffres. Il ne se déduit pas des coordonnées
-# Lambert-93, et un mauvais département donnerait une carte hors emprise.
+# À renseigner : numéro du département de l'emprise, sur trois chiffres (030 pour le Gard,
+# 048 pour la Lozère, 2A et 2B pour la Corse). Il ne se déduit pas des coordonnées
+# Lambert-93, et un mauvais département donne une carte hors emprise.
 GEOLOGY_DEPARTMENT="030"
 # Côté de la texture géologique. 2048 px tient largement le 1/50 000 sur une emprise de
 # quelques centaines de mètres : au-delà, on lisse des contours dont la source ne porte pas
 # la précision. Les limites de la BD Charm-50 ne conviennent pas à une lecture parcellaire.
 GEOLOGY_TEXTURE_SIZE_PX=2048
-OUTPUT_DIR="./output"
+OUTPUT_DIR="./output-maison-200m"
