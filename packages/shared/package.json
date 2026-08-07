@@ -5,6 +5,10 @@
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "scripts": {
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./territoire": "./src/territoire.ts",
@@ -15,12 +19,19 @@
     "./indicateurs": "./src/indicateurs.ts",
     "./stations-meteo": "./src/stationsMeteo.ts",
     "./localisations-meteo": "./src/localisationsMeteo.ts",
-    "./weather-contracts": "./src/weather-contracts.ts"
+    "./weather-contracts": "./src/weather-contracts.ts",
+    "./dalle": "./src/dalle.ts",
+    "./dalle-geometrie": "./src/dalle-geometrie.ts"
   },
   "dependencies": {
     "pg": "^8.13.1"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.10"
+    "@types/pg": "^8.11.10",
+    "@types/node": "^22.10.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
   }
 }
