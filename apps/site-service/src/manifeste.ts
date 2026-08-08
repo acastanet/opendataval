@@ -147,12 +147,23 @@ function sceneVersJson(scene: SceneDalle): Record<string, unknown> {
             : null,
         }
       : {}),
+    ...(scene.geology !== undefined
+      ? {
+          geology: scene.geology
+            ? { texture: scene.geology.texture, pick: scene.geology.pick, metadata: scene.geology.metadata }
+            : null,
+        }
+      : {}),
+    ...(scene.terrainBbox !== undefined ? { terrain_bbox: scene.terrainBbox } : {}),
+    ...(scene.orthophotoSizePx !== undefined ? { orthophoto_size_px: scene.orthophotoSizePx } : {}),
+    ...(scene.orthophotoResolutionM !== undefined ? { orthophoto_resolution_m: scene.orthophotoResolutionM } : {}),
   };
 }
 
 function sceneDepuisJson(json: Record<string, unknown>): SceneDalle {
   const sourcePoints = json.source_points as Record<string, unknown> | null | undefined;
   const orthophotoCalage = json.orthophoto_calage as Record<string, unknown> | null | undefined;
+  const geology = json.geology as Record<string, unknown> | null | undefined;
   return {
     glb: (json.glb as string | null) ?? null,
     terrain: (json.terrain as string | null) ?? null,
@@ -171,6 +182,22 @@ function sceneDepuisJson(json: Record<string, unknown>): SceneDalle {
             ? { estM: Number(orthophotoCalage.est_m), nordM: Number(orthophotoCalage.nord_m) }
             : null,
         }
+      : {}),
+    ...(Object.hasOwn(json, "geology")
+      ? {
+          geology: geology
+            ? { texture: String(geology.texture), pick: String(geology.pick), metadata: String(geology.metadata) }
+            : null,
+        }
+      : {}),
+    ...(Object.hasOwn(json, "terrain_bbox")
+      ? { terrainBbox: (json.terrain_bbox as [number, number, number, number] | null) ?? null }
+      : {}),
+    ...(Object.hasOwn(json, "orthophoto_size_px")
+      ? { orthophotoSizePx: (json.orthophoto_size_px as number | null) ?? null }
+      : {}),
+    ...(Object.hasOwn(json, "orthophoto_resolution_m")
+      ? { orthophotoResolutionM: (json.orthophoto_resolution_m as number | null) ?? null }
       : {}),
   };
 }

@@ -31,6 +31,28 @@ test("sert les actifs du viewer avec leur type MIME", async (t) => {
   assert.match(String(js.headers["cache-control"]), /max-age=3600/);
 });
 
+test("sert le registre de modules et un module de domaine", async (t) => {
+  const app = buildApp({ config, logger: false });
+  t.after(() => app.close());
+
+  const index = await app.inject({ method: "GET", url: "/api/v2/sites/viewer/modules/index.js" });
+  assert.equal(index.statusCode, 200);
+  assert.match(String(index.headers["content-type"]), /javascript/);
+
+  const geographie = await app.inject({ method: "GET", url: "/api/v2/sites/viewer/modules/geographie.js" });
+  assert.equal(geographie.statusCode, 200);
+  assert.match(String(geographie.headers["content-type"]), /javascript/);
+});
+
+test("sert la traduction manifeste -> entree, importee par viewer.js", async (t) => {
+  const app = buildApp({ config, logger: false });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/api/v2/sites/viewer/manifeste-vers-entree.js" });
+  assert.equal(response.statusCode, 200);
+  assert.match(String(response.headers["content-type"]), /javascript/);
+});
+
 test("interdit de sortir de la racine statique", async (t) => {
   const app = buildApp({ config, logger: false });
   t.after(() => app.close());

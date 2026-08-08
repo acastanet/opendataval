@@ -49,6 +49,10 @@ export interface ManifesteDalleVue {
     metadata?: string | null;
     sourcePoints?: { glb: string; metadata: string | null } | null;
     orthophotoCalage?: { estM: number; nordM: number } | null;
+    geology?: { texture: string; pick: string; metadata: string } | null;
+    terrainBbox?: [number, number, number, number] | null;
+    orthophotoSizePx?: number | null;
+    orthophotoResolutionM?: number | null;
   };
   data: Partial<Record<Sphere, DonneeDalleVue[]>>;
   review: { status: StatutRevue; reviewedAt: string | null; reviewedBy: string | null; notes: string | null };

@@ -156,6 +156,16 @@ export interface SceneDalle {
   sourcePoints?: { glb: string; metadata: string | null } | null;
   /** Calage de l'orthophoto mesuré à la production, en mètres. */
   orthophotoCalage?: { estM: number; nordM: number } | null;
+  /** Carte géologique BRGM drapée sur le terrain (texture, image de pick, métadonnées des formations). */
+  geology?: { texture: string; pick: string; metadata: string } | null;
+  /**
+   * Emprise Lambert-93 réelle de la scène produite `[minX, minY, maxX, maxY]` — distincte de
+   * l'emprise de la dalle tant que la scène n'a pas été générée pour cette dalle précise (voir
+   * ADR-011, `agent/mvp/09-DECISIONS.md`) : ne jamais la dériver de `identity.geometryProjected`.
+   */
+  terrainBbox?: [number, number, number, number] | null;
+  orthophotoSizePx?: number | null;
+  orthophotoResolutionM?: number | null;
 }
 
 /** Regroupement des données d'une dalle par sphère. Voir `SPHERES` : ce n'est pas un dictionnaire ouvert. */

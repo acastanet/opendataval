@@ -9,6 +9,7 @@ import {
   modulesConcernant,
   spheresOrdonnees,
 } from "./modules/index.js";
+import { entreeDepuisManifeste } from "./manifeste-vers-entree.js";
 
 const BASE = "/api/v2/sites/viewer/";
 
@@ -2864,46 +2865,6 @@ function restoreState() {
   if (comparisonRadio) comparisonRadio.checked = true;
   describeComparisonMode();
   return state;
-}
-
-/** Bbox Lambert-93 [minX, minY, maxX, maxY] depuis l'anneau projeté du manifeste. */
-function bboxDepuisGeometrie(geometryProjected) {
-  const anneau = geometryProjected?.coordinates?.[0];
-  if (!Array.isArray(anneau) || anneau.length < 4) return null;
-  const points = anneau.filter((point) =>
-    Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1]),
-  );
-  if (points.length < 4) return null;
-  const xs = points.map((point) => point[0]);
-  const ys = points.map((point) => point[1]);
-  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
-}
-
-/** Fabrique l'entrée historique consommée par le moteur à partir du manifeste de dalle. */
-function entreeDepuisManifeste(manifeste) {
-  const identite = manifeste.identity;
-  const sceneDalle = manifeste.scene;
-  return {
-    id: identite.tileId,
-    label: identite.title ?? identite.tileId,
-    run: manifeste.production?.pipelineVersion ?? null,
-    scene: sceneDalle?.glb ?? null,
-    metadata: sceneDalle?.metadata ?? null,
-    sourcePoints: sceneDalle?.sourcePoints?.glb ?? null,
-    sourcePointsMetadata: sceneDalle?.sourcePoints?.metadata ?? null,
-    orthophotoCalage: sceneDalle?.orthophotoCalage ?? null,
-    title: identite.title ?? `Dalle ${identite.tileId}`,
-    subtitle: [
-      identite.address,
-      `${identite.widthM} × ${identite.heightM} m`,
-    ].filter(Boolean).join(" · "),
-    centreLabel: "Centre de la dalle",
-    configuration: {
-      centreWgs84: [identite.center.lat, identite.center.lon],
-      terrainBbox: bboxDepuisGeometrie(identite.geometryProjected),
-      orthophotoLayer: "ORTHOIMAGERY.ORTHOPHOTOS",
-    },
-  };
 }
 
 function afficherAucuneScene(entry) {

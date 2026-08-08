@@ -262,6 +262,28 @@
             "nord_m": { "type": "number" }
           },
           "additionalProperties": false
+        },
+        "geology": {
+          "type": ["object", "null"],
+          "required": ["texture", "pick", "metadata"],
+          "properties": {
+            "texture": { "type": "string", "minLength": 1 },
+            "pick": { "type": "string", "minLength": 1 },
+            "metadata": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "terrain_bbox": {
+          "type": ["array", "null"],
+          "items": { "type": "number" },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "orthophoto_size_px": {
+          "type": ["number", "null"]
+        },
+        "orthophoto_resolution_m": {
+          "type": ["number", "null"]
         }
       },
       "additionalProperties": true

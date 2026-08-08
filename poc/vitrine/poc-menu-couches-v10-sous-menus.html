@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>POC couches — v10 sous-menus</title>
+
+<style>
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#fff;
+  color:#111;
+  font-family:Arial,Helvetica,sans-serif;
+}
+
+.page{
+  width:100%;
+  height:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 420px;
+}
+
+.content{background:#fff}
+
+.menu{
+  position:relative;
+  border-left:1px solid #e7e7e7;
+  background:#fff;
+  overflow:hidden;
+  perspective:1400px;
+}
+
+.viewport{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+}
+
+.stack{
+  position:absolute;
+  inset:0 28px;
+  transform-style:preserve-3d;
+}
+
+.layer{
+  position:absolute;
+  left:0;
+  right:0;
+  height:44px;
+  background:#fff;
+  border:1px solid #222;
+  overflow:hidden;
+  cursor:pointer;
+  user-select:none;
+  transform-origin:50% 0%;
+  transform-style:preserve-3d;
+  will-change:top,height,transform;
+
+  transition:
+    top 180ms cubic-bezier(.22,.72,.24,1),
+    height 190ms cubic-bezier(.22,.72,.24,1),
+    transform 190ms cubic-bezier(.22,.72,.24,1),
+    box-shadow 170ms ease,
+    border-color 150ms ease;
+}
+
+.layer-head{
+  position:relative;
+  height:43px;
+  display:flex;
+  align-items:center;
+  padding:0 14px;
+  background:#fff;
+}
+
+.layer-title{
+  font-size:12px;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  white-space:nowrap;
+}
+
+.layer.active{border-width:2px}
+
+.layer.open{
+  height:340px;
+  transform:translateZ(18px) rotateX(0deg);
+  box-shadow:0 14px 30px rgba(0,0,0,.07);
+}
+
+.layer.open .layer-head{
+  border-bottom:1px solid #ddd;
+}
+
+.layer-body{
+  position:relative;
+  height:296px;
+  overflow:hidden;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 110ms ease;
+}
+
+.layer.open .layer-body{
+  opacity:1;
+  pointer-events:auto;
+  transition-delay:55ms;
+}
+
+.close{
+  position:absolute;
+  top:9px;
+  right:9px;
+  width:24px;
+  height:24px;
+  border:0;
+  padding:0;
+  background:transparent;
+  cursor:pointer;
+  display:none;
+}
+
+.close::before,
+.close::after{
+  content:"";
+  position:absolute;
+  left:5px;
+  top:11px;
+  width:14px;
+  height:1px;
+  background:#111;
+}
+
+.close::before{transform:rotate(45deg)}
+.close::after{transform:rotate(-45deg)}
+
+.layer.open .close{display:block}
+
+.layer.closing{
+  transform:translateZ(-10px) rotateX(-14deg) scaleY(.985);
+  box-shadow:none;
+}
+
+.layer.opening{
+  transform:translateZ(-8px) rotateX(12deg) scaleY(.985);
+}
+
+.layer.opening.open{
+  transform:translateZ(18px) rotateX(0deg) scaleY(1);
+}
+
+/* pages internes */
+.inner-track{
+  position:absolute;
+  inset:0;
+  display:flex;
+  width:200%;
+  transform:translateX(0);
+  transition:transform 160ms cubic-bezier(.22,.72,.24,1);
+}
+
+.layer.submenu-open .inner-track{
+  transform:translateX(-50%);
+}
+
+.inner-page{
+  width:50%;
+  height:100%;
+  flex:0 0 50%;
+  padding:18px;
+}
+
+.submenu-list{
+  display:flex;
+  flex-direction:column;
+}
+
+.submenu-item{
+  height:43px;
+  border:0;
+  border-bottom:1px solid #ddd;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  padding:0;
+  text-align:left;
+  cursor:pointer;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+}
+
+.submenu-item::after{
+  content:"";
+  margin-left:auto;
+  width:8px;
+  height:8px;
+  border-top:1px solid #111;
+  border-right:1px solid #111;
+  transform:rotate(45deg);
+  margin-right:2px;
+}
+
+.submenu-item:last-child{
+  border-bottom:0;
+}
+
+.detail-top{
+  display:flex;
+  align-items:center;
+  margin-bottom:18px;
+}
+
+.back{
+  border:0;
+  background:transparent;
+  padding:0 12px 0 0;
+  width:26px;
+  height:22px;
+  position:relative;
+  cursor:pointer;
+}
+
+.back::before{
+  content:"";
+  position:absolute;
+  left:1px;
+  top:10px;
+  width:14px;
+  height:1px;
+  background:#111;
+}
+
+.back::after{
+  content:"";
+  position:absolute;
+  left:1px;
+  top:6px;
+  width:8px;
+  height:8px;
+  border-left:1px solid #111;
+  border-bottom:1px solid #111;
+  transform:rotate(45deg);
+}
+
+.detail-name{
+  font-size:11px;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+}
+
+.detail-copy{
+  margin:0 0 22px;
+  font-size:13px;
+  line-height:1.5;
+  color:#555;
+}
+
+.control{
+  margin:17px 0;
+}
+
+.control label{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:8px;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+}
+
+input[type=range]{
+  width:100%;
+  accent-color:#222;
+}
+
+.action{
+  margin-top:22px;
+  border:1px solid #111;
+  background:#111;
+  color:#fff;
+  padding:10px 13px;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  cursor:pointer;
+}
+
+.extreme-label{
+  position:absolute;
+  left:0;
+  width:100%;
+  text-align:center;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.22em;
+  color:#aaa;
+  pointer-events:none;
+  transition:top 180ms cubic-bezier(.22,.72,.24,1);
+}
+
+.extreme-label::after{
+  content:"";
+  display:block;
+  width:22px;
+  height:1px;
+  margin:7px auto 0;
+  background:#c9c9c9;
+}
+
+#coreLabel::before{
+  content:"";
+  display:block;
+  width:22px;
+  height:1px;
+  margin:0 auto 7px;
+  background:#c9c9c9;
+}
+
+#coreLabel::after{display:none}
+
+@media(max-width:700px){
+  .page{grid-template-columns:1fr}
+  .content{display:none}
+  .menu{border-left:0}
+}
+</style>
+</head>
+
+<body>
+<div class="page">
+  <main class="content"></main>
+
+  <aside class="menu" id="menu">
+    <div class="viewport" id="viewport">
+      <div class="stack" id="stack">
+        <div class="extreme-label" id="spaceLabel">Espace</div>
+        <div class="extreme-label" id="coreLabel">Noyau</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const data = [
+  {
+    title:"Terrain",
+    items:[
+      ["Relief","Altitude, pente et formes du terrain."],
+      ["Pentes","Analyse des pentes et orientations."],
+      ["Altitudes","Valeurs et profils altimétriques."]
+    ]
+  },
+  {
+    title:"Géologie",
+    items:[
+      ["Carte géologique","Formations géologiques locales."],
+      ["Forages BSS","Forages et informations BRGM à proximité."],
+      ["Cavités","Inventaire des cavités et anomalies du sous-sol."],
+      ["Géomorphologie","Formes et structures du relief."]
+    ]
+  },
+  {
+    title:"Eau",
+    items:[
+      ["Hydrographie","Cours d'eau et réseau hydrographique."],
+      ["Qualité","Qualité des eaux et stations de mesure."],
+      ["Débit","Débits observés et références hydrologiques."],
+      ["Nappes","Nappes souterraines et piézométrie."],
+      ["Crues","Vigicrues, niveaux et événements."],
+      ["Baignade","Qualité des eaux de baignade."]
+    ]
+  },
+  {
+    title:"Végétation",
+    items:[
+      ["Forêt","Couverture forestière et peuplements."],
+      ["Hauteur","Hauteur de végétation issue des modèles disponibles."],
+      ["Essences","Typologie et essences dominantes."],
+      ["Combustible","Indications utiles au risque incendie."]
+    ]
+  },
+  {
+    title:"Routes",
+    items:[
+      ["Réseau","Voirie principale et secondaire."],
+      ["Accès","Accessibilité et desserte."],
+      ["Contraintes","Gabarit, tonnage et restrictions connues."]
+    ]
+  },
+  {
+    title:"Bâtiments",
+    items:[
+      ["Emprise","Empreintes au sol des bâtiments."],
+      ["Hauteur","Hauteurs et volumes disponibles."],
+      ["Usage","Informations d'usage quand disponibles."],
+      ["3D","Représentations et modèles 3D."]
+    ]
+  },
+  {
+    title:"Risques",
+    items:[
+      ["Incendie","Feux et risque incendie."],
+      ["Crues","Zones et références liées aux inondations."],
+      ["Terrain","Mouvements de terrain et instabilités."],
+      ["Autres","Autres aléas disponibles."]
+    ]
+  }
+];
+
+const CLOSED_H = 44;
+const OPEN_H = 340;
+const GAP = 14;
+const LABEL_GAP = 34;
+
+const stack = document.getElementById("stack");
+const viewport = document.getElementById("viewport");
+const menu = document.getElementById("menu");
+const spaceLabel = document.getElementById("spaceLabel");
+const coreLabel = document.getElementById("coreLabel");
+
+let active = 2;
+let opened = null;
+let animating = false;
+let wheelLocked = false;
+let touchY = null;
+let submenuSelection = new Array(data.length).fill(null);
+
+data.forEach((item,i)=>{
+  const layer = document.createElement("section");
+  layer.className = "layer";
+
+  const submenu = item.items.map((entry,j)=>`
+    <button class="submenu-item" data-sub="${j}">
+      ${entry[0]}
+    </button>
+  `).join("");
+
+  layer.innerHTML = `
+    <div class="layer-head">
+      <span class="layer-title">${item.title}</span>
+      <button class="close" aria-label="Fermer"></button>
+    </div>
+
+    <div class="layer-body">
+      <div class="inner-track">
+
+        <section class="inner-page">
+          <div class="submenu-list">
+            ${submenu}
+          </div>
+        </section>
+
+        <section class="inner-page detail-page">
+          <div class="detail-top">
+            <button class="back" aria-label="Retour"></button>
+            <div class="detail-name"></div>
+          </div>
+
+          <p class="detail-copy"></p>
+
+          <div class="control">
+            <label><span>Opacité</span><span>72%</span></label>
+            <input type="range" min="0" max="100" value="72">
+          </div>
+
+          <div class="control">
+            <label><span>Rayon</span><span>5 km</span></label>
+            <input type="range" min="1" max="10" value="5">
+          </div>
+
+          <button class="action">Afficher</button>
+        </section>
+
+      </div>
+    </div>
+  `;
+
+  layer.querySelector(".close").addEventListener("click",(e)=>{
+    e.stopPropagation();
+    closeCurrent();
+  });
+
+  layer.querySelector(".layer-head").addEventListener("click",()=>{
+    if(animating) return;
+
+    if(opened === i){
+      closeCurrent();
+      return;
+    }
+
+    if(opened === null){
+      active = i;
+      render();
+      openActive();
+      return;
+    }
+
+    switchOpenLayer(i);
+  });
+
+  layer.querySelectorAll(".submenu-item").forEach(btn=>{
+    btn.addEventListener("click",(e)=>{
+      e.stopPropagation();
+
+      const subIndex = Number(btn.dataset.sub);
+      submenuSelection[i] = subIndex;
+
+      const [name,copy] = data[i].items[subIndex];
+      layer.querySelector(".detail-name").textContent = name;
+      layer.querySelector(".detail-copy").textContent = copy;
+
+      layer.classList.add("submenu-open");
+    });
+  });
+
+  layer.querySelector(".back").addEventListener("click",(e)=>{
+    e.stopPropagation();
+    submenuSelection[i] = null;
+    layer.classList.remove("submenu-open");
+  });
+
+  stack.appendChild(layer);
+});
+
+const layers = [...stack.querySelectorAll(".layer")];
+
+function resetSubmenu(i){
+  submenuSelection[i] = null;
+  layers[i].classList.remove("submenu-open");
+}
+
+function getHeight(i){
+  return i === opened ? OPEN_H : CLOSED_H;
+}
+
+function layout(){
+  const H = viewport.clientHeight;
+  const centerY = H / 2;
+
+  const activeH = getHeight(active);
+  const activeTop = centerY - activeH / 2;
+
+  const pos = new Array(layers.length);
+  pos[active] = {top:activeTop, height:activeH};
+
+  let y = activeTop - GAP;
+  for(let i=active-1; i>=0; i--){
+    const h = getHeight(i);
+    y -= h;
+    pos[i] = {top:y, height:h};
+    y -= GAP;
+  }
+
+  y = activeTop + activeH + GAP;
+  for(let i=active+1; i<layers.length; i++){
+    const h = getHeight(i);
+    pos[i] = {top:y, height:h};
+    y += h + GAP;
+  }
+
+  layers.forEach((layer,i)=>{
+    layer.style.top = pos[i].top + "px";
+    layer.style.height = pos[i].height + "px";
+  });
+
+  const firstTop = pos[0].top;
+  const last = pos[pos.length-1];
+  const lastBottom = last.top + last.height;
+
+  spaceLabel.style.top = (firstTop - LABEL_GAP) + "px";
+  coreLabel.style.top = (lastBottom + 15) + "px";
+}
+
+function render(){
+  layers.forEach((layer,i)=>{
+    layer.classList.toggle("active", i === active);
+    layer.classList.toggle("open", i === opened);
+  });
+  layout();
+}
+
+function wait(ms){
+  return new Promise(r=>setTimeout(r,ms));
+}
+
+async function openActive(){
+  if(animating || opened === active) return;
+
+  animating = true;
+  const layer = layers[active];
+
+  resetSubmenu(active);
+
+  opened = active;
+  layer.classList.add("opening");
+  render();
+
+  await wait(180);
+
+  layer.classList.remove("opening");
+  render();
+  animating = false;
+}
+
+async function closeCurrent(){
+  if(animating || opened === null) return;
+
+  animating = true;
+
+  const old = opened;
+  const layer = layers[old];
+
+  resetSubmenu(old);
+  layer.classList.add("closing");
+  layer.classList.remove("open");
+
+  await wait(95);
+
+  opened = null;
+  render();
+
+  await wait(75);
+
+  layer.classList.remove("closing");
+  render();
+
+  animating = false;
+}
+
+async function switchOpenLayer(next){
+  if(animating || next === active) return;
+
+  animating = true;
+
+  const old = opened;
+  const oldLayer = layers[old];
+
+  resetSubmenu(old);
+
+  oldLayer.classList.add("closing");
+  oldLayer.classList.remove("open");
+
+  await wait(70);
+
+  opened = null;
+  active = next;
+  render();
+
+  resetSubmenu(next);
+
+  const nextLayer = layers[next];
+  nextLayer.classList.add("opening");
+
+  await wait(40);
+
+  opened = next;
+  render();
+
+  await wait(145);
+
+  oldLayer.classList.remove("closing");
+  nextLayer.classList.remove("opening");
+  render();
+
+  animating = false;
+}
+
+function move(direction){
+  const next = Math.max(
+    0,
+    Math.min(data.length-1, active + direction)
+  );
+
+  if(next === active || animating) return;
+
+  // fermées : le scroll ne fait que changer la couche active
+  if(opened === null){
+    active = next;
+    render();
+    return;
+  }
+
+  // ouverte : on range l'ancienne et on sort la suivante
+  switchOpenLayer(next);
+}
+
+menu.addEventListener("wheel",(e)=>{
+  e.preventDefault();
+
+  if(wheelLocked || animating) return;
+
+  const dir = e.deltaY > 0 ? 1 : -1;
+  const next = Math.max(0,Math.min(data.length-1,active+dir));
+
+  if(next === active) return;
+
+  wheelLocked = true;
+  move(dir);
+
+  setTimeout(()=>{
+    wheelLocked = false;
+  },105);
+
+},{passive:false});
+
+menu.addEventListener("touchstart",(e)=>{
+  touchY = e.touches[0].clientY;
+},{passive:true});
+
+menu.addEventListener("touchend",(e)=>{
+  if(touchY === null || animating) return;
+
+  const d = touchY - e.changedTouches[0].clientY;
+
+  if(Math.abs(d)>28){
+    move(d>0 ? 1 : -1);
+  }
+
+  touchY = null;
+},{passive:true});
+
+document.addEventListener("keydown",(e)=>{
+  if(e.key==="ArrowDown") move(1);
+  if(e.key==="ArrowUp") move(-1);
+  if(e.key==="Escape") closeCurrent();
+  if(e.key==="Enter" && opened===null) openActive();
+});
+
+window.addEventListener("resize",layout);
+
+render();
+</script>
+</body>
+</html>

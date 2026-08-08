@@ -73,8 +73,34 @@ test("accepte les actifs optionnels d'une scène et reste rétrocompatible sans 
     metadata: "/assets/scene.json",
     source_points: { glb: "/assets/source-points.glb", metadata: "/assets/source-points.json" },
     orthophoto_calage: { est_m: 0.4, nord_m: -0.2 },
+    geology: { texture: "/assets/geology.png", pick: "/assets/geology-pick.png", metadata: "/assets/geology.json" },
+    terrain_bbox: [754601.0, 6329635.0, 754831.0, 6329865.0],
+    orthophoto_size_px: 2048,
+    orthophoto_resolution_m: 0.1123046875,
   };
   assert.ok(valider(avecExtension), JSON.stringify(valider.errors));
+});
+
+test("rejette une carte géologique mal formée", () => {
+  const manifeste = manifesteExemplaire();
+  manifeste["scene"] = {
+    glb: "/assets/scene.glb",
+    terrain: null,
+    orthophoto: null,
+    geology: { texture: "/assets/geology.png" },
+  };
+  assert.equal(valider(manifeste), false);
+});
+
+test("rejette une emprise de terrain qui n'a pas quatre coordonnées", () => {
+  const manifeste = manifesteExemplaire();
+  manifeste["scene"] = {
+    glb: "/assets/scene.glb",
+    terrain: null,
+    orthophoto: null,
+    terrain_bbox: [754601.0, 6329635.0, 754831.0],
+  };
+  assert.equal(valider(manifeste), false);
 });
 
 test("rejette un nuage source mal formé", () => {

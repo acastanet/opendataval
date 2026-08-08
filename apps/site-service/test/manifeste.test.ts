@@ -44,6 +44,10 @@ test("convertit les nouveaux champs de scène vers le contrat snake_case", () =>
     metadata: "/assets/scene.json",
     sourcePoints: { glb: "/assets/source.glb", metadata: null },
     orthophotoCalage: { estM: 0.4, nordM: -0.2 },
+    geology: { texture: "/assets/geology.png", pick: "/assets/geology-pick.png", metadata: "/assets/geology.json" },
+    terrainBbox: [754601.0, 6329635.0, 754831.0, 6329865.0],
+    orthophotoSizePx: 2048,
+    orthophotoResolutionM: 0.1123046875,
   };
 
   const json = versManifesteJson(manifeste);
@@ -54,6 +58,10 @@ test("convertit les nouveaux champs de scène vers le contrat snake_case", () =>
     metadata: "/assets/scene.json",
     source_points: { glb: "/assets/source.glb", metadata: null },
     orthophoto_calage: { est_m: 0.4, nord_m: -0.2 },
+    geology: { texture: "/assets/geology.png", pick: "/assets/geology-pick.png", metadata: "/assets/geology.json" },
+    terrain_bbox: [754601.0, 6329635.0, 754831.0, 6329865.0],
+    orthophoto_size_px: 2048,
+    orthophoto_resolution_m: 0.1123046875,
   });
   assert.deepEqual(depuisManifesteJson(json), manifeste);
 });

@@ -14,6 +14,14 @@ test("rattache la scène configurée, terrain et orthophoto non renseignés sép
       glb: "/valleraugue-3d/assets/scenes/maison-200m/source-points.glb",
       metadata: "/valleraugue-3d/assets/scenes/maison-200m/source-points.json",
     },
+    geology: {
+      texture: "/valleraugue-3d/assets/scenes/maison-200m/geology.png",
+      pick: "/valleraugue-3d/assets/scenes/maison-200m/geology-pick.png",
+      metadata: "/valleraugue-3d/assets/scenes/maison-200m/geology.json",
+    },
+    terrainBbox: [754601.0, 6329635.0, 754831.0, 6329865.0],
+    orthophotoSizePx: 2048,
+    orthophotoResolutionM: 0.1123046875,
   });
 });
 
