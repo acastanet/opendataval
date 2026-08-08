@@ -110,10 +110,33 @@ et refus 409 d'une publication directe).
 
 ## P7 — Démonstration M1
 
-- [ ] Créer deux dalles par coordonnées.
-- [ ] Vérifier leur indépendance.
-- [ ] Publier les deux.
-- [ ] Documenter la procédure reproductible.
+- [x] Créer deux dalles par coordonnées.
+- [x] Vérifier leur indépendance.
+- [x] Publier les deux.
+- [x] Documenter la procédure reproductible.
+
+Rejoué de bout en bout contre un `docker compose up -d` réel via
+`scripts/demo-m1.mjs` (`node scripts/demo-m1.mjs`, sur le modèle de
+`scripts/verify-meteo-national.mjs`) : création, fabrication, soumission,
+puis approbation et publication indépendantes de deux dalles distinctes —
+Dalle A « Maison » (lat 44.064555, lon 3.683027, coïncide avec la scène 3D
+déjà publiée par le POC `maison-200m`) et Dalle B « Les Plantiers »
+(lat 44.09, lon 3.7). Le script vérifie et affiche pass/fail pour chaque
+critère de `06-TEST-AND-ACCEPTANCE.md` § « Tests M1 de bout en bout » :
+`tile_id` distincts (`ODV-2026-000005`/`ODV-2026-000006` lors de la dernière
+exécution), géométries `geometryWgs84` distinctes, scène référencée pour
+chacune, page `GET /api/v2/sites/:tileId` correcte et sans mélange entre les
+deux, indépendance de la revue (A approuvée pendant que B reste en attente,
+sans effet croisé) et indépendance de la publication (A publiée pendant que
+B reste non publiée, jusqu'à sa propre publication). Sort en erreur
+(`process.exitCode = 1`) si un critère échoue, donc rejouable pour
+re-vérifier après tout changement futur.
+
+Vérification complémentaire manuelle des répertoires sur le volume nommé
+`site_instances` (ADR-007) : `docker exec opendatavda-site-service-1 ls
+/data/instances` confirme un répertoire distinct par `tile_id`, et la lecture
+des deux `manifest.json` confirme des `geometry_wgs84` distincts et aucun
+champ partagé entre les deux instances.
 
 ## P8 — Industrialisation du pipeline 3D (après la stop condition)
 
