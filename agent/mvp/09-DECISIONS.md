@@ -114,7 +114,7 @@ Fichiers/contrats impactés :
 ## ADR-006 — Les routes d'écriture de `site-service` ne sont pas exposées publiquement en M1
 
 Date: 2026-08-07
-Statut: accepted
+Statut: superseded par ADR-009
 
 Contexte:
 
@@ -203,3 +203,43 @@ Mise en œuvre (lot P5) : `apps/gateway-service/src/pages/site-instance.ts`
 (rendu), route `GET /api/v2/sites/:tileId` dans `apps/gateway-service/src/app.ts`
 (récupération côté serveur du manifeste via l'URL interne de `site-service`,
 jamais exposée telle quelle au navigateur).
+
+## ADR-009 — Les routes de création et de fabrication de `site-service` sont exposées publiquement
+
+Date: 2026-08-08
+Statut: accepted
+
+Contexte:
+
+ADR-006 réservait `POST /internal/v1/sites` et `POST /internal/v1/sites/:tileId/build`
+au réseau interne, faute d'authentification décidée pour l'interface de
+supervision. En testant le lot P5 en conditions réelles (`docker compose up`),
+la seule façon de créer ou fabriquer une dalle était de passer par le réseau
+Docker interne (`docker exec` + appel direct à `site-service`), rendant la
+démonstration M1 impraticable sans un accès shell aux conteneurs.
+
+Décision :
+
+L'utilisateur a explicitement demandé de lever cette précaution : la création
+(`POST /api/v2/sites`) et le déclenchement de fabrication
+(`POST /api/v2/sites/:tileId/build`) sont désormais proxyées publiquement par
+le gateway, sans authentification, au même titre que les routes de lecture.
+
+Conséquences :
+
+- N'importe quel client public peut créer des dalles et déclencher leur
+  fabrication (donc des appels sortants vers `geography-service`, qui appelle
+  lui-même des API IGN externes) sans limite ni identification. Aucune
+  limitation de débit n'est ajoutée : ce n'est pas dans le périmètre de cette
+  décision, qui porte uniquement sur l'exposition des routes.
+- `review`/`publish` (P6, pas encore implémentées) suivront la même
+  exposition par défaut, sauf décision contraire au moment de leur
+  implémentation.
+- Si une authentification devient nécessaire plus tard (abus constaté,
+  passage en production réelle), elle s'ajoutera devant ces routes sans
+  changer leur contrat — pas de nouvel ADR requis pour ce seul ajout.
+
+Fichiers/contrats impactés :
+
+`04-SITE-SERVICE.md`, `apps/gateway-service/src/site-proxy.ts` (nouveau),
+`apps/gateway-service/src/app.ts`.

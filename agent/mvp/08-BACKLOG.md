@@ -49,9 +49,9 @@ envoyées à un pool factice sont vérifiées).
       (`apps/site-service/src/adapters/geography.ts`, commune/adresse/altitude
       depuis `geography-service`, exigé par `05-M1-VERTICAL-SLICE.md`).
 
-Non couvert par ce lot, à faire plus tard : le câblage gateway/Caddy/
-docker-compose (aucune route `site-service` n'est encore publique), les routes
-`review`/`publish` (P6), et le rejeu idempotent d'une fabrication déjà
+Non couvert par ce lot à l'époque (câblage gateway/Caddy/docker-compose et
+exposition publique) : livré aux lots P5 et ADR-009. Restent à faire : les
+routes `review`/`publish` (P6), et le rejeu idempotent d'une fabrication déjà
 `generated` (voir `04-SITE-SERVICE.md` § « Idempotence »).
 
 ## P4 — Raccord scène

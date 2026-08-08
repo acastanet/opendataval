@@ -28,6 +28,7 @@ import {
   renderSiteInstanceIntrouvable,
   type ManifesteDalleVue,
 } from "./pages/site-instance.js";
+import { registerSiteWriteProxy } from "./site-proxy.js";
 
 export interface BuildAppOptions {
   config?: GatewayConfig;
@@ -233,6 +234,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     },
   );
 
+  registerSiteWriteProxy(app, config, fetchImpl);
   registerStatusRoute(app, config, fetchImpl);
   registerLegacyProxy(app, config, fetchImpl);
   registerGeographyProxy(app, config, fetchImpl);

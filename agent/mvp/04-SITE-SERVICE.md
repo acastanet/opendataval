@@ -23,14 +23,27 @@ POST /internal/v1/sites/:tileId/review     — pas encore implémentée, voir P6
 POST /internal/v1/sites/:tileId/publish    — pas encore implémentée, voir P6
 ```
 
-**Seules les routes de lecture (`GET`) et la page de consultation publique
-sont routées par Caddy/gateway (lot P5).** Toutes les routes d'écriture
-(`POST`, y compris la création) restent, pour tout M1, accessibles uniquement
-sur le port interne du service, tant que l'authentification de l'interface de
-supervision n'est pas décidée. Voir ADR-006 dans [`09-DECISIONS.md`](09-DECISIONS.md).
-Le gateway ne proxy d'ailleurs pas cette lecture en JSON : `GET /api/v2/sites/:tileId`
-rend directement la page HTML (ADR-008), il n'existe pas de route JSON publique
-équivalente.
+**Toutes les routes implémentées sont proxyées publiquement par le gateway**,
+sans authentification (ADR-009 dans [`09-DECISIONS.md`](09-DECISIONS.md), qui
+annule la restriction initiale de l'ADR-006) :
+
+```http
+POST /api/v2/sites                  → POST /internal/v1/sites
+GET  /api/v2/sites/:tileId          → page HTML (pas de JSON public, ADR-008)
+POST /api/v2/sites/:tileId/build    → POST /internal/v1/sites/:tileId/build
+```
+
+Le proxy d'écriture vit dans `apps/gateway-service/src/site-proxy.ts` : il
+relaie tel quel le corps, le statut et les erreurs de `site-service`, sur le
+modèle des proxys de lecture existants (`geography-proxy.ts`). `review` et
+`publish` (P6) suivront la même exposition une fois implémentées.
+
+`GET /internal/v1/sites/:tileId` répond en JSON **camelCase**, la forme native de
+`ManifesteDalle` (`packages/shared/src/dalle.ts`) — distincte du `manifest.json`
+écrit sur disque, qui suit le schéma snake_case de
+`schemas/tile-manifest.schema.json`. C'est un choix délibéré (contrat de fichier
+versionné vs. contrat d'API interne idiomatique), pas un oubli ; voir l'en-tête de
+`dalle.ts` et de `apps/gateway-service/src/pages/site-instance.ts`.
 
 `GET /internal/v1/sites/:tileId` répond en JSON **camelCase**, la forme native de
 `ManifesteDalle` (`packages/shared/src/dalle.ts`) — distincte du `manifest.json`
