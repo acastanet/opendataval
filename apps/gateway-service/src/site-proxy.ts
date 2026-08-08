@@ -3,11 +3,11 @@ import type { GatewayConfig } from "./config.js";
 import type { FetchLike } from "./legacy-proxy.js";
 
 /**
- * Expose publiquement la création et le déclenchement de fabrication d'une dalle
- * (`POST /api/v2/sites`, `POST /api/v2/sites/:tileId/build`), proxyées vers les routes
+ * Expose publiquement la création, la fabrication, la revue et la publication d'une dalle
+ * (`POST /api/v2/sites`, `.../build`, `.../review`, `.../publish`), proxyées vers les routes
  * internes de `site-service`. Revient sur ADR-006 (`agent/mvp/09-DECISIONS.md`), qui
  * réservait ces écritures au réseau interne faute d'authentification décidée — décision
- * explicitement levée par l'utilisateur (ADR-009).
+ * explicitement levée par l'utilisateur (ADR-009), qui couvre par avance `review`/`publish`.
  */
 
 function failure(error: unknown): { status: 502 | 504; code: string; message: string } {
@@ -46,25 +46,32 @@ async function relay(
   }
 }
 
+function initPost(body?: unknown): RequestInit {
+  return body === undefined
+    ? { method: "POST", headers: { accept: "application/json" } }
+    : { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) };
+}
+
 export function registerSiteWriteProxy(app: FastifyInstance, config: GatewayConfig, fetchImpl: FetchLike): void {
   app.post("/api/v2/sites", async (request: FastifyRequest, reply: FastifyReply) =>
-    relay(request, reply, config, fetchImpl, "/internal/v1/sites", {
-      method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify(request.body ?? {}),
-    }),
+    relay(request, reply, config, fetchImpl, "/internal/v1/sites", initPost(request.body ?? {})),
   );
 
   app.post<{ Params: { tileId: string } }>(
     "/api/v2/sites/:tileId/build",
     async (request: FastifyRequest<{ Params: { tileId: string } }>, reply: FastifyReply) =>
-      relay(
-        request,
-        reply,
-        config,
-        fetchImpl,
-        `/internal/v1/sites/${encodeURIComponent(request.params.tileId)}/build`,
-        { method: "POST", headers: { accept: "application/json" } },
-      ),
+      relay(request, reply, config, fetchImpl, `/internal/v1/sites/${encodeURIComponent(request.params.tileId)}/build`, initPost()),
+  );
+
+  app.post<{ Params: { tileId: string } }>(
+    "/api/v2/sites/:tileId/review",
+    async (request: FastifyRequest<{ Params: { tileId: string } }>, reply: FastifyReply) =>
+      relay(request, reply, config, fetchImpl, `/internal/v1/sites/${encodeURIComponent(request.params.tileId)}/review`, initPost(request.body ?? {})),
+  );
+
+  app.post<{ Params: { tileId: string } }>(
+    "/api/v2/sites/:tileId/publish",
+    async (request: FastifyRequest<{ Params: { tileId: string } }>, reply: FastifyReply) =>
+      relay(request, reply, config, fetchImpl, `/internal/v1/sites/${encodeURIComponent(request.params.tileId)}/publish`, initPost()),
   );
 }

@@ -19,8 +19,8 @@ dans `apps/site-service/src/app.ts`) suit cette convention :
 POST /internal/v1/sites
 GET  /internal/v1/sites/:tileId
 POST /internal/v1/sites/:tileId/build
-POST /internal/v1/sites/:tileId/review     — pas encore implémentée, voir P6
-POST /internal/v1/sites/:tileId/publish    — pas encore implémentée, voir P6
+POST /internal/v1/sites/:tileId/review     — action submit | approve | request_changes
+POST /internal/v1/sites/:tileId/publish
 ```
 
 **Toutes les routes implémentées sont proxyées publiquement par le gateway**,
@@ -28,15 +28,16 @@ sans authentification (ADR-009 dans [`09-DECISIONS.md`](09-DECISIONS.md), qui
 annule la restriction initiale de l'ADR-006) :
 
 ```http
-POST /api/v2/sites                  → POST /internal/v1/sites
-GET  /api/v2/sites/:tileId          → page HTML (pas de JSON public, ADR-008)
-POST /api/v2/sites/:tileId/build    → POST /internal/v1/sites/:tileId/build
+POST /api/v2/sites                     → POST /internal/v1/sites
+GET  /api/v2/sites/:tileId             → page HTML (pas de JSON public, ADR-008)
+POST /api/v2/sites/:tileId/build       → POST /internal/v1/sites/:tileId/build
+POST /api/v2/sites/:tileId/review      → POST /internal/v1/sites/:tileId/review
+POST /api/v2/sites/:tileId/publish     → POST /internal/v1/sites/:tileId/publish
 ```
 
 Le proxy d'écriture vit dans `apps/gateway-service/src/site-proxy.ts` : il
 relaie tel quel le corps, le statut et les erreurs de `site-service`, sur le
-modèle des proxys de lecture existants (`geography-proxy.ts`). `review` et
-`publish` (P6) suivront la même exposition une fois implémentées.
+modèle des proxys de lecture existants (`geography-proxy.ts`).
 
 `GET /internal/v1/sites/:tileId` répond en JSON **camelCase**, la forme native de
 `ManifesteDalle` (`packages/shared/src/dalle.ts`) — distincte du `manifest.json`
@@ -45,12 +46,24 @@ modèle des proxys de lecture existants (`geography-proxy.ts`). `review` et
 versionné vs. contrat d'API interne idiomatique), pas un oubli ; voir l'en-tête de
 `dalle.ts` et de `apps/gateway-service/src/pages/site-instance.ts`.
 
-`GET /internal/v1/sites/:tileId` répond en JSON **camelCase**, la forme native de
-`ManifesteDalle` (`packages/shared/src/dalle.ts`) — distincte du `manifest.json`
-écrit sur disque, qui suit le schéma snake_case de
-`schemas/tile-manifest.schema.json`. C'est un choix délibéré (contrat de fichier
-versionné vs. contrat d'API interne idiomatique), pas un oubli ; voir l'en-tête de
-`dalle.ts` et de `apps/gateway-service/src/pages/site-instance.ts`.
+## Revue et publication (lot P6)
+
+`POST .../review` prend un corps `{ action, reviewedBy?, notes? }` :
+
+- `submit` (`generated → review_required`, `review.status = pending`) : déclenchée
+  par le système à la fin de la fabrication, `reviewedBy` facultatif.
+- `approve` (`review_required → approved`, `review.status = approved`) : décision
+  humaine, `reviewedBy` **obligatoire** (400 sinon).
+- `request_changes` (`review_required → collecting`, `review.status =
+  changes_requested`) : décision humaine, `reviewedBy` **obligatoire**, `notes`
+  fortement recommandées pour motiver la correction demandée.
+
+Chaque décision humaine (`approve`/`request_changes`) horodate
+`review.reviewedAt`. `POST .../publish` (`approved → published`) ne prend pas
+de corps : `transitionValide` (`packages/shared/src/dalle.ts`) refuse déjà
+structurellement d'entrer dans `approved` sans `review.status = approved`, ce
+qui suffit à empêcher toute publication directe — aucune vérification
+supplémentaire n'était nécessaire côté route.
 
 ## Création
 

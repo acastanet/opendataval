@@ -57,6 +57,14 @@ export interface TransitionDemandee {
   versEtat: EtatDalle;
   /** Omis pour les transitions qui ne touchent pas la revue humaine : celle-ci est conservée telle quelle. */
   revue?: StatutRevue;
+  /**
+   * Identité de l'opérateur à l'origine d'une décision de revue (`approve`/`request_changes`).
+   * Sa seule présence horodate la décision (`review.reviewedAt`) — omis pour les transitions
+   * système qui ne sont pas des décisions humaines (ex. `submit`, qui passe la revue à
+   * `pending` sans qu'un opérateur ait encore tranché).
+   */
+  reviewedBy?: string | null;
+  notes?: string | null;
 }
 
 /**
@@ -68,7 +76,7 @@ export async function transitionerInstance(
   pool: pg.Pool,
   instancesDir: string,
   tileId: string,
-  { versEtat, revue }: TransitionDemandee,
+  { versEtat, revue, reviewedBy, notes }: TransitionDemandee,
 ): Promise<ManifesteDalle> {
   const dir = repertoireInstance(instancesDir, tileId);
   const manifeste = await lireManifeste(dir);
@@ -82,7 +90,14 @@ export async function transitionerInstance(
   const suivant: ManifesteDalle = {
     ...manifeste,
     status: versEtat,
-    review: revue ? { ...manifeste.review, status: revue } : manifeste.review,
+    review: revue
+      ? {
+          status: revue,
+          reviewedAt: reviewedBy !== undefined ? new Date().toISOString() : manifeste.review.reviewedAt,
+          reviewedBy: reviewedBy !== undefined ? reviewedBy : manifeste.review.reviewedBy,
+          notes: notes !== undefined ? notes : manifeste.review.notes,
+        }
+      : manifeste.review,
   };
 
   await ecrireManifesteAtomique(dir, suivant);

@@ -160,6 +160,117 @@ test("POST /internal/v1/sites/:tileId/build renvoie 404 pour une instance introu
   assert.equal(response.statusCode, 404);
 });
 
+async function creerEtFabriquer(app: ReturnType<typeof buildApp>): Promise<string> {
+  const creation = await app.inject({ method: "POST", url: "/internal/v1/sites", payload: { lat: 44.064555, lon: 3.683027 } });
+  const tileId = creation.json().identity.tileId;
+  await app.inject({ method: "POST", url: `/internal/v1/sites/${tileId}/build` });
+  return tileId;
+}
+
+test("le cycle revue/publication complet : submit → approve → publish", async (t) => {
+  const racine = await dossierTemporaire();
+  t.after(() => rm(racine, { recursive: true, force: true }));
+
+  const { pool } = poolFactice();
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
+  t.after(() => app.close());
+
+  const tileId = await creerEtFabriquer(app);
+
+  const soumission = await app.inject({ method: "POST", url: `/internal/v1/sites/${tileId}/review`, payload: { action: "submit" } });
+  assert.equal(soumission.statusCode, 200);
+  assert.equal(soumission.json().status, "review_required");
+
+  const approbation = await app.inject({
+    method: "POST",
+    url: `/internal/v1/sites/${tileId}/review`,
+    payload: { action: "approve", reviewedBy: "alex", notes: "conforme" },
+  });
+  assert.equal(approbation.statusCode, 200);
+  assert.equal(approbation.json().status, "approved");
+  assert.equal(approbation.json().review.reviewedBy, "alex");
+
+  const publication = await app.inject({ method: "POST", url: `/internal/v1/sites/${tileId}/publish` });
+  assert.equal(publication.statusCode, 200);
+  assert.equal(publication.json().status, "published");
+});
+
+test("POST .../review demande un motif : request_changes ramène en collecte", async (t) => {
+  const racine = await dossierTemporaire();
+  t.after(() => rm(racine, { recursive: true, force: true }));
+
+  const { pool } = poolFactice();
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
+  t.after(() => app.close());
+
+  const tileId = await creerEtFabriquer(app);
+  await app.inject({ method: "POST", url: `/internal/v1/sites/${tileId}/review`, payload: { action: "submit" } });
+
+  const response = await app.inject({
+    method: "POST",
+    url: `/internal/v1/sites/${tileId}/review`,
+    payload: { action: "request_changes", reviewedBy: "alex", notes: "altitude manquante" },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().status, "collecting");
+  assert.equal(response.json().review.status, "changes_requested");
+});
+
+test("POST .../review refuse approve/request_changes sans reviewedBy", async (t) => {
+  const racine = await dossierTemporaire();
+  t.after(() => rm(racine, { recursive: true, force: true }));
+
+  const { pool } = poolFactice();
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
+  t.after(() => app.close());
+
+  const tileId = await creerEtFabriquer(app);
+  await app.inject({ method: "POST", url: `/internal/v1/sites/${tileId}/review`, payload: { action: "submit" } });
+
+  const response = await app.inject({ method: "POST", url: `/internal/v1/sites/${tileId}/review`, payload: { action: "approve" } });
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.json().error.code, "INVALID_BODY");
+});
+
+test("POST .../review refuse une action inconnue", async (t) => {
+  const racine = await dossierTemporaire();
+  t.after(() => rm(racine, { recursive: true, force: true }));
+
+  const { pool } = poolFactice();
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
+  t.after(() => app.close());
+
+  const tileId = await creerEtFabriquer(app);
+  const response = await app.inject({ method: "POST", url: `/internal/v1/sites/${tileId}/review`, payload: { action: "delete" } });
+  assert.equal(response.statusCode, 400);
+});
+
+test("POST .../publish refuse une instance non approuvée", async (t) => {
+  const racine = await dossierTemporaire();
+  t.after(() => rm(racine, { recursive: true, force: true }));
+
+  const { pool } = poolFactice();
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
+  t.after(() => app.close());
+
+  const tileId = await creerEtFabriquer(app);
+  const response = await app.inject({ method: "POST", url: `/internal/v1/sites/${tileId}/publish` });
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.json().error.code, "SITE_INVALID_TRANSITION");
+});
+
+test("POST .../publish renvoie 404 pour une instance introuvable", async (t) => {
+  const racine = await dossierTemporaire();
+  t.after(() => rm(racine, { recursive: true, force: true }));
+
+  const { pool } = poolFactice();
+  const app = buildApp({ config: configTest(racine), pool, clients: { geographie: CLIENT_GEOGRAPHIE_VIDE, scene: CLIENT_SCENE_VIDE }, logger: false });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "POST", url: "/internal/v1/sites/ODV-2026-999999/publish" });
+  assert.equal(response.statusCode, 404);
+});
+
 test("expose /health et /ready", async (t) => {
   const racine = await dossierTemporaire();
   t.after(() => rm(racine, { recursive: true, force: true }));

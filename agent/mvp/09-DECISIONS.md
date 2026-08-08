@@ -232,14 +232,20 @@ Conséquences :
   lui-même des API IGN externes) sans limite ni identification. Aucune
   limitation de débit n'est ajoutée : ce n'est pas dans le périmètre de cette
   décision, qui porte uniquement sur l'exposition des routes.
-- `review`/`publish` (P6, pas encore implémentées) suivront la même
-  exposition par défaut, sauf décision contraire au moment de leur
-  implémentation.
+- `review`/`publish` (P6, implémentées le même jour) suivent la même
+  exposition par défaut : `POST .../review` (actions `submit`/`approve`/
+  `request_changes`) et `POST .../publish` sont elles aussi publiques et sans
+  authentification.
 - Si une authentification devient nécessaire plus tard (abus constaté,
   passage en production réelle), elle s'ajoutera devant ces routes sans
   changer leur contrat — pas de nouvel ADR requis pour ce seul ajout.
 
 Fichiers/contrats impactés :
 
-`04-SITE-SERVICE.md`, `apps/gateway-service/src/site-proxy.ts` (nouveau),
-`apps/gateway-service/src/app.ts`.
+`04-SITE-SERVICE.md`, `apps/gateway-service/src/site-proxy.ts`,
+`apps/gateway-service/src/app.ts`, `apps/site-service/src/review.ts` (P6).
+
+Vérifié de bout en bout dans un `docker compose` réel : création, fabrication,
+soumission, approbation (avec `reviewedBy`/`notes` horodatés) et publication,
+toutes atteintes uniquement via `http://localhost:8080/api/v2/sites/*`, sans
+accès shell aux conteneurs.

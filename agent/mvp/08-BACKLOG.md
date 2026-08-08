@@ -89,10 +89,24 @@ réponses 404/502 de `site-service`.
 
 ## P6 — Revue / publication minimale
 
-- [ ] Passage `generated → review_required`.
-- [ ] validation opérateur.
-- [ ] passage `approved → published`.
-- [ ] empêcher la publication directe sans approbation.
+Routes `POST /internal/v1/sites/:tileId/review` (action `submit` | `approve` |
+`request_changes`, logique dans `apps/site-service/src/review.ts`) et
+`POST /internal/v1/sites/:tileId/publish`, proxyées publiquement (ADR-009) —
+voir `04-SITE-SERVICE.md` § « Revue et publication ».
+
+- [x] Passage `generated → review_required` (action `submit`).
+- [x] Validation opérateur (actions `approve`/`request_changes`, `reviewedBy`
+      obligatoire, horodatage `review.reviewedAt`).
+- [x] Passage `approved → published`.
+- [x] Empêcher la publication directe sans approbation — assuré structurellement
+      par `transitionValide` (`packages/shared/src/dalle.ts`), pas par une
+      vérification ad hoc dans la route ; confirmé par un test dédié et par un
+      essai réel (`POST .../publish` sur une dalle `created` → 409).
+
+16 tests (12 site-service : `review.test.ts` + routes dans `app.test.ts` ; 4
+gateway : `site-write-proxy.test.ts`) plus une vérification de bout en bout
+dans un `docker compose` réel (création → build → submit → approve → publish,
+et refus 409 d'une publication directe).
 
 ## P7 — Démonstration M1
 
