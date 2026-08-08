@@ -150,6 +150,12 @@ export interface SceneDalle {
   glb: string | null;
   terrain: string | null;
   orthophoto: string | null;
+  /** Métadonnées produites par le pipeline (comptes, emprise, qualité de reconstruction). */
+  metadata?: string | null;
+  /** Nuage LiDAR source, si le pipeline le publie. */
+  sourcePoints?: { glb: string; metadata: string | null } | null;
+  /** Calage de l'orthophoto mesuré à la production, en mètres. */
+  orthophotoCalage?: { estM: number; nordM: number } | null;
 }
 
 /** Regroupement des données d'une dalle par sphère. Voir `SPHERES` : ce n'est pas un dictionnaire ouvert. */

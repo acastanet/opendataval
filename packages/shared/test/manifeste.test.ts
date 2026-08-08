@@ -60,6 +60,34 @@ test("accepte un manifeste conforme au contrat", () => {
   assert.ok(valide, JSON.stringify(valider.errors));
 });
 
+test("accepte les actifs optionnels d'une scène et reste rétrocompatible sans eux", () => {
+  const sansExtension = manifesteExemplaire();
+  sansExtension["scene"] = { glb: "/assets/scene.glb", terrain: null, orthophoto: null };
+  assert.ok(valider(sansExtension), JSON.stringify(valider.errors));
+
+  const avecExtension = manifesteExemplaire();
+  avecExtension["scene"] = {
+    glb: "/assets/scene.glb",
+    terrain: "/assets/terrain.glb",
+    orthophoto: "/assets/ortho.webp",
+    metadata: "/assets/scene.json",
+    source_points: { glb: "/assets/source-points.glb", metadata: "/assets/source-points.json" },
+    orthophoto_calage: { est_m: 0.4, nord_m: -0.2 },
+  };
+  assert.ok(valider(avecExtension), JSON.stringify(valider.errors));
+});
+
+test("rejette un nuage source mal formé", () => {
+  const manifeste = manifesteExemplaire();
+  manifeste["scene"] = {
+    glb: "/assets/scene.glb",
+    terrain: null,
+    orthophoto: null,
+    source_points: { metadata: null },
+  };
+  assert.equal(valider(manifeste), false);
+});
+
 test("rejette un tile_id mal formé", () => {
   const manifeste = manifesteExemplaire();
   (manifeste["identity"] as Record<string, unknown>)["tile_id"] = "maison-200m";

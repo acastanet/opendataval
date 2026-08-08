@@ -1,7 +1,7 @@
 # Gateway Service
 
 > Point d’entrée unique des API v2 (`/api/v2/*`). Aucune logique métier, aucun accès direct à la base.
-> Dernière mise à jour : 2026-08-02 · Dernière vérification : 2026-08-02
+> Dernière mise à jour : 2026-08-08 · Dernière vérification : 2026-08-08
 > Code : `apps/gateway-service/`
 
 ## Rôle
@@ -20,6 +20,10 @@ Il conserve aussi un pont temporaire en lecture seule vers le monolithe historiq
 | `/valfeu/manifest.webmanifest` | Manifeste installable de l’application valfeu | `GET` |
 | `/valfeu/icone.svg` | Icône SVG de l’application valfeu | `GET` |
 | `/api/v2/status` | État agrégé léger de chaque service (alimente les pages) | `GET` |
+| `/api/v2/sites/:tileId` | Page publique d'une dalle, manifeste récupéré côté serveur | `GET` |
+| `/api/v2/sites/apercu` | Index des états fictifs de la page dalle | `GET` |
+| `/api/v2/sites/apercu/:cas` | État fictif marqué par un bandeau permanent | `GET` |
+| `/api/v2/sites/viewer/*` | CSS, moteur Three.js, modules et dépendances locales du viewer | `GET`, `HEAD` |
 | `/health` | Vie du processus gateway | `GET` |
 | `/ready` | Gateway prêt et API historique joignable sur `/api/health` | `GET` |
 | `/api/v2/gateway` | Identité et version du gateway | `GET` |
@@ -105,6 +109,7 @@ Le pont `/api/v2/legacy/*` :
 - `weather-vigilance-service` : vigilance officielle départementale ;
 - `fire-detection-service` : détection stateless de suspicions de feu ;
 - `old-service` : applicabilité OLD et calcul du périmètre indicatif ;
+- `site-service` : manifeste interne utilisé pour rendre la page dalle ;
 - aucune base de données, aucun cache et aucune file de messages.
 
 ## Inventaire des API v2
@@ -174,9 +179,11 @@ Retirer le service ou un proxy v2 ne modifie pas les routes historiques `/api/*`
 
 ## Pages de présentation
 
-Le gateway sert aussi sa propre façade HTML (styles et scripts inline, sans fichier statique ni bundler), compatible avec le CSP appliqué par Caddy :
+Le gateway sert aussi sa propre façade HTML, compatible avec le CSP appliqué par Caddy. L'accueil et les démos gardent leurs styles/scripts inline ; la page dalle utilise des actifs statiques locaux :
 
-- `/api/v2` : accueil listant les microservices (rôle, route, badge d’état) avec un lien vers chaque démo ;
+- `/api/v2` : accueil listant les microservices (rôle, route, badge d'état) avec un lien vers chaque démo ;
+- `/api/v2/sites/:tileId` : visualiseur Three.js mono-scène configuré par le manifeste embarqué. Son panneau suit les six sphères et son registre `public/dalle/modules/` accueille les modules des microservices ;
+- `/api/v2/sites/apercu` : sept états fictifs reproductibles pour le design, dont une scène réelle du POC, l'absence de scène/donnée, l'échec, la publication, le titre long et une valeur XSS ;
 - `/valfeu/` : **valfeu**, application de terrain mobile-first, indépendante de `apps/web`, qui compose Map, Geography et Fire Detection autour d’un point actif — voir [`../../application/feu-val/README.md`](../../application/feu-val/README.md) ;
 - `/valfeu/manifest.webmanifest` et `/valfeu/icone.svg` : ressources PWA installables. Aucun service worker ni cache hors ligne n’est enregistré afin de conserver les données satellite fraîches. Sur iOS, l’ajout à l’écran d’accueil fonctionne, mais Safari n’utilise pas l’icône SVG sans `apple-touch-icon` PNG (hors périmètre) ;
 - `/api/v2/demo/:service` : démonstration interactive d’un service (formulaire pré-rempli sur Val-d’Aigoual → appel réel de la route publique → affichage du résultat). Le résultat s’affiche sous deux onglets : une **synthèse lisible** (« Résultat ») et le **JSON brut**. Pour les services géographiques (champs `lat`/`lon` : geography, weather, vigilance, fire), la page ajoute un bouton **« Me localiser »** (`navigator.geolocation`) et une **carte Leaflet** (marqueur, clic pour saisir les coordonnées, cercle du rayon et marqueurs des détections pour fire) ;

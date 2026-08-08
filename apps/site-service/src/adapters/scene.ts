@@ -28,7 +28,22 @@ export function creerClientSceneProvisoire({ glbUrl }: ConfigClientScene): Clien
   return {
     async rattacher() {
       if (!glbUrl) return null;
-      return { glb: glbUrl, terrain: null, orthophoto: null };
+      const estScenePoc = glbUrl.includes("/valleraugue-3d/assets/") && glbUrl.endsWith("/scene.glb");
+      const dossier = glbUrl.slice(0, -"scene.glb".length);
+      return {
+        glb: glbUrl,
+        terrain: null,
+        orthophoto: null,
+        ...(estScenePoc ? { metadata: `${dossier}scene.json` } : {}),
+        ...(estScenePoc && glbUrl.includes("/maison-200m/")
+          ? {
+              sourcePoints: {
+                glb: `${dossier}source-points.glb`,
+                metadata: `${dossier}source-points.json`,
+              },
+            }
+          : {}),
+      };
     },
   };
 }

@@ -3,6 +3,8 @@ import Fastify, {
   type FastifyReply,
   type FastifyRequest,
 } from "fastify";
+import fastifyStatic from "@fastify/static";
+import { fileURLToPath } from "node:url";
 import { loadConfig, type GatewayConfig } from "./config.js";
 import { registerLegacyProxy, type FetchLike } from "./legacy-proxy.js";
 import { registerGeographyProxy } from "./geography-proxy.js";
@@ -23,11 +25,13 @@ import {
   renderAppTerrain,
 } from "./pages/app-terrain.js";
 import {
+  renderApercuIndex,
   renderSiteInstance,
   renderSiteInstanceIndisponible,
   renderSiteInstanceIntrouvable,
   type ManifesteDalleVue,
 } from "./pages/site-instance.js";
+import { CAS_APERCU } from "./pages/dalle/fixtures.js";
 import { registerSiteWriteProxy } from "./site-proxy.js";
 
 export interface BuildAppOptions {
@@ -87,6 +91,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     logger: options.logger ?? true,
     requestIdHeader: "x-request-id",
     trustProxy: true,
+  });
+
+  app.register(fastifyStatic, {
+    root: fileURLToPath(new URL("../public/dalle/", import.meta.url)),
+    prefix: "/api/v2/sites/viewer/",
+    index: false,
+    dotfiles: "deny",
+    cacheControl: true,
+    maxAge: "1h",
   });
 
   app.addHook("onSend", async (request, reply, payload) => {
@@ -203,6 +216,29 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
         });
       }
       return sendHtml(reply, renderDemo(config, service));
+    },
+  );
+
+  const apercuHandler = async (_request: FastifyRequest, reply: FastifyReply) =>
+    sendHtml(reply, renderApercuIndex(config, CAS_APERCU));
+
+  app.get("/api/v2/sites/apercu", apercuHandler);
+  app.get("/api/v2/sites/apercu/", apercuHandler);
+  app.get<{ Params: { cas: string } }>(
+    "/api/v2/sites/apercu/:cas",
+    async (request: FastifyRequest<{ Params: { cas: string } }>, reply: FastifyReply) => {
+      const cas = CAS_APERCU.find((candidat) => candidat.id === request.params.cas);
+      if (!cas) {
+        return reply.code(404).send({
+          error: {
+            code: "UNKNOWN_PREVIEW",
+            message: "Ce cas d'aperçu n'existe pas.",
+            retryable: false,
+          },
+          requestId: request.id,
+        });
+      }
+      return sendHtml(reply, renderSiteInstance(config, cas.manifeste, { apercu: true }));
     },
   );
 

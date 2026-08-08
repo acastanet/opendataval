@@ -1,0 +1,1367 @@
+/* Thème clair volontaire : le visualiseur est un instrument de contrôle géométrique, un
+   fond sombre masquerait les défauts de contact entre le terrain et les bâtiments. */
+:root {
+  color-scheme: light;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: #c8d2d8;
+  color: #1b2430;
+  /* Publiées par app.js à chaque redimensionnement du panneau : les repères du bas s'y
+     ancrent au lieu de dépendre d'une constante qui finissait toujours par les recouvrir. */
+  --panel-width: 364px;
+  --panel-height: 0px;
+  /* Hauteur unique d'un en-tête de section et d'une ligne de réglage : c'est cette trame qui
+     tient l'alignement du panneau, quel que soit le contenu de la ligne. */
+  --section-head: 40px;
+  --row: 38px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#viewport {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: #c8d2d8;
+}
+
+canvas {
+  display: block;
+}
+
+/* Le curseur est le seul indice qui distingue une scène qu'on oriente d'une scène dont on
+   interroge les objets : il ne change que lorsqu'un bâtiment est réellement sous le pointeur. */
+canvas.is-pickable {
+  cursor: pointer;
+}
+
+/* Deux lignes veut dire deux lignes : le titre doit tenir sur la sienne, sinon l'en-tête en
+   occupe trois et empiète sur la scène. */
+.brand {
+  position: fixed;
+  top: 26px;
+  left: 32px;
+  max-width: min(680px, calc(100vw - 430px));
+  padding: 15px 20px 17px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(250, 252, 251, 0.72),
+    rgba(240, 245, 242, 0.56)
+  );
+  box-shadow:
+    0 10px 28px rgba(27, 36, 48, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.56);
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  backdrop-filter: blur(8px) saturate(1.05);
+}
+
+.brand__eyebrow {
+  color: #356047;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.brand h1 {
+  margin: 5px 0 0;
+  color: #17231d;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.7rem, 2.9vw, 3.4rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.panel {
+  position: fixed;
+  z-index: 3;
+  top: 24px;
+  right: 24px;
+  width: 340px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 22px;
+  border: 1px solid rgba(27, 36, 48, 0.14);
+  border-radius: 20px;
+  background: rgba(250, 251, 252, 0.88);
+  box-shadow: 0 24px 80px rgba(27, 36, 48, 0.18);
+  backdrop-filter: blur(18px);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.panel--hidden {
+  transform: translateX(calc(100% + 32px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Pendant un chargement, la scène en place n'est plus celle que décrivent les contrôles :
+   les laisser actifs invitait à régler ce qui allait être remplacé. */
+.panel--busy .controls,
+.panel--busy .expert,
+.panel--busy .panel__actions {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Pastille tant que le panneau est là — l'icône suffit, le panneau est sous les yeux — et
+   pilule libellée dès qu'il est replié, où plus rien ne dit ce qu'on rouvre. */
+.panel-toggle {
+  position: fixed;
+  z-index: 4;
+  top: 26px;
+  right: 380px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid rgba(27, 36, 48, 0.16);
+  border-radius: 19px;
+  background: rgba(250, 251, 252, 0.86);
+  box-shadow: 0 8px 22px rgba(27, 36, 48, 0.14);
+  color: #21402f;
+  font: inherit;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition:
+    right 180ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.panel-toggle:not(.panel-toggle--collapsed) {
+  width: 38px;
+  padding: 0;
+  justify-content: center;
+}
+
+.panel-toggle:hover {
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(27, 36, 48, 0.2);
+}
+
+.panel-toggle:focus-visible {
+  outline: 2px solid #356f50;
+  outline-offset: 2px;
+}
+
+.panel-toggle__icon {
+  width: 18px;
+  height: 18px;
+  transition: transform 180ms ease;
+}
+
+.panel-toggle__label {
+  display: none;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.panel-toggle--collapsed {
+  right: 24px;
+}
+
+.panel-toggle--collapsed .panel-toggle__label {
+  display: inline;
+}
+
+/* Le panneau vient de la droite : la flèche désigne le sens dans lequel il va se déplacer. */
+.panel-toggle--collapsed .panel-toggle__icon {
+  transform: rotate(180deg);
+}
+
+/* Le libellé est au-dessus et non à côté : depuis que les scènes portent le nom de leur
+   commune, « Notre-Dame-de-la-Rouvière — 200 × 200 m » ne tient plus dans la moitié de
+   panneau que laissait la disposition en deux colonnes, et c'est la taille — la seule chose
+   qui distingue deux emprises du même lieu — qui disparaissait à la troncature. */
+.scene-control {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 8px;
+}
+
+.scene-control[hidden] {
+  display: none;
+}
+
+.scene-control label {
+  color: rgba(27, 36, 48, 0.62);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.scene-control select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--row);
+  padding: 8px 34px 8px 11px;
+  border: 1px solid rgba(63, 157, 104, 0.4);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #21402f;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.scene-control select:focus-visible {
+  outline: 2px solid #356f50;
+  outline-offset: 2px;
+}
+
+.scene-control select:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.panel__status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 2px;
+  color: #33604a;
+  font-size: 0.78rem;
+}
+
+.panel__status #status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pulse {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3f9d68;
+  box-shadow: 0 0 0 5px rgba(63, 157, 104, 0.16);
+}
+
+/* La couleur porte l'état : une pastille verte permanente ne signalait rien, surtout pas
+   l'erreur qu'on cherchait précisément à cet endroit du panneau. */
+.panel__status[data-state="loading"] {
+  color: #7a4a1e;
+}
+
+.panel__status[data-state="loading"] .pulse {
+  background: #c58a2c;
+  box-shadow: 0 0 0 5px rgba(197, 138, 44, 0.18);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.panel__status[data-state="error"] {
+  color: #8e372a;
+}
+
+.panel__status[data-state="error"] .pulse {
+  background: #c0503c;
+  box-shadow: 0 0 0 5px rgba(192, 80, 60, 0.2);
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.load-progress {
+  width: 100%;
+  height: 4px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 4px;
+  accent-color: #3f9d68;
+}
+
+.load-progress[hidden] {
+  display: none;
+}
+
+.metrics {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 10px;
+  padding: 9px 2px 13px;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(27, 36, 48, 0.11);
+  color: rgba(27, 36, 48, 0.68);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.metrics strong {
+  color: #1b2430;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.metrics__separator {
+  color: rgba(27, 36, 48, 0.34);
+}
+
+/* Toutes les sections du panneau partagent une seule trame : un filet en tête, la même hauteur
+   de titre, le même retrait, et le même chevron aligné à droite — quel que soit le niveau. */
+.controls,
+.expert {
+  padding: 0;
+  border-top: 1px solid rgba(27, 36, 48, 0.11);
+}
+
+.controls__title,
+.accordion > summary,
+.expert > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: var(--section-head, 40px);
+  margin: 0;
+  padding: 0 2px;
+  color: rgba(27, 36, 48, 0.58);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  list-style: none;
+  text-transform: uppercase;
+}
+
+.accordion > summary,
+.expert > summary {
+  cursor: pointer;
+}
+
+.accordion > summary::-webkit-details-marker,
+.expert > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Un seul signe pour une seule action. Le « + » devenu « × » à l'ouverture se lisait comme une
+   fermeture, et le bloc avancé en portait un troisième : trois symboles pour plier et déplier. */
+.accordion > summary::after,
+.expert > summary::after {
+  color: #356f50;
+  content: "›";
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  transition: transform 160ms ease;
+}
+
+.accordion[open] > summary::after,
+.expert[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.accordion[open],
+.expert[open] {
+  padding-bottom: 12px;
+}
+
+.accordion > summary:focus-visible,
+.expert > summary:focus-visible {
+  border-radius: 5px;
+  outline: 2px solid rgba(53, 111, 80, 0.55);
+  outline-offset: 2px;
+}
+
+/* Trois points de vue, trois boutons carrés : le titre et les commandes tiennent sur la même
+   ligne, à la hauteur exacte des autres titres de section. */
+.controls--inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--section-head, 40px);
+}
+
+.controls--inline .controls__title {
+  min-height: 0;
+}
+
+.controls--views {
+  min-height: 42px;
+  padding-bottom: 8px;
+  border-top: 0;
+}
+
+.pov-row {
+  display: flex;
+  gap: 6px;
+}
+
+.pov {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(63, 157, 104, 0.4);
+  border-radius: 9px;
+  background: rgba(63, 157, 104, 0.1);
+  color: #21402f;
+  font: inherit;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.pov:hover {
+  background: rgba(63, 157, 104, 0.22);
+}
+
+.pov[aria-pressed="true"] {
+  border-color: #356f50;
+  background: #356f50;
+  box-shadow: 0 3px 10px rgba(53, 111, 80, 0.24);
+  color: #fff;
+}
+
+.pov:focus-visible {
+  outline: 2px solid #356f50;
+  outline-offset: 2px;
+}
+
+.pov svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Niveau 2. Seule la couleur du titre le distingue d'une section ordinaire : le chevron, la
+   hauteur et le retrait sont les mêmes, et le filet vertical suffit à rattacher ce qu'il ouvre. */
+.expert > summary {
+  color: #33604a;
+}
+
+.expert__body {
+  padding-left: 11px;
+  border-left: 2px solid rgba(63, 157, 104, 0.22);
+}
+
+.expert__body > .accordion:first-child {
+  border-top: 0;
+}
+
+.switch-row,
+.range-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--row);
+  font-size: 0.84rem;
+}
+
+input[type="checkbox"] {
+  width: 34px;
+  height: 19px;
+  accent-color: #3f9d68;
+  cursor: pointer;
+}
+
+input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.switch-row:has(input:disabled) {
+  color: rgba(27, 36, 48, 0.45);
+}
+
+/* Le sélecteur d'emprise commande le chargement : il occupe toute la largeur et reste
+   affiché en écran étroit, contrairement aux réglages fins. */
+.select-row {
+  display: grid;
+  gap: 6px;
+  padding: 4px 0 2px;
+  font-size: 0.86rem;
+}
+
+.select-row select,
+.select-row input {
+  width: 100%;
+  min-height: var(--row);
+  padding: 8px 10px;
+  border: 1px solid rgba(27, 36, 48, 0.2);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.9);
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.select-row select {
+  cursor: pointer;
+}
+
+.select-row select:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.source {
+  margin: 8px 0 0;
+  color: rgba(27, 36, 48, 0.5);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.range-row {
+  margin-top: 7px;
+}
+
+.range-row output {
+  color: #33604a;
+  font-size: 0.75rem;
+}
+
+.range-row input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: #3f9d68;
+}
+
+/* Une classe et non le sélecteur d'élément : la règle globale obligeait chaque nouveau
+   bouton — icône, pastille de légende — à commencer par l'annuler. */
+/* Un seul gabarit de bouton : même hauteur qu'une ligne de réglage, même rayon que les boutons
+   de point de vue. Seul le fond distingue l'action colorée de l'action neutre. */
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--row);
+  margin-top: 10px;
+  padding: 8px 14px;
+  border: 1px solid rgba(63, 157, 104, 0.4);
+  border-radius: 9px;
+  background: rgba(63, 157, 104, 0.1);
+  color: #21402f;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.button:hover {
+  background: rgba(63, 157, 104, 0.2);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.button--quiet {
+  border-color: rgba(27, 36, 48, 0.2);
+  background: rgba(255, 255, 255, 0.55);
+  color: #1b2430;
+}
+
+.button--quiet:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.panel__actions {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(27, 36, 48, 0.11);
+}
+
+.panel__actions .button {
+  margin-top: 0;
+}
+
+.comparison-controls {
+  margin-bottom: 9px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(27, 36, 48, 0.1);
+}
+
+.control-label {
+  margin: 0 2px 6px;
+  color: rgba(27, 36, 48, 0.72);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.render-modes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin: 2px 0 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(27, 36, 48, 0.07);
+}
+
+/* Quatre représentations, sur deux rangs : « Nuage source » et « Superposé » ne tiennent pas
+   dans un quart de panneau, et les tronquer rendrait le choix illisible. */
+.comparison-modes {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.render-modes label {
+  position: relative;
+  cursor: pointer;
+}
+
+.render-modes input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.render-modes span {
+  display: grid;
+  min-height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  color: rgba(27, 36, 48, 0.66);
+  font-size: 0.72rem;
+  font-weight: 650;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.render-modes input:checked + span {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(27, 36, 48, 0.12);
+  color: #295c41;
+}
+
+.render-modes input:focus-visible + span {
+  outline: 2px solid #356f50;
+  outline-offset: 1px;
+}
+
+.render-modes input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+/* Reprendre une bascule de texture à la main fait diverger l'état réel du préréglage
+   affiché : la pastille s'estompe plutôt que de mentir sur le mode en cours. */
+.render-modes[data-custom="true"] input:checked + span {
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+  color: rgba(27, 36, 48, 0.55);
+  font-style: italic;
+}
+
+.mode-description {
+  margin: 8px 2px 0;
+  min-height: 2.5em;
+  color: rgba(27, 36, 48, 0.54);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.source-point-controls {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.source-point-controls[hidden] {
+  display: none;
+}
+
+.source-point-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 8px;
+  margin: 7px 2px 0;
+  font-size: 0.65rem;
+}
+
+.source-point-legend[hidden] {
+  display: none;
+}
+
+.source-point-legend label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.source-point-legend input {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: currentColor;
+}
+
+/* Une classe masquée reste lisible dans la légende : c'est elle qui dit ce qu'on ne voit
+   plus, et l'effacer complètement rendrait le filtre difficile à défaire. */
+.source-point-legend label:has(input:not(:checked)) {
+  opacity: 0.45;
+}
+
+.source-point-legend .dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.source-point-legend .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quality-legend {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.quality-legend[hidden] {
+  display: none;
+}
+
+.quality-legend button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: rgba(27, 36, 48, 0.05);
+  color: inherit;
+  font: inherit;
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quality-legend button:hover {
+  background: rgba(27, 36, 48, 0.09);
+}
+
+.quality-legend button[aria-pressed="true"] {
+  border-color: rgba(53, 111, 80, 0.45);
+  background: rgba(63, 157, 104, 0.12);
+  font-weight: 650;
+}
+
+.quality-legend .dot {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.quality-legend .count {
+  margin-left: auto;
+  color: rgba(27, 36, 48, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+
+/* La légende de qualité tient en trois entrées ; une légende géologique en compte
+   couramment vingt ou trente, qui pousseraient le reste du panneau hors de l'écran. */
+.geology-legend {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.geology-legend button .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.geology-legend .count {
+  flex: 0 0 auto;
+  padding-left: 6px;
+}
+
+.building-card {
+  position: fixed;
+  z-index: 2;
+  bottom: 24px;
+  left: 32px;
+  width: min(390px, calc(100vw - 430px));
+  padding: 18px;
+  border: 1px solid rgba(27, 36, 48, 0.14);
+  border-radius: 18px;
+  background: rgba(250, 251, 252, 0.94);
+  box-shadow: 0 18px 55px rgba(27, 36, 48, 0.2);
+  backdrop-filter: blur(18px);
+}
+
+.building-card[hidden] {
+  display: none;
+}
+
+.camera-pose-toast {
+  position: fixed;
+  z-index: 5;
+  top: 24px;
+  left: 50%;
+  max-width: min(620px, calc(100vw - 40px));
+  padding: 11px 16px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(24, 42, 32, 0.92);
+  box-shadow: 0 12px 34px rgba(24, 42, 32, 0.24);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-align: center;
+  pointer-events: none;
+}
+
+.camera-pose-toast[hidden] {
+  display: none;
+}
+
+.card-heading,
+.dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.card-eyebrow {
+  color: #3f6350;
+  font-size: 0.63rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.card-heading h2,
+.dialog-heading h2 {
+  margin: 5px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+
+.icon-button {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  margin: -4px -4px 0 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(27, 36, 48, 0.58);
+  font: inherit;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: rgba(27, 36, 48, 0.07);
+}
+
+.building-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.building-metrics div {
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(27, 36, 48, 0.055);
+}
+
+.building-metrics dt {
+  margin-bottom: 5px;
+  color: rgba(27, 36, 48, 0.52);
+  font-size: 0.63rem;
+}
+
+.building-metrics dd {
+  margin: 0;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.quality-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #356f50;
+  font-weight: 700;
+}
+
+.quality-badge::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.quality-badge[data-level="medium"] {
+  color: #9a651f;
+}
+
+.quality-badge[data-level="low"] {
+  color: #a64535;
+}
+
+.quality-detail {
+  margin: 11px 2px 0;
+  color: rgba(27, 36, 48, 0.55);
+  font-size: 0.67rem;
+  line-height: 1.4;
+}
+
+.data-dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 32px));
+  overflow-y: auto;
+  padding: 0;
+  border: 1px solid rgba(27, 36, 48, 0.15);
+  border-radius: 20px;
+  background: #fafbfc;
+  color: #1b2430;
+  box-shadow: 0 28px 90px rgba(27, 36, 48, 0.3);
+}
+
+.data-dialog::backdrop {
+  background: rgba(23, 32, 40, 0.44);
+  backdrop-filter: blur(4px);
+}
+
+.data-dialog form {
+  padding: 24px;
+}
+
+.data-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.data-section {
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(27, 36, 48, 0.055);
+}
+
+.data-section--wide {
+  grid-column: 1 / -1;
+}
+
+.data-section h3 {
+  margin: 0 0 8px;
+  color: #356f50;
+  font-size: 0.67rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.data-section p,
+.data-section ul {
+  margin: 0;
+  color: rgba(27, 36, 48, 0.72);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.data-section ul {
+  padding-left: 18px;
+}
+
+.data-section li + li {
+  margin-top: 4px;
+}
+
+kbd {
+  padding: 1px 5px;
+  border: 1px solid rgba(27, 36, 48, 0.2);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.dialog-close {
+  margin-top: 18px;
+}
+
+.notice {
+  margin: 8px 0 0;
+  color: #7a4a1e;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.notice:empty {
+  display: none;
+}
+
+/* Repères de lecture de la scène. Le décalage suit la largeur du panneau en écran large et
+   sa hauteur en écran étroit : ils ne passent jamais dessous. */
+.viewport-marks {
+  position: fixed;
+  right: calc(var(--panel-width) + 40px);
+  bottom: 28px;
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  pointer-events: none;
+  transition:
+    right 180ms ease,
+    bottom 180ms ease;
+}
+
+.scale-bar {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  color: #1b2430;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 10px rgba(255, 255, 255, 0.85);
+}
+
+.scale-bar i {
+  width: var(--scale-width, 80px);
+  height: 7px;
+  border: 2px solid #1b2430;
+  border-top: 0;
+  transition: width 120ms ease;
+}
+
+/* Hauteur laissée au contenu : les 58 px fixes réservaient un vide sous la flèche, et la
+   boussole flottait au-dessus de la barre d'échelle au lieu de partager sa ligne de base. */
+.north {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  color: #1b2430;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-shadow: 0 1px 10px rgba(255, 255, 255, 0.85);
+  will-change: transform;
+}
+
+.north i {
+  width: 0;
+  height: 0;
+  margin-top: 3px;
+  border-right: 6px solid transparent;
+  border-bottom: 23px solid #d86d50;
+  border-left: 6px solid transparent;
+}
+
+.error {
+  position: fixed;
+  z-index: 5;
+  bottom: 24px;
+  left: 50%;
+  max-width: min(620px, calc(100vw - 40px));
+  padding: 14px 18px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 147, 117, 0.45);
+  border-radius: 12px;
+  background: rgba(74, 24, 18, 0.94);
+  color: #ffd9cc;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 760px) {
+  .brand {
+    top: 20px;
+    left: 20px;
+    max-width: calc(100vw - 92px);
+    padding: 11px 14px 13px;
+    border-radius: 13px;
+  }
+
+  .brand__eyebrow {
+    font-size: 0.62rem;
+  }
+
+  .brand h1 {
+    font-size: clamp(1.35rem, 6.5vw, 1.8rem);
+    white-space: normal;
+  }
+
+  .panel {
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: auto;
+    max-height: min(58vh, 430px);
+    padding: 15px;
+  }
+
+  .panel--hidden {
+    transform: translateY(calc(100% + 20px));
+  }
+
+  .panel-toggle,
+  .panel-toggle--collapsed {
+    top: 18px;
+    right: 18px;
+  }
+
+  /* Le panneau glisse vers le bas : un chevron horizontal désignait une direction fausse. */
+  .panel-toggle__icon {
+    transform: rotate(90deg);
+  }
+
+  .panel-toggle--collapsed .panel-toggle__icon {
+    transform: rotate(-90deg);
+  }
+
+  .building-card {
+    top: 92px;
+    right: 12px;
+    bottom: auto;
+    left: 12px;
+    width: auto;
+  }
+
+  /* Les mesures restent lisibles sans recréer les trois cartouches de bureau. */
+  .metrics {
+    gap: 5px;
+    margin-bottom: 8px;
+    font-size: 0.7rem;
+  }
+
+  .metrics strong {
+    font-size: 0.72rem;
+  }
+
+  /* Le détail avancé devient un écran dédié : le résumé, toujours visible en tête, le referme. */
+  body:has(.expert[open]) .panel-toggle {
+    display: none;
+  }
+
+  .panel:has(.expert[open]) {
+    inset: 0;
+    width: 100%;
+    max-height: none;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: #f7f9f8;
+    box-shadow: none;
+  }
+
+  .panel:has(.expert[open]) > :not(.expert) {
+    display: none;
+  }
+
+  .panel:has(.expert[open]) .expert {
+    height: 100dvh;
+    padding: 0 18px 28px;
+    overflow-y: auto;
+    border-top: 0;
+  }
+
+  .panel:has(.expert[open]) .expert > summary {
+    position: sticky;
+    z-index: 2;
+    top: 0;
+    min-height: 58px;
+    padding: 0 2px;
+    background: #f7f9f8;
+    border-bottom: 1px solid rgba(27, 36, 48, 0.11);
+  }
+
+  .panel:has(.expert[open]) .expert__body {
+    padding: 8px 0 0;
+    border-left: 0;
+  }
+
+  .viewport-marks {
+    right: 18px;
+    bottom: calc(var(--panel-height) + 20px);
+    gap: 14px;
+  }
+
+  .data-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .data-section--wide {
+    grid-column: auto;
+  }
+}
+
+/* Page dalle : premier niveau produit, construit depuis les six sphères. */
+.sphere-controls {
+  display: grid;
+  border-top: 1px solid rgba(27, 36, 48, 0.14);
+}
+
+.sphere-section {
+  border-bottom: 1px solid rgba(27, 36, 48, 0.11);
+}
+
+.sphere-section > summary {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: var(--row);
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.sphere-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sphere-section > summary::after {
+  content: "›";
+  grid-column: 4;
+  color: rgba(27, 36, 48, 0.56);
+  transition: transform 160ms ease;
+}
+
+.sphere-section[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.sphere-section__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.sphere-section__label {
+  font-weight: 650;
+}
+
+.sphere-section__count {
+  color: rgba(27, 36, 48, 0.58);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.sphere-section__body {
+  display: grid;
+  gap: 1px;
+  padding: 0 0 10px 19px;
+}
+
+.sphere-data {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.43);
+}
+
+.sphere-data__key {
+  color: rgba(27, 36, 48, 0.68);
+  text-transform: capitalize;
+}
+
+.sphere-data__value {
+  max-width: 170px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.sphere-data__series {
+  grid-column: 1 / -1;
+  color: #356047;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.preview-banner {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  left: 50%;
+  padding: 7px 14px;
+  transform: translateX(-50%);
+  border-radius: 0 0 10px 10px;
+  background: #7b321c;
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4px 18px rgba(27, 36, 48, 0.2);
+}
+
+body:has(.preview-banner) .brand {
+  top: 58px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -238,6 +238,30 @@
             "string",
             "null"
           ]
+        },
+        "metadata": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_points": {
+          "type": ["object", "null"],
+          "required": ["glb", "metadata"],
+          "properties": {
+            "glb": { "type": "string", "minLength": 1 },
+            "metadata": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "orthophoto_calage": {
+          "type": ["object", "null"],
+          "required": ["est_m", "nord_m"],
+          "properties": {
+            "est_m": { "type": "number" },
+            "nord_m": { "type": "number" }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": true

@@ -788,3 +788,13 @@ fabriquées en mémoire.
   mentions dans « Informations sur les données », alimentées par `geology.json` ;
 - lecture des Shapefiles : `pyshp`, licence MIT, en Python pur — le POC reste sans pile SIG ;
 - visualisation : Three.js mis en cache localement lors de `python poc.py web`.
+
+## Statut du visualiseur publié
+
+La copie située dans `publication/` est gelée depuis ADR-010. Elle reste
+utilisée par la chaîne Python historique et par `/valleraugue-3d/`, mais ne
+reçoit plus les évolutions produit de la page dalle. L'implémentation de
+référence vit désormais dans `apps/gateway-service/public/dalle/` : elle est
+configurée par le manifeste embarqué, organisée par sphères et extensible par
+modules de domaine. Toute correction du moteur à conserver durablement doit
+être appliquée en priorité à cette copie de référence.

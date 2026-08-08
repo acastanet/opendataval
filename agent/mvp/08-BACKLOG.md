@@ -156,6 +156,32 @@ Le pipeline 3D de M1 se raccorde à une scène déjà produite manuellement par
 - [ ] Définir la stratégie de repli si le pipeline échoue ou dépasse un délai
       (dalle publiable sans scène 3D, ou publication bloquée — à trancher).
 
+## P9 — Visualiseur de dalle et modules par domaine
+
+Ce lot ne consomme pas la stop condition, qui interdit d'élargir les domaines
+de données : il n'ajoute aucune source et rend visible et extensible ce que
+P0→P7 produisent déjà.
+
+- [x] Reprendre le moteur Three.js du POC sous
+      `apps/gateway-service/public/dalle/` et le servir avec `@fastify/static`.
+- [x] Remplacer `scenes.json` par un adaptateur du manifeste embarqué, sans
+      ouvrir de route JSON publique (ADR-008 et ADR-010).
+- [x] Étendre `SceneDalle` aux métadonnées, au nuage LiDAR source et au calage
+      d'orthophotographie, en conservant ces champs optionnels.
+- [x] Ajouter les sept états fictifs sous `/api/v2/sites/apercu` pour ouvrir la
+      boucle de design, dont les cas sans scène, sans donnée et XSS.
+- [x] Réorganiser le premier niveau du panneau selon les six sphères, sans
+      masquer l'absence de donnée ; conserver l'instrument avancé du POC.
+- [x] Ajouter le registre `public/dalle/modules/`, le relevé générique de repli
+      et le premier module `geographie`.
+- [x] Couvrir les actifs statiques et la traversée de chemin, les aperçus, le
+      manifeste embarqué, le registre de modules et le contrat Ajv.
+
+Lacune connue d'ADR-007 : aucun service ne sert encore
+`/data/instances/<tileId>/assets/`. Le visualiseur M1 utilise donc toujours les
+actifs du POC montés sous `/valleraugue-3d/`. Cette lacune doit être traitée
+avec l'émission réelle par instance prévue en P8.
+
 ## Stop condition
 
 Une fois P7 validé, ne pas élargir immédiatement tous les domaines.

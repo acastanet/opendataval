@@ -35,6 +35,29 @@ test("fait l'aller-retour JSON sans perte sur un manifeste initial", () => {
   assert.deepEqual(relu, manifeste);
 });
 
+test("convertit les nouveaux champs de scène vers le contrat snake_case", () => {
+  const manifeste = construireManifesteInitial(TILE_ID, EMPRISE, "Maison");
+  manifeste.scene = {
+    glb: "/assets/scene.glb",
+    terrain: null,
+    orthophoto: "/assets/ortho.webp",
+    metadata: "/assets/scene.json",
+    sourcePoints: { glb: "/assets/source.glb", metadata: null },
+    orthophotoCalage: { estM: 0.4, nordM: -0.2 },
+  };
+
+  const json = versManifesteJson(manifeste);
+  assert.deepEqual(json.scene, {
+    glb: "/assets/scene.glb",
+    terrain: null,
+    orthophoto: "/assets/ortho.webp",
+    metadata: "/assets/scene.json",
+    source_points: { glb: "/assets/source.glb", metadata: null },
+    orthophoto_calage: { est_m: 0.4, nord_m: -0.2 },
+  });
+  assert.deepEqual(depuisManifesteJson(json), manifeste);
+});
+
 test("écrit puis relit atomiquement un manifeste sur disque", async () => {
   const racine = await mkdtemp(join(tmpdir(), "site-service-test-"));
   try {

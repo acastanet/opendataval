@@ -115,3 +115,15 @@ review_reason
 reviewed_at
 reviewed_by
 ```
+
+## Données et actifs de scène
+
+Une donnée thématique reste classée dans `data.<sphere>` et conserve sa
+provenance. Elle ne doit pas être déplacée dans `scene` pour les besoins du
+viewer : la géologie, par exemple, relève de `data.lithosphere` et peut être
+prise en charge par un module de domaine.
+
+Le bloc `scene` ne décrit que les actifs de représentation : GLB principal,
+terrain et orthophoto éventuels, métadonnées du pipeline, nuage LiDAR source et
+calage mesuré de l'orthophoto. Le détail des champs est défini dans
+[`02-TILE-CONTRACT.md`](02-TILE-CONTRACT.md) et dans le schéma JSON canonique.

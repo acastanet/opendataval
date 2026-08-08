@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#c8d2d8" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <!-- Titre de repli : le gateway l'adapte au manifeste embarqué. -->
+    <title>Maquette du village</title>
+    <link rel="stylesheet" href="./styles.css?v=20260802-calage-ortho" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.js",
+          "three/addons/": "./vendor/addons/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main id="viewport" aria-label="Scène 3D"></main>
+
+    <!-- Deux lignes : le surtitre porte la provenance, le titre la scène. Le détail des
+         couches est dans « Informations sur les données », pas dans l'en-tête. Les deux
+         textes viennent de la scène chargée : les figer ici afficherait le nom d'une commune
+         au-dessus d'une autre dès qu'on change d'entrée dans le sélecteur. -->
+    <header class="brand">
+      <span class="brand__eyebrow" id="sceneSubtitle">IGN LiDAR HD</span>
+      <h1 id="sceneTitle">Maquette du village</h1>
+    </header>
+
+    <button
+      id="panelToggle"
+      class="panel-toggle"
+      type="button"
+      aria-controls="controlPanel"
+      aria-expanded="true"
+      aria-label="Masquer les réglages"
+      title="Masquer les réglages"
+    >
+      <svg class="panel-toggle__icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M9 5l7 7-7 7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <!-- Replié, une icône seule ne dit pas ce qu'elle rouvre : le libellé n'apparaît que
+           dans cet état, là où l'affordance manque. -->
+      <span class="panel-toggle__label">Réglages</span>
+    </button>
+
+    <aside id="controlPanel" class="panel" aria-label="Contrôles de la scène">
+      <section class="controls controls--inline controls--views" aria-labelledby="viewsTitle">
+        <h2 id="viewsTitle" class="controls__title">Vues</h2>
+        <div class="pov-row">
+          <button
+            id="viewReset"
+            class="pov"
+            type="button"
+            aria-label="Vue générale"
+            aria-pressed="true"
+            title="Vue générale"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <!-- La scène est recentrée sur le milieu de son emprise : ce point de vue vise
+               toujours l'origine, seul son intitulé change d'un site à l'autre. -->
+          <button
+            id="viewCentre"
+            class="pov"
+            type="button"
+            aria-label="Point central"
+            aria-pressed="false"
+            title="Point central"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M3.5 11L12 4.5l8.5 6.5M6 10.2V19.5h12V10.2M10.4 19.5v-4.6h3.2v4.6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            id="viewRoof"
+            class="pov"
+            type="button"
+            aria-label="Vue des toitures"
+            aria-pressed="false"
+            title="Vue des toitures"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 3v6m-2.6-2.4L12 9.2l2.6-2.6M12 12.6l7 4.2-7 4.2-7-4.2z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <div class="panel__status" data-state="loading" role="status" aria-live="polite">
+        <span class="pulse" aria-hidden="true"></span>
+        <span id="status">Chargement de la scène…</span>
+      </div>
+      <!-- La progression se compte en octets du GLB : un compteur de fichiers sauterait à 17 %
+           dès la première texture alors que la scène pèse une vingtaine de mégaoctets. -->
+      <progress id="loadProgress" class="load-progress" max="1" value="0" hidden></progress>
+
+      <p class="metrics" aria-label="Mesures de la scène">
+        <span><strong id="buildingCount">—</strong> bâtiments</span>
+        <span class="metrics__separator" aria-hidden="true">·</span>
+        <strong id="extent">—</strong>
+        <span class="metrics__separator" aria-hidden="true">·</span>
+        <span>relief <strong id="elevationRange">—</strong></span>
+      </p>
+
+      <!-- Construit en DOM pur depuis les six sphères et le registre de modules. -->
+      <section id="sphereControls" class="sphere-controls" aria-label="Données par sphère"></section>
+
+      <!-- Niveau 1 : ce dont on se sert à chaque ouverture de la scène. Les couches sont
+           pliables — elles sont cinq et on ne les touche pas à chaque fois — mais les points de
+           vue tiennent sur une ligne et ne gagneraient rien à l'être. -->
+      <details id="layersControls" class="controls accordion" open>
+        <summary>Couches et représentation</summary>
+        <div id="comparisonControls" class="comparison-controls">
+          <p class="control-label">Représentation 3D</p>
+          <fieldset class="render-modes comparison-modes" aria-label="Représentation 3D">
+          <label>
+            <input type="radio" name="comparisonMode" value="bare" />
+            <span>Sol nu</span>
+          </label>
+          <label>
+            <input type="radio" name="comparisonMode" value="vegetation" checked />
+            <span>Végétation</span>
+          </label>
+          <label>
+            <input type="radio" name="comparisonMode" value="source" />
+            <span>Nuage source</span>
+          </label>
+          <!-- La seule représentation où les deux coexistent : c'est celle qui montre l'écart
+               entre ce que le LiDAR a mesuré et ce que la reconstruction en a fait. -->
+          <label>
+            <input type="radio" name="comparisonMode" value="overlay" />
+            <span>Superposé</span>
+          </label>
+          </fieldset>
+          <p id="comparisonModeDescription" class="mode-description">
+            Même terrain et même caméra, avec végétation LiDAR et orthophotographie.
+          </p>
+          <!-- Réglages propres au nuage LiDAR : ils n'ont de sens que dans sa représentation,
+               et l'encombrement du panneau se paie à chaque ouverture de la scène. -->
+          <div id="sourcePointControls" class="source-point-controls" hidden>
+            <label class="select-row">
+              <span>Couleur des points</span>
+              <select id="pointColorMode">
+                <option value="ortho" selected>Orthophotographie</option>
+                <option value="classification">Classification</option>
+                <option value="intensity">Intensité (réflectance)</option>
+                <option value="elevation">Altitude</option>
+              </select>
+            </label>
+            <!-- Ne concerne que la couleur d’orthophotographie : les autres modes ne peuvent
+                 pas sortir de leur palette. -->
+            <label class="switch-row">
+              <span>Feuillage forcé en vert</span>
+              <input id="foliageGreenToggle" type="checkbox" checked />
+            </label>
+            <label class="range-row">
+              <span>Taille des points</span>
+              <output id="pointSizeValue">×1,0</output>
+              <input id="pointSize" type="range" min="40" max="320" value="100" />
+            </label>
+            <p class="notice">
+              Les points sont dimensionnés en mètres, d’après l’espacement mesuré du nuage :
+              ils se referment en surface quand on approche au lieu de se trouer. Décocher une
+              classe la masque à l’écran sans rien retirer du fichier.
+            </p>
+            <p class="notice">
+              En couleur d’orthophotographie, un point de végétation prend la teinte de ce qui
+              se trouve à son aplomb dans l’image — une toiture, une route, un rocher : les
+              houppiers se constellent de points blancs et roses. La correction ramène la teinte
+              des seules classes végétales dans le domaine des verts, sans toucher à leur
+              luminosité, qui porte le relief. Décocher rend l’image brute, qui reste la mesure.
+            </p>
+          </div>
+          <div id="sourcePointLegend" class="source-point-legend" hidden></div>
+        </div>
+        <label class="switch-row">
+          <span>Terrain IGN</span>
+          <input id="terrainToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Bâtiments 3D</span>
+          <input id="buildingsToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Végétation</span>
+          <input id="vegetationToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Canopée dense</span>
+          <input id="canopyToggle" type="checkbox" checked />
+        </label>
+        <!-- Classes LiDAR 3 et 4 : la garrigue et le sous-bois, qui portent la continuité
+             verticale du combustible sous les houppiers. -->
+        <label class="switch-row">
+          <span>Strate arbustive</span>
+          <input id="understoryToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Eau</span>
+          <input id="waterToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Ponts</span>
+          <input id="bridgeToggle" type="checkbox" checked />
+        </label>
+        <!-- La géologie n'est pas un nœud du GLB mais une texture drapée sur le terrain :
+             elle a donc sa propre opacité, qui est aussi ce qui permet de la comparer à
+             l'orthophoto rendue dessous. -->
+        <label class="switch-row">
+          <span>Carte géologique BRGM</span>
+          <input id="geologyToggle" type="checkbox" />
+        </label>
+        <label class="range-row">
+          <span>Opacité de la géologie</span>
+          <output id="geologyOpacityValue">70 %</output>
+          <input id="geologyOpacity" type="range" min="10" max="100" value="70" />
+        </label>
+        <p id="geologyNotice" class="notice"></p>
+        <div id="geologyLegend" class="quality-legend geology-legend" hidden></div>
+      </details>
+
+      <!-- Niveau 2 : tout ce qui sert au contrôle fin, replié par défaut et mémorisé. Les
+           sections internes sont indépendantes — régler l'éclairage ne doit pas refermer les
+           textures qu'on vient d'ajuster. -->
+      <details id="expertControls" class="expert">
+        <summary>Réglages avancés</summary>
+        <div class="expert__body">
+          <details id="renderControls" class="controls accordion" open>
+            <summary>Mode de rendu</summary>
+            <fieldset class="render-modes" aria-label="Mode de rendu">
+              <label>
+                <input type="radio" name="renderMode" value="ortho" checked />
+                <span>Orthophoto</span>
+              </label>
+              <label>
+                <input type="radio" name="renderMode" value="model" />
+                <span>Modèle</span>
+              </label>
+              <label>
+                <input type="radio" name="renderMode" value="quality" />
+                <span>Qualité</span>
+              </label>
+            </fieldset>
+            <p id="renderModeDescription" class="mode-description">
+              Photographie aérienne IGN drapée sur le relief et les toitures.
+            </p>
+            <div id="qualityLegend" class="quality-legend" hidden></div>
+          </details>
+
+          <details class="controls accordion" id="searchControls" hidden>
+            <summary>Rechercher un bâtiment</summary>
+            <label class="select-row">
+              <span>Identifiant BD TOPO</span>
+              <input
+                id="buildingSearch"
+                type="search"
+                list="buildingIds"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="BATIMENT…"
+              />
+            </label>
+            <datalist id="buildingIds"></datalist>
+            <button id="searchDegraded" class="button" type="button">
+              Bâtiment à contrôler suivant
+            </button>
+            <p id="searchFeedback" class="notice"></p>
+          </details>
+
+          <details id="textureControls" class="controls accordion">
+            <summary>Textures</summary>
+            <label class="switch-row">
+              <span>Orthophoto du terrain</span>
+              <input id="terrainTextureToggle" type="checkbox" checked />
+            </label>
+            <label class="switch-row">
+              <span>Texture des toitures</span>
+              <input id="roofTextureToggle" type="checkbox" checked />
+            </label>
+            <label class="switch-row">
+              <span>Maillage des bâtiments</span>
+              <input id="wireframeToggle" type="checkbox" />
+            </label>
+            <label class="range-row">
+              <span>Opacité du terrain</span>
+              <output id="opacityValue">100 %</output>
+              <input id="terrainOpacity" type="range" min="15" max="100" value="100" />
+            </label>
+            <p class="notice">
+              L’orthophotographie n’est pas toujours calée sur les données bâties. Ces deux
+              réglages la déplacent sur le terrain, sur les toitures <em>et</em> sur le nuage
+              LiDAR à la fois, jusqu’à ce que les toits de la photo rejoignent les volumes.
+            </p>
+            <label class="range-row">
+              <span>Calage de la photo — est</span>
+              <output id="orthoEastValue">0,0 m</output>
+              <input id="orthoEast" type="range" min="-12" max="12" step="0.1" value="0" />
+            </label>
+            <label class="range-row">
+              <span>Calage de la photo — nord</span>
+              <output id="orthoNorthValue">0,0 m</output>
+              <input id="orthoNorth" type="range" min="-12" max="12" step="0.1" value="0" />
+            </label>
+            <button id="orthoOffsetCopy" class="button" type="button">
+              Copier le calage pour la configuration
+            </button>
+            <p id="orthoOffsetFeedback" class="notice"></p>
+          </details>
+
+          <details id="lightControls" class="controls accordion">
+            <summary>Éclairage</summary>
+            <label class="switch-row">
+              <span>Caler le soleil sur la mesure de l’orthophoto</span>
+              <input id="sunLockToMeasure" type="checkbox" checked />
+            </label>
+            <p id="sunMeasureSource" class="notice"></p>
+            <label class="range-row">
+              <span>Hauteur du soleil</span>
+              <output id="sunValue">35°</output>
+              <input id="sunHeight" type="range" min="10" max="75" step="0.1" value="35" />
+            </label>
+            <label class="range-row">
+              <span>Azimut du soleil</span>
+              <output id="azimuthValue">95°</output>
+              <input id="sunAzimuth" type="range" min="0" max="359" step="0.1" value="95" />
+            </label>
+            <button id="sunConfigCopy" class="button" type="button">
+              Copier le soleil pour la configuration
+            </button>
+            <p id="sunConfigFeedback" class="notice"></p>
+            <label class="range-row">
+              <span>Intensité du soleil</span>
+              <output id="sunIntensityValue">3,2</output>
+              <input
+                id="sunIntensity"
+                type="range"
+                min="0.5"
+                max="4"
+                step="0.1"
+                value="3.2"
+              />
+            </label>
+            <label class="range-row">
+              <span>Éclairage d’environnement</span>
+              <output id="environmentIntensityValue">0,08</output>
+              <input
+                id="environmentIntensity"
+                type="range"
+                min="0"
+                max="0.8"
+                step="0.01"
+                value="0.08"
+              />
+            </label>
+            <label class="range-row">
+              <span>Lumière hémisphérique</span>
+              <output id="hemisphereIntensityValue">0,20</output>
+              <input
+                id="hemisphereIntensity"
+                type="range"
+                min="0"
+                max="1.2"
+                step="0.01"
+                value="0.2"
+              />
+            </label>
+            <!-- La courbe décide de ce que deviennent les hautes lumières : toitures de zinc
+                 et versants au soleil. Elle se compare à l'écran, d'où le sélecteur. -->
+            <label class="select-row">
+              <span>Courbe de rendu</span>
+              <select id="toneMapping">
+                <option value="neutral" selected>Neutre (référence)</option>
+                <option value="agx">AgX</option>
+                <option value="aces">ACES Filmic</option>
+                <option value="none">Aucune</option>
+              </select>
+            </label>
+            <label class="range-row">
+              <span>Exposition</span>
+              <output id="displayExposureValue">×1,20</output>
+              <input
+                id="displayExposure"
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.05"
+                value="1.2"
+              />
+            </label>
+            <label class="range-row">
+              <span>Contraste d’affichage</span>
+              <output id="displayContrastValue">×1,12</output>
+              <input
+                id="displayContrast"
+                type="range"
+                min="0.8"
+                max="1.4"
+                step="0.01"
+                value="1.12"
+              />
+            </label>
+            <button id="contrastLighting" class="button" type="button">
+              Préréglage contrasté
+            </button>
+            <button id="grazingLight" class="button" type="button">Lumière rasante (12°)</button>
+            <label class="range-row">
+              <span>Exagération verticale</span>
+              <output id="verticalValue">×1,0</output>
+              <input id="verticalScale" type="range" min="100" max="250" value="100" />
+            </label>
+          </details>
+
+          <details class="controls accordion" id="crownControls">
+            <summary>Houppiers</summary>
+            <!-- Un proxy de douze sommets assume mieux ses facettes qu'il ne simule un volume :
+                 lissé, son intérieur se prétend rond alors que sa silhouette reste anguleuse. -->
+            <label class="select-row">
+              <span>Ombrage du feuillage</span>
+              <select id="foliageShading">
+                <option value="faceted" selected>Schématique (facettes)</option>
+                <option value="smooth">Lissé</option>
+              </select>
+            </label>
+            <label class="range-row">
+              <span>Largeur est-ouest</span>
+              <output id="crownXValue">×1,00</output>
+              <input id="crownX" type="range" min="20" max="150" value="100" />
+            </label>
+            <label class="range-row">
+              <span>Hauteur</span>
+              <output id="crownYValue">×1,00</output>
+              <input id="crownY" type="range" min="20" max="150" value="100" />
+            </label>
+            <label class="range-row">
+              <span>Largeur nord-sud</span>
+              <output id="crownZValue">×1,00</output>
+              <input id="crownZ" type="range" min="20" max="150" value="100" />
+            </label>
+            <button id="crownReset" class="button" type="button">Rétablir la mesure</button>
+          </details>
+          <button id="exportPng" class="button" type="button">Exporter la vue en PNG</button>
+        </div>
+      </details>
+
+      <div class="panel__actions">
+        <button id="dataInfoOpen" class="button button--quiet" type="button">
+          Informations sur les données
+        </button>
+        <button id="helpOpen" class="button button--quiet" type="button">
+          Navigation et raccourcis
+        </button>
+      </div>
+    </aside>
+
+    <section
+      id="buildingDetails"
+      class="building-card"
+      aria-live="polite"
+      aria-label="Bâtiment sélectionné"
+      hidden
+    >
+      <div class="card-heading">
+        <div>
+          <span class="card-eyebrow">Bâtiment sélectionné</span>
+          <h2 id="buildingId">—</h2>
+        </div>
+        <button id="buildingClose" class="icon-button" type="button" aria-label="Fermer">×</button>
+      </div>
+      <dl class="building-metrics">
+        <div>
+          <dt>Hauteur approx.</dt>
+          <dd id="buildingHeight">—</dd>
+        </div>
+        <div>
+          <dt>Surface d’emprise</dt>
+          <dd id="buildingArea">—</dd>
+        </div>
+        <div>
+          <dt>Altitude au sol</dt>
+          <dd id="buildingAltitude">—</dd>
+        </div>
+        <div>
+          <dt>Reconstruction</dt>
+          <dd><span id="buildingQuality" class="quality-badge">—</span></dd>
+        </div>
+      </dl>
+      <p id="buildingQualityDetail" class="quality-detail"></p>
+    </section>
+
+    <section
+      id="geologyDetails"
+      class="building-card geology-card"
+      aria-live="polite"
+      aria-label="Formation géologique sélectionnée"
+      hidden
+    >
+      <div class="card-heading">
+        <div>
+          <span class="card-eyebrow">Formation géologique</span>
+          <h2 id="geologyCode">—</h2>
+        </div>
+        <button id="geologyClose" class="icon-button" type="button" aria-label="Fermer">×</button>
+      </div>
+      <dl class="building-metrics">
+        <div>
+          <dt>Notice</dt>
+          <dd id="geologyLabel">—</dd>
+        </div>
+        <div>
+          <dt>Âge</dt>
+          <dd id="geologyAge">—</dd>
+        </div>
+        <div>
+          <dt>Lithologie</dt>
+          <dd id="geologyLithology">—</dd>
+        </div>
+      </dl>
+      <p class="quality-detail">
+        BRGM — BD Charm-50 harmonisée, échelle nominale 1:50 000. Ces limites ne conviennent
+        pas à une interprétation parcellaire.
+      </p>
+    </section>
+
+    <output
+      id="cameraPoseToast"
+      class="camera-pose-toast"
+      role="status"
+      aria-live="polite"
+      hidden
+    ></output>
+
+    <dialog id="dataInfoDialog" class="data-dialog" aria-labelledby="dataInfoTitle">
+      <form method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="card-eyebrow">Traçabilité</span>
+            <h2 id="dataInfoTitle">Informations sur les données</h2>
+          </div>
+          <button class="icon-button" value="close" aria-label="Fermer">×</button>
+        </div>
+        <div id="dataInfoContent"></div>
+        <button class="button dialog-close" value="close">Fermer</button>
+      </form>
+    </dialog>
+
+    <dialog id="helpDialog" class="data-dialog" aria-labelledby="helpTitle">
+      <form method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="card-eyebrow">Prise en main</span>
+            <h2 id="helpTitle">Navigation et raccourcis</h2>
+          </div>
+          <button class="icon-button" value="close" aria-label="Fermer">×</button>
+        </div>
+        <div class="data-sections">
+          <section class="data-section">
+            <h3>Souris</h3>
+            <ul>
+              <li>Glisser : faire tourner la scène.</li>
+              <li>Molette : approcher ou reculer.</li>
+              <li>Clic droit ou glisser à deux doigts : déplacer le point visé.</li>
+              <li>Clic sur un bâtiment : afficher ses mesures et sa qualité.</li>
+              <li>
+                Carte géologique active, clic sur le terrain : nommer la formation, son âge
+                et sa lithologie.
+              </li>
+            </ul>
+          </section>
+          <section class="data-section">
+            <h3>Écran tactile</h3>
+            <ul>
+              <li>Un doigt : faire tourner.</li>
+              <li>Deux doigts : zoomer et déplacer.</li>
+              <li>Toucher un bâtiment : l’identifier.</li>
+            </ul>
+          </section>
+          <section class="data-section">
+            <h3>Raccourcis clavier</h3>
+            <ul>
+              <li><kbd>1</kbd> terrain seul.</li>
+              <li><kbd>2</kbd> bâtiments seuls.</li>
+              <li><kbd>3</kbd> toutes les couches.</li>
+              <li><kbd>P</kbd> copier la pose caméra et l’afficher dans la console.</li>
+              <li><kbd>Maj</kbd> + <kbd>P</kbd> rejouer la pose caméra du presse-papiers.</li>
+              <li><kbd>Échap</kbd> désélectionner le bâtiment.</li>
+            </ul>
+          </section>
+          <section class="data-section">
+            <h3>Contrôler un défaut</h3>
+            <ul>
+              <li>« Lumière rasante » révèle les décrochements et les terrasses.</li>
+              <li>Alterner <kbd>1</kbd> et <kbd>2</kbd> isole un défaut de contact au sol.</li>
+              <li>Le mode « Qualité » colore les toitures signalées par Roofer.</li>
+            </ul>
+          </section>
+          <section class="data-section data-section--wide">
+            <h3>Repères permanents</h3>
+            <p>
+              La flèche rouge indique le nord et suit la caméra. La barre d’échelle donne l’ordre
+              de grandeur au centre de l’image ; en perspective, elle est indicative sur les
+              bords. Les réglages sont conservés d’une session à l’autre dans ce navigateur.
+            </p>
+          </section>
+        </div>
+        <button class="button dialog-close" value="close">Fermer</button>
+      </form>
+    </dialog>
+
+    <!-- Repères ancrés au bas de la fenêtre. Le panneau publie sa hauteur en variable CSS :
+         sans cela, la rose des vents le recouvrait dès que l'écran rétrécissait. -->
+    <div class="viewport-marks">
+      <div id="scaleBar" class="scale-bar" aria-label="Échelle">
+        <span id="scaleLabel">—</span>
+        <i></i>
+      </div>
+      <div class="north" aria-label="Nord">
+        <span>N</span>
+        <i></i>
+      </div>
+    </div>
+
+    <div id="error" class="error" hidden></div>
+
+    <script type="module" src="./app.js?v=20260802-calage-ortho"></script>
+  </body>
+</html>

@@ -99,3 +99,21 @@ par l'opérateur (`review.status = changes_requested`) fait revenir `status` à
 - centre contenu dans le polygone
 - manifeste toujours lié à un `tile_id`
 - une instance publiée doit avoir été approuvée
+
+## Actifs de scène
+
+Le bloc `scene` reste optionnel : une dalle sans GLB est un état nominal. Quand
+il existe, `glb`, `terrain` et `orthophoto` gardent leur contrat initial (URL
+publique ou `null`) et peut porter les champs optionnels suivants :
+
+```text
+metadata              URL des métadonnées de reconstruction ou null
+source_points.glb      URL du nuage LiDAR source
+source_points.metadata URL de ses métadonnées ou null
+orthophoto_calage.est_m
+orthophoto_calage.nord_m
+```
+
+Ces champs sont en snake_case dans `manifest.json` et en camelCase dans les
+types TypeScript internes. Leur absence doit rester valide pour relire les
+manifestes déjà produits.

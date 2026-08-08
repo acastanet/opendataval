@@ -249,3 +249,47 @@ Vérifié de bout en bout dans un `docker compose` réel : création, fabricatio
 soumission, approbation (avec `reviewedBy`/`notes` horodatés) et publication,
 toutes atteintes uniquement via `http://localhost:8080/api/v2/sites/*`, sans
 accès shell aux conteneurs.
+
+## ADR-010 — La page dalle reprend le visualiseur du POC comme actif du gateway
+
+Date: 2026-08-08
+Statut: accepted
+
+Contexte:
+
+La première page dalle de P5 était une page-document distincte du visualiseur
+Three.js déjà éprouvé dans `poc/valleraugue-mairie-3d/publication/`. Elle ne
+permettait ni de contrôler les couches, ni d'ouvrir des cartes contextuelles,
+ni de conserver les réglages, et son design dépendait de la chaîne CSS commune
+aux autres pages du gateway.
+
+Décision:
+
+Le visualiseur du POC est repris sous `apps/gateway-service/public/dalle/` et
+servi à `/api/v2/sites/viewer/*`. La page `GET /api/v2/sites/:tileId` lui fournit
+une unique scène en embarquant le manifeste dans un bloc JSON protégé contre
+la fermeture de balise `</script>` ; elle ne charge plus `scenes.json`. Les
+données sont présentées selon les six sphères et un registre de modules par
+domaine permet de raccorder progressivement les microservices.
+
+Conséquences:
+
+- Le gateway sert désormais des fichiers statiques et dépend de
+  `@fastify/static` (types MIME, cache et requêtes Range pour les GLB).
+- Le code du viewer est dupliqué. La copie du gateway devient la référence ;
+  celle du POC est gelée afin de ne pas refactorer sa publication Python dans
+  ce lot.
+- Deux chartes coexistent volontairement dans le gateway : la charte commune
+  de `layout.ts` pour l'accueil et les démos, et l'interface-instrument claire
+  de la page dalle pour le contrôle 3D.
+- ADR-008 reste intact : le manifeste est embarqué dans le HTML et aucune route
+  JSON publique de lecture n'est ouverte.
+- ADR-007 reste incomplètement mise en œuvre : aucun service ne sert encore les
+  futurs actifs `/data/instances/<tileId>/assets/`. Le raccord M1 continue
+  d'utiliser les actifs montés sous `/valleraugue-3d/`.
+
+Fichiers/contrats impactés :
+
+`apps/gateway-service/public/dalle/`, `apps/gateway-service/src/pages/site-instance.ts`,
+`apps/gateway-service/src/app.ts`, `packages/shared/src/dalle.ts`,
+`schemas/tile-manifest.schema.json`.

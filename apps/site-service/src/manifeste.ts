@@ -5,6 +5,7 @@ import {
   type DonneeDalle,
   type DonneesParSphere,
   type ManifesteDalle,
+  type SceneDalle,
   type Sphere,
 } from "@opendata-vda/shared/dalle";
 import type { EmpriseDalle } from "@opendata-vda/shared/dalle-geometrie";
@@ -126,6 +127,54 @@ function donneeDepuisJson(json: Record<string, unknown>): DonneeDalle {
   };
 }
 
+function sceneVersJson(scene: SceneDalle): Record<string, unknown> {
+  return {
+    glb: scene.glb,
+    terrain: scene.terrain,
+    orthophoto: scene.orthophoto,
+    ...(scene.metadata !== undefined ? { metadata: scene.metadata } : {}),
+    ...(scene.sourcePoints !== undefined
+      ? {
+          source_points: scene.sourcePoints
+            ? { glb: scene.sourcePoints.glb, metadata: scene.sourcePoints.metadata }
+            : null,
+        }
+      : {}),
+    ...(scene.orthophotoCalage !== undefined
+      ? {
+          orthophoto_calage: scene.orthophotoCalage
+            ? { est_m: scene.orthophotoCalage.estM, nord_m: scene.orthophotoCalage.nordM }
+            : null,
+        }
+      : {}),
+  };
+}
+
+function sceneDepuisJson(json: Record<string, unknown>): SceneDalle {
+  const sourcePoints = json.source_points as Record<string, unknown> | null | undefined;
+  const orthophotoCalage = json.orthophoto_calage as Record<string, unknown> | null | undefined;
+  return {
+    glb: (json.glb as string | null) ?? null,
+    terrain: (json.terrain as string | null) ?? null,
+    orthophoto: (json.orthophoto as string | null) ?? null,
+    ...(Object.hasOwn(json, "metadata") ? { metadata: (json.metadata as string | null) ?? null } : {}),
+    ...(Object.hasOwn(json, "source_points")
+      ? {
+          sourcePoints: sourcePoints
+            ? { glb: String(sourcePoints.glb), metadata: (sourcePoints.metadata as string | null) ?? null }
+            : null,
+        }
+      : {}),
+    ...(Object.hasOwn(json, "orthophoto_calage")
+      ? {
+          orthophotoCalage: orthophotoCalage
+            ? { estM: Number(orthophotoCalage.est_m), nordM: Number(orthophotoCalage.nord_m) }
+            : null,
+        }
+      : {}),
+  };
+}
+
 /**
  * Sérialise un manifeste vers la forme snake_case du fichier `manifest.json`, conforme à
  * `agent/mvp/schemas/tile-manifest.schema.json`. Les types TypeScript de `dalle.ts` restent
@@ -164,7 +213,7 @@ export function versManifesteJson(m: ManifesteDalle): Record<string, unknown> {
       ...(m.production.dataVersions ? { data_versions: m.production.dataVersions } : {}),
     },
     status: m.status,
-    ...(m.scene ? { scene: m.scene } : {}),
+    ...(m.scene ? { scene: sceneVersJson(m.scene) } : {}),
     data,
     ...(m.quality ? { quality: m.quality } : {}),
     ...(m.provenance ? { provenance: m.provenance } : {}),
@@ -194,7 +243,7 @@ export function depuisManifesteJson(json: Record<string, unknown>): ManifesteDal
 
   const dataVersions = production.data_versions as Record<string, string> | undefined;
   const geometryProjected = identity.geometry_projected as ManifesteDalle["identity"]["geometryProjected"];
-  const scene = json.scene as ManifesteDalle["scene"];
+  const sceneJson = json.scene as Record<string, unknown> | undefined;
   const quality = json.quality as Record<string, unknown> | undefined;
   const provenance = json.provenance as unknown[] | undefined;
 
@@ -217,7 +266,7 @@ export function depuisManifesteJson(json: Record<string, unknown>): ManifesteDal
       ...(dataVersions ? { dataVersions } : {}),
     },
     status: json.status as ManifesteDalle["status"],
-    ...(scene ? { scene } : {}),
+    ...(sceneJson ? { scene: sceneDepuisJson(sceneJson) } : {}),
     data,
     ...(quality ? { quality } : {}),
     ...(provenance ? { provenance } : {}),

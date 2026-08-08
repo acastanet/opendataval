@@ -9,6 +9,20 @@ test("rattache la scène configurée, terrain et orthophoto non renseignés sép
     glb: "/valleraugue-3d/assets/scenes/maison-200m/scene.glb",
     terrain: null,
     orthophoto: null,
+    metadata: "/valleraugue-3d/assets/scenes/maison-200m/scene.json",
+    sourcePoints: {
+      glb: "/valleraugue-3d/assets/scenes/maison-200m/source-points.glb",
+      metadata: "/valleraugue-3d/assets/scenes/maison-200m/source-points.json",
+    },
+  });
+});
+
+test("ne suppose pas d'actifs annexes pour une scène extérieure au POC", async () => {
+  const client = creerClientSceneProvisoire({ glbUrl: "https://example.test/scene.glb" });
+  assert.deepEqual(await client.rattacher(), {
+    glb: "https://example.test/scene.glb",
+    terrain: null,
+    orthophoto: null,
   });
 });
 
