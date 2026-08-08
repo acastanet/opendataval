@@ -26,7 +26,7 @@ const applicationsGrandPublic = [
   { id: "old", label: "OL", name: "OLD — Obligations légales de débroussaillement", description: "Zonage OLD et périmètre indicatif de débroussaillement depuis le bâtiment, le cadastre et le PLU.", href: "/old/", icon: "old", color: "#D96832" },
   { id: "itineraire-poids-lourd", label: "PL", name: "Itinéraire poids lourd", description: "Itinéraire camion selon le gabarit connu dans OpenStreetMap, portions à vérifier signalées.", href: "/itineraire-poids-lourd/", icon: "truck", color: "#D96832" },
   { id: "valfeu", label: "VF", name: "Application terrain (Valfeu)", description: "Application mobile de terrain : position, carte et suspicions satellitaires de feu à proximité.", href: "/valfeu", icon: "terrain", color: "#55B938", iconColor: "#43912B" },
-];
+].map((cell) => ({ ...cell, category: "app" as const }));
 
 const themes = SECTIONS.map((section) => ({
   id: `theme-${section.slug}`,
@@ -36,6 +36,7 @@ const themes = SECTIONS.map((section) => ({
   href: `/${section.slug}/`,
   icon: `theme-${section.slug}`,
   color: section.couleur,
+  category: "theme" as const,
 }));
 
 const technique = [
@@ -51,13 +52,69 @@ const technique = [
   { id: "demo-old", label: "OL", name: "Démo — OLD", description: "Applicabilité des obligations de débroussaillement et périmètre indicatif calculé.", href: "/api/v2/demo/old", icon: "old" },
   { id: "demo-itineraire-poids-lourd", label: "PL", name: "Démo — Itinéraire poids lourd", description: "Itinéraire camion compatible avec les restrictions OSM, portions non vérifiées affichées.", href: "/api/v2/demo/itineraire-poids-lourd", icon: "truck" },
   { id: "demo-legacy", label: "Lg", name: "Démo — Legacy", description: "Pont en lecture seule vers le monolithe historique /api/*, en GET et HEAD uniquement.", href: "/api/v2/demo/legacy", icon: "legacy" },
-].map((service) => ({ ...service, color: "#4f5d66" }));
+].map((service) => ({ ...service, color: "#4f5d66", category: "tech" as const }));
 
-const cells = [
-  ...applicationsGrandPublic.map((cell) => ({ ...cell, category: "app" as const })),
-  ...themes.map((cell) => ({ ...cell, category: "theme" as const })),
-  ...technique.map((cell) => ({ ...cell, category: "tech" as const })),
-];
+// Regroupement de la page d'accueil par grande sphère du territoire (cf. schéma
+// atmosphère / hydrosphère / biosphère / anthroposphère / risques / lithosphère).
+// Les services techniques (démos API, statut) restent hors sphères.
+const parId = new Map(
+  [...applicationsGrandPublic, ...themes, ...technique].map((cell) => [cell.id, cell]),
+);
+
+function cellsDe(ids: string[]) {
+  return ids.map((id) => {
+    const cell = parId.get(id);
+    if (!cell) throw new Error(`Cellule d'accueil inconnue : ${id}`);
+    return cell;
+  });
+}
+
+const spheres = [
+  {
+    id: "atmosphere",
+    titre: "Atmosphère",
+    couleur: "#168AAD",
+    ids: ["meteo", "meteo-essentiel", "meteo-bilan-thermique", "meteo-comparaison", "meteo-informations", "meteo-v2", "theme-meteo"],
+  },
+  {
+    id: "hydrosphere",
+    titre: "Hydrosphère",
+    couleur: "#0F7A99",
+    ids: ["eau", "eau-tableau-de-bord"],
+  },
+  {
+    id: "biosphere",
+    titre: "Biosphère",
+    couleur: "#7a8b5e",
+    ids: ["theme-environnement", "theme-tourisme"],
+  },
+  {
+    id: "anthroposphere",
+    titre: "Anthroposphère",
+    couleur: "#3e6e82",
+    ids: ["carte", "itineraire-poids-lourd", "theme-territoire", "theme-population", "theme-economie", "theme-finances", "theme-services", "theme-mobilite", "theme-democratie"],
+  },
+  {
+    id: "risques",
+    titre: "Risques",
+    couleur: "#b5533c",
+    ids: ["incendies", "incendies-temps-reel", "vigilance-feu", "old", "valfeu", "theme-risques"],
+  },
+  {
+    id: "lithosphere",
+    titre: "Lithosphère",
+    couleur: "#6b4226",
+    ids: ["relief", "valleraugue-3d", "theme-geographie"],
+  },
+  {
+    id: "outils",
+    titre: "Outils techniques & API",
+    couleur: "#4f5d66",
+    ids: [...technique.map((cell) => cell.id), "theme-sources"],
+  },
+] as const;
+
+const groupes = spheres.map((sphere) => ({ ...sphere, cells: cellsDe([...sphere.ids]) }));
 ---
 
 <Layout
@@ -69,15 +126,18 @@ const cells = [
       <p class="sur-titre">Val-d'Aigoual · portail des services</p>
       <h1>Un seul accès pour tout le territoire numérique.</h1>
       <p class="introduction">
-        Survolez une tuile : elle pivote et révèle ce qu'elle contient ainsi que ses actions. Cliquez pour ouvrir l'application. Chaque couleur distingue les applications de terrain, les thèmes de données et les services techniques.
+        Survolez une tuile : elle pivote et révèle ce qu'elle contient ainsi que ses actions. Cliquez pour ouvrir l'application. Applications et thèmes de données sont regroupés par grande sphère du territoire ; les outils techniques figurent à part, en bas de page.
       </p>
-      <ul class="legende" aria-hidden="true">
-        <li><span class="pastille" style="--c:#168AAD"></span>Applications</li>
-        <li><span class="pastille" style="--c:#3e6e82"></span>Thèmes &amp; données</li>
-        <li><span class="pastille" style="--c:#4f5d66"></span>Services techniques</li>
-      </ul>
     </header>
-    <LauncherGrid client:load cells={cells} />
+    {groupes.map((groupe) => (
+      <section class="sphere" aria-labelledby={`sphere-${groupe.id}`}>
+        <h2 id={`sphere-${groupe.id}`}>
+          <span class="pastille" style={`--c:${groupe.couleur}`} />
+          {groupe.titre}
+        </h2>
+        <LauncherGrid client:load cells={groupe.cells} />
+      </section>
+    ))}
   </main>
 </Layout>
 
@@ -119,29 +179,27 @@ const cells = [
     line-height: 1.6;
   }
 
-  .legende {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.4rem;
-    margin: 1.4rem 0 0;
-    padding: 0;
-    list-style: none;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--muted);
+  .sphere {
+    margin: 0 0 clamp(2.5rem, 6vw, 4rem);
   }
 
-  .legende li {
+  .sphere h2 {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
+    margin: 0 0 1.1rem;
+    font-family: var(--font-display);
+    font-size: clamp(1.15rem, 2vw, 1.5rem);
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   .pastille {
-    width: 0.65rem;
-    height: 0.65rem;
+    width: 0.7rem;
+    height: 0.7rem;
     border-radius: 2px;
     background: var(--c);
     display: inline-block;
+    flex-shrink: 0;
   }
 </style>
