@@ -1,10 +1,10 @@
 # Référentiel climat OpenDataVal
 
-Statut : **P0 + P1 + P2 + P3 + P4 réalisés ; méthodes en `draft` jusqu'à P5**.
+Statut : **P0 à P5 réalisés ; golden masters validés en CI ; méthodes en `draft` jusqu'à la migration native P6**.
 
 Ce répertoire est la documentation canonique du domaine climat d'OpenDataVal. Il décrit la production d'une **fiche climat d'un lieu** à partir de données traçables, de méthodes scientifiques versionnées, de contrats communs, de rendus reproductibles et de commentaires IA contrôlés.
 
-`poc/climat/` reste le corpus de référence pendant la migration. Les POC ne sont pas supprimés avant les golden masters et tests d'équivalence de P5.
+`poc/climat/` reste le corpus de référence pendant la migration. Les POC ne seront archivés qu'après reproduction de leurs golden masters par les nouveaux services P6.
 
 ## Les quatre analyses
 
@@ -39,24 +39,22 @@ Ni le renderer ni le modèle de langage ne recalculent silencieusement un indica
 ## Documentation canonique
 
 - [`01-ARCHITECTURE.md`](01-ARCHITECTURE.md) — composants et chaîne de production ;
-- [`02-DATA-SOURCES.md`](02-DATA-SOURCES.md) — sources, variables et décisions P1/P2 ;
-- [`03-COMMON-CONTRACT.md`](03-COMMON-CONTRACT.md) — contrats P4 et invariants inter-documents ;
+- [`02-DATA-SOURCES.md`](02-DATA-SOURCES.md) — sources et variables ;
+- [`03-COMMON-CONTRACT.md`](03-COMMON-CONTRACT.md) — contrats et invariants inter-documents ;
 - [`04-SCIENTIFIC-GOVERNANCE.md`](04-SCIENTIFIC-GOVERNANCE.md) — versionnement, preuve, qualité et autorité documentaire ;
-- [`06-AI-INTERPRETATION.md`](06-AI-INTERPRETATION.md) — règles communes du futur service IA ;
+- [`06-AI-INTERPRETATION.md`](06-AI-INTERPRETATION.md) — règles communes du service IA ;
 - [`sources/datasets.yaml`](sources/datasets.yaml) — registre machine des datasets ;
 - [`sources/bibliography.yaml`](sources/bibliography.yaml) — références scientifiques et techniques ;
 - [`signals/catalogue.yaml`](signals/catalogue.yaml) — registre sémantique des `ClimateSignal` ;
 - [`methods/README.md`](methods/README.md) — index des quatre méthodes.
 
-Les contrats exécutables sont dans :
+Les contrats exécutables et les golden masters sont dans :
 
 ```text
 packages/climate-contracts/
 ```
 
-avec cinq JSON Schema et cinq exemples contractuels.
-
-## Méthodes P2 + P3
+## Les quatre méthodes
 
 ```text
 methods/
@@ -76,8 +74,6 @@ interpretation.md
 CHANGELOG.md
 ```
 
-Toutes restent `draft` jusqu'aux golden masters et tests d'équivalence P5.
-
 ## Architecture cible
 
 `apps/copernicus` conserve la responsabilité d'acquisition, cache, provenance et contrôle des actifs Copernicus. Les quatre futurs services scientifiques consommeront un `ClimateSnapshot` partagé :
@@ -91,11 +87,11 @@ Toutes restent `draft` jusqu'aux golden masters et tests d'équivalence P5.
 
 Les méthodes référencent la famille scientifique et les variables. Le `ClimateSnapshot` conserve l'actif concret, son édition/version disponible, les paramètres de requête, la date de récupération et la représentativité.
 
-## Décisions majeures P2
+## Décisions scientifiques majeures
 
 ### Climate overview
 
-Le noyau V1 comprend température, précipitations et représentativité spatiale. Il n'applique aucun downscaling. Les compteurs de gel, jours ≥30 °C et nuits ≥20 °C du POC sont exclus du noyau canonique tant qu'ils reposent sur une approximation par température moyenne quotidienne.
+Le noyau V1 comprend température, précipitations et représentativité spatiale. Il n'applique aucun downscaling. Les compteurs de gel, jours ≥30 °C et nuits ≥20 °C du POC sont conservés dans le golden master pour traçabilité mais **n'émettent aucun `ClimateSignal`** tant qu'ils reposent sur une approximation par température moyenne quotidienne.
 
 ### Climate fingerprint
 
@@ -107,23 +103,9 @@ La méthode T25/T75 fixe les règles de complétude, le calendrier sans 29 févr
 
 ### Water through year
 
-La conversion des accumulations ERA5-Land mensuelles et la convention de signe de `total_evaporation` ont été vérifiées dans la documentation ECMWF. Le stock 0–100 cm est une grandeur dérivée du modèle et ne peut pas être appelé réserve utile, eau disponible pour les plantes ou observation de nappe.
+La conversion des accumulations ERA5-Land mensuelles et la convention de signe de `total_evaporation` sont documentées. Le stock 0–100 cm est une grandeur dérivée du modèle et ne peut pas être appelé réserve utile, eau disponible pour les plantes ou observation de nappe.
 
 ## P3 — interprétation IA
-
-P3 fixe le passage :
-
-```text
-ClimateResult
-      ↓
-ClimateSignal calculé
-      ↓
-formulation autorisée
-      ↓
-caveats obligatoires
-      ↓
-ClimateCommentary
-```
 
 Chaque constat important doit être traçable :
 
@@ -134,16 +116,16 @@ signal_id
  ↓
 ClimateSignal
  ↓
-evidence
+evidence.result_pointer
  ↓
 ClimateResult
 ```
 
-Les quatre méthodes actuelles n'émettent que des constats de niveau `descriptive`. Les niveaux `statistical_trend` et `causal_attribution` sont réservés à de futures méthodes qui les calculeront explicitement.
+Les quatre méthodes actuelles n'émettent que des constats de niveau `descriptive`. `statistical_trend` et `causal_attribution` sont réservés à de futures méthodes qui calculeront explicitement ces niveaux de preuve.
 
 ## P4 — contrats communs
 
-P4 formalise cinq contrats :
+P4 formalise :
 
 ```text
 ClimateSnapshot
@@ -153,29 +135,48 @@ ClimateCommentary
 ClimateSheet
 ```
 
-Les schémas sont dans :
+Schémas :
 
 ```text
 packages/climate-contracts/schemas/
 ```
 
-Les exemples sont dans :
+Les relations entre documents — JSON Pointer, existence réelle d'un signal, cohérence des snapshots, niveau de preuve — sont complétées par des tests applicatifs.
+
+## P5 — golden masters
+
+P5 fige les quatre sorties historiques qui serviront de cibles de migration :
+
+| Méthode | Blob Git source | Signaux P5 | Qualité du résultat adapté |
+|---|---|---:|---|
+| `climate-fingerprint@4.0.0` | `2d96777b…` | 6 | `valid` |
+| `thermal-seasons@1.0.0` | `b9f1dd34…` | 5 | `partial` — 29 années `ok` / 30 |
+| `water-through-year@1.0.0` | `4aca3589…` | 3 | `valid` — 420/420 mois |
+| `climate-overview@1.0.0` | `b4e3be64…` | 7 | `partial` — extrêmes legacy exclus |
+
+Index détaillé :
 
 ```text
-packages/climate-contracts/examples/
+packages/climate-contracts/tests/README.md
 ```
 
-Le contrat commun impose notamment :
+Le workflow :
 
-- méthode et version ;
-- snapshot et provenance ;
-- représentativité ;
-- qualité ;
-- signaux et preuves ;
-- caveats ;
-- rattachement de chaque finding IA à au moins un `signal_id`.
+```text
+.github/workflows/climate-contracts.yml
+```
 
-Les relations entre plusieurs documents — résolution des JSON Pointer, existence réelle d'un signal, cohérence des snapshot, interdiction d'escalade du niveau de preuve — seront contrôlées par un validateur applicatif en plus de JSON Schema.
+vérifie automatiquement :
+
+- identité du blob source ;
+- valeurs figées ;
+- conservation du payload POC dans `ClimateResult.data` ;
+- `ClimateSignal` attendus ;
+- `evidence.result_pointer` ;
+- invariants méthode / snapshot / provenance ;
+- conformité aux JSON Schema Draft 2020-12.
+
+P5 **ne recalcule pas la science** : il fixe la cible que les nouveaux services devront reproduire.
 
 ## Migration
 
@@ -184,9 +185,11 @@ POC
  ↓
 méthode canonique
  ↓
-golden master
+golden master P5
  ↓
-nouveau service
+nouveau service P6
+ ↓
+ClimateResult natif
  ↓
 test d'équivalence
  ↓
@@ -199,12 +202,21 @@ archivage du POC
 
 - **P0 — réalisé** : architecture et gouvernance ;
 - **P1 — réalisé** : sources et bibliographie ;
-- **P2 — réalisé** : quatre méthodes canoniques en statut `draft` ;
-- **P3 — réalisé** : règles d'interprétation et catalogue sémantique `ClimateSignal` ;
-- **P4 — réalisé** : contrats communs JSON Schema + exemples ;
-- **P5 — prochain** : golden masters, sous-schémas de résultats si nécessaire et tests d'équivalence ;
-- **P6+** : migration progressive des microservices, orchestrateur et commentaire IA.
+- **P2 — réalisé** : quatre méthodes canoniques ;
+- **P3 — réalisé** : règles d'interprétation et catalogue `ClimateSignal` ;
+- **P4 — réalisé** : contrats communs JSON Schema ;
+- **P5 — réalisé** : quatre golden masters + adaptateurs + CI ;
+- **P6 — prochain** : migration native des services scientifiques, un par un ;
+- **P7+** : orchestrateur `climate-sheet-service`, render kit commun et `climate-commentary-service`.
 
 ## Définition de `validated`
 
-Une méthode n'est `validated` que lorsque ses sources, variables, formules, périodes, qualité, représentativité, limites, règles d'interprétation et contrats sont explicites, et qu'un golden master démontre que le code produit le résultat attendu dans les tolérances définies.
+Une méthode ne passe en `validated` qu'après :
+
+1. documentation scientifique et technique complète ;
+2. règles d'interprétation explicites ;
+3. contrat commun valide ;
+4. golden master P5 ;
+5. reproduction native du golden master par le service P6 dans les tolérances définies.
+
+Jusqu'à P6, les méthodes restent donc `draft` même si leurs golden masters sont validés.

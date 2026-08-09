@@ -2,16 +2,18 @@
 
 Ce répertoire contient les méthodes scientifiques, techniques et interprétatives canoniques de la future fiche climat OpenDataVal.
 
-## Statut après P4
+## Statut après P5
 
-| Méthode | Version | Statut | POC source | Question |
+| Méthode | Version | Statut scientifique | Golden master P5 | Prochaine preuve |
 |---|---:|---|---|---|
-| `climate-overview` | 1.0.0 | `draft` | `poc/climat/general/` | À quoi ressemble normalement une année climatique dans cette zone ? |
-| `climate-fingerprint` | 4.0.0 | `draft` | `poc/climat/empreinte-climatique/` | Qu'est-ce qui a changé au cours des trente dernières années ? |
-| `thermal-seasons` | 1.0.0 | `draft` | `poc/climat/saisons/` | Comment les régimes thermiques de l'année se sont-ils déplacés ? |
-| `water-through-year` | 1.0.0 | `draft` | `poc/climat/bilan eau/` | Comment le cycle hydroclimatique se répartit-il et a-t-il évolué ? |
+| `climate-overview` | 1.0.0 | `draft` | CI `pass` | service natif P6 |
+| `climate-fingerprint` | 4.0.0 | `draft` | CI `pass` | service natif P6 |
+| `thermal-seasons` | 1.0.0 | `draft` | CI `pass` | service natif P6 |
+| `water-through-year` | 1.0.0 | `draft` | CI `pass` | service natif P6 |
 
-**P2, P3 et P4 sont terminés.** Les comportements méthodologiques sont documentés, leurs règles d'interprétation sont définies et les échanges communs sont formalisés par JSON Schema. Le statut reste `draft` jusqu'aux golden masters P5.
+P2 à P5 sont maintenant réalisés : méthodes extraites, interprétation bornée, contrats communs définis et sorties historiques figées par des golden masters exécutés en CI.
+
+Les méthodes restent volontairement `draft` : P5 fige **la cible de non-régression**, mais ce sera P6 qui devra démontrer qu'un nouveau microservice calcule nativement le même résultat dans les tolérances prévues.
 
 ## Structure d'une méthode
 
@@ -33,17 +35,15 @@ Rôle des fichiers :
 - `interpretation.md` — `ClimateSignal` autorisés, formulations permises/interdites, caveats et abstention ;
 - `CHANGELOG.md` — décisions de version.
 
-Le cadre commun de commentaire IA est dans `doc/climat/06-AI-INTERPRETATION.md` et le registre sémantique des signaux dans `doc/climat/signals/catalogue.yaml`.
+Le cadre commun de commentaire IA est dans `doc/climat/06-AI-INTERPRETATION.md`, le registre sémantique des signaux dans `doc/climat/signals/catalogue.yaml`, et les contrats communs dans `packages/climate-contracts/`.
 
-Les contrats techniques communs sont documentés dans `doc/climat/03-COMMON-CONTRACT.md` et publiés dans `packages/climate-contracts/`.
-
-## Décisions P2 principales
+## Décisions scientifiques majeures
 
 ### Climate overview
 
-- noyau : température, précipitations, climatologie mensuelle et représentativité spatiale ;
+- noyau canonique : température, précipitations, climatologie mensuelle et représentativité spatiale ;
 - aucun downscaling automatique ;
-- compteurs gel / ≥30 °C / nuits ≥20 °C exclus tant qu'ils utilisent une approximation par température moyenne ;
+- compteurs gel / ≥30 °C / nuits ≥20 °C du POC conservés dans le golden master pour traçabilité mais **sans `ClimateSignal`** ;
 - réintroduction uniquement à partir de vrais minima/maxima quotidiens.
 
 ### Climate fingerprint
@@ -51,13 +51,14 @@ Les contrats techniques communs sont documentés dans `doc/climat/03-COMMON-CONT
 - vent : ERA5-Land `u10/v10` ;
 - pluie intense : compte annuel de jours > P95 des jours humides, sans le nom R95p/R95pTOT ;
 - couleur robuste V4 : convention éditoriale OpenDataVal ;
-- résumé déterministe legacy destiné à être remplacé par `ClimateSignal` + commentaire IA.
+- six comparaisons structurées deviennent six `ClimateSignal` descriptifs.
 
 ### Thermal seasons
 
 - saisons thermiques locales T25/T75 ;
 - complétude, calendrier sans 29 février, lissage degré 3 et franchissements figés ;
-- comparaison entre décennies descriptive ;
+- golden master : 29 années `ok` sur 30 ;
+- cinq comparaisons décennales restent valides et produisent cinq signaux ;
 - saison de croissance secondaire et distincte.
 
 ### Water through year
@@ -65,13 +66,14 @@ Les contrats techniques communs sont documentés dans `doc/climat/03-COMMON-CONT
 - conversion des accumulations ERA5-Land mensuelles vérifiée ECMWF ;
 - signe de `total_evaporation` documenté ;
 - stock 0–100 cm = grandeur dérivée du modèle, jamais réserve utile ou mesure de nappe ;
-- sécheresse `SPEI-3 < -1` distincte de la métrique P10 de l'empreinte.
+- sécheresse `SPEI-3 < -1` distincte de la métrique P10 de l'empreinte ;
+- golden master : 420 mois valides sur 420 pour les quatre variables principales.
 
-## Règles P3 communes
+## Règle d'interprétation
 
 Le service IA ne calcule aucune valeur scientifique.
 
-Chaque constat doit être ancré ainsi :
+Chaque constat reste ancré ainsi :
 
 ```text
 finding
@@ -80,7 +82,7 @@ signal_id
   ↓
 ClimateSignal
   ↓
-evidence
+evidence.result_pointer
   ↓
 ClimateResult
   ↓
@@ -94,8 +96,6 @@ Aucune des quatre méthodes actuelles n'autorise par défaut :
 - précision à l'échelle de la parcelle ;
 - transformation d'une réanalyse en observation locale.
 
-Les signaux utilisent actuellement le niveau de preuve `descriptive`. Les niveaux `statistical_trend` et `causal_attribution` sont réservés à de futures méthodes dédiées.
-
 ## Contrats P4
 
 Les cinq contrats sont :
@@ -108,52 +108,57 @@ ClimateCommentary
 ClimateSheet
 ```
 
-Schémas :
-
-```text
-packages/climate-contracts/schemas/
-```
-
-Exemples :
-
-```text
-packages/climate-contracts/examples/
-```
+Schémas : `packages/climate-contracts/schemas/`.
 
 Le champ `ClimateResult.data` reste spécifique à chaque méthode, tandis que l'enveloppe commune impose provenance, méthode/version, représentativité, qualité, signaux et caveats.
 
-`ClimateSignal.evidence` fournit des JSON Pointer vers `ClimateResult`. Chaque `ClimateCommentary.findings[]` doit référencer au moins un signal.
+## Golden masters P5
 
-La validation applicative complètera JSON Schema pour vérifier les relations entre documents.
+Index :
+
+```text
+packages/climate-contracts/tests/README.md
+```
+
+Manifests :
+
+```text
+packages/climate-contracts/tests/golden-masters/
+├── climate-fingerprint/v4/manifest.json
+├── thermal-seasons/v1/manifest.json
+├── water-through-year/v1/manifest.json
+└── climate-overview/v1/manifest.json
+```
+
+Le workflow `.github/workflows/climate-contracts.yml` exécute les tests de non-régression et valide les contrats Draft 2020-12.
 
 ## Acquisition
 
-Les méthodes référencent la famille scientifique et les variables nécessaires. Elles ne figent pas l'interface CDS lorsqu'un actif équivalent peut être substitué.
+Les méthodes référencent la famille scientifique et les variables nécessaires. Elles ne figent pas une interface CDS lorsqu'un actif équivalent peut être substitué.
 
-L'interface ERA5-Land time-series reste la référence des POC/golden masters ; `apps/copernicus` devra choisir l'actif de production et P5 démontrer l'équivalence numérique.
+L'interface ERA5-Land time-series reste la référence historique de certains POC/golden masters. `apps/copernicus` pourra choisir un actif de production plus adapté, à condition que P6 démontre l'équivalence avec le golden master correspondant.
 
-## Étape suivante : P5
+## Étape suivante : P6
 
-P5 doit transformer les sorties actuelles des POC en références scientifiques de non-régression.
-
-Pour chaque méthode :
+La prochaine preuve est une **équivalence de calcul native** :
 
 ```text
-POC réel
- ↓
-golden master
- ↓
-adaptateur vers ClimateResult
- ↓
-validation JSON Schema
- ↓
-validation des ClimateSignal
- ↓
-test d'équivalence numérique
+golden master P5
+      ↓
+nouveau service scientifique
+      ↓
+ClimateResult natif
+      ↓
+comparaison scientifique et contractuelle
+      ↓
+PASS
 ```
 
-P5 pourra aussi introduire des sous-schémas propres à `ClimateResult.data` si les sorties réelles montrent qu'ils sont suffisamment stables.
+Ordre recommandé de migration :
 
-Puis :
+1. `climate-fingerprint@4.0.0` ;
+2. `thermal-seasons@1.0.0` ;
+3. `water-through-year@1.0.0` ;
+4. `climate-overview@1.0.0`.
 
-- **P6+** — migration progressive des microservices.
+Le climat général reste dernier afin de ne pas réintroduire par inadvertance les anciens indicateurs d'extrêmes approximatifs.

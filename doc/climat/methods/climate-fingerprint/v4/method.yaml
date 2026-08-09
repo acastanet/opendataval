@@ -220,6 +220,12 @@ contracts:
   signal_schema: packages/climate-contracts/schemas/climate-signal.schema.json
   snapshot_schema: packages/climate-contracts/schemas/climate-snapshot.schema.json
 
+p5:
+  status: golden_master_passed
+  manifest: packages/climate-contracts/tests/golden-masters/climate-fingerprint/v4/manifest.json
+  ci_workflow: .github/workflows/climate-contracts.yml
+  note: "Six comparaisons structurées figées ; le résumé éditorial legacy n'est pas une preuve scientifique."
+
 provenance_requirements:
   - requested_point
   - represented_grid_points
@@ -261,4 +267,4 @@ p2_decisions:
     decision: opendataval_editorial_v4
 
 validation_blockers:
-  - golden_master_equivalence_pending_p5
+  - native_service_equivalence_pending_p6

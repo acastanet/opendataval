@@ -150,6 +150,12 @@ contracts:
   signal_schema: packages/climate-contracts/schemas/climate-signal.schema.json
   snapshot_schema: packages/climate-contracts/schemas/climate-snapshot.schema.json
 
+p5:
+  status: golden_master_passed
+  manifest: packages/climate-contracts/tests/golden-masters/thermal-seasons/v1/manifest.json
+  ci_workflow: .github/workflows/climate-contracts.yml
+  note: "29 années ok sur 30 ; les cinq comparaisons figées restent des signaux valides."
+
 references:
   - wmo-climatological-normals
   - copernicus-era5-land-timeseries
@@ -165,4 +171,4 @@ project_sources:
   - poc/climat/saisons/thermal_seasons/schema.py
 
 validation_blockers:
-  - golden_master_equivalence_pending_p5
+  - native_service_equivalence_pending_p6

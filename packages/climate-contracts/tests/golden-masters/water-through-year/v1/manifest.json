@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "method": {
+    "id": "water-through-year",
+    "version": "1.0.0"
+  },
+  "source": {
+    "repository_path": "poc/climat/bilan eau/output/water-through-year.json",
+    "source_commit": "d9acd21876d34ae7ea005ac9b95fe34b9827e1e5",
+    "source_blob_sha": "4aca3589dc3e5e133e37ec710d3b9ac793a15b56",
+    "source_kind": "tracked_poc_output"
+  },
+  "golden_master": {
+    "copy_mode": "pinned_repository_output",
+    "numeric_tolerance": 0.0
+  },
+  "location": {
+    "tile_id": "GPD-44.064623-3.682973",
+    "grid_lat": 44.1,
+    "grid_lon": 3.7
+  },
+  "periods": {
+    "reference": [1991, 2020],
+    "study": [1996, 2025],
+    "early": [1996, 2005],
+    "middle": [2006, 2015],
+    "late": [2016, 2025]
+  },
+  "expected": {
+    "comparison": {
+      "annual_precip_change_pct": -9.19,
+      "summer_soil_water_change_mm": -11.78,
+      "dry_months_change": -1.0
+    },
+    "valid_months": {
+      "precipitation_mm": 420,
+      "soil_water_0_100_mm": 420,
+      "actual_evapotranspiration_mm": 420,
+      "spei3": 420
+    },
+    "expected_months": 420,
+    "signal_count": 3
+  },
+  "p5_policy": {
+    "legacy_payload_preserved_verbatim_inside_climate_result_data": true,
+    "no_recalculation_of_hydroclimatic_metrics": true,
+    "signals_are_generated_only_from_structured_comparison_fields": true,
+    "claim_level": "descriptive"
+  }
+}
