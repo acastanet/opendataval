@@ -214,6 +214,12 @@ interpretation:
   signal_registry: doc/climat/signals/catalogue.yaml
   claim_level: descriptive
 
+contracts:
+  status: defined_p4
+  result_schema: packages/climate-contracts/schemas/climate-result.schema.json
+  signal_schema: packages/climate-contracts/schemas/climate-signal.schema.json
+  snapshot_schema: packages/climate-contracts/schemas/climate-snapshot.schema.json
+
 provenance_requirements:
   - requested_point
   - represented_grid_points
@@ -255,5 +261,4 @@ p2_decisions:
     decision: opendataval_editorial_v4
 
 validation_blockers:
-  - common_climate_result_contract_pending_p4
   - golden_master_equivalence_pending_p5
