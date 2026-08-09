@@ -3,10 +3,8 @@ status: draft
 last_reviewed: "2026-08-09"
 
 # Bibliographie scientifique et normative du domaine climat.
-#
-# Règle : une entrée n'est pas une autorisation automatique d'utiliser une méthode.
-# Les dossiers doc/climat/methods/<method>/<version>/ indiquent quelles références fondent
-# effectivement une méthode OpenDataVal donnée.
+# Une référence n'autorise pas automatiquement une méthode : les dossiers
+# doc/climat/methods/<method>/<version>/ indiquent lesquelles fondent réellement chaque calcul.
 
 references:
   wmo-climatological-normals:
@@ -22,6 +20,9 @@ references:
       - climate-fingerprint
       - thermal-seasons
       - water-through-year
+    repository_evidence:
+      - poc/climat/general/climate/overview/CLIMATE_OVERVIEW_METHOD.md
+      - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
     verification_status: externally_verified_2026_08_09
 
   copernicus-era5-land-timeseries:
@@ -38,11 +39,15 @@ references:
       - climate-overview
       - climate-fingerprint
       - thermal-seasons
+    repository_evidence:
+      - poc/climat/general/climate/overview/CLIMATE_OVERVIEW_METHOD.md
+      - poc/climat/empreinte-climatique/src/empreinte_climatique/fetch.py
+      - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
     production_note: >-
       ECMWF décrit cette interface comme optimisée pour l'accès rapide à de longues séries
-      ponctuelles et indique qu'elle n'est pas recommandée comme dépendance de production
-      stable. La famille scientifique ERA5-Land reste valide ; l'actif concret de production
-      devra être choisi par apps/copernicus et testé par équivalence.
+      ponctuelles et non recommandée comme dépendance de production stable. La famille ERA5-Land
+      reste la source scientifique ; l'actif concret devra être choisi par apps/copernicus et
+      testé par équivalence.
     verification_status: externally_verified_2026_08_09
 
   copernicus-era5-land-monthly-means:
@@ -57,6 +62,10 @@ references:
       - accumulated_variable_semantics
     used_by:
       - water-through-year
+    repository_evidence:
+      - poc/climat/bilan eau/water_through_year/fetch.py
+      - poc/climat/bilan eau/water_through_year/data.py
+      - poc/climat/bilan eau/WATER_THROUGH_YEAR_METHOD.md
     verification_status: externally_verified_2026_08_09
 
   ecmwf-era5-land-data-documentation:
@@ -97,6 +106,9 @@ references:
       - spatial_temporal_metadata
     used_by:
       - climate-fingerprint
+    repository_evidence:
+      - poc/climat/empreinte-climatique/docs/specification.md
+      - poc/climat/empreinte-climatique/src/empreinte_climatique/fetch.py
     verification_status: externally_verified_2026_08_09
 
   utci-official:
@@ -125,16 +137,19 @@ references:
     used_by:
       - climate-fingerprint
       - water-through-year
+    repository_evidence:
+      - poc/climat/empreinte-climatique/docs/specification.md
+      - poc/climat/bilan eau/WATER_THROUGH_YEAR_METHOD.md
     verification_status: externally_verified_2026_08_09
 
   vicente-serrano-2010-spei:
     type: peer_reviewed_article
     authors:
       - Vicente-Serrano, S. M.
-      - Begueria, S.
-      - Lopez-Moreno, J. I.
+      - Beguería, S.
+      - López-Moreno, J. I.
     year: 2010
-    title: A Multiscalar Drought Index Sensitive to Global Warming - The Standardized Precipitation Evapotranspiration Index
+    title: "A Multiscalar Drought Index Sensitive to Global Warming: The Standardized Precipitation Evapotranspiration Index"
     journal: Journal of Climate
     volume: 23
     pages: 1696-1718
@@ -158,10 +173,12 @@ references:
       - interpretation_relative_to_reference_distribution
     used_by:
       - climate-fingerprint
+    repository_evidence:
+      - poc/climat/PRESENTATION_CLIMAT_EMPREINTE_SAISONS_REFERENCES.md
+      - poc/climat/empreinte-climatique/docs/specification.md
     note: >-
       OpenDataVal reprend le principe de position relative dans une distribution de référence,
-      mais sa normalisation graphique V4 et sa palette sont des choix éditoriaux/méthodologiques
-      propres au projet.
+      mais la normalisation graphique V4 et sa palette sont des choix propres au projet.
     verification_status: externally_verified_2026_08_09
 
   etccdi-climdex-r95p:
@@ -175,9 +192,8 @@ references:
     used_by:
       - climate-fingerprint
     note: >-
-      Le seuil P95 sur jours humides inspire la métrique OpenDataVal de pluie intense.
-      La valeur principale OpenDataVal est toutefois un compte de jours et ne doit pas être
-      nommée R95p ou R95pTOT.
+      Le seuil P95 sur jours humides inspire la métrique OpenDataVal. La métrique principale
+      V4 est toutefois un compte de jours et ne doit pas être nommée R95p ou R95pTOT.
     verification_status: externally_verified_2026_08_09
 
   wang-2021-four-seasons:
@@ -185,6 +201,10 @@ references:
     authors:
       - Wang, J.
       - Guan, Y.
+      - Wu, L.
+      - Guan, X.
+      - Cai, W.
+      - Huang, J.
       - Dong, W.
       - Zhang, B.
     year: 2021
@@ -201,18 +221,38 @@ references:
       - annual_cycle_smoothing_reference
     used_by:
       - thermal-seasons
+    repository_evidence:
+      - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
     open_data_val_adaptation:
       - reference_period_fixed_to_1991_2020
       - comparison_periods_1996_2005_vs_2016_2025
       - explicit_quality_rules
     verification_status: externally_verified_2026_08_09
 
+  copernicus-ecde-climate-indicators:
+    type: dataset_documentation
+    organization: Copernicus Climate Change Service
+    title: Climate indicators for Europe from 1940 to 2100 derived from reanalysis and climate projections
+    url: https://cds.climate.copernicus.eu/datasets/sis-ecde-climate-indicators
+    dataset_registry_id: ecde-climate-indicators
+    role:
+      - secondary_validation
+      - growing_season_comparison
+    used_by:
+      - thermal-seasons
+    note: >-
+      Référence secondaire uniquement. Elle ne définit pas les saisons thermiques principales
+      T25/T75 d'OpenDataVal.
+    repository_evidence:
+      - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
+    verification_status: repository_grounded_pending_external_recheck
+
   munoz-sabater-2021-era5-land:
     type: peer_reviewed_article
     authors:
-      - Munoz-Sabater, J.
+      - Muñoz-Sabater, J.
       - Dutra, E.
-      - Agusti-Panareda, A.
+      - Agustí-Panareda, A.
       - Albergel, C.
       - Arduini, G.
       - Balsamo, G.
@@ -223,12 +263,12 @@ references:
       - Martens, B.
       - Miralles, D. G.
       - Piles, M.
-      - Rodriguez-Fernandez, N. J.
+      - Rodríguez-Fernández, N. J.
       - Zsoter, E.
       - Buontempo, C.
-      - Thepaut, J.-N.
+      - Thépaut, J.-N.
     year: 2021
-    title: ERA5-Land - a state-of-the-art global reanalysis dataset for land applications
+    title: "ERA5-Land: a state-of-the-art global reanalysis dataset for land applications"
     journal: Earth System Science Data
     volume: 13
     pages: 4349-4383
@@ -242,3 +282,16 @@ references:
       - thermal-seasons
       - water-through-year
     verification_status: repository_grounded
+
+resolved_reference_questions:
+  - id: utci-foundational-reference
+    resolution: utci-official
+    resolved_in: P2
+  - id: extreme-precipitation-r95-reference
+    resolution: etccdi-climdex-r95p
+    resolved_in: P2
+  - id: trend-tests-reference
+    resolution: not_adopted_in_current_methods
+    note: >-
+      Theil-Sen et Mann-Kendall restent des pistes de future extension. Les méthodes P2 ne
+      calculent aucun test de tendance et l'IA ne peut donc pas revendiquer de significativité.
