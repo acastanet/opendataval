@@ -1,0 +1,52 @@
+=== Tests validation BSS BRGM v3 ===
+
+PASS recherche 1.0 km (count=0)
+PASS recherche 2.0 km (count=6)
+PASS recherche 5.0 km (count=44)
+PASS rayon > 5 km refuse
+PASS rayon 1 valide
+PASS rayon 1000 valide
+PASS rayon 5000 valide
+PASS distances triees 1.0 km
+PASS distances triees 2.0 km
+PASS distances triees 5.0 km
+PASS respect rayon 1.0 km
+PASS respect rayon 2.0 km
+PASS respect rayon 5.0 km
+PASS max 20 results any 1.0 km
+PASS max 20 results borehole 1.0 km
+PASS max 20 results sounding 1.0 km
+PASS max 20 results core 1.0 km
+PASS max 20 results section 1.0 km
+PASS max 20 results any 2.0 km
+PASS max 20 results borehole 2.0 km
+PASS max 20 results sounding 2.0 km
+PASS max 20 results core 2.0 km
+PASS max 20 results section 2.0 km
+PASS max 20 results any 5.0 km
+PASS max 20 results borehole 5.0 km
+PASS max 20 results sounding 5.0 km
+PASS max 20 results core 5.0 km
+PASS max 20 results section 5.0 km
+PASS FORAGE only 2.0 km
+PASS coupe/doc only 2.0 km
+PASS FORAGE only 5.0 km
+PASS SONDAGE* only 5.0 km
+PASS CAROTT* only 5.0 km
+PASS coupe/doc only 5.0 km
+PASS calcul distance
+PASS filtre cercle
+PASS tri distance
+PASS BSS002DKFG trouve
+PASS BSS002DKFG nature (got=FORAGE)
+PASS BSS002DKFG distance (dist=1641.2m)
+PASS BSS002DKFG coupe (coupe=True)
+PASS BSS002DKFG prof (prof=97.0)
+PASS BSS002DKEC trouve
+PASS BSS002DKEC nature (got=SONDAGE)
+PASS BSS002DKEC distance (dist=4894.5m)
+PASS BSS002DKEC carottage (mode=ROTATION,CAROTTAGE,EAU.)
+PASS BSS002DKEC coupe (coupe=True)
+PASS BSS002DKEC prof (prof=14.0)
+
+Resultat: 48 passed, 0 failed

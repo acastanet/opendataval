@@ -24,9 +24,6 @@ apps/map-service/assets/glyphs/*/*.pbf
 # Extraits de relief 3D — volumineux (~2 Go) et régénérables via go-pmtiles (cf. CLAUDE.md)
 apps/web/public/relief/*.pmtiles
 
-# Artefacts d'exploration/validation, non liés au code applicatif
-poc/SS/
-
 # Environnements virtuels Python locaux du POC climat.
 poc/climat/**/.venv/
 poc/climat/**/venv/
