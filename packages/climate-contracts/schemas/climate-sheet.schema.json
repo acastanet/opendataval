@@ -89,7 +89,12 @@
       "allOf": [
         {
           "if": {"properties": {"status": {"const": "ready"}}, "required": ["status"]},
-          "then": {"required": ["result_ref"]}
+          "then": {
+            "required": ["result_ref"],
+            "properties": {
+              "result_ref": {"type": "string", "minLength": 1}
+            }
+          }
         }
       ]
     }
