@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "method": {
+    "id": "climate-overview",
+    "version": "1.0.0"
+  },
+  "source": {
+    "repository_path": "poc/climat/general/climate/overview/outputs/zone_test_utilisateur_climate-overview.json",
+    "source_commit": "d9acd21876d34ae7ea005ac9b95fe34b9827e1e5",
+    "source_blob_sha": "b4e3be645085471708eafdfa0b36ef79f9f952ac",
+    "source_kind": "tracked_poc_output"
+  },
+  "golden_master": {
+    "copy_mode": "pinned_repository_output",
+    "numeric_tolerance": 0.0
+  },
+  "location": {
+    "lat": 44.0646,
+    "lon": 3.683,
+    "represented_grid_lat": 44.1,
+    "represented_grid_lon": 3.7
+  },
+  "periods": {
+    "reference": [1991, 2020]
+  },
+  "expected": {
+    "annual": {
+      "mean_temperature_c": 11.1,
+      "precipitation_mm": 1327.3,
+      "warmest_month": "Juillet",
+      "coldest_month": "Janvier",
+      "wettest_month": "Octobre",
+      "driest_month": "Juillet"
+    },
+    "monthly_count": 12,
+    "grid_cell_count": 1,
+    "signal_count": 7,
+    "noncanonical_legacy_indicators": {
+      "frost_days_mean": 52.1,
+      "hot_days_30c_mean": 7.3,
+      "tropical_nights_20c_mean": 0.3
+    }
+  },
+  "p5_policy": {
+    "legacy_payload_preserved_verbatim_inside_climate_result_data": true,
+    "canonical_signals_only": true,
+    "noncanonical_extreme_indicators_must_not_emit_signals": true,
+    "result_quality": "partial",
+    "claim_level": "descriptive"
+  }
+}
