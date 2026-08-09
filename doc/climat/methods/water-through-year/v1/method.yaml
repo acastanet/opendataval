@@ -146,6 +146,12 @@ contracts:
   signal_schema: packages/climate-contracts/schemas/climate-signal.schema.json
   snapshot_schema: packages/climate-contracts/schemas/climate-snapshot.schema.json
 
+p5:
+  status: golden_master_passed
+  manifest: packages/climate-contracts/tests/golden-masters/water-through-year/v1/manifest.json
+  ci_workflow: .github/workflows/climate-contracts.yml
+  note: "420 mois valides sur 420 pour les quatre variables principales."
+
 secondary_optional_metrics:
   - runoff
   - surface_runoff
@@ -184,4 +190,4 @@ p2_decisions:
     forbidden_names: [reserve_utile, plant_available_water, observed_soil_stock]
 
 validation_blockers:
-  - golden_master_equivalence_pending_p5
+  - native_service_equivalence_pending_p6
