@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import cdsapi
+from ecmwf.datastores import Client as DatastoresClient
 import requests
 
 
@@ -12,10 +12,9 @@ class CopernicusDownloadError(RuntimeError):
 
 class CopernicusClient:
     def __init__(self, *, url: str, key: str) -> None:
-        self._client = cdsapi.Client(
+        self._client = DatastoresClient(
             url=url,
             key=key,
-            quiet=True,
             progress=False,
             timeout=300,
         )

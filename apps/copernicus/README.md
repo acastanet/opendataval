@@ -14,6 +14,15 @@ Deux jobs idempotents sont disponibles :
 | `meteo_climatologie_points` | ERA5-Land time-series | médiane, P10 et P90 quotidiens sur 1991–2020, fenêtre J−7/J+7 |
 | `thermal_monthly` | ERA5-HEAT / UTCI | bilan du dernier mois complet, nuits tropicales et référence 1991–2020 |
 
+Le module `copernicus.process.climate_fingerprint` implémente aussi l'empreinte
+climatique historique définie dans
+[`poc/climat/02-empreinte-climatique-specification.md`](../../poc/climat/02-empreinte-climatique-specification.md).
+Il reçoit les cinq séries déjà téléchargées depuis le cache CDS (température, UTCI,
+précipitations, SPEI-3 et vent), exclut les années incomplètes et produit deux artefacts
+de snapshot : `climate-fingerprint.json` et `climate-fingerprint.svg`. Son branchement au
+job de fabrication des dalles reste volontairement séparé de la collecte CDS afin de ne
+jamais exposer un appel distant au chargement d'une page publique.
+
 Les traitements couvrent les points fixes Val-d'Aigoual, Paris et Marseille enregistrés dans
 `series.meteo_points_reference`.
 
