@@ -142,6 +142,33 @@ test("le gateway délègue la géographie au service interne et propage le reque
   assert.equal(response.statusCode, 200); assert.equal(response.headers["x-request-id"], "req-geography");
 });
 
+test("la vitrine locale peut lire la météo et les vigilances via CORS", async (t) => {
+  const app = buildApp({
+    config,
+    logger: false,
+    fetchImpl: fakeFetch(async () => new Response('{"temperature":{"valueCelsius":21},"periods":[]}', {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })),
+  });
+  t.after(() => app.close());
+
+  for (const url of [
+    "/api/v2/weather/temperature?lat=44.081089&lon=3.641219",
+    "/api/v2/vigilance?department_code=30",
+  ]) {
+    const response = await app.inject({
+      method: "GET",
+      url,
+      headers: { origin: "http://127.0.0.1:5501" },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers["access-control-allow-origin"], "http://127.0.0.1:5501");
+    assert.equal(response.headers.vary, "Origin");
+  }
+});
+
 test("le pont historique refuse les méthodes d'écriture", async (t) => {
   const app = buildApp({
     config,

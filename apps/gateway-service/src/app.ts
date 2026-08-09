@@ -70,6 +70,15 @@ const readinessSchema = {
   },
 } as const;
 
+const LOCAL_VITRINE_ORIGINS = new Set([
+  "http://127.0.0.1:5501",
+  "http://localhost:5501",
+]);
+const LOCAL_VITRINE_API_PATHS = [
+  "/api/v2/weather/temperature",
+  "/api/v2/vigilance",
+];
+
 function normalizeError(error: unknown): { error: Error; statusCode: number } {
   const normalized = error instanceof Error
     ? error
@@ -104,6 +113,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   app.addHook("onSend", async (request, reply, payload) => {
     reply.header("x-request-id", request.id);
+    const origin = request.headers.origin;
+    if (
+      typeof origin === "string"
+      && LOCAL_VITRINE_ORIGINS.has(origin)
+      && LOCAL_VITRINE_API_PATHS.some((path) => request.url === path || request.url.startsWith(`${path}?`))
+    ) {
+      reply.header("access-control-allow-origin", origin);
+      reply.header("vary", "Origin");
+    }
     return payload;
   });
 
