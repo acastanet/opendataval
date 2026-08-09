@@ -129,238 +129,290 @@ Chaque résultat doit conserver la nature de sa donnée.
 
 Exemples de catégories à supporter :
 
-- observation instrumentale ;
-- réanalyse ;
-- produit dérivé ;
-- statistique OpenDataVal calculée à partir d'un dataset ;
-- estimation ou correction explicitement modélisée.
+- `observation` — mesure instrumentale ou observation de terrain ;
+- `reanalysis` — valeur issue d'une réanalyse maillée ;
+- `derived_reanalysis_index` — indice calculé à partir d'une réanalyse ;
+- `derived_opendataval` — grandeur calculée par OpenDataVal à partir de données sources.
 
-Le vocabulaire de restitution doit respecter cette nature.
+Le commentaire ne doit pas transformer une réanalyse en observation locale.
 
-Une valeur de réanalyse sur une maille ne devient pas une « mesure sur place » parce qu'une
-fiche a été demandée pour une coordonnée précise.
+Une grandeur `derived_opendataval` doit documenter la formule qui la produit et conserver les
+variables dont elle dépend.
 
-Une grandeur dérivée ne devient pas un phénomène directement observé parce qu'elle est
-présentée dans une infographie.
+## 7. Source scientifique et interface d'acquisition
 
-## 7. Représentativité spatiale
-
-La qualité scientifique d'une fiche ne se limite pas à la présence d'une valeur.
-
-Chaque analyse doit exposer suffisamment d'informations pour distinguer :
-
-- le lieu demandé ;
-- le point ou la maille réellement utilisé ;
-- la résolution du produit ;
-- le nombre de mailles utilisées lorsque la méthode réalise une agrégation spatiale ;
-- la méthode de pondération éventuelle ;
-- les écarts pertinents entre site et représentation du modèle, par exemple l'altitude
-  lorsqu'elle est disponible et méthodologiquement utile.
-
-Le commentaire IA doit recevoir cette information et adapter sa formulation.
-
-## 8. Qualité et complétude
-
-Les quatre méthodes devront adopter un vocabulaire commun pour les états de données. Le détail
-sera fixé dans le contrat commun, mais les principes sont déjà obligatoires :
-
-- une absence de donnée reste une absence de donnée ;
-- une série incomplète ne doit pas être rendue complète par invention ;
-- les seuils minimaux de complétude appartiennent à la méthode et doivent être documentés ;
-- un résultat dégradé doit porter un statut explicite ;
-- une dernière valeur valide réutilisée doit conserver sa date et son statut de fraîcheur.
-
-## 9. Résultats descriptifs et inférence statistique
-
-Le système doit distinguer une **comparaison descriptive** d'une **inférence statistique**.
-
-Exemple descriptif :
-
-> la médiane 2016–2025 est supérieure à la médiane 1996–2005 de X unité(s).
-
-Cette phrase peut être produite si X est calculé par la méthode.
-
-En revanche, les formulations suivantes nécessitent une méthode statistique explicitement
-implémentée et documentée :
-
-- « tendance statistiquement significative » ;
-- « augmentation significative » au sens statistique ;
-- intervalle de confiance ;
-- probabilité qu'une tendance soit réelle.
-
-L'absence de test statistique doit rester visible dans le résultat ou dans ses métadonnées.
-L'IA ne peut pas déduire une significativité à l'œil à partir d'une infographie.
-
-## 10. Causalité et attribution
-
-Les quatre infographies principales décrivent un climat, son évolution ou des changements de
-régime. Elles ne constituent pas, par elles-mêmes, une étude d'attribution causale.
-
-Sauf méthode d'attribution ajoutée et documentée ultérieurement, le service IA ne doit pas
-transformer automatiquement :
-
-> « la période récente est plus chaude »
-
-en :
-
-> « le changement climatique anthropique a causé cette hausse locale ».
-
-Une relation avec le changement climatique global peut être contextualisée seulement selon des
-règles et sources explicitement prévues par la couche d'interprétation.
-
-## 11. Gouvernance des `ClimateSignal`
-
-Un `ClimateSignal` est produit par le calcul, pas par le LLM.
-
-Pour être utilisable dans un commentaire, un signal devra préciser au minimum :
-
-- un identifiant stable ;
-- la métrique concernée ;
-- la comparaison effectuée ;
-- la valeur et l'unité lorsque pertinentes ;
-- la direction ;
-- la ou les références vers les valeurs qui le justifient ;
-- le statut de qualité ;
-- le statut statistique lorsqu'il existe.
-
-Un signal doit rester descriptif lorsqu'aucune méthode ne justifie un niveau d'interprétation
-plus fort.
-
-## 12. Gouvernance de l'IA
-
-Le service de commentaire est une couche de formulation et de synthèse. Il n'a pas autorité
-pour modifier le résultat scientifique.
-
-### L'IA peut
-
-- reformuler un signal en langage accessible ;
-- hiérarchiser plusieurs signaux selon des règles explicites ;
-- rapprocher des signaux de plusieurs infographies lorsque leurs méthodes autorisent cette
-  mise en relation ;
-- rappeler les réserves de représentativité ;
-- produire une synthèse de fiche à partir de signaux validés.
-
-### L'IA ne peut pas, seule
-
-- calculer un indicateur absent du résultat ;
-- modifier un seuil ;
-- imputer une valeur manquante ;
-- conclure à une significativité statistique non calculée ;
-- transformer une corrélation ou concomitance en causalité ;
-- présenter une maille de réanalyse comme une mesure ponctuelle locale ;
-- assimiler une humidité de sol modélisée à une nappe phréatique ;
-- assimiler un ruissellement de modèle à un débit observé ;
-- inventer une source ou une référence ;
-- choisir arbitrairement entre deux versions contradictoires de documentation.
-
-## 13. `interpretation.md` par méthode
-
-Chaque méthode validée devra fournir un fichier `interpretation.md` contenant au minimum :
+À partir de P2, le domaine distingue explicitement :
 
 ```text
-# Signaux interprétables
-# Formulations autorisées
-# Formulations interdites ou à éviter
-# Réserves obligatoires
-# Cas ambigus
-# Conditions de non-interprétation
+famille scientifique + variable
 ```
 
-Ce fichier doit être suffisamment précis pour construire le contexte d'un modèle sans lui
-fournir l'intégralité du corpus documentaire.
+et :
 
-## 14. Traçabilité d'un commentaire
-
-Une affirmation substantielle du commentaire doit être reliée à la preuve qui la soutient.
-
-Le futur contrat de commentaire devra permettre une structure du type :
-
-```json
-{
-  "text": "L'été thermique commence plus tôt dans la période récente.",
-  "signal_ids": ["summer-start-shift"],
-  "confidence": "supported"
-}
+```text
+produit / interface / format utilisé pour acquérir la donnée lors d'une exécution
 ```
 
-Un commentaire qui contient une affirmation factuelle importante sans signal ou valeur de
-preuve doit pouvoir être refusé ou marqué comme non supporté.
+Un changement d'interface d'acquisition n'impose pas automatiquement une nouvelle version
+MAJOR de la méthode si la grandeur scientifique, la représentativité, les unités et le résultat
+restent équivalents. Cette équivalence doit toutefois être démontrée par un test de référence.
 
-## 15. Rendu éditorial et vérité scientifique
+Le `ClimateSnapshot` doit conserver le produit concret, sa version ou édition disponible, ses
+paramètres de requête et la date de récupération. La méthode canonique conserve la famille de
+données et les variables dont son calcul dépend.
 
-Le choix d'une forme graphique appartient à la restitution éditoriale, sauf lorsque la forme
-encode directement une définition méthodologique documentée.
+Si le changement d'actif modifie les valeurs ou la représentativité au-delà des tolérances
+validées, il devient une évolution méthodologique et doit être versionné en conséquence.
 
-Le renderer peut améliorer la lisibilité mais ne doit pas :
+## 8. Représentativité spatiale
 
-- exagérer un écart en changeant silencieusement l'échelle ;
-- cacher une absence de donnée ;
-- utiliser une palette dont le sens contredit la légende ;
-- modifier une classification calculée ;
-- introduire un seuil visuel qui serait interprété comme un seuil scientifique sans le
-  documenter.
+La précision géométrique d'une demande utilisateur ne doit jamais être confondue avec la
+résolution de la source climatique.
 
-Toute transformation visuelle non triviale qui porte du sens doit être décrite dans la méthode
-ou la documentation éditoriale correspondante.
+Chaque résultat devra distinguer au minimum :
 
-## 16. Changement de méthode
+```text
+requested
+represented
+```
 
-Toute proposition modifiant une méthode validée doit contenir :
+Le premier décrit le lieu ou la zone demandée. Le second décrit le point de grille, les cellules
+ou l'agrégation spatiale réellement utilisés.
 
-1. le problème identifié ;
-2. la version affectée ;
-3. la nouvelle règle proposée ;
-4. la justification scientifique ou méthodologique ;
-5. l'impact attendu sur les résultats historiques ;
-6. les fixtures concernées ;
-7. le niveau de version proposé ;
-8. une entrée de changelog.
+Une donnée maillée de plusieurs kilomètres ne doit pas être décrite comme une mesure à 100 m,
+même lorsque la fiche appartient à une dalle de 100 × 100 m du jumeau numérique.
 
-Le changement de méthode et la migration technique doivent autant que possible être réalisés
-dans des travaux séparés afin de rendre les écarts auditables.
+Toute descente d'échelle constitue une méthode supplémentaire qui doit être documentée et
+versionnée.
 
-## 17. Critères de validation d'une méthode
+## 9. Qualité et valeurs manquantes
 
-Avant de passer de `draft` à `validated`, vérifier :
+Une valeur manquante ou insuffisamment complète reste inconnue.
 
-- [ ] question scientifique claire ;
-- [ ] dataset et variables identifiés ;
-- [ ] période de référence explicitée ;
-- [ ] sélection spatiale explicitée ;
-- [ ] formules et agrégations documentées ;
-- [ ] valeurs manquantes traitées explicitement ;
-- [ ] qualité et représentativité exposées ;
-- [ ] limites scientifiques écrites ;
-- [ ] règles d'interprétation disponibles ;
-- [ ] au moins un résultat de référence reproductible ;
-- [ ] contrat de sortie validé ;
-- [ ] tests de non-régression disponibles ;
-- [ ] changelog initialisé.
+Il est interdit de :
 
-## 18. Règle de gel des POC pendant la migration
+- remplacer une donnée absente par zéro sans justification scientifique ;
+- extrapoler silencieusement une année incomplète ;
+- masquer une lacune par le renderer ;
+- demander au modèle de langage de deviner une valeur manquante.
 
-Pendant P0–P5, les quatre POC sont conservés comme références de migration.
+Les règles de complétude et les interpolations autorisées appartiennent à chaque méthode et
+doivent être explicitement documentées.
 
-Le ménage dans `poc/climat/` peut supprimer ultérieurement les caches, sorties générées,
-captures redondantes et artefacts d'outils, mais il ne doit pas faire disparaître une
-implémentation ou une fixture nécessaire pour établir l'équivalence avec le futur service.
+## 10. Observé, dérivé, signal, interprétation
 
-Un POC peut être archivé lorsque :
+Le domaine applique la hiérarchie suivante :
 
-1. sa méthode canonique est `validated` ;
-2. un golden master existe ;
-3. le nouveau service passe les tests d'équivalence ;
-4. les écarts éventuels sont documentés ;
-5. la documentation pointe vers le service maintenu.
+```text
+donnée source
+   ↓
+valeur normalisée
+   ↓
+valeur dérivée
+   ↓
+ClimateSignal
+   ↓
+interprétation
+```
 
-## 19. Prochaine étape après P0
+Un `ClimateSignal` est une assertion structurée produite par un calcul déterministe. Exemple :
 
-P1 doit construire le registre commun des sources :
+```text
+summer_start_shift_days = -9
+```
 
-- `doc/climat/02-DATA-SOURCES.md` ;
-- `doc/climat/sources/datasets.yaml` ;
-- `doc/climat/sources/bibliography.yaml`.
+avec la sémantique :
 
-P1 devra vérifier les sources officielles et fixer pour chaque dataset son identifiant,
-producteur, type, résolution, temporalité, variables utilisées, conditions d'accès, licence et
-limites utiles aux quatre méthodes.
+```text
+negative = earlier
+```
+
+Le modèle de langage ne doit pas recalculer ce déplacement depuis le graphique.
+
+## 11. Statistiques descriptives et tendance
+
+Une différence entre deux périodes n'est pas automatiquement une tendance statistiquement
+significative.
+
+Les termes tels que :
+
+- `tendance` ;
+- `significatif` ;
+- `augmentation robuste` ;
+- `accélération` ;
+
+doivent être liés à une méthode qui calcule effectivement le test ou l'indicateur nécessaire.
+
+Si le service ne calcule qu'une différence de moyennes ou de médianes entre deux décennies,
+le commentaire doit parler de **comparaison descriptive entre périodes**.
+
+## 12. Causalité et attribution
+
+Les quatre infographies décrivent des états, distributions, écarts et évolutions climatiques.
+Elles ne constituent pas en elles-mêmes une étude d'attribution.
+
+Sans méthode d'attribution dédiée, le système ne doit pas conclure automatiquement :
+
+```text
+« cet événement a été causé par le changement climatique »
+```
+
+ou attribuer un phénomène à une cause locale particulière.
+
+## 13. Événements et impacts
+
+Une anomalie climatique n'est pas automatiquement un impact territorial.
+
+Par exemple :
+
+- précipitation extrême ≠ crue observée ;
+- vent extrême ≠ tempête nommée ;
+- sécheresse climatique ≠ restriction d'eau ;
+- chaleur ≠ impact sanitaire observé ;
+- danger de feu ≠ incendie réel.
+
+Les noms d'événements et les impacts nécessitent des sources événementielles adaptées.
+
+## 14. Séparation calcul / rendu
+
+Le renderer peut transformer un résultat en SVG ou HTML, mais ne doit pas produire de nouvelle
+information scientifique.
+
+Il peut :
+
+- positionner des éléments ;
+- choisir une palette documentée ;
+- construire une légende ;
+- afficher une valeur déjà calculée ;
+- produire une infobulle.
+
+Il ne peut pas :
+
+- calculer une moyenne scientifique ;
+- recalculer un percentile ;
+- modifier un seuil ;
+- décider qu'une valeur est significative ;
+- générer un signal absent du `ClimateResult`.
+
+Une transformation exclusivement visuelle doit être identifiée comme telle dans la méthode.
+
+## 15. Gouvernance du commentaire IA
+
+Le service de commentaire doit recevoir une version de méthode résolue explicitement.
+
+Il ne doit pas chercher librement parmi plusieurs documents pour décider quelle méthode est
+applicable.
+
+Entrée conceptuelle :
+
+```text
+ClimateResult
+ClimateSignal[]
+method.id
+method.version
+interpretation.md correspondant
+```
+
+Chaque affirmation factuelle importante du commentaire doit pouvoir être reliée à un ou
+plusieurs `signal_ids`.
+
+Le LLM peut :
+
+- reformuler ;
+- hiérarchiser ;
+- rapprocher plusieurs signaux compatibles ;
+- expliquer une limite déjà documentée.
+
+Il ne peut pas :
+
+- créer une nouvelle valeur ;
+- inventer une significativité ;
+- inventer une causalité ;
+- masquer une qualité insuffisante ;
+- augmenter artificiellement la précision spatiale ;
+- interpréter une catégorie visuelle comme un danger lorsqu'elle signifie seulement « plus de
+  la variable ».
+
+## 16. Conditions de non-interprétation
+
+Le futur `interpretation.md` de chaque méthode devra préciser les situations dans lesquelles le
+service IA doit s'abstenir ou limiter son commentaire, par exemple :
+
+- données insuffisantes ;
+- métrique `null` ;
+- période trop incomplète ;
+- représentativité trop faible pour l'affirmation envisagée ;
+- contradiction entre deux signaux ;
+- absence du test nécessaire à un mot comme « tendance ».
+
+L'abstention explicite est préférable à une conclusion spéculative.
+
+## 17. Golden masters
+
+Avant de remplacer un POC par un microservice, des sorties de référence doivent être figées.
+
+Le test d'équivalence compare le nouveau service au résultat validé du POC. Les tolérances
+doivent être documentées variable par variable.
+
+Une migration ne doit pas devenir une occasion de changer simultanément :
+
+- la source ;
+- la méthode ;
+- le format ;
+- le rendu ;
+- l'interprétation.
+
+Si un changement scientifique est souhaité, il doit être réalisé dans une version de méthode
+explicite après que l'équivalence a été établie.
+
+## 18. Cycle de validation
+
+Cycle recommandé :
+
+```text
+POC
+ ↓
+extraction de la méthode
+ ↓
+statut draft
+ ↓
+revue scientifique / technique
+ ↓
+contrat et fixture
+ ↓
+test de reproductibilité
+ ↓
+statut validated
+ ↓
+production
+```
+
+Une méthode `deprecated` reste reproductible afin de comprendre les anciennes fiches.
+
+## 19. Revue des références
+
+Le registre `doc/climat/sources/bibliography.yaml` distingue la documentation de dataset, les
+standards et les publications scientifiques.
+
+Lorsqu'une information externe susceptible d'évoluer est nécessaire à la production, sa version
+ou sa date de consultation doit être conservée autant que possible dans la documentation ou la
+provenance d'exécution.
+
+Une URL seule n'est pas une justification scientifique suffisante pour un choix méthodologique :
+le dossier de méthode doit expliquer **quel élément de la source est repris** et **quelle partie
+relève d'une adaptation OpenDataVal**.
+
+## 20. Définition de `validated`
+
+Une méthode ne peut être marquée `validated` que lorsque :
+
+1. ses sources sont identifiées ;
+2. les variables et unités sont explicites ;
+3. les périodes sont figées ;
+4. les calculs sont décrits sans dépendance implicite au code ;
+5. la représentativité spatiale est explicite ;
+6. les règles de qualité sont testées ;
+7. les limites scientifiques sont documentées ;
+8. les règles d'interprétation sont écrites ;
+9. un résultat de référence ou golden master existe ;
+10. le code reproduit ce résultat dans les tolérances définies.
