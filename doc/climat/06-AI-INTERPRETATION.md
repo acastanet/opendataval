@@ -1,8 +1,15 @@
 # Interprétation IA de la fiche climat
 
-Statut : **cadre commun P3**.
+Statut : **cadre P3 + contrats P4**.
 
 Ce document définit le rôle du futur `climate-commentary-service`. Il ne remplace aucune méthode scientifique et n'autorise aucun calcul climatique dans le modèle de langage.
+
+Les contrats exécutables associés sont dans :
+
+```text
+packages/climate-contracts/schemas/climate-signal.schema.json
+packages/climate-contracts/schemas/climate-commentary.schema.json
+```
 
 ## 1. Principe
 
@@ -56,42 +63,71 @@ Il ne doit pas :
 - interpréter une absence de donnée comme une valeur nulle ;
 - inférer un phénomène d'impact non observé à partir d'un signal météorologique.
 
-## 3. Structure conceptuelle d'un `ClimateSignal`
+## 3. Contrat `ClimateSignal`
 
-Le schéma JSON exact sera défini en P4. P3 fixe la sémantique minimale :
+P4 formalise le signal avec JSON Schema.
+
+Exemple contractuel simplifié :
 
 ```json
 {
-  "id": "summer-start-shift",
-  "metric": "summer_start",
+  "schema_version": "1.0",
+  "id": "thermal-summer-start-shift:POINT-...",
+  "definition_id": "thermal-summer-start-shift",
+  "method": {
+    "id": "thermal-seasons",
+    "version": "1.0.0"
+  },
+  "metric": "summer_start_shift_days",
+  "claim_level": "descriptive",
   "value": -11,
   "unit": "days",
   "direction": "earlier",
-  "comparison": {
-    "early": "1996-2005",
-    "late": "2016-2025"
-  },
-  "evidence": ["/data/..."],
-  "claim_level": "descriptive",
-  "caveats": ["thermal-season-not-meteorological-season"]
+  "evidence": [
+    {
+      "result_pointer": "/data/comparison/summer_start_shift_days"
+    }
+  ],
+  "caveat_ids": [
+    "thermal-not-meteorological-season",
+    "descriptive-not-trend"
+  ]
 }
 ```
 
-Champs conceptuellement obligatoires :
+### Deux identifiants différents
 
-- identifiant stable ;
-- métrique source ;
-- valeur ou catégorie calculée ;
-- unité ;
-- direction lorsqu'elle existe ;
-- période ou comparaison ;
-- pointeur vers la preuve dans `ClimateResult` ;
-- niveau de preuve ;
-- caveats applicables.
+`id` identifie **l'occurrence de signal produite pour un résultat donné**.
 
-## 4. Niveaux de preuve
+`definition_id` identifie **la sémantique autorisée** dans :
 
-P3 retient les niveaux suivants :
+```text
+doc/climat/signals/catalogue.yaml
+```
+
+Le service IA ne peut pas inventer un `definition_id` absent de ce catalogue.
+
+## 4. Preuve `evidence`
+
+Chaque signal contient au moins une preuve :
+
+```text
+evidence[].result_pointer
+```
+
+Ce pointeur vise une donnée de `ClimateResult`.
+
+Exemple :
+
+```text
+/data/comparison/summer_start_shift_days
+```
+
+JSON Schema contrôle la présence et la forme du pointeur.
+
+Le validateur applicatif P5/P6 devra contrôler qu'il se résout réellement dans le résultat fourni.
+
+## 5. Niveaux de preuve
 
 ### `descriptive`
 
@@ -109,7 +145,7 @@ N'autorise pas :
 
 Réservé à une future méthode comportant explicitement un test de tendance, son niveau de confiance et ses hypothèses.
 
-Aucune des quatre méthodes P2 actuelles n'émet ce niveau.
+Aucune des quatre méthodes actuelles n'émet ce niveau.
 
 ### `causal_attribution`
 
@@ -117,20 +153,44 @@ Réservé à une méthode d'attribution dédiée.
 
 Aucune des quatre méthodes actuelles n'émet ce niveau.
 
-## 5. Règle d'ancrage
+## 6. Contrat `ClimateCommentary`
 
-Chaque `finding` du futur `ClimateCommentary` doit citer au moins un `signal_id`.
+Le commentaire n'est pas une chaîne libre publiée directement.
 
-Une phrase comportant un nombre climatique doit pouvoir être retracée vers :
+Il possède notamment :
+
+```text
+summary
+findings[]
+caveats[]
+abstentions[]
+generation
+validation
+```
+
+Chaque finding possède obligatoirement :
+
+```text
+id
+text
+signal_ids[]
+claim_level
+```
+
+Le schéma interdit donc un finding sans `signal_id`.
+
+## 7. Règle d'ancrage
+
+Chaque `finding` doit être retraçable :
 
 ```text
 phrase
   ↓
 signal_id
   ↓
-ClimateSignal
+ClimateSignal.id
   ↓
-evidence
+evidence.result_pointer
   ↓
 ClimateResult
   ↓
@@ -139,7 +199,22 @@ method.id + method.version
 
 Aucun chiffre nouveau ne peut apparaître uniquement dans la réponse du LLM.
 
-## 6. Vocabulaire commun
+## 8. Validation applicative
+
+JSON Schema ne peut pas vérifier seul les relations entre plusieurs documents.
+
+Le validateur devra donc contrôler notamment :
+
+- chaque `signal_id` existe réellement dans les `ClimateResult` fournis ;
+- chaque JSON Pointer `evidence` se résout ;
+- `ClimateSignal.method` correspond à la méthode du résultat ;
+- `definition_id`, unité et direction respectent le catalogue P3 ;
+- le `claim_level` du finding ne dépasse pas celui des signaux ;
+- un commentaire marqué `valid` ne contient aucun claim non supporté.
+
+Ces invariants sont détaillés dans `03-COMMON-CONTRACT.md` et `packages/climate-contracts/README.md`.
+
+## 9. Vocabulaire commun
 
 ### Préférer
 
@@ -162,7 +237,7 @@ Aucun chiffre nouveau ne peut apparaître uniquement dans la réponse du LLM.
 - « prévision » pour des résultats historiques ;
 - « catastrophe », « crue », « tempête », « incendie » lorsque seule une condition météorologique est calculée.
 
-## 7. Représentativité spatiale
+## 10. Représentativité spatiale
 
 Si `local_measurement=false`, le commentaire doit parler de **contexte climatique du lieu** ou de **maille de réanalyse associée**.
 
@@ -170,7 +245,7 @@ Lorsqu'une zone est plus petite que la maille utilisée, le commentaire ne doit 
 
 Lorsque plusieurs mailles sont agrégées, l'IA peut expliquer que le résultat représente une moyenne spatiale pondérée si cette information est fournie par `ClimateResult`.
 
-## 8. Données insuffisantes
+## 11. Données insuffisantes
 
 L'IA doit s'abstenir d'interpréter un signal lorsque :
 
@@ -181,9 +256,9 @@ L'IA doit s'abstenir d'interpréter un signal lorsque :
 - la comparaison ne satisfait pas le nombre minimum d'années valides ;
 - la méthode marque l'indicateur `not_applicable`.
 
-Le commentaire peut alors dire uniquement qu'une interprétation fiable n'est pas disponible pour cet indicateur.
+Le commentaire peut alors expliquer uniquement qu'une interprétation fiable n'est pas disponible pour cet indicateur.
 
-## 9. Hiérarchie éditoriale
+## 12. Hiérarchie éditoriale
 
 Pour une infographie, le commentaire recommandé comporte au maximum :
 
@@ -193,15 +268,15 @@ Pour une infographie, le commentaire recommandé comporte au maximum :
 
 Le commentaire doit privilégier les signaux les plus informatifs et éviter d'énumérer toutes les valeurs du graphique.
 
-## 10. Synthèse de la fiche complète
+## 13. Synthèse de la fiche complète
 
 Le commentaire transversal de la fiche ne recevra pas les séries brutes. Il recevra les `ClimateSignal` validés des quatre méthodes.
 
 Il pourra rapprocher deux signaux, par exemple un réchauffement descriptif et un déplacement des saisons thermiques, mais il ne pourra pas transformer leur coïncidence en causalité.
 
-## 11. Fichiers normatifs P3
+## 14. Fichiers normatifs
 
-Les règles spécifiques sont définies dans :
+Règles spécifiques :
 
 ```text
 doc/climat/methods/climate-overview/v1/interpretation.md
@@ -210,15 +285,28 @@ doc/climat/methods/thermal-seasons/v1/interpretation.md
 doc/climat/methods/water-through-year/v1/interpretation.md
 ```
 
-En cas de conflit, la règle spécifique de la méthode s'applique tant qu'elle respecte la gouvernance scientifique générale.
+Registre sémantique :
 
-## 12. Étape suivante
+```text
+doc/climat/signals/catalogue.yaml
+```
 
-P4 transformera ces règles en contrats machine :
+Contrats :
 
-- `ClimateSignal` ;
-- `ClimateCommentary` ;
-- références `evidence` ;
-- niveaux de preuve ;
-- caveats structurés ;
-- validation automatique d'un commentaire avant publication.
+```text
+packages/climate-contracts/schemas/climate-signal.schema.json
+packages/climate-contracts/schemas/climate-commentary.schema.json
+```
+
+En cas de conflit, la méthode spécifique doit respecter la gouvernance scientifique générale et les contrats communs.
+
+## 15. Étape suivante
+
+**P5** doit confronter ces contrats aux sorties réelles des quatre POC :
+
+- créer les golden masters ;
+- adapter les sorties POC vers `ClimateResult` ;
+- générer les `ClimateSignal` correspondants ;
+- valider les schémas ;
+- tester les JSON Pointer ;
+- vérifier que les commentaires d'exemple restent entièrement ancrés dans les signaux.
