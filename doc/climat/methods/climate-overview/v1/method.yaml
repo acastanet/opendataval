@@ -73,9 +73,8 @@ annual_summary:
     - wettest_month
     - driest_month
   validation_note: >-
-    Ces sorties sont conservées dans le POC de référence. Le futur service devra figer par
-    test l'agrégation annuelle exacte afin d'éviter toute ambiguïté entre moyenne journalière
-    annuelle et moyenne des douze climatologies mensuelles.
+    Ces sorties sont figées par le golden master P5. Le futur service P6 devra reproduire
+    leur agrégation exacte avant de pouvoir remplacer le POC.
 
 noncanonical_poc_indicators:
   frost_days_mean:
@@ -134,6 +133,12 @@ contracts:
   signal_schema: packages/climate-contracts/schemas/climate-signal.schema.json
   snapshot_schema: packages/climate-contracts/schemas/climate-snapshot.schema.json
 
+p5:
+  status: golden_master_passed
+  manifest: packages/climate-contracts/tests/golden-masters/climate-overview/v1/manifest.json
+  ci_workflow: .github/workflows/climate-contracts.yml
+  note: "Le noyau canonique est figé ; les trois compteurs thermiques approximatifs sont conservés uniquement pour traçabilité et n'émettent aucun ClimateSignal."
+
 references:
   - wmo-climatological-normals
   - copernicus-era5-land-timeseries
@@ -157,6 +162,5 @@ p2_decisions:
     decision: "none in V1"
 
 validation_blockers:
-  - exact_annual_summary_aggregation_equivalence_pending_p5
+  - native_service_equivalence_pending_p6
   - real_daily_extreme_method_if_indicators_are_reintroduced
-  - golden_master_equivalence_pending_p5
