@@ -1,0 +1,80 @@
+{
+  "type": "FeatureCollection",
+  "name": "point-gps-43942649-3719175-200m",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "point-gps-43942649-3719175-200m-centre",
+        "name": "Point GPS 43.942649, 3.719175",
+        "role": "scene_centre",
+        "requested_wgs84": [
+          3.719175,
+          43.942649
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.7191809,
+          43.94265276
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "point-gps-43942649-3719175-200m-emprise",
+        "name": "Emprise 200 × 200 m — Point GPS 43.942649, 3.719175",
+        "role": "processing_bbox",
+        "crs_processing": "EPSG:2154",
+        "bbox_l93": [
+          757640.0,
+          6316124.0,
+          757840.0,
+          6316324.0
+        ],
+        "width_m": 200,
+        "height_m": 200,
+        "area_m2": 40000,
+        "buffer_m": 15.0,
+        "lidar_tiles": [
+          "LHD_FXX_0757_6317"
+        ]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              3.71792409,
+              43.94176103
+            ],
+            [
+              3.72041502,
+              43.94174463
+            ],
+            [
+              3.72043774,
+              43.94354448
+            ],
+            [
+              3.71794674,
+              43.94356088
+            ],
+            [
+              3.71792409,
+              43.94176103
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
