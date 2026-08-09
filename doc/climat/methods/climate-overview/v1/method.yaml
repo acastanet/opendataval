@@ -128,6 +128,12 @@ interpretation:
   signal_registry: doc/climat/signals/catalogue.yaml
   claim_level: descriptive
 
+contracts:
+  status: defined_p4
+  result_schema: packages/climate-contracts/schemas/climate-result.schema.json
+  signal_schema: packages/climate-contracts/schemas/climate-signal.schema.json
+  snapshot_schema: packages/climate-contracts/schemas/climate-snapshot.schema.json
+
 references:
   - wmo-climatological-normals
   - copernicus-era5-land-timeseries
@@ -153,5 +159,4 @@ p2_decisions:
 validation_blockers:
   - exact_annual_summary_aggregation_equivalence_pending_p5
   - real_daily_extreme_method_if_indicators_are_reintroduced
-  - common_climate_result_contract_pending_p4
   - golden_master_equivalence_pending_p5
