@@ -1,6 +1,6 @@
 # Référentiel climat OpenDataVal
 
-Statut : **socle d'architecture P0**.
+Statut : **socle d'architecture P0 + registre de sources P1**.
 
 Ce répertoire devient la documentation canonique du domaine climat d'OpenDataVal.
 Il décrit comment produire une **fiche climat d'un lieu** à partir de données climatiques
@@ -57,6 +57,23 @@ fiche climat
 Aucun renderer et aucun modèle de langage ne doit recalculer silencieusement un indicateur
 scientifique.
 
+## Documentation disponible
+
+### P0 — architecture et gouvernance
+
+- [`01-ARCHITECTURE.md`](01-ARCHITECTURE.md) — responsabilités des composants et chaîne de production ;
+- [`04-SCIENTIFIC-GOVERNANCE.md`](04-SCIENTIFIC-GOVERNANCE.md) — autorité documentaire, versionnement, validation et règles d'interprétation.
+
+### P1 — sources scientifiques et techniques
+
+- [`02-DATA-SOURCES.md`](02-DATA-SOURCES.md) — carte source → variable → infographie et questions ouvertes ;
+- [`sources/datasets.yaml`](sources/datasets.yaml) — registre structuré des datasets et de leurs usages ;
+- [`sources/bibliography.yaml`](sources/bibliography.yaml) — références normatives, documentation officielle et articles scientifiques.
+
+Les entrées P1 restent au statut `draft` lorsque la documentation externe actuelle doit encore
+être revérifiée. Une contradiction entre le code, une ancienne spécification et une source
+scientifique ne doit jamais être résolue silencieusement.
+
 ## Composants cibles
 
 ### Acquisition et cache
@@ -88,156 +105,162 @@ Chaque service scientifique devra produire au minimum :
 - une provenance complète ;
 - un rendu graphique dérivé du JSON, sans nouveau calcul scientifique.
 
+### Service de commentaire
+
+`climate-commentary-service` n'est pas un moteur de calcul climatique. Il transforme des
+résultats déjà calculés en explications contrôlées.
+
+Il devra recevoir :
+
+- le résultat JSON ;
+- les `ClimateSignal` ;
+- l'identifiant et la version de la méthode ;
+- les règles d'interprétation de cette méthode ;
+- les limites et informations de qualité nécessaires.
+
+Une affirmation interprétative importante devra être reliée à un ou plusieurs signaux calculés.
+
 ### Orchestration
 
-Le futur `climate-sheet-service` assemblera une fiche complète à partir d'un même contexte de
-données et déclenchera les quatre analyses. Il ne devra pas contenir de logique scientifique
-propre aux indicateurs.
+`climate-sheet-service` assemblera une fiche complète. Il demandera ou réutilisera un
+`ClimateSnapshot`, déclenchera les quatre analyses, validera leurs contrats, lancera les
+commentaires autorisés puis produira le manifeste de fiche.
 
-### Interprétation IA
+Il ne portera pas lui-même les formules scientifiques.
 
-Le futur `climate-commentary-service` expliquera les résultats déjà calculés. Il ne devra pas
-analyser directement les fichiers climatiques bruts ni utiliser l'infographie comme source de
-vérité.
+## Contrats cibles
 
-Son contexte sera construit à partir de :
-
-- la version exacte de la méthode ;
-- les signaux calculés ;
-- les règles d'interprétation autorisées ;
-- les limites et réserves de la méthode ;
-- les informations de qualité et de représentativité.
-
-Une affirmation importante produite par l'IA devra pouvoir être reliée à un ou plusieurs
-signaux ou résultats calculés.
-
-## Documentation canonique
-
-Le domaine climat suivra progressivement cette organisation :
+Les futurs contrats partagés seront regroupés sous :
 
 ```text
-doc/climat/
-├── README.md
-├── 01-ARCHITECTURE.md
-├── 02-DATA-SOURCES.md                 # P1
-├── 03-COMMON-CONTRACT.md              # étape contrats
-├── 04-SCIENTIFIC-GOVERNANCE.md
-├── 05-QUALITY-AND-REPRESENTATIVITY.md # étape qualité
-├── 06-AI-INTERPRETATION.md            # étape IA
-├── sources/                            # P1
-├── glossary/
-└── methods/
-    ├── climate-overview/
-    ├── climate-fingerprint/
-    ├── thermal-seasons/
-    └── water-through-year/
+packages/climate-contracts/
 ```
 
-Pour chaque méthode versionnée, la cible est :
+Ils couvriront au minimum :
+
+- `ClimateSnapshot` — données et provenance communes ;
+- `ClimateResult` — enveloppe scientifique commune ;
+- `ClimateSignal` — fait dérivé explicitement interprétable ;
+- `ClimateCommentary` — commentaire lié aux preuves ;
+- `ClimateSheet` — manifeste de fiche complète.
+
+Le JSON Schema sera la référence interlangage. Les types Python ou TypeScript devront être
+dérivés de ce contrat ou testés contre lui.
+
+## Méthodes scientifiques versionnées
+
+Les méthodes seront progressivement extraites sous :
 
 ```text
-methods/<method>/vN/
-├── method.yaml
-├── science.md
-├── technical.md
-├── interpretation.md
-└── CHANGELOG.md
+doc/climat/methods/
+├── climate-overview/
+├── climate-fingerprint/
+├── thermal-seasons/
+└── water-through-year/
 ```
 
-- `science.md` justifie la méthode et ses limites ;
-- `technical.md` décrit exactement son implémentation ;
-- `method.yaml` expose les paramètres normatifs lisibles par machine ;
-- `interpretation.md` fixe ce qui peut et ne peut pas être dit à partir du résultat ;
-- `CHANGELOG.md` documente toute modification méthodologique.
-
-## Sources de vérité
-
-En cas de divergence pendant la migration, l'ordre d'autorité est :
-
-1. méthode canonique versionnée sous `doc/climat/methods/` une fois validée ;
-2. contrat JSON versionné de la méthode ;
-3. tests et fixtures de référence ;
-4. implémentation du service ;
-5. rendu SVG / HTML ;
-6. commentaire IA.
-
-Pendant P0–P2, tant qu'une méthode canonique n'a pas encore été extraite et validée, le POC
-correspondant et sa documentation actuelle restent la référence à analyser. Une contradiction
-entre documents doit être signalée et résolue explicitement ; elle ne doit jamais être
-corrigée silencieusement.
-
-## Règles de migration des POC
-
-Les POC sont gelés comme références fonctionnelles pendant l'extraction des méthodes.
-
-Une migration suit l'ordre :
+Chaque version comprendra à terme :
 
 ```text
-POC
- ↓
-méthode documentée
- ↓
-fixture / résultat de référence
- ↓
-nouveau service
- ↓
-comparaison POC ↔ service
- ↓
-validation
- ↓
-archivage éventuel du POC
+method.yaml
+science.md
+technical.md
+interpretation.md
+CHANGELOG.md
 ```
 
-Un POC ne doit pas être supprimé avant que le service de remplacement reproduise ses résultats
-de référence dans les tolérances explicitement définies.
+Le rôle de ces fichiers est détaillé dans `04-SCIENTIFIC-GOVERNANCE.md`.
 
-Ordre de migration recommandé :
+## Place des POC pendant la migration
 
-1. empreinte climatique ;
-2. saisons thermiques ;
-3. eau au fil de l'année ;
+`poc/climat/` est gelé comme **corpus de référence de migration**.
+
+Cela signifie :
+
+- ne pas le nettoyer massivement avant extraction des méthodes ;
+- ne pas remplacer les sorties de référence sans justification ;
+- conserver les fixtures utiles à la comparaison ;
+- identifier les contradictions documentaires au lieu de les réconcilier silencieusement ;
+- ne déplacer un POC vers l'archive qu'après validation du service qui le remplace.
+
+Une migration est terminée lorsque le nouveau service reproduit les résultats scientifiques de
+référence dans les tolérances documentées, ou lorsque toute différence volontaire est associée à
+une nouvelle version de méthode.
+
+## Règles non négociables
+
+1. **Pas de calcul scientifique dans le navigateur.**
+2. **Pas d'appel CDS déclenché par l'ouverture d'une page.**
+3. **Pas de calcul scientifique caché dans le renderer.**
+4. **Pas d'interprétation IA sans résultat structuré.**
+5. **Pas d'affirmation de causalité si la méthode ne produit pas une analyse d'attribution.**
+6. **Pas d'affirmation de tendance statistique si le service n'a pas produit le test correspondant.**
+7. **Pas de fausse précision spatiale : une réanalyse maillée reste une réanalyse maillée.**
+8. **Pas de changement silencieux de période, seuil, dataset ou formule.**
+9. **Toute fiche conserve les versions exactes des méthodes et des données utilisées.**
+10. **Toute méthode validée possède des résultats de référence et des tests de non-régression.**
+
+## Feuille de route
+
+### P0 — socle documentaire
+
+**État : réalisé sur la branche de travail.**
+
+Créer le présent README, l'architecture et la gouvernance scientifique.
+
+### P1 — registre des sources
+
+**État : structure réalisée ; vérification externe finale encore requise pour les champs marqués.**
+
+Créer :
+
+```text
+02-DATA-SOURCES.md
+sources/datasets.yaml
+sources/bibliography.yaml
+```
+
+Le registre P1 fait déjà remonter notamment :
+
+- une divergence à résoudre sur la source du vent de l'empreinte ;
+- un contrôle critique des unités/sémantiques du produit ERA5-Land monthly means pour l'eau ;
+- la nécessité de remplacer ou retirer les approximations d'extrêmes du climat général ;
+- des références scientifiques complémentaires à confirmer pour UTCI et pluies intenses.
+
+### P2 — méthodes canoniques
+
+Extraire et figer les quatre méthodes réellement implémentées, en résolvant explicitement les
+questions ouvertes de P1.
+
+### P3 — interprétation
+
+Créer les règles `allowed claims`, `forbidden claims`, caveats et signaux interprétables.
+
+### P4 — contrats
+
+Créer les JSON Schema et types partagés.
+
+### P5 — golden masters
+
+Transformer les sorties/fixtures POC pertinentes en tests d'équivalence documentés.
+
+### P6+ — migration
+
+Migrer successivement :
+
+1. empreinte ;
+2. saisons ;
+3. eau ;
 4. climat général.
 
-L'ordre reflète la maturité actuelle des prototypes, pas l'importance scientifique des quatre
-infographies.
+Le service de commentaire puis l'orchestrateur de fiche seront branchés seulement après la
+stabilisation des contrats et signaux.
 
-## Documents existants utilisés comme matériaux de migration
+## Critère de réussite global
 
-Les principaux matériaux actuellement identifiés sont :
+Une fiche climat doit permettre de répondre à la question :
 
-- `poc/climat/general/INSTRUCTIONS_AGENT_CODAGE_CLIMAT_GENERAL_ZONE_V1.md` ;
-- `poc/climat/general/climate/overview/CLIMATE_OVERVIEW_METHOD.md` ;
-- `poc/climat/empreinte-climatique/README.md` ;
-- `poc/climat/empreinte-climatique/docs/specification.md` ;
-- `poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md` ;
-- `poc/climat/bilan eau/WATER_THROUGH_YEAR_METHOD.md` ;
-- `poc/climat/PRESENTATION_CLIMAT_EMPREINTE_SAISONS_REFERENCES.md`.
+> « D'où vient cette phrase, cette valeur ou cette couleur ? »
 
-Ces fichiers ne sont pas tous de même statut ni forcément cohérents entre eux. Ils seront
-réconciliés méthode par méthode dans P2.
-
-## Étapes de construction
-
-- **P0 — Socle documentaire** : ce README, architecture et gouvernance scientifique.
-- **P1 — Registre des sources** : datasets, variables, résolutions, licences, bibliographie.
-- **P2 — Méthodes canoniques** : extraction des quatre méthodes réellement implémentées.
-- **P3 — Règles d'interprétation** : claims autorisés/interdits et limites par méthode.
-- **P4 — Contrats communs** : `ClimateSnapshot`, `ClimateResult`, `ClimateSignal`, commentaire et fiche.
-- **P5 — Tests de conformité** : golden masters issus des POC.
-- **P6+ — Migration des services** : un service à la fois, sans modifier la science au passage.
-
-## Critère de réussite de P0
-
-Après lecture de ce répertoire, un agent doit pouvoir répondre sans ambiguïté aux questions :
-
-- qu'est-ce qu'une fiche climat ?
-- quelles sont ses quatre analyses principales ?
-- qui acquiert les données ?
-- où les méthodes scientifiques sont-elles définies ?
-- quelle couche calcule les indicateurs ?
-- quelle couche produit les dessins ?
-- que reçoit le service IA ?
-- que lui est-il interdit d'inférer seul ?
-- quand un POC peut-il être retiré ?
-
-Les détails des datasets et références scientifiques seront centralisés lors de P1.
+La réponse doit pouvoir remonter jusqu'au dataset, à la méthode versionnée, au résultat calculé
+et, lorsqu'il s'agit d'un commentaire IA, aux signaux précis qui supportent l'affirmation.
