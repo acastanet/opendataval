@@ -140,6 +140,12 @@ interpretation:
   signal_registry: doc/climat/signals/catalogue.yaml
   claim_level: descriptive
 
+contracts:
+  status: defined_p4
+  result_schema: packages/climate-contracts/schemas/climate-result.schema.json
+  signal_schema: packages/climate-contracts/schemas/climate-signal.schema.json
+  snapshot_schema: packages/climate-contracts/schemas/climate-snapshot.schema.json
+
 secondary_optional_metrics:
   - runoff
   - surface_runoff
@@ -178,5 +184,4 @@ p2_decisions:
     forbidden_names: [reserve_utile, plant_available_water, observed_soil_stock]
 
 validation_blockers:
-  - common_climate_result_contract_pending_p4
   - golden_master_equivalence_pending_p5
