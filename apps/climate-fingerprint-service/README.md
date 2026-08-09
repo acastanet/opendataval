@@ -69,31 +69,32 @@ Le replay refuse :
 - une URI sortant du répertoire du snapshot ;
 - une métadonnée d'acquisition obligatoire manquante.
 
-Le builder **ne fabrique pas** de date de récupération ou de requête CDS pour les anciens fichiers : ces informations doivent venir de la couche d'acquisition.
+Le builder **ne fabrique pas** de date de récupération. Pour les anciens actifs du POC, `legacy_metadata.py` reproduit les paramètres de requête du code historique, mais `retrieved_at` doit provenir de l'acquisition réelle.
+
+### Générer les métadonnées correspondant au fetch POC historique
+
+Pour le cas golden master :
+
+```bash
+PYTHONPATH=apps/climate-fingerprint-service/src \
+python -m climate_fingerprint_service.snapshot_cli metadata-template \
+  --latitude 44.06465392551458 \
+  --longitude 3.6829349237761435 \
+  --retrieved-at 2026-08-09T20:00:00Z \
+  --output /chemin/acquisition-metadata.json
+```
+
+La valeur `--retrieved-at` ci-dessus n'est qu'un exemple de format : elle doit être remplacée par la date réelle de récupération des actifs utilisés.
+
+Le générateur verrouille les paramètres historiques :
+
+- ERA5-Land : grille 0,1°, `2m_temperature`, `total_precipitation`, `u10`, `v10`, CSV, 1991-01-01/2025-12-31 ;
+- ERA5-HEAT : grille 0,25°, UTCI, CSV, même période ;
+- ERA5-Drought : grille 0,25°, SPEI-3, version `1_0`, produit `reanalysis`, dataset `consolidated_dataset`, années 1991–2025 et 12 mois.
 
 ### Construire un snapshot depuis des actifs déjà acquis
 
 Le fichier de métadonnées est un objet JSON indexé par les six `asset_id` :
-
-```json
-{
-  "era5-land-temperature": {
-    "retrieved_at": "2026-08-09T20:00:00Z",
-    "dataset_version": null,
-    "period_start": "1991-01-01",
-    "period_end": "2025-12-31",
-    "request_parameters": {},
-    "represented_spatial": {
-      "lat": 44.1,
-      "lon": 3.7,
-      "resolution_degrees": 0.1
-    },
-    "quality_status": "valid"
-  }
-}
-```
-
-Le même bloc doit être fourni pour :
 
 ```text
 era5-land-temperature
@@ -164,6 +165,8 @@ La palette V4, le résumé éditorial et la provenance de publication ne font pa
 
 Le test vérifie aussi qu'une modification d'un seul fichier après création du manifest bloque le replay.
 
+`test_legacy_metadata.py` verrouille en plus les requêtes CDS historiques qui ont produit le cas POC.
+
 ### 3. Replay du golden master P5 réel — bloqué par les actifs historiques
 
 Le golden master P5 réel est :
@@ -172,9 +175,17 @@ Le golden master P5 réel est :
 packages/climate-contracts/tests/golden-masters/climate-fingerprint/v4/poc-output.json
 ```
 
-Le dépôt ne versionne pas les six actifs ERA5-Land / ERA5-HEAT / ERA5-Drought qui ont produit ce JSON, ni un manifest d'acquisition complet associé. Le résultat P5 ne permet pas de reconstruire ces entrées.
+Il est explicitement `demo: false`, avec le point demandé `44.06465392551458 / 3.6829349237761435`, une maille ERA5-Land `44.1 / 3.7` et une maille UTCI/SPEI `44.0 / 3.75`.
 
-`test_golden_target.py` fixe donc la cible et vérifie qu'une dérive numérique est détectée. Le dernier verrou de validation consiste à retrouver/régénérer les six actifs du cas `44.064654, 3.682935`, produire leur `ClimateSnapshot`, puis exécuter le replay natif contre le golden master à tolérance nulle.
+Le POC écrivait ses six actifs dans `output/raw/`, mais `output/` est ignoré par Git. Le dépôt conserve donc le résultat final mais pas les octets source historiques.
+
+Le dernier verrou de validation consiste à :
+
+1. retrouver une ancienne copie locale de `poc/climat/empreinte-climatique/output/raw/`, **ou** régénérer les six actifs avec les paramètres historiques verrouillés ;
+2. fournir la date réelle d'acquisition ;
+3. créer `climate-snapshot.json` ;
+4. rejouer le service natif ;
+5. comparer le payload au golden master à tolérance nulle.
 
 ## Tests
 
@@ -201,6 +212,7 @@ apps/climate-fingerprint-service/
 │   ├── __init__.py
 │   ├── compute.py
 │   ├── equivalence.py
+│   ├── legacy_metadata.py
 │   ├── result.py
 │   ├── signals.py
 │   ├── snapshot.py
@@ -210,6 +222,7 @@ apps/climate-fingerprint-service/
     ├── test_compute_equivalence.py
     ├── test_contract.py
     ├── test_golden_target.py
+    ├── test_legacy_metadata.py
     └── test_snapshot_replay.py
 ```
 
