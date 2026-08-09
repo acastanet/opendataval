@@ -4,7 +4,20 @@ import argparse
 import json
 from pathlib import Path
 
+from .legacy_metadata import legacy_poc_acquisition_metadata
 from .snapshot import build_snapshot_manifest, replay_snapshot, write_snapshot_manifest
+
+
+def _metadata_template(args: argparse.Namespace) -> int:
+    metadata = legacy_poc_acquisition_metadata(
+        args.latitude,
+        args.longitude,
+        retrieved_at=args.retrieved_at,
+    )
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(args.output)
+    return 0
 
 
 def _build(args: argparse.Namespace) -> int:
@@ -40,6 +53,16 @@ def _replay(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build or replay a climate fingerprint ClimateSnapshot")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    metadata_parser = subparsers.add_parser(
+        "metadata-template",
+        help="Reproduire les paramètres d'acquisition du POC historique sans télécharger de données",
+    )
+    metadata_parser.add_argument("--latitude", type=float, required=True)
+    metadata_parser.add_argument("--longitude", type=float, required=True)
+    metadata_parser.add_argument("--retrieved-at", required=True)
+    metadata_parser.add_argument("--output", type=Path, required=True)
+    metadata_parser.set_defaults(func=_metadata_template)
 
     build_parser = subparsers.add_parser("build", help="Construire un ClimateSnapshot depuis six actifs déjà acquis")
     build_parser.add_argument("raw_directory", type=Path)
