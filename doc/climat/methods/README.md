@@ -75,7 +75,9 @@ Une fiche publiée doit rester reproductible après l'introduction d'une nouvell
 
 ## Étape suivante : P3
 
-Ajouter pour chaque méthode :
+P3 ne modifiera pas les quatre méthodes numériques. Il ajoutera une couche d'interprétation versionnée autour de leurs sorties.
+
+Pour chacune des quatre méthodes, créer :
 
 ```text
 interpretation.md
@@ -83,12 +85,16 @@ interpretation.md
 
 avec :
 
-- les `ClimateSignal` attendus ;
-- leurs règles de lecture ;
+- catalogue des `ClimateSignal` attendus ;
+- signification exacte de chaque direction et unité ;
 - formulations autorisées ;
 - formulations interdites ;
 - caveats obligatoires ;
-- conditions de non-interprétation.
+- conditions de non-interprétation ;
+- règles de combinaison de plusieurs signaux ;
+- exemples de commentaires acceptables et refusés.
+
+P3 doit être écrit de manière à devenir ensuite une entrée contrôlée de `climate-commentary-service`, sans demander au LLM de reconstruire la méthode depuis les séries brutes.
 
 Puis :
 
