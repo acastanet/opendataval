@@ -1,0 +1,158 @@
+schema_version: "1.0"
+id: thermal-seasons
+version: "1.0.0"
+status: draft
+
+product:
+  title_fr: "Les saisons se déplacent"
+  question_fr: "Comment les régimes thermiques de l'année se sont-ils déplacés ?"
+  semantic_warning: "Les saisons sont thermiques et locales ; elles ne sont pas les saisons météorologiques fixes DJF/MAM/JJA/SON."
+
+periods:
+  reference: [1991, 2020]
+  study: [1996, 2025]
+  early: [1996, 2005]
+  middle: [2006, 2015]
+  late: [2016, 2025]
+
+input:
+  dataset_registry_id: era5-land-timeseries
+  family: ERA5-Land
+  current_poc_dataset_id: reanalysis-era5-land-timeseries
+  variable: 2m_temperature
+  source_unit: K
+  normalized_unit: degC
+  grid_degrees: 0.1
+  local_measurement: false
+  production_acquisition_note: >-
+    La méthode dépend d'ERA5-Land et de la variable 2m_temperature, pas obligatoirement
+    de l'interface time-series actuelle. apps/copernicus devra choisir un actif de production
+    stable et démontrer son équivalence au golden master.
+
+quality:
+  minimum_hourly_values_per_day: 18
+  minimum_valid_day_fraction_per_year: 0.98
+  maximum_interpolated_gap_days: 2
+  coverage_measured_before_interpolation: true
+
+calendar:
+  leap_day: removed
+  days_per_year: 365
+
+reference_climatology:
+  daily_statistic: arithmetic_mean
+  across_years_statistic: nanmean
+  expected_days: 365
+  thresholds:
+    cold:
+      name: T25
+      percentile: 25
+    warm:
+      name: T75
+      percentile: 75
+    percentile_method: linear
+
+smoothing:
+  type: polynomial_fit
+  degree: 3
+  x: day_of_year_1_to_365
+  purpose: crossing_detection_only
+  diagnostic: fit_rmse_c
+
+crossings:
+  spring_start:
+    threshold: T25
+    direction: ascending
+  summer_start:
+    threshold: T75
+    direction: ascending
+  autumn_start:
+    threshold: T75
+    direction: descending
+  winter_start:
+    threshold: T25
+    direction: descending
+  interpolation: linear_between_adjacent_days
+  required_order: "spring_start < summer_start < autumn_start < winter_start"
+  invalid_rule: "si un franchissement manque ou si l'ordre est invalide, l'année est invalid_crossings"
+
+annual_durations:
+  spring: "summer_start - spring_start"
+  summer: "autumn_start - summer_start"
+  autumn: "winter_start - autumn_start"
+  winter: "(365 - winter_start) + next_year_spring_start"
+  missing_next_spring: "winter_length = null"
+
+aggregation:
+  decade_statistics:
+    - p25
+    - median
+    - p75
+  percentile_method: linear
+  comparison_statistic: median
+  shift_formula: "median(late) - median(early)"
+  shift_semantics:
+    negative: earlier
+    positive: later
+
+primary_outputs:
+  - spring_start_doy
+  - summer_start_doy
+  - autumn_start_doy
+  - winter_start_doy
+  - spring_length_days
+  - summer_length_days
+  - autumn_length_days
+  - winter_length_days
+  - summer_length_change_days
+  - spring_start_shift_days
+  - summer_start_shift_days
+  - autumn_start_shift_days
+  - winter_start_shift_days
+
+secondary_outputs:
+  - fit_rmse_c
+  - valid_days
+  - interpolated_days
+  - growing_season_start_doy
+  - growing_season_end_doy
+  - growing_season_length_days
+
+scientific_basis:
+  primary_reference: wang-2021-four-seasons
+  adaptation_opendataval:
+    - reference_period_1991_2020
+    - study_period_1996_2025
+    - decade_comparison_1996_2005_vs_2016_2025
+    - explicit_completeness_rules
+    - explicit_linear_percentile_method
+
+claims:
+  allowed_scope:
+    - thermal_season_onset_comparison
+    - thermal_season_length_comparison
+    - descriptive_shift_between_decades
+  forbidden_without_additional_method:
+    - meteorological_season_shift
+    - phenological_season_shift
+    - statistical_trend_significance
+    - local_causal_attribution
+
+references:
+  - wmo-climatological-normals
+  - copernicus-era5-land-timeseries
+  - wang-2021-four-seasons
+
+project_sources:
+  - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
+  - poc/climat/saisons/thermal_seasons/data.py
+  - poc/climat/saisons/thermal_seasons/reference.py
+  - poc/climat/saisons/thermal_seasons/smoothing.py
+  - poc/climat/saisons/thermal_seasons/crossings.py
+  - poc/climat/saisons/thermal_seasons/aggregate.py
+  - poc/climat/saisons/thermal_seasons/schema.py
+
+validation_blockers:
+  - interpretation_rules_pending_p3
+  - common_climate_result_contract_pending_p4
+  - golden_master_equivalence_pending_p5
