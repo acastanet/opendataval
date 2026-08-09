@@ -98,7 +98,6 @@ metrics:
     output_unit: degC
     annual_metric: annual_mean_2m_temperature
     calculation: "moyenne annuelle des températures moyennes quotidiennes"
-
   - id: utci
     label_fr: Stress UTCI
     source: ERA5-HEAT
@@ -107,7 +106,6 @@ metrics:
     annual_metric: annual_p95_daily_max_utci
     calculation: "P95 annuel des maxima UTCI quotidiens"
     details: [days_ge_32_degC_utci, days_ge_38_degC_utci, annual_max_degC_utci]
-
   - id: precipitation
     label_fr: Précipitations
     source: ERA5-Land
@@ -115,7 +113,6 @@ metrics:
     output_unit: mm
     annual_metric: annual_total_precipitation
     calculation: "somme annuelle des cumuls quotidiens"
-
   - id: heavy_rain
     label_fr: Pluies intenses
     source: ERA5-Land
@@ -132,7 +129,6 @@ metrics:
       Le seuil de jour humide et le P95 sont inspirés des indices ETCCDI/Climdex.
       La métrique principale OpenDataVal est un compte de jours ; elle ne doit pas être
       nommée R95p ou R95pTOT.
-
   - id: drought
     label_fr: Sécheresse
     source: ERA5-Drought
@@ -148,7 +144,6 @@ metrics:
       Pour chacun des douze mois du calendrier, calcul du P10 de SPEI-3 sur 1991-2020,
       puis comptage annuel des mois dont SPEI-3 est strictement inférieur au P10 du même mois.
     details: [annual_min_spei3]
-
   - id: wind
     label_fr: Vent fort
     source: ERA5-Land
@@ -213,6 +208,12 @@ events:
     Ces événements sont des candidats climatiques détectés dans les réanalyses.
     Sans source externe, ils ne doivent pas être renommés crue, tempête, incendie ou catastrophe.
 
+interpretation:
+  status: defined_p3
+  rules: interpretation.md
+  signal_registry: doc/climat/signals/catalogue.yaml
+  claim_level: descriptive
+
 provenance_requirements:
   - requested_point
   - represented_grid_points
@@ -246,24 +247,13 @@ p2_decisions:
   wind_dataset:
     status: resolved
     decision: era5_land_timeseries
-    reason: >-
-      Le catalogue officiel ERA5-Land time-series expose les composantes u/v du vent à 10 m,
-      et le POC V4 les télécharge déjà depuis ce produit. La méthode canonique conserve donc
-      ERA5-Land au lieu d'ajouter ERA5 single-levels.
   heavy_rain_naming:
     status: resolved
     decision: custom_count_above_wet_day_p95
-    reason: >-
-      Le POC compte les jours dépassant un seuil P95 de jours humides. Cette métrique est
-      apparentée au cadre ETCCDI mais n'est pas l'indice R95p/R95pTOT standard.
   visual_normalization:
     status: resolved
     decision: opendataval_editorial_v4
-    reason: >-
-      L'écart standardisé robuste et l'accentuation gamma sont des choix OpenDataVal qui
-      pilotent la couleur sans changer les valeurs physiques ni les classes de référence.
 
 validation_blockers:
-  - interpretation_rules_pending_p3
   - common_climate_result_contract_pending_p4
   - golden_master_equivalence_pending_p5
