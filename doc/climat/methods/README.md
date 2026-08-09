@@ -11,9 +11,9 @@ Ce répertoire contient les méthodes scientifiques et techniques canoniques de 
 | `thermal-seasons` | 1.0.0 | `draft` | `poc/climat/saisons/` | Comment les régimes thermiques de l'année se sont-ils déplacés ? |
 | `water-through-year` | 1.0.0 | `draft` | `poc/climat/bilan eau/` | Comment le cycle hydroclimatique se répartit-il et a-t-il évolué ? |
 
-**P2 est terminé.** Les quatre comportements méthodologiques ont été extraits, confrontés au code actuel et documentés. Le statut reste `draft` conformément à la gouvernance : aucune méthode ne devient `validated` avant P3, P4 et P5.
+**P2 est terminé.** Les quatre comportements méthodologiques ont été extraits, confrontés au code actuel et documentés. Le statut reste `draft` : aucune méthode ne devient `validated` avant P3, P4 et P5.
 
-## Structure d'une méthode
+## Structure
 
 Chaque version contient :
 
@@ -26,77 +26,58 @@ CHANGELOG.md
 
 `interpretation.md` sera ajouté en P3.
 
-## Décisions P2
+## Décisions P2 principales
 
 ### Climate overview
 
-- noyau V1 : température, précipitations, climatologie mensuelle et représentativité spatiale ;
-- aucune descente d'échelle automatique ;
-- jours de gel, jours ≥30 °C et nuits ≥20 °C exclus du noyau tant qu'ils sont approximés par température moyenne quotidienne ;
-- réintroduction uniquement avec vrais minima/maxima quotidiens et tests.
+- noyau : température, précipitations, climatologie mensuelle et représentativité spatiale ;
+- aucun downscaling automatique ;
+- compteurs gel / ≥30 °C / nuits ≥20 °C exclus tant qu'ils utilisent une approximation par température moyenne ;
+- réintroduction uniquement à partir de vrais minima/maxima quotidiens.
 
 ### Climate fingerprint
 
-- vent V4 : ERA5-Land `u10/v10` ;
-- pluie intense : compte des jours dépassant le P95 des jours humides, sans utiliser abusivement le nom R95p/R95pTOT ;
-- couleur robuste V4 : convention éditoriale OpenDataVal, pas indice scientifique universel ;
-- résumé textuel déterministe du POC : logique legacy appelée à être remplacée par `ClimateSignal` + commentaire IA.
+- vent : ERA5-Land `u10/v10` ;
+- pluie intense : compte annuel de jours > P95 des jours humides, sans le nom R95p/R95pTOT ;
+- couleur robuste V4 : convention éditoriale OpenDataVal ;
+- résumé déterministe legacy à remplacer par `ClimateSignal` + commentaire IA.
 
 ### Thermal seasons
 
-- saisons thermiques locales T25/T75, pas saisons météorologiques fixes ;
+- saisons thermiques locales T25/T75 ;
 - complétude, calendrier sans 29 février, lissage degré 3 et franchissements figés ;
-- comparaison entre décennies descriptive, sans test de tendance ;
+- comparaison entre décennies descriptive ;
 - saison de croissance secondaire et distincte.
 
 ### Water through year
 
-- conversion des accumulations ERA5-Land mensuelles vérifiée dans la documentation ECMWF ;
+- conversion des accumulations ERA5-Land mensuelles vérifiée ECMWF ;
 - signe de `total_evaporation` documenté ;
 - stock 0–100 cm = grandeur dérivée du modèle, jamais réserve utile ou mesure de nappe ;
-- sécheresse `SPEI-3 < -1` distincte de la métrique relative P10 de l'empreinte.
+- sécheresse `SPEI-3 < -1` distincte de la métrique P10 de l'empreinte.
 
-## Décision transversale d'acquisition
+## Acquisition
 
-Les méthodes canoniques référencent la famille scientifique et les variables nécessaires. Elles ne figent pas une interface CDS lorsque plusieurs actifs peuvent fournir une grandeur équivalente.
+Les méthodes référencent la famille scientifique et les variables nécessaires. Elles ne figent pas l'interface CDS lorsqu'un actif équivalent peut être substitué.
 
-L'interface ERA5-Land time-series reste la référence des POC et des futurs golden masters ; `apps/copernicus` devra choisir l'actif de production stable et P5 devra vérifier l'équivalence numérique.
-
-## Règle de dépendance
-
-Le code futur devra conserver :
-
-```text
-method.id
-method.version
-```
-
-Une fiche publiée doit rester reproductible après l'introduction d'une nouvelle version de méthode.
+L'interface ERA5-Land time-series reste la référence des POC/golden masters ; `apps/copernicus` devra choisir l'actif de production et P5 démontrer l'équivalence numérique.
 
 ## Étape suivante : P3
 
-P3 ne modifiera pas les quatre méthodes numériques. Il ajoutera une couche d'interprétation versionnée autour de leurs sorties.
+Pour chacune des quatre méthodes, créer `interpretation.md` avec :
 
-Pour chacune des quatre méthodes, créer :
-
-```text
-interpretation.md
-```
-
-avec :
-
-- catalogue des `ClimateSignal` attendus ;
-- signification exacte de chaque direction et unité ;
+- `ClimateSignal` attendus ;
+- signification des directions et unités ;
 - formulations autorisées ;
 - formulations interdites ;
 - caveats obligatoires ;
-- conditions de non-interprétation ;
-- règles de combinaison de plusieurs signaux ;
-- exemples de commentaires acceptables et refusés.
+- conditions d'abstention ;
+- règles de combinaison de signaux ;
+- exemples de commentaires acceptables/refusés.
 
-P3 doit être écrit de manière à devenir ensuite une entrée contrôlée de `climate-commentary-service`, sans demander au LLM de reconstruire la méthode depuis les séries brutes.
+P3 ne doit modifier aucun calcul numérique.
 
 Puis :
 
-- **P4** — `ClimateSnapshot`, `ClimateResult`, `ClimateSignal`, `ClimateCommentary`, `ClimateSheet` ;
+- **P4** — contrats `ClimateSnapshot`, `ClimateResult`, `ClimateSignal`, `ClimateCommentary`, `ClimateSheet` ;
 - **P5** — golden masters et tests d'équivalence.
