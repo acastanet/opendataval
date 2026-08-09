@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "id": "thermal-summer-start-shift:POINT-44.0646-3.6830:1996-2005_vs_2016-2025",
+  "definition_id": "thermal-summer-start-shift",
+  "method": {
+    "id": "thermal-seasons",
+    "version": "1.0.0"
+  },
+  "metric": "summer_start_shift_days",
+  "claim_level": "descriptive",
+  "value": -11.0,
+  "unit": "days",
+  "direction": "earlier",
+  "comparison": {
+    "early_period": "1996-2005",
+    "late_period": "2016-2025",
+    "early_value": 165.0,
+    "late_value": 154.0,
+    "delta": -11.0,
+    "relative_pct": null
+  },
+  "evidence": [
+    {
+      "result_pointer": "/data/comparison/summer_start_shift_days",
+      "description": "Différence entre médianes décennales calculée par la méthode thermal-seasons@1.0.0."
+    }
+  ],
+  "caveat_ids": [
+    "thermal-not-meteorological-season",
+    "gridded-reanalysis",
+    "descriptive-not-trend"
+  ],
+  "quality_status": "valid"
+}

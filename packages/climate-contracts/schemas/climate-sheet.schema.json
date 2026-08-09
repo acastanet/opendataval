@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ClimateSheet",
+  "description": "Manifest de publication d'une fiche climat assemblant quatre analyses et leurs commentaires.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "sheet_id", "created_at", "snapshot_id", "location", "analyses", "status"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "sheet_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "location": {"$ref": "#/$defs/requestedLocation"},
+    "analyses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["climate_overview", "climate_fingerprint", "thermal_seasons", "water_through_year"],
+      "properties": {
+        "climate_overview": {"$ref": "#/$defs/analysisEntry"},
+        "climate_fingerprint": {"$ref": "#/$defs/analysisEntry"},
+        "thermal_seasons": {"$ref": "#/$defs/analysisEntry"},
+        "water_through_year": {"$ref": "#/$defs/analysisEntry"}
+      }
+    },
+    "sheet_commentary_ref": {"type": ["string", "null"]},
+    "publication": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "html_ref": {"type": ["string", "null"]},
+        "manifest_ref": {"type": ["string", "null"]}
+      }
+    },
+    "status": {"enum": ["building", "ready", "partial", "failed"]},
+    "quality": {"type": "object", "additionalProperties": true}
+  },
+  "$defs": {
+    "geometry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": {"enum": ["Point", "Polygon", "MultiPolygon"]},
+        "coordinates": {}
+      }
+    },
+    "requestedLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geometry"],
+      "properties": {
+        "geometry": {"$ref": "#/$defs/geometry"},
+        "label": {"type": "string"},
+        "tile_id": {"type": "string"}
+      }
+    },
+    "methodRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "analysisEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "status"],
+      "properties": {
+        "method": {"$ref": "#/$defs/methodRef"},
+        "status": {"enum": ["pending", "ready", "unavailable", "error"]},
+        "result_ref": {"type": ["string", "null"]},
+        "commentary_ref": {"type": ["string", "null"]},
+        "render_assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "ref"],
+            "properties": {
+              "type": {"enum": ["svg", "html", "json", "png"]},
+              "ref": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "error": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "ready"}}, "required": ["status"]},
+          "then": {"required": ["result_ref"]}
+        }
+      ]
+    }
+  }
+}

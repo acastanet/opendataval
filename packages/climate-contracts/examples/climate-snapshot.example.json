@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "snapshot_id": "CLIMATE-2026-000012",
+  "created_at": "2026-08-09T20:40:00Z",
+  "requested_location": {
+    "geometry": {
+      "type": "Point",
+      "coordinates": [3.683, 44.0646]
+    },
+    "label": "Exemple Val-d'Aigoual"
+  },
+  "assets": [
+    {
+      "asset_id": "ASSET-ERA5LAND-T2M-000001",
+      "dataset_registry_id": "era5-land-timeseries",
+      "dataset_id": "reanalysis-era5-land-timeseries",
+      "provider": "ECMWF / Copernicus Climate Data Store",
+      "variables": ["2m_temperature"],
+      "period": {
+        "start": "1991-01-01",
+        "end": "2025-12-31"
+      },
+      "requested_spatial": {
+        "lat": 44.0646,
+        "lon": 3.683
+      },
+      "represented_spatial": {
+        "lat": 44.1,
+        "lon": 3.7,
+        "grid_degrees": 0.1
+      },
+      "retrieval": {
+        "retrieved_at": "2026-08-09T20:35:00Z",
+        "dataset_version": null,
+        "request_parameters": {
+          "format": "csv"
+        }
+      },
+      "storage": {
+        "uri": "climate://snapshots/CLIMATE-2026-000012/raw/era5-land-t2m",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "media_type": "text/csv"
+      },
+      "quality": {
+        "status": "valid",
+        "coverage_fraction": 1.0
+      }
+    }
+  ],
+  "quality": {
+    "status": "valid",
+    "notes": []
+  },
+  "provenance": {
+    "producer": "apps/copernicus"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "sheet_id": "SHEET-2026-000012",
+  "created_at": "2026-08-09T20:50:00Z",
+  "snapshot_id": "CLIMATE-2026-000012",
+  "location": {
+    "geometry": {
+      "type": "Point",
+      "coordinates": [3.683, 44.0646]
+    },
+    "label": "Exemple Val-d'Aigoual"
+  },
+  "analyses": {
+    "climate_overview": {
+      "method": {"id": "climate-overview", "version": "1.0.0"},
+      "status": "pending",
+      "result_ref": null,
+      "commentary_ref": null,
+      "render_assets": [],
+      "error": null
+    },
+    "climate_fingerprint": {
+      "method": {"id": "climate-fingerprint", "version": "4.0.0"},
+      "status": "pending",
+      "result_ref": null,
+      "commentary_ref": null,
+      "render_assets": [],
+      "error": null
+    },
+    "thermal_seasons": {
+      "method": {"id": "thermal-seasons", "version": "1.0.0"},
+      "status": "ready",
+      "result_ref": "results/thermal-seasons.json",
+      "commentary_ref": "commentary/thermal-seasons.json",
+      "render_assets": [
+        {"type": "svg", "ref": "figures/thermal-seasons.svg"}
+      ]
+    },
+    "water_through_year": {
+      "method": {"id": "water-through-year", "version": "1.0.0"},
+      "status": "pending",
+      "result_ref": null,
+      "commentary_ref": null,
+      "render_assets": [],
+      "error": null
+    }
+  },
+  "sheet_commentary_ref": null,
+  "publication": {
+    "html_ref": null,
+    "manifest_ref": "climate-sheet.json"
+  },
+  "status": "building",
+  "quality": {
+    "status": "partial"
+  }
+}
