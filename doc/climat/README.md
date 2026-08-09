@@ -1,8 +1,8 @@
 # Référentiel climat OpenDataVal
 
-Statut : **P0 + P1 + P2 réalisés ; méthodes en `draft`**.
+Statut : **P0 + P1 + P2 + P3 réalisés ; méthodes en `draft`**.
 
-Ce répertoire est la documentation canonique du domaine climat d'OpenDataVal. Il décrit la production d'une **fiche climat d'un lieu** à partir de données traçables, de méthodes scientifiques versionnées et de rendus reproductibles.
+Ce répertoire est la documentation canonique du domaine climat d'OpenDataVal. Il décrit la production d'une **fiche climat d'un lieu** à partir de données traçables, de méthodes scientifiques versionnées, de rendus reproductibles et de commentaires IA contrôlés.
 
 `poc/climat/` reste le corpus de référence pendant la migration. Les POC ne sont pas supprimés avant les golden masters et tests d'équivalence de P5.
 
@@ -41,11 +41,13 @@ Ni le renderer ni le modèle de langage ne recalculent silencieusement un indica
 - [`01-ARCHITECTURE.md`](01-ARCHITECTURE.md) — composants et chaîne de production ;
 - [`02-DATA-SOURCES.md`](02-DATA-SOURCES.md) — sources, variables et décisions P1/P2 ;
 - [`04-SCIENTIFIC-GOVERNANCE.md`](04-SCIENTIFIC-GOVERNANCE.md) — versionnement, preuve, qualité et autorité documentaire ;
+- [`06-AI-INTERPRETATION.md`](06-AI-INTERPRETATION.md) — règles communes du futur service IA ;
 - [`sources/datasets.yaml`](sources/datasets.yaml) — registre machine des datasets ;
 - [`sources/bibliography.yaml`](sources/bibliography.yaml) — références scientifiques et techniques ;
+- [`signals/catalogue.yaml`](signals/catalogue.yaml) — registre sémantique P3 des `ClimateSignal` ;
 - [`methods/README.md`](methods/README.md) — index des quatre méthodes.
 
-## Méthodes P2
+## Méthodes P2 + P3
 
 ```text
 methods/
@@ -55,16 +57,17 @@ methods/
 └── water-through-year/v1/
 ```
 
-Chaque méthode possède :
+Chaque méthode possède désormais :
 
 ```text
 method.yaml
 science.md
 technical.md
+interpretation.md
 CHANGELOG.md
 ```
 
-Toutes restent `draft` jusqu'à P3, P4 et P5.
+Toutes restent `draft` jusqu'aux contrats P4 et aux tests d'équivalence P5.
 
 ## Architecture cible
 
@@ -97,7 +100,21 @@ La méthode T25/T75 fixe les règles de complétude, le calendrier sans 29 févr
 
 La conversion des accumulations ERA5-Land mensuelles et la convention de signe de `total_evaporation` ont été vérifiées dans la documentation ECMWF. Le stock 0–100 cm est une grandeur dérivée du modèle et ne peut pas être appelé réserve utile, eau disponible pour les plantes ou observation de nappe.
 
-## Commentaire IA
+## P3 — interprétation IA
+
+P3 fixe maintenant le passage :
+
+```text
+ClimateResult
+      ↓
+ClimateSignal calculé
+      ↓
+formulation autorisée
+      ↓
+caveats obligatoires
+      ↓
+ClimateCommentary
+```
 
 Le futur `climate-commentary-service` recevra :
 
@@ -110,6 +127,22 @@ interpretation.md
 ```
 
 Il pourra expliquer et hiérarchiser des faits calculés, mais ne pourra pas inventer valeur, tendance statistique, causalité ou précision spatiale.
+
+Chaque constat important devra être traçable :
+
+```text
+phrase
+ ↓
+signal_id
+ ↓
+ClimateSignal
+ ↓
+evidence
+ ↓
+ClimateResult
+```
+
+Les quatre méthodes actuelles n'émettent que des constats de niveau `descriptive`. Les niveaux `statistical_trend` et `causal_attribution` sont réservés à de futures méthodes qui les calculeront explicitement.
 
 ## Migration
 
@@ -134,8 +167,8 @@ archivage du POC
 - **P0 — réalisé** : architecture et gouvernance ;
 - **P1 — réalisé** : sources et bibliographie ;
 - **P2 — réalisé** : quatre méthodes canoniques en statut `draft` ;
-- **P3 — prochain** : `interpretation.md` et catalogue de `ClimateSignal` pour chaque méthode ;
-- **P4** : contrats `ClimateSnapshot`, `ClimateResult`, `ClimateSignal`, `ClimateCommentary`, `ClimateSheet` ;
+- **P3 — réalisé** : règles d'interprétation et catalogue sémantique `ClimateSignal` ;
+- **P4 — prochain** : contrats `ClimateSnapshot`, `ClimateResult`, `ClimateSignal`, `ClimateCommentary`, `ClimateSheet` ;
 - **P5** : golden masters et tests d'équivalence ;
 - **P6+** : migration progressive des microservices, orchestrateur et commentaire IA.
 
