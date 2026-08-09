@@ -2,7 +2,7 @@
 
 Ce répertoire contient les méthodes scientifiques, techniques et interprétatives canoniques de la future fiche climat OpenDataVal.
 
-## Statut après P3
+## Statut après P4
 
 | Méthode | Version | Statut | POC source | Question |
 |---|---:|---|---|---|
@@ -11,11 +11,11 @@ Ce répertoire contient les méthodes scientifiques, techniques et interprétati
 | `thermal-seasons` | 1.0.0 | `draft` | `poc/climat/saisons/` | Comment les régimes thermiques de l'année se sont-ils déplacés ? |
 | `water-through-year` | 1.0.0 | `draft` | `poc/climat/bilan eau/` | Comment le cycle hydroclimatique se répartit-il et a-t-il évolué ? |
 
-**P2 et P3 sont terminés.** Les quatre comportements méthodologiques ont été extraits du code actuel et chaque méthode possède maintenant ses règles d'interprétation. Le statut reste `draft` jusqu'aux contrats P4 et aux golden masters P5.
+**P2, P3 et P4 sont terminés.** Les comportements méthodologiques sont documentés, leurs règles d'interprétation sont définies et les échanges communs sont formalisés par JSON Schema. Le statut reste `draft` jusqu'aux golden masters P5.
 
-## Structure
+## Structure d'une méthode
 
-Chaque version contient désormais :
+Chaque version contient :
 
 ```text
 method.yaml
@@ -34,6 +34,8 @@ Rôle des fichiers :
 - `CHANGELOG.md` — décisions de version.
 
 Le cadre commun de commentaire IA est dans `doc/climat/06-AI-INTERPRETATION.md` et le registre sémantique des signaux dans `doc/climat/signals/catalogue.yaml`.
+
+Les contrats techniques communs sont documentés dans `doc/climat/03-COMMON-CONTRACT.md` et publiés dans `packages/climate-contracts/`.
 
 ## Décisions P2 principales
 
@@ -94,15 +96,9 @@ Aucune des quatre méthodes actuelles n'autorise par défaut :
 
 Les signaux utilisent actuellement le niveau de preuve `descriptive`. Les niveaux `statistical_trend` et `causal_attribution` sont réservés à de futures méthodes dédiées.
 
-## Acquisition
+## Contrats P4
 
-Les méthodes référencent la famille scientifique et les variables nécessaires. Elles ne figent pas l'interface CDS lorsqu'un actif équivalent peut être substitué.
-
-L'interface ERA5-Land time-series reste la référence des POC/golden masters ; `apps/copernicus` devra choisir l'actif de production et P5 démontrer l'équivalence numérique.
-
-## Étape suivante : P4
-
-Créer les contrats communs :
+Les cinq contrats sont :
 
 ```text
 ClimateSnapshot
@@ -112,17 +108,52 @@ ClimateCommentary
 ClimateSheet
 ```
 
-P4 doit notamment rendre machine-validables :
+Schémas :
 
-- les `signal_id` ;
-- les pointeurs `evidence` ;
-- le niveau de preuve ;
-- les unités et directions ;
-- les caveats ;
-- les statuts de qualité ;
-- l'obligation pour chaque `finding` IA de référencer au moins un signal.
+```text
+packages/climate-contracts/schemas/
+```
+
+Exemples :
+
+```text
+packages/climate-contracts/examples/
+```
+
+Le champ `ClimateResult.data` reste spécifique à chaque méthode, tandis que l'enveloppe commune impose provenance, méthode/version, représentativité, qualité, signaux et caveats.
+
+`ClimateSignal.evidence` fournit des JSON Pointer vers `ClimateResult`. Chaque `ClimateCommentary.findings[]` doit référencer au moins un signal.
+
+La validation applicative complètera JSON Schema pour vérifier les relations entre documents.
+
+## Acquisition
+
+Les méthodes référencent la famille scientifique et les variables nécessaires. Elles ne figent pas l'interface CDS lorsqu'un actif équivalent peut être substitué.
+
+L'interface ERA5-Land time-series reste la référence des POC/golden masters ; `apps/copernicus` devra choisir l'actif de production et P5 démontrer l'équivalence numérique.
+
+## Étape suivante : P5
+
+P5 doit transformer les sorties actuelles des POC en références scientifiques de non-régression.
+
+Pour chaque méthode :
+
+```text
+POC réel
+ ↓
+golden master
+ ↓
+adaptateur vers ClimateResult
+ ↓
+validation JSON Schema
+ ↓
+validation des ClimateSignal
+ ↓
+test d'équivalence numérique
+```
+
+P5 pourra aussi introduire des sous-schémas propres à `ClimateResult.data` si les sorties réelles montrent qu'ils sont suffisamment stables.
 
 Puis :
 
-- **P5** — golden masters et tests d'équivalence ;
 - **P6+** — migration progressive des microservices.
