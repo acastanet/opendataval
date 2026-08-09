@@ -1,5 +1,6 @@
 from .compute import FingerprintSeriesInput, compute_fingerprint_data
 from .equivalence import assert_fingerprint_equivalent, comparable_payload
+from .legacy_metadata import legacy_poc_acquisition_metadata
 from .result import FingerprintContext, build_climate_result
 from .signals import build_signals
 from .snapshot import (
@@ -22,6 +23,7 @@ __all__ = [
     "build_signals",
     "assert_fingerprint_equivalent",
     "comparable_payload",
+    "legacy_poc_acquisition_metadata",
     "resolve_json_pointer",
     "validate_result_invariants",
     "ASSET_SPECS",
