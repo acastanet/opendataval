@@ -11,71 +11,69 @@ Ce répertoire contient les méthodes scientifiques et techniques canoniques de 
 | `thermal-seasons` | 1.0.0 | `draft` | `poc/climat/saisons/` | Comment les régimes thermiques de l'année se sont-ils déplacés ? |
 | `water-through-year` | 1.0.0 | `draft` | `poc/climat/bilan eau/` | Comment le cycle hydroclimatique se répartit-il et a-t-il évolué ? |
 
-**P2 est terminé** : les quatre comportements méthodologiques ont été extraits, confrontés au code actuel et documentés. Le statut reste `draft` conformément à la gouvernance : aucune méthode ne devient `validated` avant P3, P4 et P5.
+**P2 est terminé.** Les quatre comportements méthodologiques ont été extraits, confrontés au code actuel et documentés. Le statut reste `draft` conformément à la gouvernance : aucune méthode ne devient `validated` avant P3, P4 et P5.
 
 ## Structure d'une méthode
 
-Chaque version contient actuellement :
+Chaque version contient :
 
 ```text
-method.yaml   contrat méthodologique lisible par machine
-science.md    question, fondements, portée et limites
-technical.md  algorithme et décisions d'implémentation
-CHANGELOG.md  décisions de version et points restant à valider
+method.yaml
+science.md
+technical.md
+CHANGELOG.md
 ```
 
-`interpretation.md` sera ajouté en **P3** afin de ne pas mélanger extraction de la méthode et règles de commentaire IA.
+`interpretation.md` sera ajouté en P3.
 
-## Décisions importantes issues de P2
+## Décisions P2
 
 ### Climate overview
 
 - noyau V1 : température, précipitations, climatologie mensuelle et représentativité spatiale ;
 - aucune descente d'échelle automatique ;
-- les jours de gel, jours ≥30 °C et nuits ≥20 °C du POC ne sont pas canoniques tant qu'ils sont approximés à partir de températures moyennes quotidiennes ;
-- si ces indicateurs sont réintroduits, ils devront utiliser de vrais minima/maxima quotidiens.
+- jours de gel, jours ≥30 °C et nuits ≥20 °C exclus du noyau tant qu'ils sont approximés par température moyenne quotidienne ;
+- réintroduction uniquement avec vrais minima/maxima quotidiens et tests.
 
 ### Climate fingerprint
 
-- le vent V4 utilise canoniquement ERA5-Land `u10/v10` ;
-- la ligne pluies intenses compte les jours dépassant le P95 des jours humides de référence et ne doit pas être appelée R95p/R95pTOT ;
-- la normalisation robuste qui pilote la couleur est une convention éditoriale OpenDataVal, pas un indice scientifique universel ;
-- l'ancienne phrase de résumé déterministe du POC est classée comme restitution legacy et sera remplacée par les `ClimateSignal` + le service de commentaire.
+- vent V4 : ERA5-Land `u10/v10` ;
+- pluie intense : compte des jours dépassant le P95 des jours humides, sans utiliser abusivement le nom R95p/R95pTOT ;
+- couleur robuste V4 : convention éditoriale OpenDataVal, pas indice scientifique universel ;
+- résumé textuel déterministe du POC : logique legacy appelée à être remplacée par `ClimateSignal` + commentaire IA.
 
 ### Thermal seasons
 
 - saisons thermiques locales T25/T75, pas saisons météorologiques fixes ;
-- règles de complétude, calendrier sans 29 février, lissage degré 3 et franchissements sont figés ;
-- les comparaisons entre décennies restent descriptives sans test de tendance ;
-- la saison de croissance reste un indicateur secondaire distinct.
+- complétude, calendrier sans 29 février, lissage degré 3 et franchissements figés ;
+- comparaison entre décennies descriptive, sans test de tendance ;
+- saison de croissance secondaire et distincte.
 
 ### Water through year
 
-- la conversion des accumulations ERA5-Land `monthly_averaged_reanalysis` est confirmée par la documentation ECMWF ;
-- `total_evaporation` est inversé pour afficher positivement l'évapotranspiration sortante ;
-- le stock 0–100 cm est un indicateur dérivé du modèle, jamais une réserve utile ou une mesure de nappe ;
-- sa métrique de sécheresse `SPEI-3 < -1` reste distincte de la métrique relative P10 utilisée dans l'empreinte.
+- conversion des accumulations ERA5-Land mensuelles vérifiée dans la documentation ECMWF ;
+- signe de `total_evaporation` documenté ;
+- stock 0–100 cm = grandeur dérivée du modèle, jamais réserve utile ou mesure de nappe ;
+- sécheresse `SPEI-3 < -1` distincte de la métrique relative P10 de l'empreinte.
 
 ## Décision transversale d'acquisition
 
-Les méthodes canoniques référencent la **famille scientifique et les variables** requises. Elles ne figent pas l'interface CDS de production lorsque plusieurs actifs permettent d'obtenir la même grandeur.
+Les méthodes canoniques référencent la famille scientifique et les variables nécessaires. Elles ne figent pas une interface CDS lorsque plusieurs actifs peuvent fournir une grandeur équivalente.
 
-L'interface ERA5-Land time-series reste la référence des POC et des futurs golden masters, mais `apps/copernicus` devra choisir un actif de production stable et P5 devra vérifier l'équivalence numérique avant migration.
+L'interface ERA5-Land time-series reste la référence des POC et des futurs golden masters ; `apps/copernicus` devra choisir l'actif de production stable et P5 devra vérifier l'équivalence numérique.
 
 ## Règle de dépendance
 
-Le code futur devra référencer :
+Le code futur devra conserver :
 
 ```text
 method.id
 method.version
 ```
 
-Une fiche climat publiée devra donc rester reproductible même lorsqu'une nouvelle version de méthode est introduite.
+Une fiche publiée doit rester reproductible après l'introduction d'une nouvelle version de méthode.
 
-## Étapes suivantes
-
-### P3 — interprétation
+## Étape suivante : P3
 
 Ajouter pour chaque méthode :
 
@@ -87,23 +85,12 @@ avec :
 
 - les `ClimateSignal` attendus ;
 - leurs règles de lecture ;
-- les formulations autorisées ;
-- les formulations interdites ;
-- les caveats obligatoires ;
-- les conditions dans lesquelles le service IA doit s'abstenir de conclure.
+- formulations autorisées ;
+- formulations interdites ;
+- caveats obligatoires ;
+- conditions de non-interprétation.
 
-### P4 — contrats
+Puis :
 
-Créer les schémas communs :
-
-```text
-ClimateSnapshot
-ClimateResult
-ClimateSignal
-ClimateCommentary
-ClimateSheet
-```
-
-### P5 — équivalence
-
-Transformer les sorties POC existantes en golden masters et démontrer que les futurs services reproduisent les mêmes résultats dans les tolérances documentées.
+- **P4** — `ClimateSnapshot`, `ClimateResult`, `ClimateSignal`, `ClimateCommentary`, `ClimateSheet` ;
+- **P5** — golden masters et tests d'équivalence.
