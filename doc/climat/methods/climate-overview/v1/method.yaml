@@ -30,10 +30,7 @@ inputs:
     stable et l'équivalence sera testée.
 
 geometry:
-  supported_types:
-    - Point
-    - Polygon
-    - MultiPolygon
+  supported_types: [Point, Polygon, MultiPolygon]
   point_rule: "utiliser le point de grille représentatif et conserver requested vs represented"
   polygon_rule: "agréger les cellules intersectées avec pondération par aire d'intersection"
   area_projection_current_poc: EPSG:6933
@@ -59,20 +56,12 @@ representativity:
 
 monthly_temperature:
   per_year_statistic: monthly_mean
-  reference_statistics:
-    - mean
-    - p10
-    - p50
-    - p90
+  reference_statistics: [mean, p10, p50, p90]
   reference_period: [1991, 2020]
 
 monthly_precipitation:
   per_year_statistic: monthly_total
-  reference_statistics:
-    - mean
-    - p10
-    - p50
-    - p90
+  reference_statistics: [mean, p10, p50, p90]
   reference_period: [1991, 2020]
 
 annual_summary:
@@ -113,10 +102,7 @@ visualization:
     variability_band: p10_p90
   precipitation:
     central_series: mean
-    tooltip_statistics:
-      - p10
-      - p50
-      - p90
+    tooltip_statistics: [p10, p50, p90]
   axes:
     temperature: degC
     precipitation: mm_month
@@ -135,6 +121,12 @@ claims:
     - parcel_scale_downscaling
     - frost_hot_tropical_counts_from_daily_mean
     - causal_attribution
+
+interpretation:
+  status: defined_p3
+  rules: interpretation.md
+  signal_registry: doc/climat/signals/catalogue.yaml
+  claim_level: descriptive
 
 references:
   - wmo-climatological-normals
@@ -161,6 +153,5 @@ p2_decisions:
 validation_blockers:
   - exact_annual_summary_aggregation_equivalence_pending_p5
   - real_daily_extreme_method_if_indicators_are_reintroduced
-  - interpretation_rules_pending_p3
   - common_climate_result_contract_pending_p4
   - golden_master_equivalence_pending_p5
