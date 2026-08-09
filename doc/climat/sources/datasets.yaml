@@ -1,0 +1,269 @@
+schema_version: "1.0"
+status: draft
+scope: climate-sheet
+last_reviewed: "2026-08-09"
+
+# Ce registre décrit les jeux de données nécessaires au domaine climat.
+# Il distingue :
+# - ce que les POC utilisent réellement aujourd'hui ;
+# - les sources proposées mais non encore utilisées ;
+# - les points qui nécessitent une vérification externe avant validation scientifique.
+#
+# Les métadonnées susceptibles d'évoluer (version de dataset, licence, dates de mise à jour,
+# paramètres CDS exacts) doivent être capturées dans ClimateSnapshot au moment de l'acquisition.
+
+datasets:
+  era5-land-timeseries:
+    provider: ECMWF
+    catalogue: Copernicus Climate Data Store
+    family: ERA5-Land
+    dataset_id: reanalysis-era5-land-timeseries
+    source_url: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-timeseries
+    source_type: gridded_reanalysis
+    temporal_resolution: hourly
+    spatial:
+      cds_grid_degrees: 0.1
+      native_resolution_km_approx: 9
+      local_measurement: false
+    current_repository_evidence:
+      - poc/climat/general/climate/overview/CLIMATE_OVERVIEW_METHOD.md
+      - poc/climat/empreinte-climatique/src/empreinte_climatique/fetch.py
+      - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
+      - apps/copernicus/README.md
+    variables_used:
+      2m_temperature:
+        source_unit: K
+        used_by:
+          - climate-overview
+          - climate-fingerprint
+          - thermal-seasons
+        intended_roles:
+          climate-overview: climatologie thermique
+          climate-fingerprint: moyenne annuelle et anomalie thermique
+          thermal-seasons: température moyenne quotidienne puis saisons thermiques
+      total_precipitation:
+        source_unit: m
+        used_by:
+          - climate-overview
+          - climate-fingerprint
+        intended_roles:
+          climate-overview: cumuls mensuels climatologiques
+          climate-fingerprint: cumul annuel et indicateurs de pluie intense
+      10m_u_component_of_wind:
+        source_unit: m_s-1
+        used_by:
+          - climate-fingerprint
+        implementation_status: current_poc
+        note: >-
+          Le fetch V4 de l'empreinte récupère actuellement cette variable dans ERA5-Land.
+          La spécification de conception recommande toutefois ERA5 hourly data on single
+          levels pour le vent. Cette divergence doit être résolue en P2.
+      10m_v_component_of_wind:
+        source_unit: m_s-1
+        used_by:
+          - climate-fingerprint
+        implementation_status: current_poc
+        note: >-
+          Même divergence documentaire que pour la composante U du vent.
+    retrieval_rules:
+      browser_direct_access: forbidden
+      server_side_only: true
+      cache_required: true
+      provenance_required: true
+    verification_status: repository_grounded_pending_external_recheck
+
+  era5-land-monthly-means:
+    provider: ECMWF
+    catalogue: Copernicus Climate Data Store
+    family: ERA5-Land
+    dataset_id: reanalysis-era5-land-monthly-means
+    source_url: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-monthly-means
+    source_type: gridded_reanalysis
+    temporal_resolution: monthly
+    spatial:
+      cds_grid_degrees: 0.1
+      native_resolution_km_approx: 9
+      local_measurement: false
+    used_by:
+      - water-through-year
+    current_repository_evidence:
+      - poc/climat/bilan eau/water_through_year/fetch.py
+      - poc/climat/bilan eau/water_through_year/data.py
+      - poc/climat/bilan eau/WATER_THROUGH_YEAR_METHOD.md
+    request_product_type: monthly_averaged_reanalysis
+    variables_used:
+      total_precipitation:
+        intended_role: cumul mensuel de précipitations
+      volumetric_soil_water_layer_1:
+        intended_role: composante du stock dérivé 0-100 cm
+      volumetric_soil_water_layer_2:
+        intended_role: composante du stock dérivé 0-100 cm
+      volumetric_soil_water_layer_3:
+        intended_role: composante du stock dérivé 0-100 cm
+      total_evaporation:
+        intended_role: évapotranspiration réelle affichée positive après convention de signe
+    implementation_conversion:
+      accumulated_variables: >-
+        Le POC considère les valeurs mensuelles des variables accumulées comme des moyennes
+        journalières mensuelles en mètres, puis multiplie par le nombre de jours du mois pour
+        obtenir un cumul mensuel en millimètres.
+      status: must_be_reverified_against_current_ecmwf_cds_documentation
+    retrieval_rules:
+      browser_direct_access: forbidden
+      server_side_only: true
+      cache_required: true
+      provenance_required: true
+    verification_status: repository_grounded_critical_unit_check_pending
+
+  era5-heat-utci-timeseries:
+    provider: ECMWF
+    catalogue: Copernicus Climate Data Store
+    family: ERA5-HEAT
+    dataset_id: derived-utci-historical-timeseries
+    source_url: https://cds.climate.copernicus.eu/datasets/derived-utci-historical-timeseries
+    source_type: derived_reanalysis_index
+    temporal_resolution: hourly
+    spatial:
+      cds_grid_degrees: 0.25
+      local_measurement: false
+    current_repository_evidence:
+      - poc/climat/empreinte-climatique/src/empreinte_climatique/fetch.py
+      - poc/climat/empreinte-climatique/docs/specification.md
+      - apps/copernicus/README.md
+    variables_used:
+      universal_thermal_climate_index:
+        used_by:
+          - climate-fingerprint
+        intended_role: P95 annuel des maxima quotidiens UTCI et métriques complémentaires
+    retrieval_rules:
+      browser_direct_access: forbidden
+      server_side_only: true
+      cache_required: true
+      provenance_required: true
+    verification_status: repository_grounded_pending_external_recheck
+
+  era5-heat-utci-historical:
+    provider: ECMWF
+    catalogue: Copernicus Climate Data Store
+    family: ERA5-HEAT
+    dataset_id: derived-utci-historical
+    source_url: https://cds.climate.copernicus.eu/datasets/derived-utci-historical
+    source_type: derived_reanalysis_index
+    spatial:
+      cds_grid_degrees: 0.25
+      local_measurement: false
+    used_by:
+      - existing-copernicus-thermal-monthly-job
+    core_four_infographics: false
+    note: >-
+      Ce produit est déjà utilisé par apps/copernicus pour le bilan thermique mensuel.
+      Il reste enregistré car la future architecture climat doit éviter de dupliquer les
+      acquisitions UTCI et pourra réutiliser les actifs compatibles.
+    current_repository_evidence:
+      - apps/copernicus/README.md
+      - doc/microservice/copernicus/exploitation.md
+    verification_status: repository_grounded_pending_external_recheck
+
+  era5-drought-historical-monthly:
+    provider: ECMWF
+    catalogue: Copernicus Climate Data Store
+    family: ERA5-Drought
+    dataset_id: derived-drought-historical-monthly
+    source_url: https://cds.climate.copernicus.eu/datasets/derived-drought-historical-monthly
+    source_type: derived_reanalysis_index
+    temporal_resolution: monthly
+    spatial:
+      cds_grid_degrees: 0.25
+      local_measurement: false
+    current_repository_evidence:
+      - poc/climat/empreinte-climatique/src/empreinte_climatique/fetch.py
+      - poc/climat/empreinte-climatique/docs/specification.md
+      - poc/climat/bilan eau/water_through_year/fetch.py
+      - poc/climat/bilan eau/WATER_THROUGH_YEAR_METHOD.md
+    variables_used:
+      standardised_precipitation_evapotranspiration_index:
+        accumulation_period_months: 3
+        short_name: SPEI-3
+        used_by:
+          - climate-fingerprint
+          - water-through-year
+        intended_roles:
+          climate-fingerprint: sécheresse saisonnière annuelle
+          water-through-year: état hydroclimatique mensuel et nombre de mois sous seuil
+    current_request_parameters:
+      version: "1_0"
+      product_type: reanalysis
+      dataset_type: consolidated_dataset
+    reference_period_reported_by_poc: [1991, 2020]
+    retrieval_rules:
+      browser_direct_access: forbidden
+      server_side_only: true
+      cache_required: true
+      provenance_required: true
+    verification_status: repository_grounded_pending_external_recheck
+
+  era5-single-levels:
+    provider: ECMWF
+    catalogue: Copernicus Climate Data Store
+    family: ERA5
+    dataset_id: reanalysis-era5-single-levels
+    source_url: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels
+    source_type: gridded_reanalysis
+    implementation_status: proposed_not_current_for_fingerprint_wind
+    proposed_variables:
+      - 10m_u_component_of_wind
+      - 10m_v_component_of_wind
+    proposed_by:
+      - poc/climat/empreinte-climatique/docs/specification.md
+    open_decision: >-
+      Décider en P2 si le vent de l'empreinte doit rester fondé sur ERA5-Land comme le code V4,
+      ou migrer vers ERA5 single levels comme la spécification le recommande. Aucun changement
+      de source ne doit être fait silencieusement.
+    verification_status: candidate_pending_method_decision_and_external_recheck
+
+  ecde-climate-indicators:
+    provider: Copernicus Climate Change Service
+    catalogue: Copernicus Climate Data Store
+    dataset_id: sis-ecde-climate-indicators
+    source_url: https://cds.climate.copernicus.eu/datasets/sis-ecde-climate-indicators
+    source_type: derived_climate_indicators
+    implementation_status: secondary_validation_only
+    used_by:
+      - thermal-seasons
+    intended_role: >-
+      Contrôle secondaire de cohérence autour d'indicateurs de saison de croissance ; ne doit
+      pas remplacer la méthode principale T25/T75 des saisons thermiques.
+    current_repository_evidence:
+      - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
+    verification_status: repository_grounded_pending_external_recheck
+
+open_questions:
+  - id: fingerprint-wind-source
+    severity: high
+    question: >-
+      Quelle source canonique doit alimenter les composantes U/V du vent de l'empreinte :
+      ERA5-Land time-series (implémentation actuelle) ou ERA5 single levels (spécification) ?
+    resolve_in: P2
+
+  - id: water-monthly-accumulated-units
+    severity: critical
+    question: >-
+      Confirmer dans la documentation ECMWF/CDS actuelle la sémantique et les unités exactes
+      des variables accumulées du produit ERA5-Land monthly averaged reanalysis avant de
+      valider la multiplication par le nombre de jours du mois.
+    resolve_before: water-through-year-method-validated
+
+  - id: overview-extremes-source
+    severity: high
+    question: >-
+      Le POC climat général approxime certains extrêmes à partir de moyennes quotidiennes.
+      Définir les variables source et calculs de production avant validation de cette méthode.
+    resolve_in: P2
+
+  - id: spatial-selection-unification
+    severity: medium
+    question: >-
+      ClimateSnapshot doit supporter à la fois une représentativité par point de grille et,
+      lorsque la méthode l'exige, une agrégation spatiale pondérée sur plusieurs mailles.
+      Ne pas forcer un mode unique au niveau du registre des datasets.
+    resolve_in: P4
