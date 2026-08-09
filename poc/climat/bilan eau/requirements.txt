@@ -1,0 +1,5 @@
+pandas>=2.0
+numpy>=1.24
+ecmwf-datastores-client>=0.4
+xarray>=2023.1
+netCDF4>=1.6

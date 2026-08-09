@@ -26,11 +26,6 @@ apps/web/public/relief/*.pmtiles
 
 # Artefacts d'exploration/validation, non liés au code applicatif
 poc/SS/
-poc/climat/real-data/raw/
-poc/climat/real-data/*.log
-poc/climat/real-data/*.err
-poc/climat/fingerprint/cache/
-poc/climat/fingerprint/**/__pycache__/
 
 # Environnements virtuels Python locaux du POC climat.
 poc/climat/**/.venv/

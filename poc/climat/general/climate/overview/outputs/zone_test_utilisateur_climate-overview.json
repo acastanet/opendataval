@@ -1,0 +1,247 @@
+{
+  "schema_version": "1.0",
+  "zone": {
+    "geometry_type": "Point",
+    "area_m2": 0.0,
+    "centroid": {
+      "lat": 44.0646,
+      "lon": 3.683
+    }
+  },
+  "reference": {
+    "start": 1991,
+    "end": 2020
+  },
+  "representativity": {
+    "datasets": [
+      "reanalysis-era5-land-timeseries"
+    ],
+    "grid_cell_count": 1,
+    "spatial_weighting": "area_weighted",
+    "cells": [
+      {
+        "lat": 44.1,
+        "lon": 3.7,
+        "weight": 1.0
+      }
+    ]
+  },
+  "monthly": [
+    {
+      "month": 1,
+      "temperature_c": {
+        "mean": 3.2,
+        "p10": 1.6,
+        "p50": 3.1,
+        "p90": 4.9
+      },
+      "precipitation_mm": {
+        "mean": 106.3,
+        "p10": 23.4,
+        "p50": 77.2,
+        "p90": 214.9
+      }
+    },
+    {
+      "month": 2,
+      "temperature_c": {
+        "mean": 3.7,
+        "p10": 1.5,
+        "p50": 3.8,
+        "p90": 5.8
+      },
+      "precipitation_mm": {
+        "mean": 71.5,
+        "p10": 19.7,
+        "p50": 52.4,
+        "p90": 147.6
+      }
+    },
+    {
+      "month": 3,
+      "temperature_c": {
+        "mean": 6.8,
+        "p10": 5.4,
+        "p50": 6.8,
+        "p90": 8.7
+      },
+      "precipitation_mm": {
+        "mean": 85.5,
+        "p10": 18.4,
+        "p50": 54.9,
+        "p90": 234.4
+      }
+    },
+    {
+      "month": 4,
+      "temperature_c": {
+        "mean": 9.5,
+        "p10": 8.0,
+        "p50": 9.2,
+        "p90": 11.1
+      },
+      "precipitation_mm": {
+        "mean": 120.7,
+        "p10": 50.3,
+        "p50": 110.1,
+        "p90": 200.8
+      }
+    },
+    {
+      "month": 5,
+      "temperature_c": {
+        "mean": 13.3,
+        "p10": 12.0,
+        "p50": 13.6,
+        "p90": 14.8
+      },
+      "precipitation_mm": {
+        "mean": 107.3,
+        "p10": 42.4,
+        "p50": 105.6,
+        "p90": 179.7
+      }
+    },
+    {
+      "month": 6,
+      "temperature_c": {
+        "mean": 17.5,
+        "p10": 15.8,
+        "p50": 17.2,
+        "p90": 19.6
+      },
+      "precipitation_mm": {
+        "mean": 69.5,
+        "p10": 25.1,
+        "p50": 63.6,
+        "p90": 105.8
+      }
+    },
+    {
+      "month": 7,
+      "temperature_c": {
+        "mean": 20.2,
+        "p10": 18.2,
+        "p50": 20.1,
+        "p90": 22.3
+      },
+      "precipitation_mm": {
+        "mean": 48.8,
+        "p10": 19.1,
+        "p50": 38.9,
+        "p90": 86.4
+      }
+    },
+    {
+      "month": 8,
+      "temperature_c": {
+        "mean": 19.9,
+        "p10": 18.1,
+        "p50": 20.0,
+        "p90": 21.4
+      },
+      "precipitation_mm": {
+        "mean": 75.3,
+        "p10": 39.0,
+        "p50": 68.4,
+        "p90": 121.8
+      }
+    },
+    {
+      "month": 9,
+      "temperature_c": {
+        "mean": 15.7,
+        "p10": 14.0,
+        "p50": 15.9,
+        "p90": 17.5
+      },
+      "precipitation_mm": {
+        "mean": 139.5,
+        "p10": 33.7,
+        "p50": 116.0,
+        "p90": 249.8
+      }
+    },
+    {
+      "month": 10,
+      "temperature_c": {
+        "mean": 11.6,
+        "p10": 10.0,
+        "p50": 11.5,
+        "p90": 13.5
+      },
+      "precipitation_mm": {
+        "mean": 206.5,
+        "p10": 113.5,
+        "p50": 220.6,
+        "p90": 304.5
+      }
+    },
+    {
+      "month": 11,
+      "temperature_c": {
+        "mean": 6.9,
+        "p10": 5.3,
+        "p50": 6.3,
+        "p90": 8.7
+      },
+      "precipitation_mm": {
+        "mean": 178.8,
+        "p10": 49.7,
+        "p50": 180.3,
+        "p90": 321.9
+      }
+    },
+    {
+      "month": 12,
+      "temperature_c": {
+        "mean": 4.0,
+        "p10": 2.0,
+        "p50": 4.0,
+        "p90": 5.5
+      },
+      "precipitation_mm": {
+        "mean": 117.6,
+        "p10": 24.0,
+        "p50": 72.8,
+        "p90": 249.0
+      }
+    }
+  ],
+  "annual": {
+    "mean_temperature_c": 11.1,
+    "precipitation_mm": 1327.3,
+    "warmest_month": {
+      "month": 7,
+      "name": "Juillet",
+      "value": 20.2
+    },
+    "coldest_month": {
+      "month": 1,
+      "name": "Janvier",
+      "value": 3.2
+    },
+    "wettest_month": {
+      "month": 10,
+      "name": "Octobre",
+      "value": 206.5
+    },
+    "driest_month": {
+      "month": 7,
+      "name": "Juillet",
+      "value": 48.8
+    },
+    "frost_days_mean": 52.1,
+    "hot_days_30c_mean": 7.3,
+    "tropical_nights_20c_mean": 0.3,
+    "snow_indicator": null,
+    "wind_speed_mean_ms": null
+  },
+  "quality": {
+    "note": "Data fetched dynamically for POC."
+  },
+  "provenance": {
+    "source": "Copernicus Climate Data Store",
+    "retrieval_method": "cdsapi locally cached for POC"
+  }
+}

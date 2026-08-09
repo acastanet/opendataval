@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview - Le climat de la zone</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background-color: #FBFAF7;
+            color: #24313A;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 1280px;
+            width: 100%;
+        }
+        .graph-container {
+            background-color: #C5C4C1;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(28, 37, 41, 0.1);
+            margin-bottom: 2rem;
+        }
+        .indicators {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .indicator-card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(28, 37, 41, 0.05);
+        }
+        .indicator-card h3 {
+            margin-top: 0;
+            font-size: 0.9rem;
+            color: #52616A;
+            text-transform: uppercase;
+        }
+        .indicator-card p {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .indicator-card .sub {
+            font-size: 0.9rem;
+            color: #52616A;
+            font-weight: normal;
+        }
+        .explanatory {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(28, 37, 41, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="graph-container">
+            <svg viewBox="0 0 800 500" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="climate-overview-title climate-overview-desc">
+<title id="climate-overview-title">Le climat de zone_test_utilisateur</title>
+<desc id="climate-overview-desc">Climatogramme avec une température moyenne annuelle de 11.1°C et 1327.3 mm de précipitations annuelles.</desc>
+<rect width="100%" height="100%" fill="#C5C4C1" />
+<text x="60" y="40" font-family="system-ui, sans-serif" font-size="24" font-weight="bold" fill="#24313A">Le climat de zone_test_utilisateur</text>
+<text x="60" y="65" font-family="system-ui, sans-serif" font-size="14" fill="#52616A">Le rythme habituel de la température et des précipitations au fil de l’année.</text>
+<text x="60" y="85" font-family="system-ui, sans-serif" font-size="12" fill="#52616A">Référence 1991–2020 · données de réanalyse Copernicus</text>
+<line x1="60" y1="440" x2="740" y2="440" stroke="#52616A" stroke-width="1" />
+<rect x="74.16666666666666" y="294.14850686037124" width="28.333333333333332" height="145.85149313962876" fill="#2166AC" opacity="0.8" />
+<rect x="130.83333333333334" y="341.89669087974175" width="28.333333333333332" height="98.10330912025825" fill="#2166AC" opacity="0.8" />
+<rect x="187.5" y="322.6876513317191" width="28.333333333333332" height="117.31234866828089" fill="#2166AC" opacity="0.8" />
+<rect x="244.16666666666666" y="274.39063761097657" width="28.333333333333332" height="165.60936238902343" fill="#2166AC" opacity="0.8" />
+<rect x="300.8333333333333" y="292.77643260694106" width="28.333333333333332" height="147.22356739305894" fill="#2166AC" opacity="0.8" />
+<rect x="357.49999999999994" y="344.64083938660207" width="28.333333333333332" height="95.35916061339793" fill="#2166AC" opacity="0.8" />
+<rect x="414.16666666666663" y="373.04277643260696" width="28.333333333333332" height="66.95722356739304" fill="#2166AC" opacity="0.8" />
+<rect x="470.8333333333333" y="336.68280871670703" width="28.333333333333332" height="103.31719128329297" fill="#2166AC" opacity="0.8" />
+<rect x="527.5" y="248.5956416464891" width="28.333333333333332" height="191.4043583535109" fill="#2166AC" opacity="0.8" />
+<rect x="584.1666666666666" y="156.66666666666663" width="28.333333333333332" height="283.33333333333337" fill="#2166AC" opacity="0.8" />
+<rect x="640.8333333333334" y="194.67312348668278" width="28.333333333333332" height="245.32687651331722" fill="#2166AC" opacity="0.8" />
+<rect x="697.5" y="278.64406779661016" width="28.333333333333332" height="161.35593220338984" fill="#2166AC" opacity="0.8" />
+<polygon points="88.33333333333333,355.6296296296296 145.0,344.2962962962963 201.66666666666666,307.77777777777777 258.3333333333333,277.55555555555554 315.0,230.96296296296296 371.66666666666663,170.51851851851853 428.3333333333333,136.51851851851853 485.0,147.85185185185185 541.6666666666666,196.96296296296296 598.3333333333333,247.33333333333334 655.0,307.77777777777777 711.6666666666666,348.0740740740741 711.6666666666666,392.14814814814815 655.0,350.5925925925926 598.3333333333333,291.4074074074074 541.6666666666666,241.037037037037 485.0,189.40740740740736 428.3333333333333,188.14814814814815 371.66666666666663,218.37037037037035 315.0,266.2222222222222 258.3333333333333,316.5925925925926 201.66666666666666,349.3333333333333 145.0,398.44444444444446 88.33333333333333,397.1851851851852" fill="#B2182B" opacity="0.2" />
+<polyline points="88.33333333333333,377.03703703703707 145.0,370.74074074074076 201.66666666666666,331.7037037037037 258.3333333333333,297.7037037037037 315.0,249.85185185185182 371.66666666666663,196.96296296296296 428.3333333333333,162.962962962963 485.0,166.74074074074076 541.6666666666666,219.62962962962962 598.3333333333333,271.25925925925924 655.0,330.44444444444446 711.6666666666666,366.96296296296293" fill="none" stroke="#B2182B" stroke-width="3" />
+<circle cx="88.33333333333333" cy="377.03703703703707" r="4" fill="#B2182B" />
+<circle cx="145.0" cy="370.74074074074076" r="4" fill="#B2182B" />
+<circle cx="201.66666666666666" cy="331.7037037037037" r="4" fill="#B2182B" />
+<circle cx="258.3333333333333" cy="297.7037037037037" r="4" fill="#B2182B" />
+<circle cx="315.0" cy="249.85185185185182" r="4" fill="#B2182B" />
+<circle cx="371.66666666666663" cy="196.96296296296296" r="4" fill="#B2182B" />
+<circle cx="428.3333333333333" cy="162.962962962963" r="4" fill="#B2182B" />
+<circle cx="485.0" cy="166.74074074074076" r="4" fill="#B2182B" />
+<circle cx="541.6666666666666" cy="219.62962962962962" r="4" fill="#B2182B" />
+<circle cx="598.3333333333333" cy="271.25925925925924" r="4" fill="#B2182B" />
+<circle cx="655.0" cy="330.44444444444446" r="4" fill="#B2182B" />
+<circle cx="711.6666666666666" cy="366.96296296296293" r="4" fill="#B2182B" />
+<text x="88.33333333333333" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">J</text>
+<text x="145.0" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">F</text>
+<text x="201.66666666666666" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">M</text>
+<text x="258.3333333333333" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">A</text>
+<text x="315.0" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">M</text>
+<text x="371.66666666666663" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">J</text>
+<text x="428.3333333333333" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">J</text>
+<text x="485.0" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">A</text>
+<text x="541.6666666666666" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">S</text>
+<text x="598.3333333333333" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">O</text>
+<text x="655.0" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">N</text>
+<text x="711.6666666666666" y="460" font-family="system-ui, sans-serif" font-size="12" fill="#24313A" text-anchor="middle">D</text>
+<text x="50" y="444.0" font-family="system-ui, sans-serif" font-size="12" fill="#B2182B" text-anchor="end">-1°C</text>
+<text x="50" y="376.0" font-family="system-ui, sans-serif" font-size="12" fill="#B2182B" text-anchor="end">3°C</text>
+<text x="50" y="308.0" font-family="system-ui, sans-serif" font-size="12" fill="#B2182B" text-anchor="end">9°C</text>
+<text x="50" y="240.0" font-family="system-ui, sans-serif" font-size="12" fill="#B2182B" text-anchor="end">14°C</text>
+<text x="50" y="172.0" font-family="system-ui, sans-serif" font-size="12" fill="#B2182B" text-anchor="end">19°C</text>
+<text x="50" y="104.0" font-family="system-ui, sans-serif" font-size="12" fill="#B2182B" text-anchor="end">25°C</text>
+<text x="750" y="444.0" font-family="system-ui, sans-serif" font-size="12" fill="#2166AC" text-anchor="start">0mm</text>
+<text x="750" y="376.0" font-family="system-ui, sans-serif" font-size="12" fill="#2166AC" text-anchor="start">49mm</text>
+<text x="750" y="308.0" font-family="system-ui, sans-serif" font-size="12" fill="#2166AC" text-anchor="start">99mm</text>
+<text x="750" y="239.99999999999997" font-family="system-ui, sans-serif" font-size="12" fill="#2166AC" text-anchor="start">148mm</text>
+<text x="750" y="172.0" font-family="system-ui, sans-serif" font-size="12" fill="#2166AC" text-anchor="start">198mm</text>
+<text x="750" y="103.99999999999994" font-family="system-ui, sans-serif" font-size="12" fill="#2166AC" text-anchor="start">247mm</text>
+</svg>
+        </div>
+        
+        <div class="indicators">
+            <div class="indicator-card">
+                <h3>Température moyenne annuelle</h3>
+                <p>11.1 °C</p>
+            </div>
+            <div class="indicator-card">
+                <h3>Précipitations annuelles</h3>
+                <p>1327.3 mm</p>
+            </div>
+            <div class="indicator-card">
+                <h3>Mois le plus chaud</h3>
+                <p>Juillet <span class="sub">· 20.2 °C</span></p>
+            </div>
+            <div class="indicator-card">
+                <h3>Mois le plus froid</h3>
+                <p>Janvier <span class="sub">· 3.2 °C</span></p>
+            </div>
+            <div class="indicator-card">
+                <h3>Mois le plus humide</h3>
+                <p>Octobre <span class="sub">· 206.5 mm</span></p>
+            </div>
+            <div class="indicator-card">
+                <h3>Mois le plus sec</h3>
+                <p>Juillet <span class="sub">· 48.8 mm</span></p>
+            </div>
+        </div>
+        
+        <div class="indicators">
+            <div class="indicator-card">
+                <h3>Jours de gel</h3>
+                <p>52.1 <span class="sub">jours/an</span></p>
+            </div>
+            <div class="indicator-card">
+                <h3>Jours ≥ 30 °C</h3>
+                <p>7.3 <span class="sub">jours/an</span></p>
+            </div>
+            <div class="indicator-card">
+                <h3>Nuits ≥ 20 °C</h3>
+                <p>0.3 <span class="sub">nuits/an</span></p>
+            </div>
+        </div>
+        
+        <div class="explanatory">
+            <h2>Comment lire</h2>
+            <p>La courbe rouge montre la température moyenne au fil de l’année ; son halo représente la variabilité habituelle entre 1991 et 2020. Les barres bleues montrent les précipitations mensuelles moyennes. Les valeurs décrivent le contexte climatique de la zone à partir de données de réanalyse sur grille.</p>
+            
+            <h2>Représentativité</h2>
+            <p>Cette zone est plus petite que la maille climatique utilisée ; les valeurs décrivent donc son contexte climatique régional et non une mesure à la résolution exacte de la zone.</p>
+            
+            <h2>Sources</h2>
+            <p>Température / précipitations : ERA5-Land<br>Référence climatologique : 1991–2020<br>Méthode spatiale : moyenne pondérée par surface</p>
+        </div>
+    </div>
+</body>
+</html>

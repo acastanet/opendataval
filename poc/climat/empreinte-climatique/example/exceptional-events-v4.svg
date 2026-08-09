@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 190" role="img" aria-labelledby="title description">
+<title id="title">Événements exceptionnels</title>
+<desc id="description">Événements climatiques exceptionnels détectés entre 1996 et 2025.</desc>
+<style>text{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#24313A}.title{font-size:18px;font-weight:650}.meta,.event{font-size:10px;fill:#52616A}</style>
+<rect width="900" height="190" fill="#FAFAF7"/>
+<text x="60" y="32" class="title">Événements exceptionnels</text>
+<text x="60" y="51" class="meta">Épisodes détectés dans les séries réelles · 1996–2025</text>
+<line x1="60" y1="132" x2="840" y2="132" stroke="#AEB7B3" stroke-width="1"/>
+<text x="60.0" y="152" class="meta" text-anchor="middle">1996</text>
+<text x="167.6" y="152" class="meta" text-anchor="middle">2000</text>
+<text x="302.1" y="152" class="meta" text-anchor="middle">2005</text>
+<text x="436.6" y="152" class="meta" text-anchor="middle">2010</text>
+<text x="571.0" y="152" class="meta" text-anchor="middle">2015</text>
+<text x="705.5" y="152" class="meta" text-anchor="middle">2020</text>
+<text x="840.0" y="152" class="meta" text-anchor="middle">2025</text>
+<line x1="86.9" y1="99" x2="86.9" y2="132" stroke="#81512C" stroke-width="1.25" opacity="0.55"/>
+<g><title>séquence de sécheresse — 1997-04-01 à 1997-05-01</title><polygon points="86.89655172413794,88 91.89655172413794,93 86.89655172413794,98 81.89655172413794,93" fill="#81512C"/></g>
+<text x="86.9" y="85" class="event" text-anchor="middle">sécheresse</text>
+<line x1="86.9" y1="79" x2="86.9" y2="132" stroke="#185A85" stroke-width="1.25" opacity="0.55"/>
+<g><title>épisode de pluie extrême — 1997-12-18 à 1997-12-18</title><circle cx="86.89655172413794" cy="73" r="4.5" fill="#185A85"/></g>
+<text x="86.9" y="65" class="event" text-anchor="middle">pluie</text>
+<line x1="140.7" y1="59" x2="140.7" y2="132" stroke="#4E405F" stroke-width="1.25" opacity="0.55"/>
+<g><title>épisode de vent extrême — 1999-12-26 à 1999-12-28</title><rect x="136.68965517241378" y="49" width="8" height="8" rx="0.5" fill="#4E405F"/></g>
+<text x="140.7" y="45" class="event" text-anchor="middle">vent</text>
+<line x1="302.1" y1="99" x2="302.1" y2="132" stroke="#185A85" stroke-width="1.25" opacity="0.55"/>
+<g><title>épisode de pluie extrême — 2005-09-06 à 2005-09-06</title><circle cx="302.0689655172414" cy="93" r="4.5" fill="#185A85"/></g>
+<text x="302.1" y="85" class="event" text-anchor="middle">pluie</text>
+<line x1="490.3" y1="99" x2="490.3" y2="132" stroke="#81512C" stroke-width="1.25" opacity="0.55"/>
+<g><title>séquence de sécheresse — 2012-03-01 à 2012-03-01</title><polygon points="490.3448275862069,88 495.3448275862069,93 490.3448275862069,98 485.3448275862069,93" fill="#81512C"/></g>
+<text x="490.3" y="85" class="event" text-anchor="middle">sécheresse</text>
+<line x1="678.6" y1="99" x2="678.6" y2="132" stroke="#A9362B" stroke-width="1.25" opacity="0.55"/>
+<g><title>stress thermique exceptionnel — 2019-06-27 à 2019-07-02</title><polygon points="678.6206896551724,88 683.6206896551724,97 673.6206896551724,97" fill="#A9362B"/></g>
+<text x="678.6" y="85" class="event" text-anchor="middle">chaleur</text>
+<line x1="678.6" y1="79" x2="678.6" y2="132" stroke="#4E405F" stroke-width="1.25" opacity="0.55"/>
+<g><title>épisode de vent extrême — 2019-11-03 à 2019-11-03</title><rect x="674.6206896551724" y="69" width="8" height="8" rx="0.5" fill="#4E405F"/></g>
+<text x="678.6" y="65" class="event" text-anchor="middle">vent</text>
+<line x1="786.2" y1="99" x2="786.2" y2="132" stroke="#A9362B" stroke-width="1.25" opacity="0.55"/>
+<g><title>stress thermique exceptionnel — 2023-08-19 à 2023-08-24</title><polygon points="786.2068965517241,88 791.2068965517241,97 781.2068965517241,97" fill="#A9362B"/></g>
+<text x="786.2" y="85" class="event" text-anchor="middle">chaleur</text>
+</svg>

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Empreinte climatique — données CDS</title>
+    <style>
+      :root { color: #24313a; background: #fafaf7; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      body { margin: 0; padding: clamp(16px, 3vw, 40px); }
+      main { max-width: 1240px; margin-inline: auto; }
+      h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 42px); letter-spacing: -0.03em; }
+      h2 { margin: 34px 0 10px; font-size: 1.2rem; }
+      .notice { max-width: 900px; margin: 0 0 14px; padding: 12px 16px; border-left: 4px solid #2c6f9e; background: #edf5f7; line-height: 1.45; }
+      .summary { max-width: 850px; margin: 0 0 24px; font-size: 1.05rem; line-height: 1.45; }
+      figure { margin: 0; overflow-x: auto; background: #fafaf7; }
+      figure + figure { margin-top: 22px; }
+      img { display: block; width: 100%; min-width: 720px; height: auto; }
+      figcaption { margin-top: 12px; color: #52616a; font-size: 0.9rem; line-height: 1.45; }
+      .reading { max-width: 900px; line-height: 1.5; }
+      .reading p { margin: 8px 0; }
+      .reading ul { columns: 2; padding-left: 20px; }
+      .references { color: #52616a; font-size: 0.9rem; }
+      a { color: #2166ac; }
+      code { background: #e7ece9; padding: 2px 4px; }
+      @media (max-width: 720px) { body { padding: 16px; } figure { margin-inline: -16px; padding-inline: 16px; } .reading ul { columns: 1; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>L’empreinte climatique du lieu</h1>
+      <p class="notice"><strong>Données réelles de réanalyse CDS.</strong> Point demandé : {{LATITUDE}} N, {{LONGITUDE}} E. Les mailles climatiques utilisées sont documentées dans le JSON ; elles ne représentent pas une mesure à l’échelle de 100 m.</p>
+      <p class="summary">{{SUMMARY}}</p>
+      <figure>
+        <img src="climate-fingerprint-v4.svg" alt="Matrice de l’empreinte climatique réelle, de 1996 à 2025, sur fond clair.">
+        <figcaption>Version de référence, sur fond clair. Les données structurées et la provenance sont disponibles dans <code>climate-fingerprint-v4.json</code>.</figcaption>
+      </figure>
+      <figure>
+        <img src="climate-fingerprint-v4-neutral.svg" alt="Même matrice de l’empreinte climatique, posée en relief sur un fond gris neutre.">
+        <figcaption>Seconde version, sur fond gris neutre : chaque bande est posée sur une plaque légèrement ombrée et se détache du fond. Valeurs et couleurs de cellule sont strictement identiques à la version ci-dessus.</figcaption>
+      </figure>
+      <section class="reading" aria-labelledby="reading-title">
+        <h2 id="reading-title">Comment lire l’empreinte</h2>
+        <p>Chaque case représente une année, et chaque ligne se lit d’un trait : les trente années sont jointives, deux filets pointillés marquant seulement le passage d’une décennie à l’autre.</p>
+        <p>La couleur mesure l’<strong>écart</strong> de l’année au climat de référence 1991–2020, exprimé en écarts-types robustes (σ, estimé sur l’intervalle P10–P90). Le gradient a toujours le même sens : bleu = moins, blanc = ordinaire, rouge = plus.</p>
+        <p>L’échelle est volontairement accentuée sur les extrêmes : un écart de 1 σ, qui survient environ une année sur six, reste blanc ; 2 σ se voit nettement ; 3 σ sature la palette. Une année ne se colore donc que si elle est réellement exceptionnelle, pas parce qu’elle se situe du bon côté de la médiane.</p>
+        <p>Cet écart mesuré remplace le rang : avec un percentile, toute année dépassant le record 1991–2020 valait P100, et deux records d’intensité très différente sortaient de la même couleur.</p>
+        <p><strong>Empreinte bilan :</strong> moyenne <em>signée</em> des écarts accentués des indicateurs disponibles pour l’année. Les indicateurs exceptionnellement bas tirent vers le bleu, les hauts vers le rouge, et une année ordinaire reste blanche. Un excès et un déficit simultanés peuvent donc se compenser : l’infobulle publie séparément le nombre d’indicateurs exceptionnellement hauts et bas pour rendre cette compensation lisible.</p>
+        <p class="references">Le gradient reprend la convention des <a href="https://www.reading.ac.uk/planet/climate-resources/climate-stripes">Climate Stripes de l’Université de Reading</a> et s’appuie sur la palette divergente <a href="https://colorbrewer2.org/">ColorBrewer RdBu</a>, avec une zone claire élargie autour de la normale.</p>
+        <ul>
+          <li>Température : rouge = plus chaud</li>
+          <li>Stress UTCI : rouge = plus de stress thermique</li>
+          <li>Précipitations : rouge = plus de précipitations</li>
+          <li>Pluies intenses : rouge = plus fréquentes</li>
+          <li>Sécheresse : rouge = plus de sécheresse</li>
+          <li>Vent fort : rouge = plus de jours de vent fort</li>
+        </ul>
+      </section>
+      <section aria-labelledby="events-title">
+        <h2 id="events-title">Événements exceptionnels</h2>
+        <figure>
+          <img src="exceptional-events-v4.svg" alt="Chronologie des événements climatiques exceptionnels détectés entre 1996 et 2025.">
+        </figure>
+      </section>
+    </main>
+  </body>
+</html>

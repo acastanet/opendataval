@@ -1,0 +1,711 @@
+{
+  "schema_version": "1.0",
+  "tile": {
+    "tile_id": "GPD-44.064654-3.682935",
+    "lat": 44.06465392551458,
+    "lon": 3.6829349237761435
+  },
+  "source": {
+    "dataset": "ERA5-Land",
+    "variable": "2m_temperature",
+    "grid_lat": 44.1,
+    "grid_lon": 3.7,
+    "grid_resolution_deg": 0.1,
+    "native_resolution_km": 9,
+    "retrieved_at": "2026-08-09T13:36:40.045020+00:00",
+    "credentials_source": "local .cdsapirc"
+  },
+  "periods": {
+    "reference": [
+      1991,
+      2020
+    ],
+    "study": [
+      1996,
+      2025
+    ],
+    "early": [
+      1996,
+      2005
+    ],
+    "middle": [
+      2006,
+      2015
+    ],
+    "late": [
+      2016,
+      2025
+    ]
+  },
+  "thresholds": {
+    "reference_period": "1991-2020",
+    "t25_c": 4.896,
+    "t75_c": 16.38,
+    "percentile_method": "linear"
+  },
+  "method": {
+    "daily_aggregation": "hourly_mean_utc",
+    "leap_day": "removed",
+    "smoothing": "polynomial_degree_3",
+    "crossing_interpolation": "linear"
+  },
+  "annual": [
+    {
+      "year": 1996,
+      "status": "invalid_crossings",
+      "spring_start_doy": null,
+      "summer_start_doy": null,
+      "autumn_start_doy": null,
+      "winter_start_doy": null,
+      "spring_length_days": null,
+      "summer_length_days": null,
+      "autumn_length_days": null,
+      "winter_length_days": null,
+      "fit_rmse_c": 3.191,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 11.07,
+      "growing_season_end_doy": 30.46,
+      "growing_season_length_days": 19.38
+    },
+    {
+      "year": 1997,
+      "status": "ok",
+      "spring_start_doy": 38.46,
+      "summer_start_doy": 165.65,
+      "autumn_start_doy": 258.26,
+      "winter_start_doy": 341.37,
+      "spring_length_days": 127.19,
+      "summer_length_days": 92.61,
+      "autumn_length_days": 83.11,
+      "winter_length_days": 64.44,
+      "fit_rmse_c": 2.886,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 18.04,
+      "growing_season_end_doy": 27.09,
+      "growing_season_length_days": 9.04
+    },
+    {
+      "year": 1998,
+      "status": "ok",
+      "spring_start_doy": 40.81,
+      "summer_start_doy": 179.59,
+      "autumn_start_doy": 250.85,
+      "winter_start_doy": 332.83,
+      "spring_length_days": 138.78,
+      "summer_length_days": 71.27,
+      "autumn_length_days": 81.98,
+      "winter_length_days": 80.77,
+      "fit_rmse_c": 3.386,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 1.0,
+      "growing_season_end_doy": 13.94,
+      "growing_season_length_days": 12.94
+    },
+    {
+      "year": 1999,
+      "status": "ok",
+      "spring_start_doy": 48.6,
+      "summer_start_doy": 169.86,
+      "autumn_start_doy": 262.14,
+      "winter_start_doy": 334.47,
+      "spring_length_days": 121.26,
+      "summer_length_days": 92.28,
+      "autumn_length_days": 72.34,
+      "winter_length_days": 74.3,
+      "fit_rmse_c": 3.061,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 1.0,
+      "growing_season_end_doy": 8.7,
+      "growing_season_length_days": 7.7
+    },
+    {
+      "year": 2000,
+      "status": "ok",
+      "spring_start_doy": 43.77,
+      "summer_start_doy": 181.86,
+      "autumn_start_doy": 249.59,
+      "winter_start_doy": 341.3,
+      "spring_length_days": 138.09,
+      "summer_length_days": 67.73,
+      "autumn_length_days": 91.7,
+      "winter_length_days": 66.61,
+      "fit_rmse_c": 2.816,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 29.48,
+      "growing_season_end_doy": 84.28,
+      "growing_season_length_days": 54.8
+    },
+    {
+      "year": 2001,
+      "status": "ok",
+      "spring_start_doy": 42.91,
+      "summer_start_doy": 172.26,
+      "autumn_start_doy": 263.25,
+      "winter_start_doy": 333.28,
+      "spring_length_days": 129.36,
+      "summer_length_days": 90.98,
+      "autumn_length_days": 70.03,
+      "winter_length_days": 73.08,
+      "fit_rmse_c": 3.139,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 1.46,
+      "growing_season_end_doy": 13.43,
+      "growing_season_length_days": 11.96
+    },
+    {
+      "year": 2002,
+      "status": "ok",
+      "spring_start_doy": 41.35,
+      "summer_start_doy": 180.26,
+      "autumn_start_doy": 246.34,
+      "winter_start_doy": 345.03,
+      "spring_length_days": 138.9,
+      "summer_length_days": 66.09,
+      "autumn_length_days": 98.68,
+      "winter_length_days": 73.41,
+      "fit_rmse_c": 2.848,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 23.54,
+      "growing_season_end_doy": 44.83,
+      "growing_season_length_days": 21.29
+    },
+    {
+      "year": 2003,
+      "status": "ok",
+      "spring_start_doy": 53.43,
+      "summer_start_doy": 146.19,
+      "autumn_start_doy": 274.64,
+      "winter_start_doy": 336.93,
+      "spring_length_days": 92.75,
+      "summer_length_days": 128.45,
+      "autumn_length_days": 62.29,
+      "winter_length_days": 80.96,
+      "fit_rmse_c": 3.761,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 58.43,
+      "growing_season_end_doy": 340.56,
+      "growing_season_length_days": 282.14
+    },
+    {
+      "year": 2004,
+      "status": "ok",
+      "spring_start_doy": 52.88,
+      "summer_start_doy": 174.86,
+      "autumn_start_doy": 266.67,
+      "winter_start_doy": 336.66,
+      "spring_length_days": 121.98,
+      "summer_length_days": 91.81,
+      "autumn_length_days": 69.99,
+      "winter_length_days": 86.87,
+      "fit_rmse_c": 3.236,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 8.96,
+      "growing_season_end_doy": 14.44,
+      "growing_season_length_days": 5.48
+    },
+    {
+      "year": 2005,
+      "status": "ok",
+      "spring_start_doy": 58.53,
+      "summer_start_doy": 163.28,
+      "autumn_start_doy": 270.41,
+      "winter_start_doy": 331.23,
+      "spring_length_days": 104.74,
+      "summer_length_days": 107.13,
+      "autumn_length_days": 60.82,
+      "winter_length_days": 89.91,
+      "fit_rmse_c": 3.176,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 73.13,
+      "growing_season_end_doy": 320.87,
+      "growing_season_length_days": 247.74
+    },
+    {
+      "year": 2006,
+      "status": "ok",
+      "spring_start_doy": 56.14,
+      "summer_start_doy": 159.5,
+      "autumn_start_doy": 277.03,
+      "winter_start_doy": 342.0,
+      "spring_length_days": 103.36,
+      "summer_length_days": 117.53,
+      "autumn_length_days": 64.97,
+      "winter_length_days": 52.95,
+      "fit_rmse_c": 2.921,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 77.98,
+      "growing_season_end_doy": 342.34,
+      "growing_season_length_days": 264.37
+    },
+    {
+      "year": 2007,
+      "status": "ok",
+      "spring_start_doy": 29.95,
+      "summer_start_doy": 179.87,
+      "autumn_start_doy": 243.59,
+      "winter_start_doy": 333.96,
+      "spring_length_days": 149.92,
+      "summer_length_days": 63.72,
+      "autumn_length_days": 90.37,
+      "winter_length_days": 74.81,
+      "fit_rmse_c": 3.069,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 3.9,
+      "growing_season_end_doy": 21.47,
+      "growing_season_length_days": 17.57
+    },
+    {
+      "year": 2008,
+      "status": "ok",
+      "spring_start_doy": 43.76,
+      "summer_start_doy": 185.91,
+      "autumn_start_doy": 248.96,
+      "winter_start_doy": 331.49,
+      "spring_length_days": 142.14,
+      "summer_length_days": 63.06,
+      "autumn_length_days": 82.53,
+      "winter_length_days": 86.62,
+      "fit_rmse_c": 2.946,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 16.12,
+      "growing_season_end_doy": 29.28,
+      "growing_season_length_days": 13.16
+    },
+    {
+      "year": 2009,
+      "status": "ok",
+      "spring_start_doy": 53.12,
+      "summer_start_doy": 156.2,
+      "autumn_start_doy": 272.84,
+      "winter_start_doy": 338.88,
+      "spring_length_days": 103.08,
+      "summer_length_days": 116.64,
+      "autumn_length_days": 66.04,
+      "winter_length_days": 90.28,
+      "fit_rmse_c": 2.938,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 56.7,
+      "growing_season_end_doy": 61.83,
+      "growing_season_length_days": 5.14
+    },
+    {
+      "year": 2010,
+      "status": "ok",
+      "spring_start_doy": 64.16,
+      "summer_start_doy": 171.57,
+      "autumn_start_doy": 258.82,
+      "winter_start_doy": 330.66,
+      "spring_length_days": 107.41,
+      "summer_length_days": 87.25,
+      "autumn_length_days": 71.84,
+      "winter_length_days": 76.82,
+      "fit_rmse_c": 3.41,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 53.0,
+      "growing_season_end_doy": 63.1,
+      "growing_season_length_days": 10.11
+    },
+    {
+      "year": 2011,
+      "status": "ok",
+      "spring_start_doy": 42.47,
+      "summer_start_doy": 161.17,
+      "autumn_start_doy": 270.92,
+      "winter_start_doy": 345.9,
+      "spring_length_days": 118.7,
+      "summer_length_days": 109.75,
+      "autumn_length_days": 74.98,
+      "winter_length_days": 70.95,
+      "fit_rmse_c": 2.611,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 11.82,
+      "growing_season_end_doy": 18.16,
+      "growing_season_length_days": 6.35
+    },
+    {
+      "year": 2012,
+      "status": "ok",
+      "spring_start_doy": 51.85,
+      "summer_start_doy": 166.04,
+      "autumn_start_doy": 270.49,
+      "winter_start_doy": 339.14,
+      "spring_length_days": 114.19,
+      "summer_length_days": 104.45,
+      "autumn_length_days": 68.65,
+      "winter_length_days": 89.26,
+      "fit_rmse_c": 3.733,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 67.07,
+      "growing_season_end_doy": 330.47,
+      "growing_season_length_days": 263.39
+    },
+    {
+      "year": 2013,
+      "status": "ok",
+      "spring_start_doy": 63.4,
+      "summer_start_doy": 184.65,
+      "autumn_start_doy": 270.66,
+      "winter_start_doy": 339.71,
+      "spring_length_days": 121.25,
+      "summer_length_days": 86.01,
+      "autumn_length_days": 69.05,
+      "winter_length_days": 57.39,
+      "fit_rmse_c": 3.299,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 63.98,
+      "growing_season_end_doy": 70.7,
+      "growing_season_length_days": 6.72
+    },
+    {
+      "year": 2014,
+      "status": "ok",
+      "spring_start_doy": 32.1,
+      "summer_start_doy": 175.75,
+      "autumn_start_doy": 268.16,
+      "winter_start_doy": 345.45,
+      "spring_length_days": 143.66,
+      "summer_length_days": 92.4,
+      "autumn_length_days": 77.29,
+      "winter_length_days": 62.54,
+      "fit_rmse_c": 2.377,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 5.33,
+      "growing_season_end_doy": 19.44,
+      "growing_season_length_days": 14.11
+    },
+    {
+      "year": 2015,
+      "status": "ok",
+      "spring_start_doy": 42.98,
+      "summer_start_doy": 149.13,
+      "autumn_start_doy": 266.4,
+      "winter_start_doy": 348.75,
+      "spring_length_days": 106.15,
+      "summer_length_days": 117.27,
+      "autumn_length_days": 82.35,
+      "winter_length_days": 58.3,
+      "fit_rmse_c": 3.53,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 64.59,
+      "growing_season_end_doy": 325.23,
+      "growing_season_length_days": 260.64
+    },
+    {
+      "year": 2016,
+      "status": "ok",
+      "spring_start_doy": 42.05,
+      "summer_start_doy": 172.88,
+      "autumn_start_doy": 273.31,
+      "winter_start_doy": 341.14,
+      "spring_length_days": 130.83,
+      "summer_length_days": 100.43,
+      "autumn_length_days": 67.83,
+      "winter_length_days": 66.08,
+      "fit_rmse_c": 3.203,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 6.43,
+      "growing_season_end_doy": 11.51,
+      "growing_season_length_days": 5.08
+    },
+    {
+      "year": 2017,
+      "status": "ok",
+      "spring_start_doy": 42.22,
+      "summer_start_doy": 146.8,
+      "autumn_start_doy": 264.3,
+      "winter_start_doy": 337.13,
+      "spring_length_days": 104.57,
+      "summer_length_days": 117.5,
+      "autumn_length_days": 72.83,
+      "winter_length_days": 71.6,
+      "fit_rmse_c": 3.166,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 42.25,
+      "growing_season_end_doy": 329.47,
+      "growing_season_length_days": 287.22
+    },
+    {
+      "year": 2018,
+      "status": "ok",
+      "spring_start_doy": 43.73,
+      "summer_start_doy": 162.26,
+      "autumn_start_doy": 285.39,
+      "winter_start_doy": 343.08,
+      "spring_length_days": 118.53,
+      "summer_length_days": 123.13,
+      "autumn_length_days": 57.7,
+      "winter_length_days": 68.84,
+      "fit_rmse_c": 3.364,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 1.0,
+      "growing_season_end_doy": 9.6,
+      "growing_season_length_days": 8.6
+    },
+    {
+      "year": 2019,
+      "status": "ok",
+      "spring_start_doy": 46.93,
+      "summer_start_doy": 157.23,
+      "autumn_start_doy": 279.71,
+      "winter_start_doy": 344.7,
+      "spring_length_days": 110.3,
+      "summer_length_days": 122.48,
+      "autumn_length_days": 64.99,
+      "winter_length_days": 47.82,
+      "fit_rmse_c": 3.352,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 44.49,
+      "growing_season_end_doy": 316.61,
+      "growing_season_length_days": 272.12
+    },
+    {
+      "year": 2020,
+      "status": "ok",
+      "spring_start_doy": 27.52,
+      "summer_start_doy": 151.84,
+      "autumn_start_doy": 269.8,
+      "winter_start_doy": 339.15,
+      "spring_length_days": 124.32,
+      "summer_length_days": 117.96,
+      "autumn_length_days": 69.35,
+      "winter_length_days": 71.3,
+      "fit_rmse_c": 3.104,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 21.41,
+      "growing_season_end_doy": 332.52,
+      "growing_season_length_days": 311.11
+    },
+    {
+      "year": 2021,
+      "status": "ok",
+      "spring_start_doy": 45.44,
+      "summer_start_doy": 169.37,
+      "autumn_start_doy": 262.03,
+      "winter_start_doy": 340.59,
+      "spring_length_days": 123.92,
+      "summer_length_days": 92.66,
+      "autumn_length_days": 78.56,
+      "winter_length_days": 65.35,
+      "fit_rmse_c": 3.19,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 27.01,
+      "growing_season_end_doy": 329.21,
+      "growing_season_length_days": 302.19
+    },
+    {
+      "year": 2022,
+      "status": "ok",
+      "spring_start_doy": 40.94,
+      "summer_start_doy": 139.09,
+      "autumn_start_doy": 286.78,
+      "winter_start_doy": 344.73,
+      "spring_length_days": 98.14,
+      "summer_length_days": 147.69,
+      "autumn_length_days": 57.95,
+      "winter_length_days": 62.45,
+      "fit_rmse_c": 3.405,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 37.62,
+      "growing_season_end_doy": 334.03,
+      "growing_season_length_days": 296.41
+    },
+    {
+      "year": 2023,
+      "status": "ok",
+      "spring_start_doy": 42.18,
+      "summer_start_doy": 151.91,
+      "autumn_start_doy": 287.56,
+      "winter_start_doy": 343.7,
+      "spring_length_days": 109.72,
+      "summer_length_days": 135.65,
+      "autumn_length_days": 56.14,
+      "winter_length_days": 49.51,
+      "fit_rmse_c": 3.242,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 1.0,
+      "growing_season_end_doy": 14.46,
+      "growing_season_length_days": 13.46
+    },
+    {
+      "year": 2024,
+      "status": "ok",
+      "spring_start_doy": 28.21,
+      "summer_start_doy": 158.6,
+      "autumn_start_doy": 277.06,
+      "winter_start_doy": 341.42,
+      "spring_length_days": 130.39,
+      "summer_length_days": 118.46,
+      "autumn_length_days": 64.36,
+      "winter_length_days": 61.07,
+      "fit_rmse_c": 3.094,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 22.52,
+      "growing_season_end_doy": 340.49,
+      "growing_season_length_days": 317.97
+    },
+    {
+      "year": 2025,
+      "status": "ok",
+      "spring_start_doy": 37.49,
+      "summer_start_doy": 146.71,
+      "autumn_start_doy": 277.77,
+      "winter_start_doy": 343.31,
+      "spring_length_days": 109.22,
+      "summer_length_days": 131.06,
+      "autumn_length_days": 65.54,
+      "winter_length_days": null,
+      "fit_rmse_c": 3.47,
+      "interpolated_days": 0,
+      "growing_season_start_doy": 4.65,
+      "growing_season_end_doy": 11.2,
+      "growing_season_length_days": 6.54
+    }
+  ],
+  "decades": {
+    "1996-2005": {
+      "spring_start": {
+        "p25": 41.35,
+        "median": 43.77,
+        "p75": 52.88
+      },
+      "summer_start": {
+        "p25": 165.65,
+        "median": 172.26,
+        "p75": 179.59
+      },
+      "autumn_start": {
+        "p25": 250.85,
+        "median": 262.14,
+        "p75": 266.67
+      },
+      "winter_start": {
+        "p25": 333.28,
+        "median": 336.66,
+        "p75": 341.3
+      },
+      "spring_length": {
+        "p25": 121.26,
+        "median": 127.19,
+        "p75": 138.09
+      },
+      "summer_length": {
+        "p25": 71.27,
+        "median": 91.81,
+        "p75": 92.61
+      },
+      "autumn_length": {
+        "p25": 69.99,
+        "median": 72.34,
+        "p75": 83.11
+      },
+      "winter_length": {
+        "p25": 73.08,
+        "median": 74.3,
+        "p75": 80.96
+      }
+    },
+    "2006-2015": {
+      "spring_start": {
+        "p25": 42.5975,
+        "median": 47.805,
+        "p75": 55.385
+      },
+      "summer_start": {
+        "p25": 159.9175,
+        "median": 168.805,
+        "p75": 178.84
+      },
+      "autumn_start": {
+        "p25": 260.715,
+        "median": 269.32500000000005,
+        "p75": 270.855
+      },
+      "winter_start": {
+        "p25": 335.19,
+        "median": 339.42499999999995,
+        "p75": 344.5875
+      },
+      "spring_length": {
+        "p25": 106.465,
+        "median": 116.445,
+        "p75": 136.9175
+      },
+      "summer_length": {
+        "p25": 86.32000000000001,
+        "median": 98.42500000000001,
+        "p75": 114.9175
+      },
+      "autumn_length": {
+        "p25": 68.75,
+        "median": 73.41,
+        "p75": 81.085
+      },
+      "winter_length": {
+        "p25": 59.36,
+        "median": 72.88,
+        "p75": 84.17
+      }
+    },
+    "2016-2025": {
+      "spring_start": {
+        "p25": 38.3525,
+        "median": 42.114999999999995,
+        "p75": 43.3525
+      },
+      "summer_start": {
+        "p25": 148.06,
+        "median": 154.57,
+        "p75": 161.345
+      },
+      "autumn_start": {
+        "p25": 270.6775,
+        "median": 277.41499999999996,
+        "p75": 283.96999999999997
+      },
+      "winter_start": {
+        "p25": 340.72749999999996,
+        "median": 342.25,
+        "p75": 343.60249999999996
+      },
+      "spring_length": {
+        "p25": 109.345,
+        "median": 114.41499999999999,
+        "p75": 124.22
+      },
+      "summer_length": {
+        "p25": 117.615,
+        "median": 120.47,
+        "p75": 129.0775
+      },
+      "autumn_length": {
+        "p25": 59.5525,
+        "median": 65.265,
+        "p75": 68.97
+      },
+      "winter_length": {
+        "p25": 61.07,
+        "median": 65.35,
+        "p75": 68.84
+      }
+    }
+  },
+  "comparison": {
+    "spring_start_shift_days": -1.66,
+    "summer_start_shift_days": -17.69,
+    "autumn_start_shift_days": 15.27,
+    "winter_start_shift_days": 5.59,
+    "summer_length_change_days": 28.66
+  },
+  "validation": {
+    "method": "copernicus_growing_season_5c",
+    "growing_season_length_median_days": 15.84,
+    "note": "Contrôle secondaire uniquement ; non affiché dans le SVG V1."
+  },
+  "quality": {
+    "annual_ok": 29,
+    "annual_total": 30,
+    "t25_c": 4.896,
+    "t75_c": 16.38,
+    "generated_at": "2026-08-09T16:12:10.531273+00:00"
+  }
+}

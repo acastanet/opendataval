@@ -1,0 +1,6 @@
+# Réutilise les dépendances déjà présentes dans poc/climat/empreinte-climatique/.venv
+# (numpy, pandas, xarray, ecmwf-datastores-client, netCDF4).
+# Ce fichier documente les besoins minimaux du package thermal_seasons.
+numpy>=2.1,<3
+pandas>=2.2,<3
+ecmwf-datastores-client>=0.5,<1
