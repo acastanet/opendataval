@@ -119,7 +119,7 @@ Le pont `/api/v2/legacy/*` :
 | Gateway | `apps/gateway-service` | `/api/v2/gateway` | Façade HTTP, validation, `x-request-id` et erreurs normalisées ; sans accès base. |
 | Map | `apps/map-service` | `/api/v2/map/styles/carte.json` | Style unique, tuiles, relief et légendes ; routé directement par Caddy. |
 | Geography | `apps/geography-service` | `/api/v2/geography/resolve` | Commune, département et altitude depuis lat/lon. |
-| Weather | `apps/weather-service` | `/api/v2/weather/temperature` | Température ponctuelle et contexte territorial. |
+| Weather | `apps/weather-service` | `/api/v2/weather/temperature` | Température ponctuelle, minimum et maximum du jour, et contexte territorial. |
 | Weather Vigilance | `services/weather-vigilance` | `/api/v2/vigilance` | Vigilance officielle MétéoFrance et bulletins optionnels. |
 | Fire Detection | `services/fire-detection` | `/api/v2/fire/nearby` | Suspicions satellitaires FIRMS/EUMETSAT, rayon et historique fournis par l’appelant. |
 | OLD | `apps/old-service` | `/api/v2/old/perimetre` | Zonage OLD et tampon indicatif d’un bâtiment, enrichi du cadastre et du PLU. |

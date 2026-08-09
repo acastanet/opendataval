@@ -1,12 +1,12 @@
 # Weather Service
 
-> Température météo ponctuelle selon la méthode Météo V2 : station ajustée par le modèle si possible, observation brute ou modèle au point en repli.
-> Dernière mise à jour : 2026-07-24 · Dernière vérification : 2026-07-24
+> Température météo ponctuelle selon la méthode Météo V2 et plage minimale/maximale prévue pour la journée : station ajustée par le modèle si possible, observation brute ou modèle au point en repli.
+> Dernière mise à jour : 2026-08-09 · Dernière vérification : 2026-08-09
 > Code : `apps/weather-service/`
 
 ## Rôle
 
-Weather Service isole la météo ordinaire du monolithe. Son premier contrat métier est la détermination d’une température actuelle pour un point donné. Il ne fournit pas encore les prévisions horaires ou quotidiennes, les précipitations, le vent, l’humidité, les indices thermiques ni la vigilance.
+Weather Service isole la météo ordinaire du monolithe. Son premier contrat métier détermine une température actuelle pour un point donné et la plage minimale/maximale prévue pour la journée. Il ne fournit pas encore les prévisions horaires détaillées, les précipitations, le vent, l’humidité, les indices thermiques ni la vigilance.
 
 Le service n’est pas appelé directement par le navigateur. Le gateway publie `/api/v2/weather/temperature`, transmet `x-request-id` et relaie la réponse. Weather Service dépend de Geography pour normaliser le point et obtenir son altitude.
 
@@ -68,6 +68,7 @@ La réponse comprend notamment :
 
 - `location` : coordonnées normalisées, précision éventuelle et altitude ;
 - `temperature` : valeur, nature, heure de référence, âge, qualité et ajustement éventuel ;
+- `today` : températures minimale et maximale prévues par le modèle pour la journée, élargies si nécessaire pour inclure la température courante ;
 - `method` : identifiant et version de la méthode ;
 - `stationSelection` : résultat de la politique, candidats évalués et station retenue ;
 - `provenance` : source principale de la valeur ;
@@ -89,6 +90,11 @@ Extrait simplifié d’une estimation ajustée :
       "deltaCelsius": 1.1,
       "modelReferenceTime": "2026-07-24T07:00:00.000Z"
     }
+  },
+  "today": {
+    "minimumC": 13.8,
+    "maximumC": 25.6,
+    "nature": "model_forecast"
   },
   "degraded": false,
   "unavailableSources": []
@@ -172,9 +178,9 @@ Restaurer l’image précédente de Weather Service et, si le contrat de routage
 
 ## Limites volontaires
 
-- une seule grandeur métier exposée : la température actuelle ;
+- température actuelle et plage minimale/maximale du jour uniquement ;
 - aucune écriture en base ;
-- aucune vigilance dans ce service ;
+- aucune prévision horaire détaillée ni vigilance dans ce service ;
 - aucune donnée Copernicus ;
 - aucune garantie de mesure locale lorsque la réponse est `model_at_point` ;
 - aucune garantie d’observation directe lorsque la réponse est `station_adjusted_by_model` ;
