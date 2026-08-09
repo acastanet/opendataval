@@ -1,0 +1,211 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 358" role="img" aria-labelledby="title description">
+<title id="title">Empreinte climatique du lieu, 1996 à 2025</title>
+<desc id="description">Matrice annuelle de six indicateurs, comparés à la référence 1991 à 2020.</desc>
+<style>text{font-family:Arial,sans-serif;fill:#24313a}.small{font-size:11px}.label{font-size:13px;font-weight:600}.delta{font-size:12px}</style>
+<text x="190" y="25" class="label">Empreinte climatique — 1996–2025</text>
+<text x="190" y="44" class="small">Référence des anomalies : 1991–2020</text>
+<text x="191" y="64" class="small">1996</text>
+<text x="286" y="64" class="small">2001</text>
+<text x="381" y="64" class="small">2006</text>
+<text x="476" y="64" class="small">2011</text>
+<text x="571" y="64" class="small">2016</text>
+<text x="666" y="64" class="small">2021</text>
+<text x="742" y="64" class="small">2025</text>
+<path d="M727.5 51 L735.5 51 L731.5 58 Z" fill="#82502d"><title>séquence de sécheresse</title></path>
+<path d="M746.5 51 L754.5 51 L750.5 58 Z" fill="#ba3f33"><title>stress thermique exceptionnel</title></path>
+<path d="M746.5 51 L754.5 51 L750.5 58 Z" fill="#ba3f33"><title>stress thermique exceptionnel</title></path>
+<path d="M746.5 51 L754.5 51 L750.5 58 Z" fill="#82502d"><title>séquence de sécheresse</title></path>
+<text x="180" y="97" text-anchor="end" class="label">Température</text>
+<rect x="190" y="76" width="18" height="31" rx="2" fill="#9cc4dd"><title>1996 — Température : 9.4 °C; plus froid</title></rect>
+<rect x="209" y="76" width="18" height="31" rx="2" fill="#9cc4dd"><title>1997 — Température : 9.47 °C; plus froid</title></rect>
+<rect x="228" y="76" width="18" height="31" rx="2" fill="#9cc4dd"><title>1998 — Température : 9.55 °C; plus froid</title></rect>
+<rect x="247" y="76" width="18" height="31" rx="2" fill="#9cc4dd"><title>1999 — Température : 9.62 °C; plus froid</title></rect>
+<rect x="266" y="76" width="18" height="31" rx="2" fill="#9cc4dd"><title>2000 — Température : 9.7 °C; plus froid</title></rect>
+<rect x="285" y="76" width="18" height="31" rx="2" fill="#f3f0e8"><title>2001 — Température : 9.77 °C; près de la normale</title></rect>
+<rect x="304" y="76" width="18" height="31" rx="2" fill="#f3f0e8"><title>2002 — Température : 9.85 °C; près de la normale</title></rect>
+<rect x="323" y="76" width="18" height="31" rx="2" fill="#f3f0e8"><title>2003 — Température : 9.92 °C; près de la normale</title></rect>
+<rect x="342" y="76" width="18" height="31" rx="2" fill="#f3f0e8"><title>2004 — Température : 10.0 °C; près de la normale</title></rect>
+<rect x="361" y="76" width="18" height="31" rx="2" fill="#f3f0e8"><title>2005 — Température : 10.07 °C; près de la normale</title></rect>
+<rect x="380" y="76" width="18" height="31" rx="2" fill="#f3f0e8"><title>2006 — Température : 10.15 °C; près de la normale</title></rect>
+<rect x="399" y="76" width="18" height="31" rx="2" fill="#f3f0e8"><title>2007 — Température : 10.22 °C; près de la normale</title></rect>
+<rect x="418" y="76" width="18" height="31" rx="2" fill="#f3f0e8"><title>2008 — Température : 10.3 °C; près de la normale</title></rect>
+<rect x="437" y="76" width="18" height="31" rx="2" fill="#f3f0e8"><title>2009 — Température : 10.37 °C; près de la normale</title></rect>
+<rect x="456" y="76" width="18" height="31" rx="2" fill="#f3f0e8"><title>2010 — Température : 10.45 °C; près de la normale</title></rect>
+<rect x="475" y="76" width="18" height="31" rx="2" fill="#f3ad6a"><title>2011 — Température : 10.52 °C; plus chaud</title></rect>
+<rect x="494" y="76" width="18" height="31" rx="2" fill="#f3ad6a"><title>2012 — Température : 10.6 °C; plus chaud</title></rect>
+<rect x="513" y="76" width="18" height="31" rx="2" fill="#f3ad6a"><title>2013 — Température : 10.67 °C; plus chaud</title></rect>
+<rect x="532" y="76" width="18" height="31" rx="2" fill="#f3ad6a"><title>2014 — Température : 10.75 °C; plus chaud</title></rect>
+<rect x="551" y="76" width="18" height="31" rx="2" fill="#f3ad6a"><title>2015 — Température : 10.82 °C; plus chaud</title></rect>
+<rect x="570" y="76" width="18" height="31" rx="2" fill="#f3ad6a"><title>2016 — Température : 10.9 °C; plus chaud</title></rect>
+<rect x="589" y="76" width="18" height="31" rx="2" fill="#f3ad6a"><title>2017 — Température : 10.97 °C; plus chaud</title></rect>
+<rect x="608" y="76" width="18" height="31" rx="2" fill="#ba3f33"><title>2018 — Température : 11.05 °C; beaucoup plus chaud</title></rect>
+<rect x="627" y="76" width="18" height="31" rx="2" fill="#ba3f33"><title>2019 — Température : 11.12 °C; beaucoup plus chaud</title></rect>
+<rect x="646" y="76" width="18" height="31" rx="2" fill="#ba3f33"><title>2020 — Température : 11.2 °C; beaucoup plus chaud</title></rect>
+<rect x="665" y="76" width="18" height="31" rx="2" fill="#ba3f33"><title>2021 — Température : 11.27 °C; beaucoup plus chaud</title></rect>
+<rect x="684" y="76" width="18" height="31" rx="2" fill="#ba3f33"><title>2022 — Température : 11.35 °C; beaucoup plus chaud</title></rect>
+<rect x="703" y="76" width="18" height="31" rx="2" fill="#ba3f33"><title>2023 — Température : 11.42 °C; beaucoup plus chaud</title></rect>
+<rect x="722" y="76" width="18" height="31" rx="2" fill="#ba3f33"><title>2024 — Température : 11.5 °C; beaucoup plus chaud</title></rect>
+<rect x="741" y="76" width="18" height="31" rx="2" fill="#ba3f33"><title>2025 — Température : 11.57 °C; beaucoup plus chaud</title></rect>
+<text x="784" y="97" class="delta">Δ +1.5 °C</text>
+<text x="180" y="131" text-anchor="end" class="label">Stress UTCI</text>
+<rect x="190" y="110" width="18" height="31" rx="2" fill="#f0d58b"><title>1996 — Stress UTCI : 25.2 °C UTCI; stress thermique modéré</title></rect>
+<rect x="209" y="110" width="18" height="31" rx="2" fill="#f0d58b"><title>1997 — Stress UTCI : 25.26 °C UTCI; stress thermique modéré</title></rect>
+<rect x="228" y="110" width="18" height="31" rx="2" fill="#f0d58b"><title>1998 — Stress UTCI : 25.32 °C UTCI; stress thermique modéré</title></rect>
+<rect x="247" y="110" width="18" height="31" rx="2" fill="#f0d58b"><title>1999 — Stress UTCI : 25.38 °C UTCI; stress thermique modéré</title></rect>
+<rect x="266" y="110" width="18" height="31" rx="2" fill="#f0d58b"><title>2000 — Stress UTCI : 25.44 °C UTCI; stress thermique modéré</title></rect>
+<rect x="285" y="110" width="18" height="31" rx="2" fill="#f3f0e8"><title>2001 — Stress UTCI : 25.5 °C UTCI; près de la normale</title></rect>
+<rect x="304" y="110" width="18" height="31" rx="2" fill="#f3f0e8"><title>2002 — Stress UTCI : 25.56 °C UTCI; près de la normale</title></rect>
+<rect x="323" y="110" width="18" height="31" rx="2" fill="#f3f0e8"><title>2003 — Stress UTCI : 25.62 °C UTCI; près de la normale</title></rect>
+<rect x="342" y="110" width="18" height="31" rx="2" fill="#f3f0e8"><title>2004 — Stress UTCI : 25.68 °C UTCI; près de la normale</title></rect>
+<rect x="361" y="110" width="18" height="31" rx="2" fill="#f3f0e8"><title>2005 — Stress UTCI : 25.74 °C UTCI; près de la normale</title></rect>
+<rect x="380" y="110" width="18" height="31" rx="2" fill="#f3f0e8"><title>2006 — Stress UTCI : 25.8 °C UTCI; près de la normale</title></rect>
+<rect x="399" y="110" width="18" height="31" rx="2" fill="#f3f0e8"><title>2007 — Stress UTCI : 25.86 °C UTCI; près de la normale</title></rect>
+<rect x="418" y="110" width="18" height="31" rx="2" fill="#f3f0e8"><title>2008 — Stress UTCI : 25.92 °C UTCI; près de la normale</title></rect>
+<rect x="437" y="110" width="18" height="31" rx="2" fill="#f3f0e8"><title>2009 — Stress UTCI : 25.98 °C UTCI; près de la normale</title></rect>
+<rect x="456" y="110" width="18" height="31" rx="2" fill="#f3f0e8"><title>2010 — Stress UTCI : 26.04 °C UTCI; près de la normale</title></rect>
+<rect x="475" y="110" width="18" height="31" rx="2" fill="#ee9b52"><title>2011 — Stress UTCI : 26.1 °C UTCI; stress thermique élevé</title></rect>
+<rect x="494" y="110" width="18" height="31" rx="2" fill="#ee9b52"><title>2012 — Stress UTCI : 26.16 °C UTCI; stress thermique élevé</title></rect>
+<rect x="513" y="110" width="18" height="31" rx="2" fill="#ee9b52"><title>2013 — Stress UTCI : 26.22 °C UTCI; stress thermique élevé</title></rect>
+<rect x="532" y="110" width="18" height="31" rx="2" fill="#ee9b52"><title>2014 — Stress UTCI : 26.28 °C UTCI; stress thermique élevé</title></rect>
+<rect x="551" y="110" width="18" height="31" rx="2" fill="#ee9b52"><title>2015 — Stress UTCI : 26.34 °C UTCI; stress thermique élevé</title></rect>
+<rect x="570" y="110" width="18" height="31" rx="2" fill="#ee9b52"><title>2016 — Stress UTCI : 26.4 °C UTCI; stress thermique élevé</title></rect>
+<rect x="589" y="110" width="18" height="31" rx="2" fill="#ee9b52"><title>2017 — Stress UTCI : 26.46 °C UTCI; stress thermique élevé</title></rect>
+<rect x="608" y="110" width="18" height="31" rx="2" fill="#a63d31"><title>2018 — Stress UTCI : 26.52 °C UTCI; stress thermique très élevé</title></rect>
+<rect x="627" y="110" width="18" height="31" rx="2" fill="#a63d31"><title>2019 — Stress UTCI : 26.58 °C UTCI; stress thermique très élevé</title></rect>
+<rect x="646" y="110" width="18" height="31" rx="2" fill="#a63d31"><title>2020 — Stress UTCI : 26.64 °C UTCI; stress thermique très élevé</title></rect>
+<rect x="665" y="110" width="18" height="31" rx="2" fill="#a63d31"><title>2021 — Stress UTCI : 26.7 °C UTCI; stress thermique très élevé</title></rect>
+<rect x="684" y="110" width="18" height="31" rx="2" fill="#a63d31"><title>2022 — Stress UTCI : 26.76 °C UTCI; stress thermique très élevé</title></rect>
+<rect x="703" y="110" width="18" height="31" rx="2" fill="#a63d31"><title>2023 — Stress UTCI : 26.82 °C UTCI; stress thermique très élevé</title></rect>
+<rect x="722" y="110" width="18" height="31" rx="2" fill="#a63d31"><title>2024 — Stress UTCI : 26.88 °C UTCI; stress thermique très élevé</title></rect>
+<rect x="741" y="110" width="18" height="31" rx="2" fill="#a63d31"><title>2025 — Stress UTCI : 26.94 °C UTCI; stress thermique très élevé</title></rect>
+<text x="784" y="131" class="delta">Δ +1.2 °C UTCI</text>
+<text x="180" y="165" text-anchor="end" class="label">Précipitations</text>
+<rect x="190" y="144" width="18" height="31" rx="2" fill="#91bdd4"><title>1996 — Précipitations : 761.1 mm; humide</title></rect>
+<rect x="209" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>1997 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="228" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>1998 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="247" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>1999 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="266" y="144" width="18" height="31" rx="2" fill="#91bdd4"><title>2000 — Précipitations : 761.1 mm; humide</title></rect>
+<rect x="285" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2001 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="304" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2002 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="323" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2003 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="342" y="144" width="18" height="31" rx="2" fill="#91bdd4"><title>2004 — Précipitations : 761.1 mm; humide</title></rect>
+<rect x="361" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2005 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="380" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2006 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="399" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2007 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="418" y="144" width="18" height="31" rx="2" fill="#91bdd4"><title>2008 — Précipitations : 761.1 mm; humide</title></rect>
+<rect x="437" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2009 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="456" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2010 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="475" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2011 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="494" y="144" width="18" height="31" rx="2" fill="#91bdd4"><title>2012 — Précipitations : 761.1 mm; humide</title></rect>
+<rect x="513" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2013 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="532" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2014 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="551" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2015 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="570" y="144" width="18" height="31" rx="2" fill="#91bdd4"><title>2016 — Précipitations : 761.1 mm; humide</title></rect>
+<rect x="589" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2017 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="608" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2018 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="627" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2019 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="646" y="144" width="18" height="31" rx="2" fill="#91bdd4"><title>2020 — Précipitations : 761.1 mm; humide</title></rect>
+<rect x="665" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2021 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="684" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2022 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="703" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2023 — Précipitations : 760.4 mm; très sec</title></rect>
+<rect x="722" y="144" width="18" height="31" rx="2" fill="#91bdd4"><title>2024 — Précipitations : 761.1 mm; humide</title></rect>
+<rect x="741" y="144" width="18" height="31" rx="2" fill="#8d5d3d"><title>2025 — Précipitations : 760.4 mm; très sec</title></rect>
+<text x="784" y="165" class="delta">Δ +0 mm</text>
+<text x="180" y="199" text-anchor="end" class="label">Pluies intenses</text>
+<rect x="190" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>1996 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="209" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>1997 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="228" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>1998 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="247" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>1999 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="266" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2000 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="285" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2001 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="304" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2002 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="323" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2003 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="342" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2004 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="361" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2005 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="380" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2006 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="399" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2007 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="418" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2008 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="437" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2009 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="456" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2010 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="475" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2011 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="494" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2012 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="513" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2013 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="532" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2014 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="551" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2015 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="570" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2016 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="589" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2017 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="608" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2018 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="627" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2019 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="646" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2020 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="665" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2021 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="684" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2022 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="703" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2023 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="722" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2024 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<rect x="741" y="178" width="18" height="31" rx="2" fill="#edf1ef"><title>2025 — Pluies intenses : 0.0 jours; peu de pluies intenses</title></rect>
+<text x="784" y="199" class="delta">Δ +0 jours</text>
+<text x="180" y="233" text-anchor="end" class="label">Sécheresse</text>
+<rect x="190" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>1996 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="209" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>1997 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="228" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>1998 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="247" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>1999 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="266" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2000 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="285" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2001 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="304" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2002 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="323" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2003 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="342" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2004 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="361" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2005 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="380" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2006 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="399" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2007 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="418" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2008 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="437" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2009 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="456" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2010 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="475" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2011 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="494" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2012 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="513" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2013 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="532" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2014 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="551" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2015 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="570" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2016 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="589" y="212" width="18" height="31" rx="2" fill="#edf1ef"><title>2017 — Sécheresse : 0.0 mois; peu de sécheresse</title></rect>
+<rect x="608" y="212" width="18" height="31" rx="2" fill="#82502d"><title>2018 — Sécheresse : 12.0 mois; sécheresse très présente</title></rect>
+<rect x="627" y="212" width="18" height="31" rx="2" fill="#82502d"><title>2019 — Sécheresse : 12.0 mois; sécheresse très présente</title></rect>
+<rect x="646" y="212" width="18" height="31" rx="2" fill="#82502d"><title>2020 — Sécheresse : 12.0 mois; sécheresse très présente</title></rect>
+<rect x="665" y="212" width="18" height="31" rx="2" fill="#82502d"><title>2021 — Sécheresse : 12.0 mois; sécheresse très présente</title></rect>
+<rect x="684" y="212" width="18" height="31" rx="2" fill="#82502d"><title>2022 — Sécheresse : 12.0 mois; sécheresse très présente</title></rect>
+<rect x="703" y="212" width="18" height="31" rx="2" fill="#82502d"><title>2023 — Sécheresse : 12.0 mois; sécheresse très présente</title></rect>
+<rect x="722" y="212" width="18" height="31" rx="2" fill="#82502d"><title>2024 — Sécheresse : 12.0 mois; sécheresse très présente</title></rect>
+<rect x="741" y="212" width="18" height="31" rx="2" fill="#82502d"><title>2025 — Sécheresse : 12.0 mois; sécheresse très présente</title></rect>
+<text x="784" y="233" class="delta">Δ +9.6 mois</text>
+<text x="180" y="267" text-anchor="end" class="label">Vent fort</text>
+<rect x="190" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>1996 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="209" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>1997 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="228" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>1998 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="247" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>1999 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="266" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2000 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="285" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2001 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="304" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2002 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="323" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2003 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="342" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2004 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="361" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2005 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="380" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2006 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="399" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2007 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="418" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2008 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="437" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2009 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="456" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2010 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="475" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2011 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="494" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2012 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="513" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2013 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="532" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2014 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="551" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2015 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="570" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2016 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="589" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2017 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="608" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2018 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="627" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2019 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="646" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2020 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="665" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2021 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="684" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2022 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="703" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2023 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="722" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2024 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<rect x="741" y="246" width="18" height="31" rx="2" fill="#edf1ef"><title>2025 — Vent fort : 0.0 jours; peu venteux</title></rect>
+<text x="784" y="267" class="delta">Δ +0 jours</text>
+<text x="784" y="64" class="small">1996–2005 → 2016–2025</text>
+</svg>

@@ -1,0 +1,2535 @@
+{
+  "tile_id": "ODV-SYNTH-001",
+  "location": {
+    "lat": 44.0833,
+    "lon": 3.6167
+  },
+  "period": {
+    "start": 1996,
+    "end": 2025
+  },
+  "reference": {
+    "start": 1991,
+    "end": 2020
+  },
+  "rows": [
+    {
+      "id": "temperature",
+      "label": "Température",
+      "source": "ERA5-Land",
+      "resolution": "0.1 degree",
+      "metric": "annual_mean_2m_temperature",
+      "unit": "degC",
+      "palette": "temperature",
+      "reference": {
+        "P10": 12.957119131523896,
+        "P33.3": 13.389713637379392,
+        "P50": 13.76617263823041,
+        "P66.6": 13.822702640631013,
+        "P90": 14.334558187670925,
+        "mean": 13.616566354363473,
+        "std": 0.554564686811421,
+        "n": 30
+      },
+      "years": [
+        {
+          "year": 1996,
+          "value": 12.624019221911958,
+          "anomaly": -0.9925471324515147,
+          "percentile": 8.3,
+          "class": "very_low",
+          "rank": 30,
+          "extra": {
+            "class_label": "beaucoup plus froid que la normale"
+          }
+        },
+        {
+          "year": 1997,
+          "value": 13.309528181425279,
+          "anomaly": -0.3070381729381939,
+          "percentile": 28.3,
+          "class": "low",
+          "rank": 25,
+          "extra": {
+            "class_label": "plus froid que la normale"
+          }
+        },
+        {
+          "year": 1998,
+          "value": 13.151690833445388,
+          "anomaly": -0.4648755209180848,
+          "percentile": 18.3,
+          "class": "low",
+          "rank": 28,
+          "extra": {
+            "class_label": "plus froid que la normale"
+          }
+        },
+        {
+          "year": 1999,
+          "value": 13.32843947912307,
+          "anomaly": -0.2881268752404029,
+          "percentile": 31.7,
+          "class": "low",
+          "rank": 24,
+          "extra": {
+            "class_label": "plus froid que la normale"
+          }
+        },
+        {
+          "year": 2000,
+          "value": 12.994130232591889,
+          "anomaly": -0.6224361217715835,
+          "percentile": 11.7,
+          "class": "low",
+          "rank": 29,
+          "extra": {
+            "class_label": "plus froid que la normale"
+          }
+        },
+        {
+          "year": 2001,
+          "value": 13.815729088688272,
+          "anomaly": 0.19916273432479947,
+          "percentile": 65.0,
+          "class": "near_normal",
+          "rank": 16,
+          "extra": {
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2002,
+          "value": 13.812006370943026,
+          "anomaly": 0.19544001657955334,
+          "percentile": 58.3,
+          "class": "near_normal",
+          "rank": 18,
+          "extra": {
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2003,
+          "value": 13.533713813902546,
+          "anomaly": -0.0828525404609266,
+          "percentile": 38.3,
+          "class": "near_normal",
+          "rank": 23,
+          "extra": {
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2004,
+          "value": 14.053258543135614,
+          "anomaly": 0.4366921887721418,
+          "percentile": 78.3,
+          "class": "high",
+          "rank": 11,
+          "extra": {
+            "class_label": "plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2005,
+          "value": 13.798379204013422,
+          "anomaly": 0.18181284964994937,
+          "percentile": 55.0,
+          "class": "near_normal",
+          "rank": 19,
+          "extra": {
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2006,
+          "value": 13.243318391702543,
+          "anomaly": -0.37324796266092974,
+          "percentile": 21.7,
+          "class": "low",
+          "rank": 27,
+          "extra": {
+            "class_label": "plus froid que la normale"
+          }
+        },
+        {
+          "year": 2007,
+          "value": 13.837937852837126,
+          "anomaly": 0.221371498473653,
+          "percentile": 68.3,
+          "class": "high",
+          "rank": 15,
+          "extra": {
+            "class_label": "plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2008,
+          "value": 13.282502829626951,
+          "anomaly": -0.33406352473652134,
+          "percentile": 25.0,
+          "class": "low",
+          "rank": 26,
+          "extra": {
+            "class_label": "plus froid que la normale"
+          }
+        },
+        {
+          "year": 2009,
+          "value": 14.151302635588273,
+          "anomaly": 0.5347362812248004,
+          "percentile": 81.7,
+          "class": "high",
+          "rank": 8,
+          "extra": {
+            "class_label": "plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2010,
+          "value": 13.775533340056187,
+          "anomaly": 0.1589669856927145,
+          "percentile": 51.7,
+          "class": "near_normal",
+          "rank": 20,
+          "extra": {
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2011,
+          "value": 13.756811936404633,
+          "anomaly": 0.14024558204116033,
+          "percentile": 48.3,
+          "class": "near_normal",
+          "rank": 21,
+          "extra": {
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2012,
+          "value": 13.575581705018227,
+          "anomaly": -0.04098464934524593,
+          "percentile": 45.0,
+          "class": "near_normal",
+          "rank": 22,
+          "extra": {
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2013,
+          "value": 14.474143602403313,
+          "anomaly": 0.8575772480398403,
+          "percentile": 98.3,
+          "class": "very_high",
+          "rank": 3,
+          "extra": {
+            "class_label": "beaucoup plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2014,
+          "value": 13.896461733069039,
+          "anomaly": 0.27989537870556624,
+          "percentile": 75.0,
+          "class": "high",
+          "rank": 13,
+          "extra": {
+            "class_label": "plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2015,
+          "value": 13.8152524800266,
+          "anomaly": 0.19868612566312827,
+          "percentile": 61.7,
+          "class": "near_normal",
+          "rank": 17,
+          "extra": {
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2016,
+          "value": 13.891539902280297,
+          "anomaly": 0.27497354791682405,
+          "percentile": 71.7,
+          "class": "high",
+          "rank": 14,
+          "extra": {
+            "class_label": "plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2017,
+          "value": 14.331539133499007,
+          "anomaly": 0.7149727791355343,
+          "percentile": 88.3,
+          "class": "high",
+          "rank": 6,
+          "extra": {
+            "class_label": "plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2018,
+          "value": 14.298449828963836,
+          "anomaly": 0.6818834746003635,
+          "percentile": 85.0,
+          "class": "high",
+          "rank": 7,
+          "extra": {
+            "class_label": "plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2019,
+          "value": 14.361729675218195,
+          "anomaly": 0.7451633208547221,
+          "percentile": 91.7,
+          "class": "very_high",
+          "rank": 5,
+          "extra": {
+            "class_label": "beaucoup plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2020,
+          "value": 14.411869451353548,
+          "anomaly": 0.7953030969900752,
+          "percentile": 95.0,
+          "class": "very_high",
+          "rank": 4,
+          "extra": {
+            "class_label": "beaucoup plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2021,
+          "value": 15.223741420391708,
+          "anomaly": 1.6071750660282351,
+          "percentile": 100.0,
+          "class": "very_high",
+          "rank": 1,
+          "extra": {
+            "class_label": "beaucoup plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2022,
+          "value": 14.119113242626923,
+          "anomaly": 0.502546888263451,
+          "percentile": 80.0,
+          "class": "high",
+          "rank": 9,
+          "extra": {
+            "class_label": "plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2023,
+          "value": 14.113490771917808,
+          "anomaly": 0.4969244175543359,
+          "percentile": 80.0,
+          "class": "high",
+          "rank": 10,
+          "extra": {
+            "class_label": "plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2024,
+          "value": 14.019802272288453,
+          "anomaly": 0.4032359179249809,
+          "percentile": 76.7,
+          "class": "high",
+          "rank": 12,
+          "extra": {
+            "class_label": "plus chaud que la normale"
+          }
+        },
+        {
+          "year": 2025,
+          "value": 14.705190740158974,
+          "anomaly": 1.0886243857955016,
+          "percentile": 100.0,
+          "class": "very_high",
+          "rank": 2,
+          "extra": {
+            "class_label": "beaucoup plus chaud que la normale"
+          }
+        }
+      ],
+      "trend": {
+        "slope_per_year": 0.04654993222146864,
+        "slope_per_decade": 0.4654993222146864,
+        "ci95_low_per_decade": -2.5839132180993554,
+        "ci95_high_per_decade": 3.6620666842577307,
+        "intercept": -79.71533772864593,
+        "S": 253.0,
+        "Z": 4.495939812882398,
+        "p_value": 6.926332824397363e-06,
+        "n": 30,
+        "verdict": "tendance nette"
+      },
+      "decade_delta": {
+        "early_mean": 13.442089496918047,
+        "late_mean": 14.347646643869874,
+        "delta": 0.9055571469518267,
+        "delta_pct": 6.736729041712223
+      }
+    },
+    {
+      "id": "utci",
+      "label": "Stress UTCI",
+      "source": "ERA5-HEAT",
+      "resolution": "0.25 degree",
+      "metric": "annual_p95_daily_max_utci",
+      "unit": "degC",
+      "palette": "utci",
+      "reference": {
+        "P10": 30.26979311330915,
+        "P33.3": 31.139587951949167,
+        "P50": 31.32483000200734,
+        "P66.6": 31.53778263559567,
+        "P90": 32.57998514031425,
+        "mean": 31.352398647300543,
+        "std": 0.8071372840895421,
+        "n": 30
+      },
+      "years": [
+        {
+          "year": 1996,
+          "value": 31.443928754083096,
+          "anomaly": 0.09153010678255313,
+          "percentile": 61.7,
+          "class": "near_normal",
+          "rank": 16,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique proche de la normale"
+          }
+        },
+        {
+          "year": 1997,
+          "value": 31.318838841474673,
+          "anomaly": -0.03355980582587037,
+          "percentile": 48.3,
+          "class": "near_normal",
+          "rank": 20,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique proche de la normale"
+          }
+        },
+        {
+          "year": 1998,
+          "value": 30.286041263440175,
+          "anomaly": -1.0663573838603675,
+          "percentile": 11.7,
+          "class": "low",
+          "rank": 29,
+          "extra": {
+            "jours >= 32 degC UTCI": 6,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique faible"
+          }
+        },
+        {
+          "year": 1999,
+          "value": 31.14894519076005,
+          "anomaly": -0.20345345654049396,
+          "percentile": 35.0,
+          "class": "near_normal",
+          "rank": 23,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique proche de la normale"
+          }
+        },
+        {
+          "year": 2000,
+          "value": 31.100017228226655,
+          "anomaly": -0.2523814190738882,
+          "percentile": 28.3,
+          "class": "low",
+          "rank": 25,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique faible"
+          }
+        },
+        {
+          "year": 2001,
+          "value": 31.24681973705611,
+          "anomaly": -0.10557891024443222,
+          "percentile": 41.7,
+          "class": "near_normal",
+          "rank": 21,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique proche de la normale"
+          }
+        },
+        {
+          "year": 2002,
+          "value": 31.88928590015337,
+          "anomaly": 0.5368872528528286,
+          "percentile": 78.3,
+          "class": "high",
+          "rank": 11,
+          "extra": {
+            "jours >= 32 degC UTCI": 8,
+            "jours >= 38 degC UTCI": 1,
+            "class_label": "stress thermique élevé"
+          }
+        },
+        {
+          "year": 2003,
+          "value": 31.361235993897214,
+          "anomaly": 0.008837346596671125,
+          "percentile": 55.0,
+          "class": "near_normal",
+          "rank": 18,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique proche de la normale"
+          }
+        },
+        {
+          "year": 2004,
+          "value": 31.826022206764705,
+          "anomaly": 0.473623559464162,
+          "percentile": 75.0,
+          "class": "high",
+          "rank": 13,
+          "extra": {
+            "jours >= 32 degC UTCI": 8,
+            "jours >= 38 degC UTCI": 1,
+            "class_label": "stress thermique élevé"
+          }
+        },
+        {
+          "year": 2005,
+          "value": 31.33082116254,
+          "anomaly": -0.021577484760541665,
+          "percentile": 51.7,
+          "class": "near_normal",
+          "rank": 19,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique proche de la normale"
+          }
+        },
+        {
+          "year": 2006,
+          "value": 31.585207458820985,
+          "anomaly": 0.2328088115204423,
+          "percentile": 68.3,
+          "class": "high",
+          "rank": 15,
+          "extra": {
+            "jours >= 32 degC UTCI": 8,
+            "jours >= 38 degC UTCI": 1,
+            "class_label": "stress thermique élevé"
+          }
+        },
+        {
+          "year": 2007,
+          "value": 31.948159403254685,
+          "anomaly": 0.5957607559541422,
+          "percentile": 81.7,
+          "class": "high",
+          "rank": 9,
+          "extra": {
+            "jours >= 32 degC UTCI": 8,
+            "jours >= 38 degC UTCI": 1,
+            "class_label": "stress thermique élevé"
+          }
+        },
+        {
+          "year": 2008,
+          "value": 30.1235597621299,
+          "anomaly": -1.2288388851706422,
+          "percentile": 8.3,
+          "class": "very_low",
+          "rank": 30,
+          "extra": {
+            "jours >= 32 degC UTCI": 6,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique très faible"
+          }
+        },
+        {
+          "year": 2009,
+          "value": 31.202295905278426,
+          "anomaly": -0.15010274202211704,
+          "percentile": 38.3,
+          "class": "near_normal",
+          "rank": 22,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique proche de la normale"
+          }
+        },
+        {
+          "year": 2010,
+          "value": 31.121664611136485,
+          "anomaly": -0.2307340361640584,
+          "percentile": 31.7,
+          "class": "low",
+          "rank": 24,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique faible"
+          }
+        },
+        {
+          "year": 2011,
+          "value": 31.025009936580993,
+          "anomaly": -0.3273887107195499,
+          "percentile": 25.0,
+          "class": "low",
+          "rank": 26,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique faible"
+          }
+        },
+        {
+          "year": 2012,
+          "value": 31.407371973895987,
+          "anomaly": 0.054973326595444405,
+          "percentile": 58.3,
+          "class": "near_normal",
+          "rank": 17,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique proche de la normale"
+          }
+        },
+        {
+          "year": 2013,
+          "value": 33.05544718011096,
+          "anomaly": 1.703048532810417,
+          "percentile": 98.3,
+          "class": "very_high",
+          "rank": 2,
+          "extra": {
+            "jours >= 32 degC UTCI": 9,
+            "jours >= 38 degC UTCI": 2,
+            "class_label": "stress thermique très élevé"
+          }
+        },
+        {
+          "year": 2014,
+          "value": 30.985751995876083,
+          "anomaly": -0.3666466514244604,
+          "percentile": 21.7,
+          "class": "low",
+          "rank": 27,
+          "extra": {
+            "jours >= 32 degC UTCI": 7,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique faible"
+          }
+        },
+        {
+          "year": 2015,
+          "value": 32.69145051913233,
+          "anomaly": 1.3390518718317885,
+          "percentile": 91.7,
+          "class": "very_high",
+          "rank": 5,
+          "extra": {
+            "jours >= 32 degC UTCI": 9,
+            "jours >= 38 degC UTCI": 2,
+            "class_label": "stress thermique très élevé"
+          }
+        },
+        {
+          "year": 2016,
+          "value": 30.360417205545776,
+          "anomaly": -0.991981441754767,
+          "percentile": 15.0,
+          "class": "low",
+          "rank": 28,
+          "extra": {
+            "jours >= 32 degC UTCI": 6,
+            "jours >= 38 degC UTCI": 0,
+            "class_label": "stress thermique faible"
+          }
+        },
+        {
+          "year": 2017,
+          "value": 31.628603473012802,
+          "anomaly": 0.27620482571225935,
+          "percentile": 71.7,
+          "class": "high",
+          "rank": 14,
+          "extra": {
+            "jours >= 32 degC UTCI": 8,
+            "jours >= 38 degC UTCI": 1,
+            "class_label": "stress thermique élevé"
+          }
+        },
+        {
+          "year": 2018,
+          "value": 32.13147775859451,
+          "anomaly": 0.7790791112939637,
+          "percentile": 85.0,
+          "class": "high",
+          "rank": 8,
+          "extra": {
+            "jours >= 32 degC UTCI": 8,
+            "jours >= 38 degC UTCI": 1,
+            "class_label": "stress thermique élevé"
+          }
+        },
+        {
+          "year": 2019,
+          "value": 32.56760009822335,
+          "anomaly": 1.2152014509228088,
+          "percentile": 88.3,
+          "class": "high",
+          "rank": 6,
+          "extra": {
+            "jours >= 32 degC UTCI": 9,
+            "jours >= 38 degC UTCI": 2,
+            "class_label": "stress thermique élevé"
+          }
+        },
+        {
+          "year": 2020,
+          "value": 32.73510392181357,
+          "anomaly": 1.3827052745130253,
+          "percentile": 95.0,
+          "class": "very_high",
+          "rank": 4,
+          "extra": {
+            "jours >= 32 degC UTCI": 9,
+            "jours >= 38 degC UTCI": 2,
+            "class_label": "stress thermique très élevé"
+          }
+        },
+        {
+          "year": 2021,
+          "value": 32.86401251167993,
+          "anomaly": 1.5116138643793882,
+          "percentile": 96.7,
+          "class": "very_high",
+          "rank": 3,
+          "extra": {
+            "jours >= 32 degC UTCI": 9,
+            "jours >= 38 degC UTCI": 2,
+            "class_label": "stress thermique très élevé"
+          }
+        },
+        {
+          "year": 2022,
+          "value": 31.891147434976403,
+          "anomaly": 0.5387487876758605,
+          "percentile": 80.0,
+          "class": "high",
+          "rank": 10,
+          "extra": {
+            "jours >= 32 degC UTCI": 8,
+            "jours >= 38 degC UTCI": 1,
+            "class_label": "stress thermique élevé"
+          }
+        },
+        {
+          "year": 2023,
+          "value": 31.843883386601888,
+          "anomaly": 0.4914847393013453,
+          "percentile": 76.7,
+          "class": "high",
+          "rank": 12,
+          "extra": {
+            "jours >= 32 degC UTCI": 8,
+            "jours >= 38 degC UTCI": 1,
+            "class_label": "stress thermique élevé"
+          }
+        },
+        {
+          "year": 2024,
+          "value": 33.08717829313144,
+          "anomaly": 1.7347796458308942,
+          "percentile": 100.0,
+          "class": "very_high",
+          "rank": 1,
+          "extra": {
+            "jours >= 32 degC UTCI": 9,
+            "jours >= 38 degC UTCI": 2,
+            "class_label": "stress thermique très élevé"
+          }
+        },
+        {
+          "year": 2025,
+          "value": 32.197826107606545,
+          "anomaly": 0.8454274603060021,
+          "percentile": 86.7,
+          "class": "high",
+          "rank": 7,
+          "extra": {
+            "jours >= 32 degC UTCI": 8,
+            "jours >= 38 degC UTCI": 1,
+            "class_label": "stress thermique élevé"
+          }
+        }
+      ],
+      "trend": {
+        "slope_per_year": 0.04893727314803087,
+        "slope_per_decade": 0.4893727314803087,
+        "ci95_low_per_decade": -5.127623640965918,
+        "ci95_high_per_decade": 6.046830391804773,
+        "intercept": -66.67666383215365,
+        "S": 161.0,
+        "Z": 2.8545649605602526,
+        "p_value": 0.004309581722337086,
+        "n": 30,
+        "verdict": "tendance nette"
+      },
+      "decade_delta": {
+        "early_mean": 31.29519562783961,
+        "late_mean": 32.13072501911862,
+        "delta": 0.8355293912790103,
+        "delta_pct": 2.66983277949456
+      }
+    },
+    {
+      "id": "precipitation",
+      "label": "Précipitations",
+      "source": "ERA5-Land",
+      "resolution": "0.1 degree",
+      "metric": "annual_total_precipitation",
+      "unit": "mm",
+      "palette": "precipitation",
+      "reference": {
+        "P10": 732.1401279695406,
+        "P33.3": 861.1247922931802,
+        "P50": 903.5219633028955,
+        "P66.6": 1001.891582748909,
+        "P90": 1072.0168043036767,
+        "mean": 905.3753049927485,
+        "std": 138.87082129439054,
+        "n": 30
+      },
+      "years": [
+        {
+          "year": 1996,
+          "value": 1105.192217272876,
+          "anomaly": 199.81691228012744,
+          "percentile": 98.3,
+          "class": "very_high",
+          "rank": 2,
+          "extra": {
+            "jours de pluie": 92,
+            "class_label": "beaucoup plus humide que la normale"
+          }
+        },
+        {
+          "year": 1997,
+          "value": 891.6219971960585,
+          "anomaly": -13.753307796690024,
+          "percentile": 41.7,
+          "class": "near_normal",
+          "rank": 18,
+          "extra": {
+            "jours de pluie": 81,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 1998,
+          "value": 1001.7225413045758,
+          "anomaly": 96.34723631182726,
+          "percentile": 65.0,
+          "class": "near_normal",
+          "rank": 11,
+          "extra": {
+            "jours de pluie": 78,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 1999,
+          "value": 1089.262174853794,
+          "anomaly": 183.8868698610455,
+          "percentile": 95.0,
+          "class": "very_high",
+          "rank": 3,
+          "extra": {
+            "jours de pluie": 94,
+            "class_label": "beaucoup plus humide que la normale"
+          }
+        },
+        {
+          "year": 2000,
+          "value": 910.4241574531547,
+          "anomaly": 5.048852460406238,
+          "percentile": 51.7,
+          "class": "near_normal",
+          "rank": 15,
+          "extra": {
+            "jours de pluie": 83,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2001,
+          "value": 1054.7872951359082,
+          "anomaly": 149.41199014315964,
+          "percentile": 85.0,
+          "class": "high",
+          "rank": 6,
+          "extra": {
+            "jours de pluie": 92,
+            "class_label": "plus humide que la normale"
+          }
+        },
+        {
+          "year": 2002,
+          "value": 841.0340711973362,
+          "anomaly": -64.34123379541234,
+          "percentile": 31.7,
+          "class": "low",
+          "rank": 23,
+          "extra": {
+            "jours de pluie": 94,
+            "class_label": "plus sec que la normale"
+          }
+        },
+        {
+          "year": 2003,
+          "value": 896.6197691526364,
+          "anomaly": -8.755535840112088,
+          "percentile": 48.3,
+          "class": "near_normal",
+          "rank": 16,
+          "extra": {
+            "jours de pluie": 67,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2004,
+          "value": 891.8698001403175,
+          "anomaly": -13.505504852431045,
+          "percentile": 45.0,
+          "class": "near_normal",
+          "rank": 17,
+          "extra": {
+            "jours de pluie": 75,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2005,
+          "value": 735.9904673380825,
+          "anomaly": -169.38483765466606,
+          "percentile": 11.7,
+          "class": "low",
+          "rank": 27,
+          "extra": {
+            "jours de pluie": 87,
+            "class_label": "plus sec que la normale"
+          }
+        },
+        {
+          "year": 2006,
+          "value": 1054.5247713492606,
+          "anomaly": 149.1494663565121,
+          "percentile": 81.7,
+          "class": "high",
+          "rank": 7,
+          "extra": {
+            "jours de pluie": 89,
+            "class_label": "plus humide que la normale"
+          }
+        },
+        {
+          "year": 2007,
+          "value": 871.6135553614824,
+          "anomaly": -33.76174963126607,
+          "percentile": 35.0,
+          "class": "near_normal",
+          "rank": 22,
+          "extra": {
+            "jours de pluie": 69,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2008,
+          "value": 961.9738825582606,
+          "anomaly": 56.59857756551207,
+          "percentile": 61.7,
+          "class": "near_normal",
+          "rank": 12,
+          "extra": {
+            "jours de pluie": 74,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2009,
+          "value": 1049.7418651921228,
+          "anomaly": 144.36656019937425,
+          "percentile": 78.3,
+          "class": "high",
+          "rank": 8,
+          "extra": {
+            "jours de pluie": 81,
+            "class_label": "plus humide que la normale"
+          }
+        },
+        {
+          "year": 2010,
+          "value": 1042.0409234456895,
+          "anomaly": 136.66561845294098,
+          "percentile": 75.0,
+          "class": "high",
+          "rank": 9,
+          "extra": {
+            "jours de pluie": 88,
+            "class_label": "plus humide que la normale"
+          }
+        },
+        {
+          "year": 2011,
+          "value": 1082.4231707048293,
+          "anomaly": 177.0478657120808,
+          "percentile": 91.7,
+          "class": "very_high",
+          "rank": 4,
+          "extra": {
+            "jours de pluie": 68,
+            "class_label": "beaucoup plus humide que la normale"
+          }
+        },
+        {
+          "year": 2012,
+          "value": 936.0877579432095,
+          "anomaly": 30.712452950460943,
+          "percentile": 55.0,
+          "class": "near_normal",
+          "rank": 14,
+          "extra": {
+            "jours de pluie": 83,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2013,
+          "value": 873.1733207116108,
+          "anomaly": -32.2019842811377,
+          "percentile": 38.3,
+          "class": "near_normal",
+          "rank": 20,
+          "extra": {
+            "jours de pluie": 73,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2014,
+          "value": 937.2535399277841,
+          "anomaly": 31.878234935035607,
+          "percentile": 58.3,
+          "class": "near_normal",
+          "rank": 13,
+          "extra": {
+            "jours de pluie": 71,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2015,
+          "value": 630.6064575479744,
+          "anomaly": -274.7688474447741,
+          "percentile": 1.7,
+          "class": "very_low",
+          "rank": 30,
+          "extra": {
+            "jours de pluie": 80,
+            "class_label": "beaucoup plus sec que la normale"
+          }
+        },
+        {
+          "year": 2016,
+          "value": 675.0486302396134,
+          "anomaly": -230.32667475313508,
+          "percentile": 5.0,
+          "class": "very_low",
+          "rank": 29,
+          "extra": {
+            "jours de pluie": 77,
+            "class_label": "beaucoup plus sec que la normale"
+          }
+        },
+        {
+          "year": 2017,
+          "value": 697.4870736526635,
+          "anomaly": -207.88823134008499,
+          "percentile": 8.3,
+          "class": "very_low",
+          "rank": 28,
+          "extra": {
+            "jours de pluie": 84,
+            "class_label": "beaucoup plus sec que la normale"
+          }
+        },
+        {
+          "year": 2018,
+          "value": 758.1231027557185,
+          "anomaly": -147.25220223703002,
+          "percentile": 18.3,
+          "class": "low",
+          "rank": 26,
+          "extra": {
+            "jours de pluie": 74,
+            "class_label": "plus sec que la normale"
+          }
+        },
+        {
+          "year": 2019,
+          "value": 1022.357103077453,
+          "anomaly": 116.98179808470445,
+          "percentile": 71.7,
+          "class": "high",
+          "rank": 10,
+          "extra": {
+            "jours de pluie": 89,
+            "class_label": "plus humide que la normale"
+          }
+        },
+        {
+          "year": 2020,
+          "value": 773.1589794815885,
+          "anomaly": -132.21632551116,
+          "percentile": 25.0,
+          "class": "low",
+          "rank": 24,
+          "extra": {
+            "jours de pluie": 67,
+            "class_label": "plus sec que la normale"
+          }
+        },
+        {
+          "year": 2021,
+          "value": 872.149114732516,
+          "anomaly": -33.226190260232556,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 21,
+          "extra": {
+            "jours de pluie": 90,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2022,
+          "value": 1189.6533765793524,
+          "anomaly": 284.2780715866039,
+          "percentile": 100.0,
+          "class": "very_high",
+          "rank": 1,
+          "extra": {
+            "jours de pluie": 65,
+            "class_label": "beaucoup plus humide que la normale"
+          }
+        },
+        {
+          "year": 2023,
+          "value": 873.9098454983291,
+          "anomaly": -31.465459494419406,
+          "percentile": 40.0,
+          "class": "near_normal",
+          "rank": 19,
+          "extra": {
+            "jours de pluie": 87,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2024,
+          "value": 1080.5279580087465,
+          "anomaly": 175.152653015998,
+          "percentile": 90.0,
+          "class": "very_high",
+          "rank": 5,
+          "extra": {
+            "jours de pluie": 75,
+            "class_label": "beaucoup plus humide que la normale"
+          }
+        },
+        {
+          "year": 2025,
+          "value": 761.8126407981234,
+          "anomaly": -143.56266419462509,
+          "percentile": 20.0,
+          "class": "low",
+          "rank": 25,
+          "extra": {
+            "jours de pluie": 76,
+            "class_label": "plus sec que la normale"
+          }
+        }
+      ],
+      "trend": {
+        "slope_per_year": -4.292841037100413,
+        "slope_per_decade": -42.92841037100413,
+        "ci95_low_per_decade": -1328.2912340653397,
+        "ci95_high_per_decade": 988.4559579217671,
+        "intercept": 9553.154057132457,
+        "S": -79.0,
+        "Z": -1.391600418273123,
+        "p_value": 0.16404343214420525,
+        "n": 30,
+        "verdict": "évolution possible mais variable"
+      },
+      "decade_delta": {
+        "early_mean": 941.852449104474,
+        "late_mean": 870.4227824824104,
+        "delta": -71.42966662206356,
+        "delta_pct": -7.583955075976057
+      }
+    },
+    {
+      "id": "extreme_rain",
+      "label": "Pluies intenses",
+      "source": "ERA5-Land",
+      "resolution": "0.1 degree",
+      "metric": "days_above_ref_p95_wetday",
+      "unit": "jours",
+      "palette": "extreme_rain",
+      "reference": {
+        "P10": 3.9000000000000004,
+        "P33.3": 5.0,
+        "P50": 6.0,
+        "P66.6": 7.3139999999999965,
+        "P90": 10.0,
+        "mean": 6.366666666666666,
+        "std": 2.511811179666746,
+        "n": 30
+      },
+      "years": [
+        {
+          "year": 1996,
+          "value": 7.0,
+          "anomaly": 0.6333333333333337,
+          "percentile": 60.0,
+          "class": "near_normal",
+          "rank": 14,
+          "extra": {
+            "R95pTOT (mm)": 296,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 1997,
+          "value": 4.0,
+          "anomaly": -2.3666666666666663,
+          "percentile": 18.3,
+          "class": "low",
+          "rank": 25,
+          "extra": {
+            "R95pTOT (mm)": 183,
+            "class_label": "peu de pluies intenses"
+          }
+        },
+        {
+          "year": 1998,
+          "value": 5.0,
+          "anomaly": -1.3666666666666663,
+          "percentile": 33.3,
+          "class": "near_normal",
+          "rank": 23,
+          "extra": {
+            "R95pTOT (mm)": 172,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 1999,
+          "value": 6.0,
+          "anomaly": -0.36666666666666625,
+          "percentile": 46.7,
+          "class": "near_normal",
+          "rank": 19,
+          "extra": {
+            "R95pTOT (mm)": 234,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2000,
+          "value": 9.0,
+          "anomaly": 2.6333333333333337,
+          "percentile": 83.3,
+          "class": "high",
+          "rank": 6,
+          "extra": {
+            "R95pTOT (mm)": 364,
+            "class_label": "pluies intenses fréquentes"
+          }
+        },
+        {
+          "year": 2001,
+          "value": 8.0,
+          "anomaly": 1.6333333333333337,
+          "percentile": 73.3,
+          "class": "high",
+          "rank": 8,
+          "extra": {
+            "R95pTOT (mm)": 288,
+            "class_label": "pluies intenses fréquentes"
+          }
+        },
+        {
+          "year": 2002,
+          "value": 8.0,
+          "anomaly": 1.6333333333333337,
+          "percentile": 73.3,
+          "class": "high",
+          "rank": 9,
+          "extra": {
+            "R95pTOT (mm)": 287,
+            "class_label": "pluies intenses fréquentes"
+          }
+        },
+        {
+          "year": 2003,
+          "value": 4.0,
+          "anomaly": -2.3666666666666663,
+          "percentile": 18.3,
+          "class": "low",
+          "rank": 26,
+          "extra": {
+            "R95pTOT (mm)": 181,
+            "class_label": "peu de pluies intenses"
+          }
+        },
+        {
+          "year": 2004,
+          "value": 8.0,
+          "anomaly": 1.6333333333333337,
+          "percentile": 73.3,
+          "class": "high",
+          "rank": 10,
+          "extra": {
+            "R95pTOT (mm)": 280,
+            "class_label": "pluies intenses fréquentes"
+          }
+        },
+        {
+          "year": 2005,
+          "value": 2.0,
+          "anomaly": -4.366666666666666,
+          "percentile": 3.3,
+          "class": "very_low",
+          "rank": 29,
+          "extra": {
+            "R95pTOT (mm)": 80,
+            "class_label": "très peu de pluies intenses"
+          }
+        },
+        {
+          "year": 2006,
+          "value": 5.0,
+          "anomaly": -1.3666666666666663,
+          "percentile": 33.3,
+          "class": "near_normal",
+          "rank": 24,
+          "extra": {
+            "R95pTOT (mm)": 183,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2007,
+          "value": 10.0,
+          "anomaly": 3.6333333333333337,
+          "percentile": 91.7,
+          "class": "very_high",
+          "rank": 3,
+          "extra": {
+            "R95pTOT (mm)": 346,
+            "class_label": "pluies intenses très fréquentes"
+          }
+        },
+        {
+          "year": 2008,
+          "value": 7.0,
+          "anomaly": 0.6333333333333337,
+          "percentile": 60.0,
+          "class": "near_normal",
+          "rank": 15,
+          "extra": {
+            "R95pTOT (mm)": 270,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2009,
+          "value": 4.0,
+          "anomaly": -2.3666666666666663,
+          "percentile": 18.3,
+          "class": "low",
+          "rank": 27,
+          "extra": {
+            "R95pTOT (mm)": 137,
+            "class_label": "peu de pluies intenses"
+          }
+        },
+        {
+          "year": 2010,
+          "value": 9.0,
+          "anomaly": 2.6333333333333337,
+          "percentile": 83.3,
+          "class": "high",
+          "rank": 7,
+          "extra": {
+            "R95pTOT (mm)": 349,
+            "class_label": "pluies intenses fréquentes"
+          }
+        },
+        {
+          "year": 2011,
+          "value": 8.0,
+          "anomaly": 1.6333333333333337,
+          "percentile": 73.3,
+          "class": "high",
+          "rank": 11,
+          "extra": {
+            "R95pTOT (mm)": 330,
+            "class_label": "pluies intenses fréquentes"
+          }
+        },
+        {
+          "year": 2012,
+          "value": 10.0,
+          "anomaly": 3.6333333333333337,
+          "percentile": 91.7,
+          "class": "very_high",
+          "rank": 4,
+          "extra": {
+            "R95pTOT (mm)": 345,
+            "class_label": "pluies intenses très fréquentes"
+          }
+        },
+        {
+          "year": 2013,
+          "value": 6.0,
+          "anomaly": -0.36666666666666625,
+          "percentile": 46.7,
+          "class": "near_normal",
+          "rank": 20,
+          "extra": {
+            "R95pTOT (mm)": 191,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2014,
+          "value": 6.0,
+          "anomaly": -0.36666666666666625,
+          "percentile": 46.7,
+          "class": "near_normal",
+          "rank": 21,
+          "extra": {
+            "R95pTOT (mm)": 266,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2015,
+          "value": 2.0,
+          "anomaly": -4.366666666666666,
+          "percentile": 3.3,
+          "class": "very_low",
+          "rank": 30,
+          "extra": {
+            "R95pTOT (mm)": 66,
+            "class_label": "très peu de pluies intenses"
+          }
+        },
+        {
+          "year": 2016,
+          "value": 4.0,
+          "anomaly": -2.3666666666666663,
+          "percentile": 18.3,
+          "class": "low",
+          "rank": 28,
+          "extra": {
+            "R95pTOT (mm)": 139,
+            "class_label": "peu de pluies intenses"
+          }
+        },
+        {
+          "year": 2017,
+          "value": 10.0,
+          "anomaly": 3.6333333333333337,
+          "percentile": 91.7,
+          "class": "very_high",
+          "rank": 5,
+          "extra": {
+            "R95pTOT (mm)": 413,
+            "class_label": "pluies intenses très fréquentes"
+          }
+        },
+        {
+          "year": 2018,
+          "value": 7.0,
+          "anomaly": 0.6333333333333337,
+          "percentile": 60.0,
+          "class": "near_normal",
+          "rank": 16,
+          "extra": {
+            "R95pTOT (mm)": 243,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2019,
+          "value": 6.0,
+          "anomaly": -0.36666666666666625,
+          "percentile": 46.7,
+          "class": "near_normal",
+          "rank": 22,
+          "extra": {
+            "R95pTOT (mm)": 186,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2020,
+          "value": 12.0,
+          "anomaly": 5.633333333333334,
+          "percentile": 98.3,
+          "class": "very_high",
+          "rank": 2,
+          "extra": {
+            "R95pTOT (mm)": 491,
+            "class_label": "pluies intenses très fréquentes"
+          }
+        },
+        {
+          "year": 2021,
+          "value": 7.0,
+          "anomaly": 0.6333333333333337,
+          "percentile": 60.0,
+          "class": "near_normal",
+          "rank": 17,
+          "extra": {
+            "R95pTOT (mm)": 218,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2022,
+          "value": 7.0,
+          "anomaly": 0.6333333333333337,
+          "percentile": 60.0,
+          "class": "near_normal",
+          "rank": 18,
+          "extra": {
+            "R95pTOT (mm)": 257,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2023,
+          "value": 13.0,
+          "anomaly": 6.633333333333334,
+          "percentile": 100.0,
+          "class": "very_high",
+          "rank": 1,
+          "extra": {
+            "R95pTOT (mm)": 523,
+            "class_label": "pluies intenses très fréquentes"
+          }
+        },
+        {
+          "year": 2024,
+          "value": 8.0,
+          "anomaly": 1.6333333333333337,
+          "percentile": 73.3,
+          "class": "high",
+          "rank": 12,
+          "extra": {
+            "R95pTOT (mm)": 326,
+            "class_label": "pluies intenses fréquentes"
+          }
+        },
+        {
+          "year": 2025,
+          "value": 8.0,
+          "anomaly": 1.6333333333333337,
+          "percentile": 73.3,
+          "class": "high",
+          "rank": 13,
+          "extra": {
+            "R95pTOT (mm)": 319,
+            "class_label": "pluies intenses fréquentes"
+          }
+        }
+      ],
+      "trend": {
+        "slope_per_year": 0.1111111111111111,
+        "slope_per_decade": 1.1111111111111112,
+        "ci95_low_per_decade": -27.166666666666657,
+        "ci95_high_per_decade": 25.749999999999886,
+        "intercept": -216.94444444444446,
+        "S": 84.0,
+        "Z": 1.4973397977580434,
+        "p_value": 0.13430486438084266,
+        "n": 30,
+        "verdict": "évolution possible mais variable"
+      },
+      "decade_delta": {
+        "early_mean": 6.1,
+        "late_mean": 8.2,
+        "delta": 2.0999999999999996,
+        "delta_pct": 34.42622950819671
+      }
+    },
+    {
+      "id": "drought",
+      "label": "Sécheresse",
+      "source": "ERA5-Drought",
+      "resolution": "0.25 degree",
+      "metric": "very_dry_months_spei3",
+      "unit": "mois",
+      "palette": "drought",
+      "reference": {
+        "P10": 1.0,
+        "P33.3": 2.0,
+        "P50": 2.0,
+        "P66.6": 3.0,
+        "P90": 4.0,
+        "mean": 2.6333333333333333,
+        "std": 1.2726115785600325,
+        "n": 30
+      },
+      "years": [
+        {
+          "year": 1996,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 16,
+          "extra": {
+            "SPEI-3 minimum": -1.22,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 1997,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 17,
+          "extra": {
+            "SPEI-3 minimum": -1.24,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 1998,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 18,
+          "extra": {
+            "SPEI-3 minimum": -1.25,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 1999,
+          "value": 5.0,
+          "anomaly": 2.3666666666666667,
+          "percentile": 95.0,
+          "class": "very_high",
+          "rank": 3,
+          "extra": {
+            "SPEI-3 minimum": -1.62,
+            "class_label": "sécheresse très présente"
+          }
+        },
+        {
+          "year": 2000,
+          "value": 4.0,
+          "anomaly": 1.3666666666666667,
+          "percentile": 83.3,
+          "class": "high",
+          "rank": 5,
+          "extra": {
+            "SPEI-3 minimum": -1.45,
+            "class_label": "sécheresse présente"
+          }
+        },
+        {
+          "year": 2001,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 19,
+          "extra": {
+            "SPEI-3 minimum": -1.11,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2002,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 20,
+          "extra": {
+            "SPEI-3 minimum": -1.12,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2003,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 21,
+          "extra": {
+            "SPEI-3 minimum": -1.13,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2004,
+          "value": 3.0,
+          "anomaly": 0.3666666666666667,
+          "percentile": 65.0,
+          "class": "near_normal",
+          "rank": 11,
+          "extra": {
+            "SPEI-3 minimum": -1.32,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2005,
+          "value": 1.0,
+          "anomaly": -1.6333333333333333,
+          "percentile": 8.3,
+          "class": "very_low",
+          "rank": 27,
+          "extra": {
+            "SPEI-3 minimum": -0.98,
+            "class_label": "sécheresse quasi absente"
+          }
+        },
+        {
+          "year": 2006,
+          "value": 1.0,
+          "anomaly": -1.6333333333333333,
+          "percentile": 8.3,
+          "class": "very_low",
+          "rank": 28,
+          "extra": {
+            "SPEI-3 minimum": -0.99,
+            "class_label": "sécheresse quasi absente"
+          }
+        },
+        {
+          "year": 2007,
+          "value": 3.0,
+          "anomaly": 0.3666666666666667,
+          "percentile": 65.0,
+          "class": "near_normal",
+          "rank": 12,
+          "extra": {
+            "SPEI-3 minimum": -1.36,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2008,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 22,
+          "extra": {
+            "SPEI-3 minimum": -1.19,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2009,
+          "value": 6.0,
+          "anomaly": 3.3666666666666667,
+          "percentile": 98.3,
+          "class": "very_high",
+          "rank": 1,
+          "extra": {
+            "SPEI-3 minimum": -1.93,
+            "class_label": "sécheresse très présente"
+          }
+        },
+        {
+          "year": 2010,
+          "value": 1.0,
+          "anomaly": -1.6333333333333333,
+          "percentile": 8.3,
+          "class": "very_low",
+          "rank": 29,
+          "extra": {
+            "SPEI-3 minimum": -1.04,
+            "class_label": "sécheresse quasi absente"
+          }
+        },
+        {
+          "year": 2011,
+          "value": 1.0,
+          "anomaly": -1.6333333333333333,
+          "percentile": 8.3,
+          "class": "very_low",
+          "rank": 30,
+          "extra": {
+            "SPEI-3 minimum": -1.05,
+            "class_label": "sécheresse quasi absente"
+          }
+        },
+        {
+          "year": 2012,
+          "value": 4.0,
+          "anomaly": 1.3666666666666667,
+          "percentile": 83.3,
+          "class": "high",
+          "rank": 6,
+          "extra": {
+            "SPEI-3 minimum": -1.6,
+            "class_label": "sécheresse présente"
+          }
+        },
+        {
+          "year": 2013,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 23,
+          "extra": {
+            "SPEI-3 minimum": -1.08,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2014,
+          "value": 3.0,
+          "anomaly": 0.3666666666666667,
+          "percentile": 65.0,
+          "class": "near_normal",
+          "rank": 13,
+          "extra": {
+            "SPEI-3 minimum": -1.27,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2015,
+          "value": 3.0,
+          "anomaly": 0.3666666666666667,
+          "percentile": 65.0,
+          "class": "near_normal",
+          "rank": 14,
+          "extra": {
+            "SPEI-3 minimum": -1.28,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2016,
+          "value": 4.0,
+          "anomaly": 1.3666666666666667,
+          "percentile": 83.3,
+          "class": "high",
+          "rank": 7,
+          "extra": {
+            "SPEI-3 minimum": -1.48,
+            "class_label": "sécheresse présente"
+          }
+        },
+        {
+          "year": 2017,
+          "value": 3.0,
+          "anomaly": 0.3666666666666667,
+          "percentile": 65.0,
+          "class": "near_normal",
+          "rank": 15,
+          "extra": {
+            "SPEI-3 minimum": -1.31,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2018,
+          "value": 4.0,
+          "anomaly": 1.3666666666666667,
+          "percentile": 83.3,
+          "class": "high",
+          "rank": 8,
+          "extra": {
+            "SPEI-3 minimum": -1.5,
+            "class_label": "sécheresse présente"
+          }
+        },
+        {
+          "year": 2019,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 24,
+          "extra": {
+            "SPEI-3 minimum": -1.15,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2020,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 25,
+          "extra": {
+            "SPEI-3 minimum": -1.17,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2021,
+          "value": 6.0,
+          "anomaly": 3.3666666666666667,
+          "percentile": 98.3,
+          "class": "very_high",
+          "rank": 2,
+          "extra": {
+            "SPEI-3 minimum": -1.9,
+            "class_label": "sécheresse très présente"
+          }
+        },
+        {
+          "year": 2022,
+          "value": 2.0,
+          "anomaly": -0.6333333333333333,
+          "percentile": 36.7,
+          "class": "near_normal",
+          "rank": 26,
+          "extra": {
+            "SPEI-3 minimum": -1.19,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2023,
+          "value": 4.0,
+          "anomaly": 1.3666666666666667,
+          "percentile": 83.3,
+          "class": "high",
+          "rank": 9,
+          "extra": {
+            "SPEI-3 minimum": -1.56,
+            "class_label": "sécheresse présente"
+          }
+        },
+        {
+          "year": 2024,
+          "value": 5.0,
+          "anomaly": 2.3666666666666667,
+          "percentile": 95.0,
+          "class": "very_high",
+          "rank": 4,
+          "extra": {
+            "SPEI-3 minimum": -1.76,
+            "class_label": "sécheresse très présente"
+          }
+        },
+        {
+          "year": 2025,
+          "value": 4.0,
+          "anomaly": 1.3666666666666667,
+          "percentile": 83.3,
+          "class": "high",
+          "rank": 10,
+          "extra": {
+            "SPEI-3 minimum": -1.59,
+            "class_label": "sécheresse présente"
+          }
+        }
+      ],
+      "trend": {
+        "slope_per_year": 0.05,
+        "slope_per_decade": 0.5,
+        "ci95_low_per_decade": -10.0,
+        "ci95_high_per_decade": 15.0,
+        "intercept": -97.82500000000002,
+        "S": 97.0,
+        "Z": 1.7762555771580681,
+        "p_value": 0.0756908015531299,
+        "n": 30,
+        "verdict": "évolution possible mais variable"
+      },
+      "decade_delta": {
+        "early_mean": 2.5,
+        "late_mean": 3.6,
+        "delta": 1.1,
+        "delta_pct": 44.00000000000001
+      }
+    },
+    {
+      "id": "wind",
+      "label": "Vent fort",
+      "source": "ERA5",
+      "resolution": "0.25 degree",
+      "metric": "days_above_ref_p98_wind",
+      "unit": "jours",
+      "palette": "wind",
+      "reference": {
+        "P10": 2.9000000000000004,
+        "P33.3": 5.0,
+        "P50": 7.0,
+        "P66.6": 8.313999999999997,
+        "P90": 13.0,
+        "mean": 7.0,
+        "std": 3.6577739603244463,
+        "n": 30
+      },
+      "years": [
+        {
+          "year": 1996,
+          "value": 3.0,
+          "anomaly": -4.0,
+          "percentile": 16.7,
+          "class": "low",
+          "rank": 22,
+          "extra": {
+            "max quotidien (m/s)": 17.5,
+            "class_label": "peu venteux"
+          }
+        },
+        {
+          "year": 1997,
+          "value": 9.0,
+          "anomaly": 2.0,
+          "percentile": 73.3,
+          "class": "high",
+          "rank": 6,
+          "extra": {
+            "max quotidien (m/s)": 15.8,
+            "class_label": "venteux"
+          }
+        },
+        {
+          "year": 1998,
+          "value": 7.0,
+          "anomaly": 0.0,
+          "percentile": 48.3,
+          "class": "near_normal",
+          "rank": 14,
+          "extra": {
+            "max quotidien (m/s)": 14.2,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 1999,
+          "value": 6.0,
+          "anomaly": -1.0,
+          "percentile": 40.0,
+          "class": "near_normal",
+          "rank": 17,
+          "extra": {
+            "max quotidien (m/s)": 19.5,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2000,
+          "value": 4.0,
+          "anomaly": -3.0,
+          "percentile": 26.7,
+          "class": "low",
+          "rank": 21,
+          "extra": {
+            "max quotidien (m/s)": 19.2,
+            "class_label": "peu venteux"
+          }
+        },
+        {
+          "year": 2001,
+          "value": 3.0,
+          "anomaly": -4.0,
+          "percentile": 16.7,
+          "class": "low",
+          "rank": 23,
+          "extra": {
+            "max quotidien (m/s)": 12.6,
+            "class_label": "peu venteux"
+          }
+        },
+        {
+          "year": 2002,
+          "value": 10.0,
+          "anomaly": 3.0,
+          "percentile": 83.3,
+          "class": "high",
+          "rank": 4,
+          "extra": {
+            "max quotidien (m/s)": 17.6,
+            "class_label": "venteux"
+          }
+        },
+        {
+          "year": 2003,
+          "value": 8.0,
+          "anomaly": 1.0,
+          "percentile": 60.0,
+          "class": "near_normal",
+          "rank": 10,
+          "extra": {
+            "max quotidien (m/s)": 21.0,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2004,
+          "value": 9.0,
+          "anomaly": 2.0,
+          "percentile": 73.3,
+          "class": "high",
+          "rank": 7,
+          "extra": {
+            "max quotidien (m/s)": 21.2,
+            "class_label": "venteux"
+          }
+        },
+        {
+          "year": 2005,
+          "value": 3.0,
+          "anomaly": -4.0,
+          "percentile": 16.7,
+          "class": "low",
+          "rank": 24,
+          "extra": {
+            "max quotidien (m/s)": 21.1,
+            "class_label": "peu venteux"
+          }
+        },
+        {
+          "year": 2006,
+          "value": 2.0,
+          "anomaly": -5.0,
+          "percentile": 6.7,
+          "class": "very_low",
+          "rank": 26,
+          "extra": {
+            "max quotidien (m/s)": 18.1,
+            "class_label": "très peu venteux"
+          }
+        },
+        {
+          "year": 2007,
+          "value": 15.0,
+          "anomaly": 8.0,
+          "percentile": 98.3,
+          "class": "very_high",
+          "rank": 1,
+          "extra": {
+            "max quotidien (m/s)": 15.5,
+            "class_label": "très venteux"
+          }
+        },
+        {
+          "year": 2008,
+          "value": 9.0,
+          "anomaly": 2.0,
+          "percentile": 73.3,
+          "class": "high",
+          "rank": 8,
+          "extra": {
+            "max quotidien (m/s)": 14.7,
+            "class_label": "venteux"
+          }
+        },
+        {
+          "year": 2009,
+          "value": 13.0,
+          "anomaly": 6.0,
+          "percentile": 91.7,
+          "class": "very_high",
+          "rank": 2,
+          "extra": {
+            "max quotidien (m/s)": 19.0,
+            "class_label": "très venteux"
+          }
+        },
+        {
+          "year": 2010,
+          "value": 5.0,
+          "anomaly": -2.0,
+          "percentile": 33.3,
+          "class": "near_normal",
+          "rank": 19,
+          "extra": {
+            "max quotidien (m/s)": 19.1,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2011,
+          "value": 7.0,
+          "anomaly": 0.0,
+          "percentile": 48.3,
+          "class": "near_normal",
+          "rank": 15,
+          "extra": {
+            "max quotidien (m/s)": 21.9,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2012,
+          "value": 6.0,
+          "anomaly": -1.0,
+          "percentile": 40.0,
+          "class": "near_normal",
+          "rank": 18,
+          "extra": {
+            "max quotidien (m/s)": 21.3,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2013,
+          "value": 9.0,
+          "anomaly": 2.0,
+          "percentile": 73.3,
+          "class": "high",
+          "rank": 9,
+          "extra": {
+            "max quotidien (m/s)": 17.6,
+            "class_label": "venteux"
+          }
+        },
+        {
+          "year": 2014,
+          "value": 8.0,
+          "anomaly": 1.0,
+          "percentile": 60.0,
+          "class": "near_normal",
+          "rank": 11,
+          "extra": {
+            "max quotidien (m/s)": 14.3,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2015,
+          "value": 7.0,
+          "anomaly": 0.0,
+          "percentile": 48.3,
+          "class": "near_normal",
+          "rank": 16,
+          "extra": {
+            "max quotidien (m/s)": 17.0,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2016,
+          "value": 1.0,
+          "anomaly": -6.0,
+          "percentile": 1.7,
+          "class": "very_low",
+          "rank": 29,
+          "extra": {
+            "max quotidien (m/s)": 18.7,
+            "class_label": "très peu venteux"
+          }
+        },
+        {
+          "year": 2017,
+          "value": 13.0,
+          "anomaly": 6.0,
+          "percentile": 91.7,
+          "class": "very_high",
+          "rank": 3,
+          "extra": {
+            "max quotidien (m/s)": 17.4,
+            "class_label": "très venteux"
+          }
+        },
+        {
+          "year": 2018,
+          "value": 8.0,
+          "anomaly": 1.0,
+          "percentile": 60.0,
+          "class": "near_normal",
+          "rank": 12,
+          "extra": {
+            "max quotidien (m/s)": 16.3,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2019,
+          "value": 10.0,
+          "anomaly": 3.0,
+          "percentile": 83.3,
+          "class": "high",
+          "rank": 5,
+          "extra": {
+            "max quotidien (m/s)": 18.8,
+            "class_label": "venteux"
+          }
+        },
+        {
+          "year": 2020,
+          "value": 3.0,
+          "anomaly": -4.0,
+          "percentile": 16.7,
+          "class": "low",
+          "rank": 25,
+          "extra": {
+            "max quotidien (m/s)": 16.5,
+            "class_label": "peu venteux"
+          }
+        },
+        {
+          "year": 2021,
+          "value": 2.0,
+          "anomaly": -5.0,
+          "percentile": 6.7,
+          "class": "very_low",
+          "rank": 27,
+          "extra": {
+            "max quotidien (m/s)": 16.1,
+            "class_label": "très peu venteux"
+          }
+        },
+        {
+          "year": 2022,
+          "value": 5.0,
+          "anomaly": -2.0,
+          "percentile": 33.3,
+          "class": "near_normal",
+          "rank": 20,
+          "extra": {
+            "max quotidien (m/s)": 18.9,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2023,
+          "value": 8.0,
+          "anomaly": 1.0,
+          "percentile": 60.0,
+          "class": "near_normal",
+          "rank": 13,
+          "extra": {
+            "max quotidien (m/s)": 16.8,
+            "class_label": "proche de la normale"
+          }
+        },
+        {
+          "year": 2024,
+          "value": 2.0,
+          "anomaly": -5.0,
+          "percentile": 6.7,
+          "class": "very_low",
+          "rank": 28,
+          "extra": {
+            "max quotidien (m/s)": 18.7,
+            "class_label": "très peu venteux"
+          }
+        },
+        {
+          "year": 2025,
+          "value": 1.0,
+          "anomaly": -6.0,
+          "percentile": 1.7,
+          "class": "very_low",
+          "rank": 30,
+          "extra": {
+            "max quotidien (m/s)": 18.8,
+            "class_label": "très peu venteux"
+          }
+        }
+      ],
+      "trend": {
+        "slope_per_year": -0.0625,
+        "slope_per_decade": -0.625,
+        "ci95_low_per_decade": -33.583333333333336,
+        "ci95_high_per_decade": 30.0,
+        "intercept": 132.28125,
+        "S": -54.0,
+        "Z": -0.9513967345482798,
+        "p_value": 0.34140301737010814,
+        "n": 30,
+        "verdict": "aucune tendance claire sur la période"
+      },
+      "decade_delta": {
+        "early_mean": 6.2,
+        "late_mean": 5.3,
+        "delta": -0.9000000000000004,
+        "delta_pct": -14.516129032258071
+      }
+    }
+  ],
+  "events": [
+    {
+      "date_start": "1998-01-01",
+      "date_end": "1998-01-01",
+      "family": "heavy_rain",
+      "severity_percentile": 99.99,
+      "metrics": {
+        "peak_value": 41.531526797645284,
+        "peak_date": "1998-01-01",
+        "reference_threshold": 21.161255079285063,
+        "threshold_percentile": 99.5,
+        "duration_days": 1
+      },
+      "label": "épisode de pluie extrême",
+      "label_status": "automatic"
+    },
+    {
+      "date_start": "2010-09-13",
+      "date_end": "2010-09-13",
+      "family": "wind",
+      "severity_percentile": 99.98,
+      "metrics": {
+        "peak_value": 43.058590187345196,
+        "peak_date": "2010-09-13",
+        "reference_threshold": 30.318414854409383,
+        "threshold_percentile": 99.5,
+        "duration_days": 1
+      },
+      "label": "épisode de vent extrême",
+      "label_status": "automatic"
+    },
+    {
+      "date_start": "2011-10-01",
+      "date_end": "2011-12-28",
+      "family": "drought",
+      "severity_percentile": 95.54,
+      "metrics": {
+        "length_months": 3,
+        "spei3_min": -2.5350866681945257
+      },
+      "label": "séquence de sécheresse",
+      "label_status": "automatic"
+    },
+    {
+      "date_start": "2013-07-03",
+      "date_end": "2013-07-03",
+      "family": "heat",
+      "severity_percentile": 99.98,
+      "metrics": {
+        "peak_value": 41.27167623196055,
+        "peak_date": "2013-07-03",
+        "reference_threshold": 36.90307072997048,
+        "threshold_percentile": 99.5,
+        "duration_days": 1
+      },
+      "label": "stress thermique exceptionnel",
+      "label_status": "automatic"
+    },
+    {
+      "date_start": "2019-07-08",
+      "date_end": "2019-07-08",
+      "family": "wind",
+      "severity_percentile": 99.99,
+      "metrics": {
+        "peak_value": 43.29981304528318,
+        "peak_date": "2019-07-08",
+        "reference_threshold": 30.318414854409383,
+        "threshold_percentile": 99.5,
+        "duration_days": 1
+      },
+      "label": "épisode de vent extrême",
+      "label_status": "automatic"
+    },
+    {
+      "date_start": "2020-06-18",
+      "date_end": "2020-06-18",
+      "family": "heat",
+      "severity_percentile": 99.99,
+      "metrics": {
+        "peak_value": 44.45076221426878,
+        "peak_date": "2020-06-18",
+        "reference_threshold": 36.90307072997048,
+        "threshold_percentile": 99.5,
+        "duration_days": 1
+      },
+      "label": "stress thermique exceptionnel",
+      "label_status": "automatic"
+    },
+    {
+      "date_start": "2024-07-01",
+      "date_end": "2024-11-28",
+      "family": "drought",
+      "severity_percentile": 97.11,
+      "metrics": {
+        "length_months": 5,
+        "spei3_min": -2.10962267357595
+      },
+      "label": "séquence de sécheresse",
+      "label_status": "automatic"
+    },
+    {
+      "date_start": "2025-05-12",
+      "date_end": "2025-05-12",
+      "family": "heavy_rain",
+      "severity_percentile": 100.0,
+      "metrics": {
+        "peak_value": 43.72526354254535,
+        "peak_date": "2025-05-12",
+        "reference_threshold": 21.161255079285063,
+        "threshold_percentile": 99.5,
+        "duration_days": 1
+      },
+      "label": "épisode de pluie extrême",
+      "label_status": "automatic"
+    }
+  ],
+  "comparison": {
+    "early": "1996-2005",
+    "late": "2016-2025"
+  },
+  "provenance": {
+    "mode": "synthetic",
+    "warning": "donnees fictives"
+  }
+}
