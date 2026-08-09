@@ -1,0 +1,240 @@
+schema_version: "0.1"
+status: p3_semantic_registry
+last_reviewed: "2026-08-09"
+
+# Registre sémantique des signaux autorisés par les quatre méthodes.
+# Le JSON Schema exact de ClimateSignal sera défini en P4.
+# Ce fichier fixe les identifiants, la méthode productrice, le niveau de preuve
+# et les caveats attendus afin d'éviter que le service IA invente sa propre sémantique.
+
+claim_levels:
+  descriptive:
+    meaning: "constat déterministe calculé à partir d'une valeur, d'une distribution ou d'une comparaison"
+  statistical_trend:
+    meaning: "réservé à une méthode comportant explicitement un test de tendance"
+    currently_emitted: false
+  causal_attribution:
+    meaning: "réservé à une méthode d'attribution dédiée"
+    currently_emitted: false
+
+signals:
+  overview-annual-mean-temperature:
+    method: climate-overview@1.0.0
+    metric: mean_temperature_c
+    unit: degC
+    claim_level: descriptive
+    caveats: [reference-climatology, gridded-reanalysis]
+
+  overview-annual-precipitation:
+    method: climate-overview@1.0.0
+    metric: precipitation_mm
+    unit: mm_year
+    claim_level: descriptive
+    caveats: [reference-climatology, gridded-reanalysis]
+
+  overview-warmest-month:
+    method: climate-overview@1.0.0
+    metric: warmest_month
+    claim_level: descriptive
+    caveats: [reference-climatology]
+
+  overview-coldest-month:
+    method: climate-overview@1.0.0
+    metric: coldest_month
+    claim_level: descriptive
+    caveats: [reference-climatology]
+
+  overview-wettest-month:
+    method: climate-overview@1.0.0
+    metric: wettest_month
+    claim_level: descriptive
+    caveats: [reference-climatology]
+
+  overview-driest-month:
+    method: climate-overview@1.0.0
+    metric: driest_month
+    claim_level: descriptive
+    caveats: [reference-climatology]
+
+  overview-regional-context:
+    method: climate-overview@1.0.0
+    metric: representativity
+    claim_level: descriptive
+    trigger: "requested geometry smaller than represented climate grid"
+    caveats: [small-zone-regional-context]
+
+  overview-multicell-aggregation:
+    method: climate-overview@1.0.0
+    metric: representativity.grid_cell_count
+    claim_level: descriptive
+    caveats: [area-weighted-aggregation]
+
+  fingerprint-temperature-decadal-change:
+    method: climate-fingerprint@4.0.0
+    metric: temperature.comparison.delta
+    unit: degC
+    claim_level: descriptive
+    directions: [higher, lower, stable]
+    caveats: [gridded-reanalysis, descriptive-not-trend]
+
+  fingerprint-utci-decadal-change:
+    method: climate-fingerprint@4.0.0
+    metric: utci.comparison.delta
+    unit: degC_utci
+    claim_level: descriptive
+    directions: [higher, lower, stable]
+    caveats: [gridded-reanalysis, descriptive-not-trend, utci-not-air-temperature]
+
+  fingerprint-precipitation-decadal-change:
+    method: climate-fingerprint@4.0.0
+    metric: precipitation.comparison.relative_pct
+    unit: percent
+    claim_level: descriptive
+    directions: [higher, lower, stable]
+    caveats: [gridded-reanalysis, descriptive-not-trend]
+
+  fingerprint-heavy-rain-frequency-change:
+    method: climate-fingerprint@4.0.0
+    metric: heavy_rain.comparison.delta
+    unit: days_per_year
+    claim_level: descriptive
+    directions: [more_frequent, less_frequent, stable]
+    caveats: [gridded-reanalysis, descriptive-not-trend, not-r95p, not-flood-observation]
+
+  fingerprint-drought-frequency-change:
+    method: climate-fingerprint@4.0.0
+    metric: drought.comparison.delta
+    unit: months_per_year
+    claim_level: descriptive
+    directions: [more_frequent, less_frequent, stable]
+    caveats: [descriptive-not-trend, spei3-meteorological-drought]
+
+  fingerprint-strong-wind-frequency-change:
+    method: climate-fingerprint@4.0.0
+    metric: wind.comparison.delta
+    unit: days_per_year
+    claim_level: descriptive
+    directions: [more_frequent, less_frequent, stable]
+    caveats: [gridded-reanalysis, descriptive-not-trend, not-storm-observation]
+
+  fingerprint-reference-extreme:
+    method: climate-fingerprint@4.0.0
+    metric: annual_reference_class
+    claim_level: descriptive
+    directions: [very_low, very_high]
+    caveats: [reference-relative, color-is-editorial]
+
+  fingerprint-event-candidate:
+    method: climate-fingerprint@4.0.0
+    metric: automatic_event_candidate
+    claim_level: descriptive
+    families: [heat, heavy_rain, drought, wind]
+    caveats: [candidate-not-impact-event, gridded-reanalysis]
+
+  thermal-spring-start-shift:
+    method: thermal-seasons@1.0.0
+    metric: spring_start_shift_days
+    unit: days
+    claim_level: descriptive
+    directions: [earlier, later, stable]
+    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend]
+
+  thermal-summer-start-shift:
+    method: thermal-seasons@1.0.0
+    metric: summer_start_shift_days
+    unit: days
+    claim_level: descriptive
+    directions: [earlier, later, stable]
+    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend]
+
+  thermal-autumn-start-shift:
+    method: thermal-seasons@1.0.0
+    metric: autumn_start_shift_days
+    unit: days
+    claim_level: descriptive
+    directions: [earlier, later, stable]
+    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend]
+
+  thermal-winter-start-shift:
+    method: thermal-seasons@1.0.0
+    metric: winter_start_shift_days
+    unit: days
+    claim_level: descriptive
+    directions: [earlier, later, stable]
+    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend]
+
+  thermal-summer-length-change:
+    method: thermal-seasons@1.0.0
+    metric: summer_length_change_days
+    unit: days
+    claim_level: descriptive
+    directions: [longer, shorter, stable]
+    caveats: [thermal-not-meteorological-season, descriptive-not-trend, not-heatwave-duration]
+
+  thermal-season-length-change:
+    method: thermal-seasons@1.0.0
+    metric: season_length_change_days
+    unit: days
+    claim_level: descriptive
+    directions: [longer, shorter, stable]
+    caveats: [thermal-not-meteorological-season, descriptive-not-trend]
+
+  water-annual-precipitation-change:
+    method: water-through-year@1.0.0
+    metric: annual_precip_change_pct
+    unit: percent
+    claim_level: descriptive
+    directions: [higher, lower, stable]
+    caveats: [gridded-reanalysis, descriptive-not-trend, not-water-resource]
+
+  water-summer-soil-water-change:
+    method: water-through-year@1.0.0
+    metric: summer_soil_water_change_mm
+    unit: mm_modelled_water_equivalent
+    claim_level: descriptive
+    directions: [higher, lower, stable]
+    caveats: [modelled-soil-water-not-reserve-utile, gridded-reanalysis, descriptive-not-trend]
+
+  water-dry-months-change:
+    method: water-through-year@1.0.0
+    metric: dry_months_change
+    unit: months_per_year
+    claim_level: descriptive
+    directions: [more_frequent, less_frequent, stable]
+    caveats: [spei3-meteorological-drought, descriptive-not-trend]
+
+  water-monthly-soil-water-position:
+    method: water-through-year@1.0.0
+    metric: soil_water_reference_percentile
+    unit: percentile
+    claim_level: descriptive
+    directions: [low, normal, high]
+    caveats: [modelled-soil-water-not-reserve-utile, reference-relative]
+
+  water-evapotranspiration-cycle:
+    method: water-through-year@1.0.0
+    metric: actual_evapotranspiration_mm
+    unit: mm
+    claim_level: descriptive
+    caveats: [modelled-actual-evapotranspiration, not-irrigation-demand]
+
+caveats:
+  reference-climatology: "Décrit 1991-2020, pas une évolution récente."
+  gridded-reanalysis: "Contexte de réanalyse maillée, pas mesure sur la parcelle."
+  small-zone-regional-context: "Zone demandée plus petite que la maille climatique."
+  area-weighted-aggregation: "Plusieurs mailles combinées par pondération spatiale."
+  descriptive-not-trend: "Comparaison descriptive sans test de tendance statistique."
+  reference-relative: "Position relative à la distribution 1991-2020."
+  color-is-editorial: "La saturation/couleur V4 est une convention OpenDataVal."
+  utci-not-air-temperature: "UTCI est un indice de stress thermique, pas la température de l'air."
+  not-r95p: "La métrique de pluie intense est un compte de jours, pas R95p/R95pTOT."
+  not-flood-observation: "Un dépassement pluviométrique ne prouve pas une crue ou une inondation."
+  spei3-meteorological-drought: "SPEI-3 ne mesure pas directement nappes, débits ou humidité du sol."
+  not-storm-observation: "Vent fort dans la réanalyse ne prouve pas une tempête nommée ou des dégâts."
+  candidate-not-impact-event: "Candidat climatique automatique, pas événement d'impact confirmé."
+  thermal-not-meteorological-season: "Saison thermique locale T25/T75, pas saison fixe DJF/MAM/JJA/SON."
+  not-heatwave-duration: "Durée d'été thermique différente de la durée des canicules."
+  not-water-resource: "Précipitations différentes de la ressource en eau disponible."
+  modelled-soil-water-not-reserve-utile: "Stock dérivé ERA5-Land 0-100 cm, pas réserve utile ni observation locale."
+  modelled-actual-evapotranspiration: "Évapotranspiration réelle issue de la réanalyse."
+  not-irrigation-demand: "Évapotranspiration réelle différente d'un besoin d'irrigation."
