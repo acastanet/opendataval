@@ -7,7 +7,7 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <!-- Titre de repli : la scène chargée le remplace par le sien, lu dans `scenes.json`. -->
     <title>Maquette du village</title>
-    <link rel="stylesheet" href="./styles.css?v=20260802-calage-ortho" />
+    <link rel="stylesheet" href="./styles.css?v=20260809-settings-tabs" />
     <script type="importmap">
       {
         "imports": {
@@ -142,13 +142,8 @@
         <span>relief <strong id="elevationRange">—</strong></span>
       </p>
 
-      <!-- Niveau 1 : ce dont on se sert à chaque ouverture de la scène. Les couches sont
-           pliables — elles sont cinq et on ne les touche pas à chaque fois — mais les points de
-           vue tiennent sur une ligne et ne gagneraient rien à l'être. -->
-      <details id="layersControls" class="controls accordion" open>
-        <summary>Couches et représentation</summary>
-        <div id="comparisonControls" class="comparison-controls">
-          <p class="control-label">Représentation 3D</p>
+      <div id="comparisonControls" class="comparison-controls primary-modes">
+          <h2 class="settings-heading">Représentation</h2>
           <fieldset class="render-modes comparison-modes" aria-label="Représentation 3D">
           <label>
             <input type="radio" name="comparisonMode" value="bare" />
@@ -156,17 +151,17 @@
           </label>
           <label>
             <input type="radio" name="comparisonMode" value="vegetation" checked />
-            <span>Végétation</span>
+            <span>Scène 3D</span>
           </label>
           <label>
             <input type="radio" name="comparisonMode" value="source" />
-            <span>Nuage source</span>
+            <span>LiDAR HD</span>
           </label>
           <!-- La seule représentation où les deux coexistent : c'est celle qui montre l'écart
                entre ce que le LiDAR a mesuré et ce que la reconstruction en a fait. -->
           <label>
             <input type="radio" name="comparisonMode" value="overlay" />
-            <span>Superposé</span>
+            <span>3D + LiDAR</span>
           </label>
           </fieldset>
           <p id="comparisonModeDescription" class="mode-description">
@@ -174,6 +169,79 @@
           </p>
           <!-- Réglages propres au nuage LiDAR : ils n'ont de sens que dans sa représentation,
                et l'encombrement du panneau se paie à chaque ouverture de la scène. -->
+        </div>
+
+      <nav class="settings-tabs" role="tablist" aria-label="Catégories de réglages">
+        <button id="settingsTabLayers" class="settings-tab" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelLayers" data-settings-tab="layers">Couches</button>
+        <button id="settingsTabLidar" class="settings-tab" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelLidar" data-settings-tab="lidar" tabindex="-1">LiDAR</button>
+        <button id="settingsTabAppearance" class="settings-tab" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelAppearance" data-settings-tab="appearance" tabindex="-1">Apparence</button>
+        <button id="settingsTabAnalysis" class="settings-tab" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelAnalysis" data-settings-tab="analysis" tabindex="-1">Analyse</button>
+      </nav>
+
+      <div class="settings-workspace">
+        <section id="settingsPanelLayers" class="settings-panel" role="tabpanel" aria-labelledby="settingsTabLayers" data-settings-panel="layers">
+          <div id="layersControls" class="controls settings-group">
+        <h2 class="settings-panel-title">Couches visibles</h2>
+
+        <label class="switch-row">
+          <span>Terrain IGN</span>
+          <input id="terrainToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Bâtiments 3D</span>
+          <input id="buildingsToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Végétation</span>
+          <input id="vegetationToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Canopée dense</span>
+          <input id="canopyToggle" type="checkbox" checked />
+        </label>
+        <!-- Classes LiDAR 3 et 4 : la garrigue et le sous-bois, qui portent la continuité
+             verticale du combustible sous les houppiers. -->
+        <label class="switch-row">
+          <span>Strate arbustive</span>
+          <input id="understoryToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Eau</span>
+          <input id="waterToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Ponts</span>
+          <input id="bridgeToggle" type="checkbox" checked />
+        </label>
+        <label class="switch-row">
+          <span>Emprise circulaire</span>
+          <input id="circularExtentToggle" type="checkbox" />
+        </label>
+        <label class="switch-row">
+          <span>Socle cylindrique brun</span>
+          <input id="circularBaseToggle" type="checkbox" checked disabled />
+        </label>
+        <p class="notice">Découpe visuelle inscrite dans l’emprise, sans modifier les données sources.</p>
+        <!-- La géologie n'est pas un nœud du GLB mais une texture drapée sur le terrain :
+             elle a donc sa propre opacité, qui est aussi ce qui permet de la comparer à
+             l'orthophoto rendue dessous. -->
+        <label class="switch-row">
+          <span>Carte géologique BRGM</span>
+          <input id="geologyToggle" type="checkbox" />
+        </label>
+        <label class="range-row">
+          <span>Opacité de la géologie</span>
+          <output id="geologyOpacityValue">70 %</output>
+          <input id="geologyOpacity" type="range" min="10" max="100" value="70" />
+        </label>
+        <p id="geologyNotice" class="notice"></p>
+        <div id="geologyLegend" class="quality-legend geology-legend" hidden></div>
+      </div>
+        </section>
+
+        <section id="settingsPanelLidar" class="settings-panel" role="tabpanel" aria-labelledby="settingsTabLidar" data-settings-panel="lidar" hidden>
+          <h2 class="settings-panel-title">Nuage LiDAR HD</h2>
+          <p id="lidarTabNotice" class="notice">Sélectionnez « LiDAR HD » ou « 3D + LiDAR » pour régler le nuage de points.</p>
           <div id="sourcePointControls" class="source-point-controls" hidden>
             <label class="select-row">
               <span>Couleur des points</span>
@@ -209,60 +277,20 @@
             </p>
           </div>
           <div id="sourcePointLegend" class="source-point-legend" hidden></div>
-        </div>
-        <label class="switch-row">
-          <span>Terrain IGN</span>
-          <input id="terrainToggle" type="checkbox" checked />
-        </label>
-        <label class="switch-row">
-          <span>Bâtiments 3D</span>
-          <input id="buildingsToggle" type="checkbox" checked />
-        </label>
-        <label class="switch-row">
-          <span>Végétation</span>
-          <input id="vegetationToggle" type="checkbox" checked />
-        </label>
-        <label class="switch-row">
-          <span>Canopée dense</span>
-          <input id="canopyToggle" type="checkbox" checked />
-        </label>
-        <!-- Classes LiDAR 3 et 4 : la garrigue et le sous-bois, qui portent la continuité
-             verticale du combustible sous les houppiers. -->
-        <label class="switch-row">
-          <span>Strate arbustive</span>
-          <input id="understoryToggle" type="checkbox" checked />
-        </label>
-        <label class="switch-row">
-          <span>Eau</span>
-          <input id="waterToggle" type="checkbox" checked />
-        </label>
-        <label class="switch-row">
-          <span>Ponts</span>
-          <input id="bridgeToggle" type="checkbox" checked />
-        </label>
-        <!-- La géologie n'est pas un nœud du GLB mais une texture drapée sur le terrain :
-             elle a donc sa propre opacité, qui est aussi ce qui permet de la comparer à
-             l'orthophoto rendue dessous. -->
-        <label class="switch-row">
-          <span>Carte géologique BRGM</span>
-          <input id="geologyToggle" type="checkbox" />
-        </label>
-        <label class="range-row">
-          <span>Opacité de la géologie</span>
-          <output id="geologyOpacityValue">70 %</output>
-          <input id="geologyOpacity" type="range" min="10" max="100" value="70" />
-        </label>
-        <p id="geologyNotice" class="notice"></p>
-        <div id="geologyLegend" class="quality-legend geology-legend" hidden></div>
-      </details>
+        </section>
 
-      <!-- Niveau 2 : tout ce qui sert au contrôle fin, replié par défaut et mémorisé. Les
-           sections internes sont indépendantes — régler l'éclairage ne doit pas refermer les
-           textures qu'on vient d'ajuster. -->
-      <details id="expertControls" class="expert">
-        <summary>Réglages avancés</summary>
-        <div class="expert__body">
-          <details id="renderControls" class="controls accordion" open>
+        <section id="settingsPanelAppearance" class="settings-panel" role="tabpanel" aria-labelledby="settingsTabAppearance" data-settings-panel="appearance" hidden>
+          <h2 class="settings-panel-title">Apparence de la scène</h2>
+          <div id="expertControls" class="expert__body">
+            <details id="navigationControls" class="controls accordion" open>
+              <summary>Navigation 3D</summary>
+              <label class="switch-row">
+                <span>Toujours tourner autour du centre</span>
+                <input id="centerRotationToggle" type="checkbox" />
+              </label>
+              <p class="notice">Verrouille le pivot sur le centre de la scène et désactive le déplacement latéral.</p>
+            </details>
+            <details id="renderControls" class="controls accordion" open>
             <summary>Mode de rendu</summary>
             <fieldset class="render-modes" aria-label="Mode de rendu">
               <label>
@@ -283,28 +311,7 @@
             </p>
             <div id="qualityLegend" class="quality-legend" hidden></div>
           </details>
-
-          <details class="controls accordion" id="searchControls" hidden>
-            <summary>Rechercher un bâtiment</summary>
-            <label class="select-row">
-              <span>Identifiant BD TOPO</span>
-              <input
-                id="buildingSearch"
-                type="search"
-                list="buildingIds"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="BATIMENT…"
-              />
-            </label>
-            <datalist id="buildingIds"></datalist>
-            <button id="searchDegraded" class="button" type="button">
-              Bâtiment à contrôler suivant
-            </button>
-            <p id="searchFeedback" class="notice"></p>
-          </details>
-
-          <details id="textureControls" class="controls accordion">
+            <details id="textureControls" class="controls accordion">
             <summary>Textures</summary>
             <label class="switch-row">
               <span>Orthophoto du terrain</span>
@@ -343,8 +350,7 @@
             </button>
             <p id="orthoOffsetFeedback" class="notice"></p>
           </details>
-
-          <details id="lightControls" class="controls accordion">
+            <details id="lightControls" class="controls accordion">
             <summary>Éclairage</summary>
             <label class="switch-row">
               <span>Caler le soleil sur la mesure de l’orthophoto</span>
@@ -446,8 +452,7 @@
               <input id="verticalScale" type="range" min="100" max="250" value="100" />
             </label>
           </details>
-
-          <details class="controls accordion" id="crownControls">
+            <details class="controls accordion" id="crownControls">
             <summary>Houppiers</summary>
             <!-- Un proxy de douze sommets assume mieux ses facettes qu'il ne simule un volume :
                  lissé, son intérieur se prétend rond alors que sa silhouette reste anguleuse. -->
@@ -475,17 +480,41 @@
             </label>
             <button id="crownReset" class="button" type="button">Rétablir la mesure</button>
           </details>
-          <button id="exportPng" class="button" type="button">Exporter la vue en PNG</button>
-        </div>
-      </details>
+          </div>
+        </section>
+
+        <section id="settingsPanelAnalysis" class="settings-panel" role="tabpanel" aria-labelledby="settingsTabAnalysis" data-settings-panel="analysis" hidden>
+          <h2 class="settings-panel-title">Analyse territoriale</h2>
+          <p class="notice analysis-intro">Cliquez un bâtiment pour consulter ses mesures. Activez la géologie dans « Couches », puis cliquez le terrain pour identifier une formation.</p>
+          <details class="controls accordion" id="searchControls" hidden>
+            <summary>Rechercher un bâtiment</summary>
+            <label class="select-row">
+              <span>Identifiant BD TOPO</span>
+              <input
+                id="buildingSearch"
+                type="search"
+                list="buildingIds"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="BATIMENT…"
+              />
+            </label>
+            <datalist id="buildingIds"></datalist>
+            <button id="searchDegraded" class="button" type="button">
+              Bâtiment à contrôler suivant
+            </button>
+            <p id="searchFeedback" class="notice"></p>
+          </details>
+        </section>
+      </div>
 
       <div class="panel__actions">
-        <button id="dataInfoOpen" class="button button--quiet" type="button">
-          Informations sur les données
-        </button>
-        <button id="helpOpen" class="button button--quiet" type="button">
-          Navigation et raccourcis
-        </button>
+        <button id="resetSettings" class="button button--quiet" type="button">Réinitialiser les réglages</button>
+        <button id="exportPng" class="button" type="button">Exporter la vue en PNG</button>
+        <div class="panel__secondary-actions">
+          <button id="dataInfoOpen" class="button button--quiet" type="button">Informations sur les données</button>
+          <button id="helpOpen" class="button button--quiet" type="button">Aide</button>
+        </div>
       </div>
     </aside>
 
@@ -658,6 +687,6 @@
 
     <div id="error" class="error" hidden></div>
 
-    <script type="module" src="./app.js?v=20260802-calage-ortho"></script>
+    <script type="module" src="./app.js?v=20260809-terrain-base"></script>
   </body>
 </html>

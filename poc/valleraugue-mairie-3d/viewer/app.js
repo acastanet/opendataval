@@ -19,7 +19,8 @@ const dataInfoDialog = document.querySelector("#dataInfoDialog");
 const helpDialog = document.querySelector("#helpDialog");
 const controlPanel = document.querySelector("#controlPanel");
 const panelToggle = document.querySelector("#panelToggle");
-const expertControls = document.querySelector("#expertControls");
+const settingsTabs = [...document.querySelectorAll("[data-settings-tab]")];
+const settingsPanels = [...document.querySelectorAll("[data-settings-panel]")];
 
 const buildingMetrics = buildingDetails.querySelector(".building-metrics");
 const buildingAttributeFields = new Map();
@@ -337,6 +338,217 @@ function materialsOf(object) {
   return Array.isArray(object.material) ? object.material : [object.material];
 }
 
+const circularExtent = {
+  enabled: { value: 0 },
+  radius: { value: 1 },
+};
+const circularExtentMaterials = new WeakSet();
+const sceneRotationCenter = new THREE.Vector3();
+let circularBase = null;
+
+function applyCircularExtentToMaterial(material) {
+  if (!material || circularExtentMaterials.has(material)) return material;
+  circularExtentMaterials.add(material);
+  const previousCompile = material.onBeforeCompile;
+  const previousCacheKey = material.customProgramCacheKey.bind(material);
+  material.onBeforeCompile = (shader, webglRenderer) => {
+    previousCompile.call(material, shader, webglRenderer);
+    shader.uniforms.uCircularExtentEnabled = circularExtent.enabled;
+    shader.uniforms.uCircularExtentRadius = circularExtent.radius;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        varying vec2 vCircularExtentPosition;`,
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+        vCircularExtentPosition = ( modelMatrix * vec4( transformed, 1.0 ) ).xz;`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        uniform float uCircularExtentEnabled;
+        uniform float uCircularExtentRadius;
+        varying vec2 vCircularExtentPosition;`,
+      )
+      .replace(
+        "void main() {",
+        `void main() {
+        if (
+          uCircularExtentEnabled > 0.5 &&
+          dot( vCircularExtentPosition, vCircularExtentPosition ) >
+            uCircularExtentRadius * uCircularExtentRadius
+        ) discard;`,
+      );
+  };
+  material.customProgramCacheKey = () => `${previousCacheKey()}|circular-extent-v1`;
+  material.needsUpdate = true;
+  return material;
+}
+
+function configureCircularExtent(metadata) {
+  const [xmin, ymin, xmax, ymax] = metadata.bbox;
+  circularExtent.radius.value = Math.min(xmax - xmin, ymax - ymin) * 0.5;
+  applyCircularExtent();
+}
+
+function applyCircularExtent() {
+  const enabled = document.querySelector("#circularExtentToggle").checked;
+  const baseToggle = document.querySelector("#circularBaseToggle");
+  circularExtent.enabled.value = enabled ? 1 : 0;
+  baseToggle.disabled = !enabled;
+  baseToggle.closest("label").title = enabled
+    ? ""
+    : "Activez d’abord l’emprise circulaire.";
+  if (circularBase) circularBase.visible = enabled && baseToggle.checked;
+  if (circularExtent.enabled.value > 0.5) {
+    const selectedCenter = selectedBuilding
+      ? new THREE.Box3().setFromObject(selectedBuilding).getCenter(new THREE.Vector3())
+      : null;
+    const hoveredCenter = hoveredBuilding
+      ? new THREE.Box3().setFromObject(hoveredBuilding).getCenter(new THREE.Vector3())
+      : null;
+    if (selectedCenter && !circularExtentContains(selectedCenter)) {
+      clearBuildingSelection();
+    }
+    if (hoveredCenter && !circularExtentContains(hoveredCenter)) {
+      setHovered(null);
+    }
+  }
+}
+
+function circularExtentContains(point) {
+  return (
+    circularExtent.enabled.value < 0.5 ||
+    point.x * point.x + point.z * point.z <= circularExtent.radius.value ** 2
+  );
+}
+
+function disposeCircularBase() {
+  if (!circularBase) return;
+  scene.remove(circularBase);
+  csm?.shaders.delete(circularBase.material);
+  circularBase.geometry.dispose();
+  circularBase.material.dispose();
+  circularBase = null;
+}
+
+function updateCircularBase() {
+  disposeCircularBase();
+  if (!model || !terrain) return;
+  const segments = 128;
+  const radius = circularExtent.radius.value;
+  const terrainBounds = new THREE.Box3().setFromObject(terrain);
+  const height = Math.max(10, circularExtent.radius.value * 0.12);
+  const sampleRadius = radius * 0.998;
+  const verticalScale = model.scale.y || 1;
+  const bestDistances = new Float64Array(segments).fill(Number.POSITIVE_INFINITY);
+  const topHeights = new Float64Array(segments).fill(terrainBounds.min.y);
+  const vertex = new THREE.Vector3();
+
+  // Le bord supérieur du socle suit le relief au lieu d'être un disque horizontal : il n'y
+  // a ainsi ni anneau brun visible, ni vide entre la dalle découpée et sa paroi verticale.
+  // Chaque sommet du terrain ne visite que son secteur angulaire : ce parcours linéaire est
+  // nettement moins coûteux que 128 intersections complètes du maillage.
+  terrain.updateWorldMatrix(true, true);
+  terrain.traverse((object) => {
+    if (!object.isMesh) return;
+    const position = object.geometry?.getAttribute("position");
+    if (!position) return;
+    for (let vertexIndex = 0; vertexIndex < position.count; vertexIndex += 1) {
+      vertex.fromBufferAttribute(position, vertexIndex).applyMatrix4(object.matrixWorld);
+      const angle = (Math.atan2(vertex.z, vertex.x) + Math.PI * 2) % (Math.PI * 2);
+      const index = Math.round((angle / (Math.PI * 2)) * segments) % segments;
+      const targetAngle = (index / segments) * Math.PI * 2;
+      const dx = vertex.x - Math.cos(targetAngle) * sampleRadius;
+      const dz = vertex.z - Math.sin(targetAngle) * sampleRadius;
+      const distance = dx * dx + dz * dz;
+      if (distance >= bestDistances[index]) continue;
+      bestDistances[index] = distance;
+      topHeights[index] = vertex.y;
+    }
+  });
+  const localTopHeights = Array.from(
+    topHeights,
+    (worldHeight) => (worldHeight - model.position.y) / verticalScale,
+  );
+
+  const positions = [];
+  const indices = [];
+  const bottom = Math.min(...topHeights) - height;
+  for (let index = 0; index < segments; index += 1) {
+    const angle = (index / segments) * Math.PI * 2;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    positions.push(x, topHeights[index], z, x, bottom, z);
+    const next = (index + 1) % segments;
+    indices.push(index * 2, next * 2, index * 2 + 1);
+    indices.push(index * 2 + 1, next * 2, next * 2 + 1);
+  }
+  const bottomCenter = positions.length / 3;
+  positions.push(0, bottom, 0);
+  for (let index = 0; index < segments; index += 1) {
+    const next = (index + 1) % segments;
+    indices.push(bottomCenter, index * 2 + 1, next * 2 + 1);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const material = new THREE.MeshStandardMaterial({
+    name: "Socle cylindrique",
+    color: 0x808080,
+    roughness: 0.92,
+    metalness: 0,
+  });
+  csm?.setupMaterial(material);
+  circularBase = new THREE.Mesh(geometry, material);
+  circularBase.name = "SocleCylindrique";
+  circularBase.userData.localTopHeights = localTopHeights;
+  circularBase.userData.height = height;
+  circularBase.receiveShadow = true;
+  scene.add(circularBase);
+  applyCircularExtent();
+}
+
+function positionCircularBase() {
+  if (!model || !circularBase) return;
+  const { localTopHeights, height } = circularBase.userData;
+  const positions = circularBase.geometry.getAttribute("position");
+  const topHeights = localTopHeights.map((value) => value * model.scale.y + model.position.y);
+  const bottom = Math.min(...topHeights) - height;
+  for (let index = 0; index < localTopHeights.length; index += 1) {
+    positions.setY(index * 2, topHeights[index]);
+    positions.setY(index * 2 + 1, bottom);
+  }
+  positions.setY(localTopHeights.length * 2, bottom);
+  positions.needsUpdate = true;
+  circularBase.geometry.computeVertexNormals();
+  circularBase.geometry.computeBoundingSphere();
+}
+
+function centeredRotationEnabled() {
+  return document.querySelector("#centerRotationToggle").checked;
+}
+
+function updateSceneRotationCenter() {
+  if (!model) return;
+  new THREE.Box3().setFromObject(model).getCenter(sceneRotationCenter);
+  applyCenteredRotation();
+}
+
+function applyCenteredRotation() {
+  const enabled = centeredRotationEnabled();
+  controls.enablePan = !enabled;
+  if (!enabled || !model) return;
+  transition = null;
+  controls.target.copy(sceneRotationCenter);
+  controls.update();
+}
+
 function rememberMaterials(root) {
   root?.traverse((object) => {
     materialsOf(object).forEach((material) => {
@@ -497,6 +709,7 @@ function setQualityColors(enabled) {
         replacement.roughness = 0.88;
         replacement.needsUpdate = true;
         csm?.setupMaterial(replacement);
+        applyCircularExtentToMaterial(replacement);
         return replacement;
       });
       qualityMaterialState.set(object, { original, replacements });
@@ -620,8 +833,21 @@ function describeComparisonMode(message = null) {
   const description = document.querySelector("#comparisonModeDescription");
   const legend = document.querySelector("#sourcePointLegend");
   const controls = document.querySelector("#sourcePointControls");
+  const notice = document.querySelector("#lidarTabNotice");
+  const available = Boolean(currentEntry?.sourcePoints && currentEntry?.sourcePointsMetadata);
+  const active = showsSourcePoints(comparisonMode);
   legend.hidden = !showsSourcePoints(comparisonMode) || !sourcePointsMetadata;
   controls.hidden = legend.hidden;
+  notice.hidden = active && Boolean(sourcePointsMetadata);
+  if (!currentEntry) {
+    notice.textContent = "Chargement des capacités LiDAR de la scène…";
+  } else if (!available) {
+    notice.textContent = "Cette scène ne contient pas de nuage LiDAR HD publié.";
+  } else if (!active) {
+    notice.textContent = "Sélectionnez « LiDAR HD » ou « 3D + LiDAR » pour régler le nuage de points.";
+  } else if (!sourcePointsMetadata) {
+    notice.textContent = "Chargement du nuage LiDAR HD…";
+  }
   if (message) {
     description.textContent = message;
     return;
@@ -1081,15 +1307,15 @@ async function loadSourcePoints() {
     sourcePoints.traverse((object) => {
       if (!object.isPoints) return;
       const previous = object.material;
-      object.material = patchPointsMaterial(
-        new THREE.PointsMaterial({
+      object.material = applyCircularExtentToMaterial(
+        patchPointsMaterial(new THREE.PointsMaterial({
           name: "Nuage LiDAR HD",
           // La taille définitive est posée par `applyPointSize`, qui la tire de l'espacement
           // mesuré du nuage. Elle est ici en mètres, jamais en pixels.
           size: 0.25,
           sizeAttenuation: true,
           vertexColors: true,
-        }),
+        })),
       );
       previous?.dispose();
       object.frustumCulled = false;
@@ -1379,13 +1605,14 @@ function easeInOut(ratio) {
 }
 
 function moveCamera(position, target, { near, far, immediate = false } = {}) {
+  const destinationTarget = centeredRotationEnabled() && model ? sceneRotationCenter : target;
   if (near !== undefined) camera.near = near;
   if (far !== undefined) camera.far = far;
   camera.updateProjectionMatrix();
   if (immediate || !model) {
     transition = null;
     camera.position.copy(position);
-    controls.target.copy(target);
+    controls.target.copy(destinationTarget);
     controls.update();
     return;
   }
@@ -1393,7 +1620,7 @@ function moveCamera(position, target, { near, far, immediate = false } = {}) {
     fromPosition: camera.position.clone(),
     toPosition: position.clone(),
     fromTarget: controls.target.clone(),
-    toTarget: target.clone(),
+    toTarget: destinationTarget.clone(),
     start: performance.now(),
   };
 }
@@ -1467,7 +1694,7 @@ function outlineFor(building) {
   if (geometry !== parts[0]) parts.forEach((part) => part.dispose());
   const outline = new THREE.LineSegments(
     geometry,
-    new THREE.LineBasicMaterial({ transparent: true, depthTest: false }),
+    applyCircularExtentToMaterial(new THREE.LineBasicMaterial({ transparent: true, depthTest: false })),
   );
   outline.name = "Contour";
   // Sans cela, le contour intercepterait le rayon de sélection du bâtiment qu'il souligne.
@@ -1617,7 +1844,9 @@ function buildingAt(clientX, clientY) {
   if (!buildings?.visible) return null;
   pointerToNdc(clientX, clientY);
   raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObject(buildings, true)[0];
+  const hit = raycaster
+    .intersectObject(buildings, true)
+    .find((candidate) => circularExtentContains(candidate.point));
   return hit ? buildingFromObject(hit.object) : null;
 }
 
@@ -2033,11 +2262,13 @@ function disposeObject(root) {
       material.map?.dispose();
       material.dispose();
     });
+    object.customDepthMaterial?.dispose();
   });
 }
 
 function disposeModel() {
   if (!model) return;
+  disposeCircularBase();
   sourcePointsToken += 1;
   if (sourcePoints) {
     scene.remove(sourcePoints);
@@ -2067,7 +2298,6 @@ function disposeModel() {
 }
 
 function setupCsmMaterials(root) {
-  if (!csm) return;
   const configured = new Set();
   root.traverse((object) => {
     if (!object.isMesh) return;
@@ -2075,7 +2305,13 @@ function setupCsmMaterials(root) {
     for (const material of materials.filter(Boolean)) {
       if (configured.has(material)) continue;
       configured.add(material);
-      csm.setupMaterial(material);
+      csm?.setupMaterial(material);
+      applyCircularExtentToMaterial(material);
+    }
+    if (!object.customDepthMaterial) {
+      object.customDepthMaterial = applyCircularExtentToMaterial(
+        new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
+      );
     }
   });
 }
@@ -2441,7 +2677,7 @@ function geologyAt(x, y) {
   pointerToNdc(x, y);
   raycaster.setFromCamera(pointer, camera);
   const hit = raycaster.intersectObject(surface.mesh, false)[0];
-  if (!hit?.uv) return null;
+  if (!hit?.uv || !circularExtentContains(hit.point)) return null;
   const { data, width, height } = geologyPick;
   const column = Math.min(width - 1, Math.max(0, Math.round(hit.uv.x * (width - 1))));
   const row = Math.min(height - 1, Math.max(0, Math.round(hit.uv.y * (height - 1))));
@@ -2498,6 +2734,7 @@ function adopt(entry, metadata, gltf) {
   disposeModel();
   currentMetadata = metadata;
   currentEntry = entry;
+  configureCircularExtent(metadata);
   configureComparisonModes();
   document.querySelector("#buildingCount").textContent = metadata.buildings.toLocaleString("fr-FR");
   const [xmin, ymin, xmax, ymax] = metadata.bbox;
@@ -2568,6 +2805,8 @@ function adopt(entry, metadata, gltf) {
   applyCrownScale();
   model.scale.y = Number(document.querySelector("#verticalScale").value) / 100;
   scene.add(model);
+  updateSceneRotationCenter();
+  updateCircularBase();
   restoreRenderMode(renderMode, customTextures);
   updateBuildingIndex();
   updateDataInformation(metadata, entry);
@@ -2665,6 +2904,8 @@ const PERSISTED_INPUTS = [
   "understoryToggle",
   "waterToggle",
   "bridgeToggle",
+  "circularExtentToggle",
+  "circularBaseToggle",
   "terrainTextureToggle",
   "roofTextureToggle",
   "wireframeToggle",
@@ -2688,6 +2929,7 @@ const PERSISTED_INPUTS = [
   "pointColorMode",
   "foliageGreenToggle",
   "pointSize",
+  "centerRotationToggle",
 ];
 
 // Les sections sont repérées par leur identifiant, pas par leur rang : un réglage inséré au
@@ -2696,6 +2938,20 @@ function panelSections() {
   return [...document.querySelectorAll("#controlPanel .accordion")].filter(
     (section) => section.id,
   );
+}
+
+function selectSettingsTab(name, { focus = false } = {}) {
+  const selected = settingsTabs.find((tab) => tab.dataset.settingsTab === name) ?? settingsTabs[0];
+  if (!selected) return;
+  for (const tab of settingsTabs) {
+    const active = tab === selected;
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+  }
+  for (const panel of settingsPanels) {
+    panel.hidden = panel.dataset.settingsPanel !== selected.dataset.settingsTab;
+  }
+  if (focus) selected.focus();
 }
 
 function saveState() {
@@ -2713,7 +2969,7 @@ function saveState() {
     customTextures,
     hiddenPointClasses: [...hiddenPointClasses],
     panelVisible: !controlPanel.classList.contains("panel--hidden"),
-    expertOpen: expertControls.open,
+    settingsTab: settingsTabs.find((tab) => tab.getAttribute("aria-selected") === "true")?.dataset.settingsTab,
     sections,
     sceneId: currentEntry?.id ?? null,
   };
@@ -2749,7 +3005,7 @@ function restoreState() {
     (Array.isArray(state.hiddenPointClasses) ? state.hiddenPointClasses : []).map(Number),
   );
   if (state.panelVisible === false) setPanelVisible(false);
-  expertControls.open = Boolean(state.expertOpen);
+  selectSettingsTab(state.settingsTab ?? (state.expertOpen ? "appearance" : "layers"));
   for (const section of panelSections()) {
     const remembered = state.sections?.[section.id];
     if (typeof remembered === "boolean") section.open = remembered;
@@ -2782,8 +3038,14 @@ async function start() {
     .catch(() => null);
   if (Array.isArray(manifest) && manifest.length > 0) sceneEntries = manifest;
   populateScenes(sceneEntries);
+  const viewerParams = new URLSearchParams(window.location.search);
+  const requestedMode = viewerParams.get("mode");
+  if (requestedMode && requestedMode in COMPARISON_DESCRIPTIONS) {
+    comparisonMode = requestedMode;
+  }
+  const requested = sceneEntries.find((entry) => entry.id === viewerParams.get("scene"));
   const restored = sceneEntries.find((entry) => entry.id === state?.sceneId);
-  const entry = restored ?? sceneEntries[0];
+  const entry = requested ?? restored ?? sceneEntries[0];
   document.querySelector("#sceneSelect").value = entry.id;
   await loadScene(entry);
 }
@@ -2824,7 +3086,9 @@ for (const input of document.querySelectorAll('input[name="renderMode"]')) {
 
 for (const input of document.querySelectorAll('input[name="comparisonMode"]')) {
   input.addEventListener("change", (event) => {
-    if (event.target.checked) setComparisonMode(event.target.value);
+    if (!event.target.checked) return;
+    setComparisonMode(event.target.value);
+    if (showsSourcePoints(event.target.value)) selectSettingsTab("lidar");
   });
 }
 
@@ -2860,6 +3124,9 @@ document.querySelector("#geologyToggle").addEventListener("change", async (event
 });
 document.querySelector("#geologyOpacity").addEventListener("input", applyGeologyOpacity);
 document.querySelector("#geologyClose").addEventListener("click", clearGeologySelection);
+document.querySelector("#circularExtentToggle").addEventListener("change", applyCircularExtent);
+document.querySelector("#circularBaseToggle").addEventListener("change", applyCircularExtent);
+document.querySelector("#centerRotationToggle").addEventListener("change", applyCenteredRotation);
 
 document.querySelector("#sceneSelect").addEventListener("change", (event) => {
   const entry = sceneEntries.find((candidate) => candidate.id === event.target.value);
@@ -2909,6 +3176,8 @@ document.querySelector("#verticalScale").addEventListener("input", (event) => {
   document.querySelector("#verticalValue").textContent = `×${scale.toFixed(1).replace(".", ",")}`;
   if (model) model.scale.y = scale;
   if (sourcePoints) sourcePoints.scale.y = scale;
+  updateSceneRotationCenter();
+  positionCircularBase();
 });
 // L'exagération verticale grandit la scène : le frustum d'ombre doit suivre, mais au
 // relâchement seulement — le recalculer à chaque pixel de curseur ne servirait à rien.
@@ -2922,6 +3191,13 @@ document.querySelector("#viewCentre").addEventListener("click", focusCentre);
 document.querySelector("#viewRoof").addEventListener("click", focusRoofs);
 document.querySelector("#grazingLight").addEventListener("click", () => setSunHeight(12));
 document.querySelector("#exportPng").addEventListener("click", exportPng);
+document.querySelector("#resetSettings").addEventListener("click", () => {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } finally {
+    window.location.reload();
+  }
+});
 document.querySelector("#buildingClose").addEventListener("click", clearBuildingSelection);
 
 panelToggle.addEventListener("click", () => {
@@ -2932,8 +3208,26 @@ panelToggle.addEventListener("click", () => {
 // Un seul enregistrement pour tout le panneau : chaque contrôle qui change son état le
 // consigne, sans avoir à s'en souvenir individuellement.
 controlPanel.addEventListener("change", saveState);
-expertControls.addEventListener("toggle", saveState);
 for (const section of panelSections()) section.addEventListener("toggle", saveState);
+
+for (const tab of settingsTabs) {
+  tab.addEventListener("click", () => {
+    selectSettingsTab(tab.dataset.settingsTab);
+    saveState();
+  });
+  tab.addEventListener("keydown", (event) => {
+    const current = settingsTabs.indexOf(tab);
+    let next = current;
+    if (event.key === "ArrowRight") next = (current + 1) % settingsTabs.length;
+    else if (event.key === "ArrowLeft") next = (current - 1 + settingsTabs.length) % settingsTabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = settingsTabs.length - 1;
+    else return;
+    event.preventDefault();
+    selectSettingsTab(settingsTabs[next].dataset.settingsTab, { focus: true });
+    saveState();
+  });
+}
 
 document.querySelector("#dataInfoOpen").addEventListener("click", () => dataInfoDialog.showModal());
 document.querySelector("#helpOpen").addEventListener("click", () => helpDialog.showModal());
@@ -2976,6 +3270,7 @@ renderer.domElement.addEventListener("pointerleave", () => {
 // interrompre est plus déroutante qu'un saut.
 controls.addEventListener("start", () => {
   transition = null;
+  if (centeredRotationEnabled() && model) controls.target.copy(sceneRotationCenter);
   setActiveView(null);
 });
 

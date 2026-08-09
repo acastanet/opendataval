@@ -116,6 +116,8 @@ canvas.is-pickable {
    les laisser actifs invitait à régler ce qui allait être remplacé. */
 .panel--busy .controls,
 .panel--busy .expert,
+.panel--busy .settings-tabs,
+.panel--busy .settings-workspace,
 .panel--busy .panel__actions {
   opacity: 0.45;
   pointer-events: none;
@@ -598,6 +600,103 @@ input[type="checkbox"]:disabled {
 
 .panel__actions .button {
   margin-top: 0;
+}
+
+.panel__secondary-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.primary-modes {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+}
+
+.settings-heading,
+.settings-panel-title {
+  margin: 0 2px 8px;
+  color: rgba(27, 36, 48, 0.62);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border-radius: 11px;
+  background: rgba(27, 36, 48, 0.07);
+}
+
+.settings-tab {
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 5px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(27, 36, 48, 0.62);
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.settings-tab:hover {
+  background: rgba(255, 255, 255, 0.58);
+  color: #295c41;
+}
+
+.settings-tab[aria-selected="true"] {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(27, 36, 48, 0.12);
+  color: #295c41;
+}
+
+.settings-tab:focus-visible {
+  outline: 2px solid #356f50;
+  outline-offset: 1px;
+}
+
+.settings-workspace {
+  min-height: 190px;
+  padding-top: 13px;
+}
+
+.settings-panel[hidden] {
+  display: none;
+}
+
+.settings-panel .settings-panel-title {
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(27, 36, 48, 0.11);
+}
+
+.settings-panel .settings-group,
+.settings-panel .expert__body {
+  padding-left: 0;
+  border-top: 0;
+  border-left: 0;
+}
+
+.settings-panel .settings-group > .settings-panel-title {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+.settings-panel .expert__body > .accordion:first-child {
+  border-top: 0;
+}
+
+.analysis-intro {
+  margin-bottom: 10px;
 }
 
 .comparison-controls {
