@@ -1,92 +1,35 @@
 # Sources de données du domaine climat
 
-Statut : **registre P1 consolidé par les décisions P2 — `draft`**.
+Statut : **registre P1 consolidé par P2 — `draft`**.
 
-Ce document relie les sources climatiques aux quatre analyses de la future fiche climat. Les
-métadonnées structurées se trouvent dans :
+Ce document relie les sources climatiques aux quatre analyses de la future fiche climat. Les calculs complets sont définis sous `doc/climat/methods/`.
+
+Les métadonnées structurées se trouvent dans :
 
 - `sources/datasets.yaml` — jeux de données, variables, usages et statut de vérification ;
-- `sources/bibliography.yaml` — documentation officielle, standards et articles scientifiques.
+- `sources/bibliography.yaml` — documentation officielle, standards et publications scientifiques.
 
-Les calculs complets sont désormais figés en P2 sous `doc/climat/methods/`.
+## Principes
 
-## 1. Règle de lecture
-
-Le domaine climat distingue quatre niveaux :
-
-1. **source** — dataset ou publication externe ;
-2. **variable source** — grandeur effectivement extraite ;
-3. **méthode OpenDataVal** — calcul déterministe appliqué à cette grandeur ;
-4. **restitution** — infographie et commentaire produits à partir du résultat.
-
-Un choix OpenDataVal ne doit jamais être présenté comme une propriété imposée par le dataset.
-Inversement, une propriété du dataset ne doit pas être modifiée silencieusement par un service.
-
-## 2. Acquisition : une responsabilité centralisée
-
-Les données Copernicus doivent être acquises côté serveur. Le navigateur ne porte ni clé CDS
-ni logique de téléchargement.
-
-`apps/copernicus` reste le point de départ pour :
-
-- secrets CDS ;
-- téléchargements ;
-- cache ;
-- validation de complétude ;
-- provenance ;
-- relances idempotentes.
-
-Les futurs services scientifiques consommeront un `ClimateSnapshot` ou des actifs déjà acquis.
-Ils ne devront pas embarquer quatre clients CDS indépendants.
-
-## 3. Méthode scientifique vs interface d'acquisition
-
-Une décision importante de P2 est de dissocier :
+Le domaine climat distingue :
 
 ```text
-source scientifique : ERA5-Land + variable
+source / variable
+        ↓
+méthode OpenDataVal
+        ↓
+ClimateResult
+        ↓
+ClimateSignal
+        ↓
+restitution / commentaire
 ```
 
-et :
+Les données Copernicus sont acquises côté serveur par `apps/copernicus`. Les futurs services scientifiques ne doivent pas embarquer chacun leur propre client CDS.
 
-```text
-interface concrète d'acquisition CDS
-```
+Une réanalyse maillée n'est pas une mesure locale de parcelle. Le futur `ClimateSnapshot` conservera séparément le lieu demandé et la ou les mailles réellement représentées.
 
-Le produit `reanalysis-era5-land-timeseries` est très pratique pour les POC ponctuels et reste
-la source de leurs golden masters. La documentation ECMWF indique toutefois que cette interface
-de séries ponctuelles n'est pas recommandée comme dépendance de production stable.
-
-Le futur `apps/copernicus` pourra donc sélectionner un actif ERA5-Land de production différent,
-à condition que :
-
-- la variable scientifique soit équivalente ;
-- l'agrégation et les unités soient documentées ;
-- P5 démontre l'équivalence avec les résultats de référence avant migration.
-
-## 4. Représentativité spatiale
-
-Une réanalyse maillée n'est pas une mesure locale de parcelle.
-
-Le registre conserve séparément :
-
-- coordonnée ou géométrie demandée ;
-- point(s) ou maille(s) représentatifs ;
-- résolution du produit ;
-- règle de sélection ou de pondération.
-
-Les méthodes n'utilisent pas toutes le même modèle spatial :
-
-- `climate-overview` supporte une zone et une pondération surfacique de plusieurs cellules ;
-- `climate-fingerprint`, `thermal-seasons` et `water-through-year` sont actuellement fondés
-  principalement sur des points de grille associés au lieu.
-
-Le futur `ClimateSnapshot` devra supporter ces deux cas sans fabriquer une précision spatiale
-plus fine que les données sources.
-
-## 5. Périodes communes actuelles
-
-Les POC convergent vers :
+## Périodes
 
 ```text
 référence climatologique : 1991–2020
@@ -96,61 +39,40 @@ décennie intermédiaire   : 2006–2015
 dernière décennie        : 2016–2025
 ```
 
-`climate-overview` utilise uniquement la référence 1991–2020 car il s'agit d'un portrait du
-climat habituel, pas d'une analyse de changement.
+`climate-overview` utilise uniquement 1991–2020 puisqu'il décrit le climat habituel et non une évolution.
 
-## 6. ERA5-Land — température et précipitations
+## ERA5-Land
 
-Dataset de référence des POC ponctuels :
-
-```text
-reanalysis-era5-land-timeseries
-```
-
-Variables :
+Variables utilisées :
 
 ```text
 2m_temperature
 total_precipitation
+10m_u_component_of_wind
+10m_v_component_of_wind
+volumetric_soil_water_layer_1
+volumetric_soil_water_layer_2
+volumetric_soil_water_layer_3
+total_evaporation
 ```
 
 Usages :
 
-| Variable | Climate overview | Fingerprint | Thermal seasons |
-|---|---|---|---|
-| `2m_temperature` | climatologie mensuelle | moyenne annuelle | saisons thermiques |
-| `total_precipitation` | climatologie mensuelle | cumul annuel + pluie intense | — |
+| Variable | Overview | Fingerprint | Seasons | Water |
+|---|:---:|:---:|:---:|:---:|
+| température 2 m | ✓ | ✓ | ✓ | — |
+| précipitations | ✓ | ✓ | — | ✓ |
+| vent u/v 10 m | — | ✓ | — | — |
+| humidité du sol | — | — | — | ✓ |
+| évaporation | — | — | — | ✓ |
 
-Les méthodes exactes sont documentées dans leurs dossiers P2.
+### Interface d'acquisition
 
-## 7. Vent de l'empreinte — question P1 résolue
+Les POC ponctuels utilisent `reanalysis-era5-land-timeseries`. Cette interface reste la référence des golden masters, mais la méthode scientifique dépend d'ERA5-Land et des variables, pas obligatoirement de cette interface particulière. `apps/copernicus` choisira l'actif de production stable et P5 devra démontrer l'équivalence numérique.
 
-La spécification historique de l'empreinte proposait ERA5 single levels, alors que le fetch V4
-utilisait ERA5-Land.
+## ERA5-HEAT
 
-P2 retient :
-
-```text
-ERA5-Land time-series
-10m_u_component_of_wind
-10m_v_component_of_wind
-```
-
-La vitesse est dérivée par :
-
-```text
-sqrt(u10² + v10²)
-```
-
-Le catalogue ERA5-Land expose ces composantes et ce choix correspond au comportement final du
-POC V4. Il évite d'introduire une quatrième famille de réanalyse sans nécessité scientifique.
-
-Le vent reste très sensible au relief et aux obstacles ; la valeur de grille ne représente pas
-une rafale mesurée localement.
-
-## 8. ERA5-HEAT — UTCI
-
-Dataset de l'empreinte :
+Dataset :
 
 ```text
 derived-utci-historical-timeseries
@@ -162,18 +84,9 @@ Variable :
 universal_thermal_climate_index
 ```
 
-Usage canonique V4 :
+Usage V4 : maximum quotidien UTCI puis P95 annuel. Les seuils 32 °C et 38 °C restent des détails descriptifs.
 
-```text
-maximum quotidien UTCI
-→ P95 annuel
-```
-
-Les seuils complémentaires 32 °C et 38 °C sont conservés comme informations descriptives.
-Le choix du P95 annuel est une décision OpenDataVal et non une variable pré-calculée par le
-catalogue.
-
-## 9. ERA5-Drought — SPEI-3
+## ERA5-Drought
 
 Dataset :
 
@@ -181,170 +94,90 @@ Dataset :
 derived-drought-historical-monthly
 ```
 
-Variable :
+Variable : SPEI, accumulation 3 mois.
+
+Deux méthodes distinctes l'utilisent :
+
+- empreinte : nombre annuel de mois sous le P10 du même mois de calendrier sur 1991–2020 ;
+- eau : nombre annuel de mois `SPEI-3 < -1` pour le résumé décennal.
+
+Ces définitions ne doivent pas être fusionnées.
+
+## Décisions P2
+
+### Vent de l'empreinte
+
+**Résolu** : ERA5-Land `u10/v10`, cohérent avec le fetch V4 et disponible dans le produit ERA5-Land actuel.
 
 ```text
-standardised_precipitation_evapotranspiration_index
+wind_speed = sqrt(u10² + v10²)
 ```
 
-Fenêtre retenue :
+ERA5 single levels n'est donc pas requis par `climate-fingerprint@4.0.0`.
 
-```text
-3 mois
-```
+### Pluies intenses
 
-Le dataset est déjà standardisé avec une référence 1991–2020. Les deux infographies qui
-l'utilisent construisent ensuite deux métriques différentes :
-
-### Fingerprint
-
-Pour chaque mois de calendrier, calcul d'un P10 sur 1991–2020, puis nombre annuel de mois sous
-ce seuil relatif.
-
-### Water through year
-
-Conservation du SPEI-3 mensuel ; pour le résumé décennal, nombre annuel de mois avec :
-
-```text
-SPEI-3 < -1
-```
-
-Il est volontaire que les deux produits ne donnent pas le même sens au même indicateur dérivé.
-Le `method.id/version` devra toujours accompagner le résultat.
-
-## 10. Pluies intenses — question P1 résolue
-
-L'empreinte V4 utilise :
+**Résolu** :
 
 ```text
 jour humide = précipitation >= 1 mm
 seuil = P95 des jours humides 1991–2020
-métrique annuelle = nombre de jours strictement au-dessus du seuil
+métrique = nombre annuel de jours > seuil
 ```
 
-Cette logique est inspirée du cadre ETCCDI/Climdex, mais la grandeur principale OpenDataVal
-est un **compte de jours**.
+Le seuil s'inspire du cadre ETCCDI/Climdex, mais la grandeur principale OpenDataVal est un compte de jours et ne doit pas être appelée R95p/R95pTOT.
 
-Elle ne doit donc pas être appelée :
+### Eau — accumulations mensuelles
+
+**Résolu et vérifié ECMWF** : pour `monthly_averaged_reanalysis` (`moda`), les variables hydrologiques accumulées sont exprimées en m d'eau équivalente par jour.
 
 ```text
-R95p
-R95pTOT
+monthly_total_mm = value × 1000 × days_in_month
 ```
 
-qui désignent des indices standards fondés sur la quantité de précipitation au-dessus du seuil.
+La logique du POC eau est conservée.
 
-## 11. ERA5-Land monthly means — eau
+### Eau — évaporation
 
-Dataset :
-
-```text
-reanalysis-era5-land-monthly-means
-product_type = monthly_averaged_reanalysis
-```
-
-Variables principales :
-
-```text
-total_precipitation
-volumetric_soil_water_layer_1
-volumetric_soil_water_layer_2
-volumetric_soil_water_layer_3
-total_evaporation
-```
-
-### Conversion des accumulations — question P1 résolue
-
-La documentation ECMWF confirme que, dans le flux de moyennes mensuelles de moyennes
-quotidiennes (`moda`), les variables hydrologiques accumulées sont exprimées en mètres d'eau
-équivalente **par jour**.
-
-Le cumul mensuel est donc :
-
-```text
-value × 1000 × days_in_month
-```
-
-La logique du POC `water-through-year` est conservée.
-
-### Évaporation — convention de signe
-
-ECMWF utilise le flux vertical descendant positif. L'évaporation sortante est généralement
-négative. Le produit OpenDataVal affiche donc positivement :
+**Résolu et vérifié ECMWF** : la convention verticale est descendante positive ; l'évaporation sortante est généralement négative.
 
 ```text
 actual_evapotranspiration = -total_evaporation
 ```
 
-### Stock 0–100 cm
+### Eau — couches 0–100 cm
 
-Les trois premières couches ERA5-Land correspondent aux profondeurs :
-
-```text
-0–7 cm
-7–28 cm
-28–100 cm
-```
-
-OpenDataVal construit :
+Les trois premières couches ERA5-Land correspondent à 0–7, 7–28 et 28–100 cm. OpenDataVal dérive :
 
 ```text
 1000 × (0,07×θ1 + 0,21×θ2 + 0,72×θ3)
 ```
 
-Cette grandeur est un stock d'eau **modélisé et dérivé**. Elle n'est ni réserve utile, ni eau
-disponible pour les plantes, ni mesure d'une nappe.
+Cette grandeur n'est ni une réserve utile, ni l'eau disponible pour les plantes, ni une mesure de nappe.
 
-## 12. Climate overview — extrêmes thermiques P1 résolus par exclusion
+### Climate overview — extrêmes thermiques
 
-La définition souhaitée était :
+**Résolu par exclusion du noyau V1** : les compteurs de gel, jours ≥30 °C et nuits ≥20 °C ne sont pas canoniques tant qu'ils reposent sur des approximations à partir de températures moyennes quotidiennes.
 
-```text
-jour de gel       : Tmin < 0 °C
-jour >= 30 °C     : Tmax >= 30 °C
-nuit >= 20 °C     : Tmin >= 20 °C
-```
+Ils pourront être réintroduits uniquement à partir de vrais minima/maxima quotidiens avec méthode et tests explicites.
 
-Le POC peut cependant approximer ces indicateurs à partir de températures moyennes quotidiennes.
-Cela ne respecte pas leur définition physique.
+## Spatialisation
 
-Décision P2 :
+`climate-overview` est particulier : il supporte Point, Polygon et MultiPolygon et peut agréger plusieurs cellules par pondération surfacique.
 
-> ces trois compteurs ne font pas partie du noyau canonique de `climate-overview@1.0.0` tant
-> qu'ils ne sont pas calculés à partir de vrais minima/maxima quotidiens.
+Les autres POC travaillent principalement sur un point de grille associé au lieu.
 
-Le noyau V1 reste donc température mensuelle, précipitations mensuelles et représentativité
-spatiale.
+P4 devra donc permettre aux `ClimateSnapshot` de décrire les deux cas sans imposer une fausse uniformité.
 
-## 13. Tableau source → infographie
+## Source secondaire ECDE
 
-| Source | Overview | Fingerprint | Seasons | Water |
-|---|:---:|:---:|:---:|:---:|
-| ERA5-Land température | ✓ | ✓ | ✓ | — |
-| ERA5-Land précipitations | ✓ | ✓ | — | ✓ |
-| ERA5-Land vent u/v | — | ✓ | — | — |
-| ERA5-Land humidité du sol | — | — | — | ✓ |
-| ERA5-Land évaporation | — | — | — | ✓ |
-| ERA5-HEAT UTCI | — | ✓ | — | — |
-| ERA5-Drought SPEI-3 | — | ✓ | — | ✓ |
+`sis-ecde-climate-indicators` reste une référence secondaire de contrôle pour certains indicateurs de saison de croissance. Il ne définit pas les saisons thermiques principales T25/T75.
 
-## 14. Source secondaire ECDE
+## Questions restantes après P2
 
-Le dataset Copernicus `sis-ecde-climate-indicators` reste référencé uniquement comme source de
-contrôle secondaire pour certains indicateurs de saison de croissance. Il ne définit pas les
-saisons thermiques principales T25/T75.
+Elles concernent désormais l'industrialisation, pas la définition des quatre méthodes :
 
-## 15. Questions encore ouvertes après P2
-
-Les principales questions restantes ne portent plus sur la définition des quatre méthodes,
-mais sur leur industrialisation :
-
-1. **P4 — spatialisation du ClimateSnapshot** : supporter proprement point de grille et
-   agrégation multi-cellules ;
-2. **P5/P6 — actif ERA5-Land de production** : choisir une interface stable et démontrer
-   l'équivalence avec les golden masters des POC ;
-3. **Climate overview** : si les trois indicateurs thermiques extrêmes sont réintroduits,
-   définir et tester l'acquisition réelle des minima/maxima quotidiens ;
-4. **P3** : définir ce que le commentaire IA peut ou ne peut pas conclure de chaque résultat.
-
-Aucune de ces questions n'autorise à modifier silencieusement les méthodes P2 déjà extraites.
+1. **P3** — formaliser les signaux et les règles d'interprétation IA ;
+2. **P4** — contrat spatial commun du `ClimateSnapshot` ;
+3. **P5/P6** — choisir l'actif ERA5-Land de production et démontrer son équivalence avec les POC ;
+4. **climate-overview** — définir une méthode Tmin/Tmax si les trois compteurs d'extrêmes sont réintroduits.
