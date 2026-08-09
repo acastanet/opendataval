@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ClimateResult",
+  "description": "Résultat scientifique structuré d'une méthode climatique OpenDataVal.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "result_id",
+    "snapshot_id",
+    "product",
+    "method",
+    "location",
+    "periods",
+    "datasets",
+    "representativity",
+    "data",
+    "signals",
+    "quality",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "result_id": {"type": "string", "minLength": 1},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "title": {"type": "string", "minLength": 1}
+      }
+    },
+    "method": {"$ref": "#/$defs/methodRef"},
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested"],
+      "properties": {
+        "requested": {"$ref": "#/$defs/requestedLocation"},
+        "represented": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "periods": {"type": "object", "minProperties": 1, "additionalProperties": true},
+    "datasets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["registry_id", "dataset_id"],
+        "properties": {
+          "registry_id": {"type": "string", "minLength": 1},
+          "dataset_id": {"type": "string", "minLength": 1},
+          "variables": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+          "grid_degrees": {"type": "number", "exclusiveMinimum": 0},
+          "asset_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+        }
+      }
+    },
+    "representativity": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "local_measurement"],
+      "properties": {
+        "type": {"enum": ["gridded_reanalysis", "station_observation", "mixed"]},
+        "local_measurement": {"type": "boolean"}
+      }
+    },
+    "data": {
+      "type": "object",
+      "description": "Payload scientifique propre à la méthode; aucun élément de rendu n'est source de vérité.",
+      "additionalProperties": true
+    },
+    "signals": {
+      "type": "array",
+      "items": {"$ref": "climate-signal.schema.json"},
+      "uniqueItems": true
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["valid", "partial", "insufficient", "failed"]},
+        "checks": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+        "notes": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "caveats": {"type": "array", "items": {"$ref": "#/$defs/caveat"}},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["generated_at", "generated_by", "method_id", "method_version", "snapshot_id"],
+      "properties": {
+        "generated_at": {"type": "string", "format": "date-time"},
+        "generated_by": {"type": "string", "minLength": 1},
+        "method_id": {"type": "string", "minLength": 1},
+        "method_version": {"type": "string", "minLength": 1},
+        "snapshot_id": {"type": "string", "minLength": 1}
+      }
+    }
+  },
+  "$defs": {
+    "methodRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": {"enum": ["Point", "Polygon", "MultiPolygon"]},
+        "coordinates": {}
+      }
+    },
+    "requestedLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geometry"],
+      "properties": {
+        "geometry": {"$ref": "#/$defs/geometry"},
+        "label": {"type": "string"},
+        "tile_id": {"type": "string"}
+      }
+    },
+    "caveat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "text": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["info", "warning", "blocking"]}
+      }
+    }
+  }
+}

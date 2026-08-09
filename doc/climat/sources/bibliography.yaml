@@ -1,0 +1,297 @@
+schema_version: "1.0"
+status: draft
+last_reviewed: "2026-08-09"
+
+# Bibliographie scientifique et normative du domaine climat.
+# Une référence n'autorise pas automatiquement une méthode : les dossiers
+# doc/climat/methods/<method>/<version>/ indiquent lesquelles fondent réellement chaque calcul.
+
+references:
+  wmo-climatological-normals:
+    type: standard_guidance
+    organization: World Meteorological Organization
+    title: WMO Climatological Normals
+    url: https://wmo.int/wmo-climatological-normals
+    role:
+      - definition_climatological_normal
+      - justification_reference_period_1991_2020
+    used_by:
+      - climate-overview
+      - climate-fingerprint
+      - thermal-seasons
+      - water-through-year
+    repository_evidence:
+      - poc/climat/general/climate/overview/CLIMATE_OVERVIEW_METHOD.md
+      - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
+    verification_status: externally_verified_2026_08_09
+
+  copernicus-era5-land-timeseries:
+    type: dataset_documentation
+    organization: Copernicus Climate Change Service / ECMWF
+    title: ERA5-Land hourly time-series data from 1950 to present
+    url: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-timeseries
+    dataset_registry_id: era5-land-timeseries
+    role:
+      - dataset_definition
+      - spatial_temporal_metadata
+      - variable_metadata
+    used_by:
+      - climate-overview
+      - climate-fingerprint
+      - thermal-seasons
+    repository_evidence:
+      - poc/climat/general/climate/overview/CLIMATE_OVERVIEW_METHOD.md
+      - poc/climat/empreinte-climatique/src/empreinte_climatique/fetch.py
+      - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
+    production_note: >-
+      ECMWF décrit cette interface comme optimisée pour l'accès rapide à de longues séries
+      ponctuelles et non recommandée comme dépendance de production stable. La famille ERA5-Land
+      reste la source scientifique ; l'actif concret devra être choisi par apps/copernicus et
+      testé par équivalence.
+    verification_status: externally_verified_2026_08_09
+
+  copernicus-era5-land-monthly-means:
+    type: dataset_documentation
+    organization: Copernicus Climate Change Service / ECMWF
+    title: ERA5-Land monthly averaged data from 1950 to present
+    url: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-monthly-means
+    dataset_registry_id: era5-land-monthly-means
+    role:
+      - dataset_definition
+      - variable_units
+      - accumulated_variable_semantics
+    used_by:
+      - water-through-year
+    repository_evidence:
+      - poc/climat/bilan eau/water_through_year/fetch.py
+      - poc/climat/bilan eau/water_through_year/data.py
+      - poc/climat/bilan eau/WATER_THROUGH_YEAR_METHOD.md
+    verification_status: externally_verified_2026_08_09
+
+  ecmwf-era5-land-data-documentation:
+    type: technical_documentation
+    organization: ECMWF
+    title: ERA5-Land data documentation
+    url: https://confluence.ecmwf.int/pages/viewpage.action?pageId=402639006
+    role:
+      - accumulated_variable_semantics
+      - monthly_mean_stream_semantics
+      - evaporation_definition
+      - soil_layer_depths
+    used_by:
+      - water-through-year
+    verification_status: externally_verified_2026_08_09
+
+  ecmwf-accumulated-variable-conversion:
+    type: technical_documentation
+    organization: ECMWF
+    title: Conversion table for accumulated variables (total precipitation/fluxes)
+    url: https://confluence.ecmwf.int/pages/viewpage.action?pageId=272324919
+    role:
+      - monthly_accumulation_conversion
+      - precipitation_unit_conversion
+    used_by:
+      - water-through-year
+    verification_status: externally_verified_2026_08_09
+
+  copernicus-era5-heat-utci-timeseries:
+    type: dataset_documentation
+    organization: Copernicus Climate Change Service / ECMWF
+    title: Thermal comfort indices time-series derived from ERA5 reanalysis
+    url: https://cds.climate.copernicus.eu/datasets/derived-utci-historical-timeseries
+    dataset_registry_id: era5-heat-utci-timeseries
+    role:
+      - dataset_definition
+      - utci_variable_metadata
+      - spatial_temporal_metadata
+    used_by:
+      - climate-fingerprint
+    repository_evidence:
+      - poc/climat/empreinte-climatique/docs/specification.md
+      - poc/climat/empreinte-climatique/src/empreinte_climatique/fetch.py
+    verification_status: externally_verified_2026_08_09
+
+  utci-official:
+    type: scientific_method_resource
+    organization: ISB Commission / COST Action 730
+    title: Universal Thermal Climate Index
+    url: https://utci.org/
+    role:
+      - utci_scientific_context
+      - thermophysiological_interpretation
+    used_by:
+      - climate-fingerprint
+    verification_status: externally_verified_2026_08_09
+
+  copernicus-era5-drought:
+    type: dataset_documentation
+    organization: Copernicus Climate Change Service / ECMWF
+    title: Monthly drought indices from 1940 to present derived from ERA5 reanalysis
+    url: https://cds.climate.copernicus.eu/datasets/derived-drought-historical-monthly
+    dataset_registry_id: era5-drought-historical-monthly
+    role:
+      - dataset_definition
+      - spei_metadata
+      - accumulation_periods
+      - drought_reference_period
+    used_by:
+      - climate-fingerprint
+      - water-through-year
+    repository_evidence:
+      - poc/climat/empreinte-climatique/docs/specification.md
+      - poc/climat/bilan eau/WATER_THROUGH_YEAR_METHOD.md
+    verification_status: externally_verified_2026_08_09
+
+  vicente-serrano-2010-spei:
+    type: peer_reviewed_article
+    authors:
+      - Vicente-Serrano, S. M.
+      - Beguería, S.
+      - López-Moreno, J. I.
+    year: 2010
+    title: "A Multiscalar Drought Index Sensitive to Global Warming: The Standardized Precipitation Evapotranspiration Index"
+    journal: Journal of Climate
+    volume: 23
+    pages: 1696-1718
+    doi: 10.1175/2009JCLI2909.1
+    url: https://doi.org/10.1175/2009JCLI2909.1
+    role:
+      - spei_scientific_definition
+      - multiscalar_drought_context
+    used_by:
+      - climate-fingerprint
+      - water-through-year
+    verification_status: externally_verified_2026_08_09
+
+  copernicus-climate-bulletin-analysis:
+    type: methodological_documentation
+    organization: Copernicus Climate Change Service
+    title: Climate Bulletin - About the data and analysis
+    url: https://climate.copernicus.eu/climate-bulletin-about-data-and-analysis
+    role:
+      - percentile_classification_reference
+      - interpretation_relative_to_reference_distribution
+    used_by:
+      - climate-fingerprint
+    repository_evidence:
+      - poc/climat/PRESENTATION_CLIMAT_EMPREINTE_SAISONS_REFERENCES.md
+      - poc/climat/empreinte-climatique/docs/specification.md
+    note: >-
+      OpenDataVal reprend le principe de position relative dans une distribution de référence,
+      mais la normalisation graphique V4 et sa palette sont des choix propres au projet.
+    verification_status: externally_verified_2026_08_09
+
+  etccdi-climdex-r95p:
+    type: methodological_reference
+    organization: ETCCDI / Climdex
+    title: Climate extremes indices - R95p and R95pTOT
+    url: https://www.climdex.org/learn/indices/
+    role:
+      - wet_day_definition
+      - precipitation_p95_reference
+    used_by:
+      - climate-fingerprint
+    note: >-
+      Le seuil P95 sur jours humides inspire la métrique OpenDataVal. La métrique principale
+      V4 est toutefois un compte de jours et ne doit pas être nommée R95p ou R95pTOT.
+    verification_status: externally_verified_2026_08_09
+
+  wang-2021-four-seasons:
+    type: peer_reviewed_article
+    authors:
+      - Wang, J.
+      - Guan, Y.
+      - Wu, L.
+      - Guan, X.
+      - Cai, W.
+      - Huang, J.
+      - Dong, W.
+      - Zhang, B.
+    year: 2021
+    title: Changing Lengths of the Four Seasons by Global Warming
+    journal: Geophysical Research Letters
+    volume: 48
+    issue: 6
+    article: e2020GL091753
+    doi: 10.1029/2020GL091753
+    url: https://doi.org/10.1029/2020GL091753
+    role:
+      - local_thermal_season_definition
+      - percentile_25_75_thresholds
+      - annual_cycle_smoothing_reference
+    used_by:
+      - thermal-seasons
+    repository_evidence:
+      - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
+    open_data_val_adaptation:
+      - reference_period_fixed_to_1991_2020
+      - comparison_periods_1996_2005_vs_2016_2025
+      - explicit_quality_rules
+    verification_status: externally_verified_2026_08_09
+
+  copernicus-ecde-climate-indicators:
+    type: dataset_documentation
+    organization: Copernicus Climate Change Service
+    title: Climate indicators for Europe from 1940 to 2100 derived from reanalysis and climate projections
+    url: https://cds.climate.copernicus.eu/datasets/sis-ecde-climate-indicators
+    dataset_registry_id: ecde-climate-indicators
+    role:
+      - secondary_validation
+      - growing_season_comparison
+    used_by:
+      - thermal-seasons
+    note: >-
+      Référence secondaire uniquement. Elle ne définit pas les saisons thermiques principales
+      T25/T75 d'OpenDataVal.
+    repository_evidence:
+      - poc/climat/saisons/INSTRUCTIONS_AGENT_SAISONS_SE_DEPLACENT_V1.md
+    verification_status: repository_grounded_pending_external_recheck
+
+  munoz-sabater-2021-era5-land:
+    type: peer_reviewed_article
+    authors:
+      - Muñoz-Sabater, J.
+      - Dutra, E.
+      - Agustí-Panareda, A.
+      - Albergel, C.
+      - Arduini, G.
+      - Balsamo, G.
+      - Boussetta, S.
+      - Choulga, M.
+      - Harrigan, S.
+      - Hersbach, H.
+      - Martens, B.
+      - Miralles, D. G.
+      - Piles, M.
+      - Rodríguez-Fernández, N. J.
+      - Zsoter, E.
+      - Buontempo, C.
+      - Thépaut, J.-N.
+    year: 2021
+    title: "ERA5-Land: a state-of-the-art global reanalysis dataset for land applications"
+    journal: Earth System Science Data
+    volume: 13
+    pages: 4349-4383
+    doi: 10.5194/essd-13-4349-2021
+    url: https://doi.org/10.5194/essd-13-4349-2021
+    role:
+      - foundational_era5_land_scientific_description
+    used_by:
+      - climate-overview
+      - climate-fingerprint
+      - thermal-seasons
+      - water-through-year
+    verification_status: repository_grounded
+
+resolved_reference_questions:
+  - id: utci-foundational-reference
+    resolution: utci-official
+    resolved_in: P2
+  - id: extreme-precipitation-r95-reference
+    resolution: etccdi-climdex-r95p
+    resolved_in: P2
+  - id: trend-tests-reference
+    resolution: not_adopted_in_current_methods
+    note: >-
+      Theil-Sen et Mann-Kendall restent des pistes de future extension. Les méthodes P2 ne
+      calculent aucun test de tendance et l'IA ne peut donc pas revendiquer de significativité.

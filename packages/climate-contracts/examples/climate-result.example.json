@@ -1,0 +1,108 @@
+{
+  "schema_version": "1.0",
+  "result_id": "RESULT-THERMAL-000001",
+  "snapshot_id": "CLIMATE-2026-000012",
+  "product": {
+    "id": "thermal-seasons",
+    "title": "Les saisons se déplacent"
+  },
+  "method": {
+    "id": "thermal-seasons",
+    "version": "1.0.0"
+  },
+  "location": {
+    "requested": {
+      "geometry": {
+        "type": "Point",
+        "coordinates": [3.683, 44.0646]
+      },
+      "label": "Exemple Val-d'Aigoual"
+    },
+    "represented": {
+      "type": "grid_point",
+      "lat": 44.1,
+      "lon": 3.7,
+      "grid_degrees": 0.1
+    }
+  },
+  "periods": {
+    "reference": {"start": 1991, "end": 2020},
+    "study": {"start": 1996, "end": 2025},
+    "early": {"start": 1996, "end": 2005},
+    "late": {"start": 2016, "end": 2025}
+  },
+  "datasets": [
+    {
+      "registry_id": "era5-land-timeseries",
+      "dataset_id": "reanalysis-era5-land-timeseries",
+      "variables": ["2m_temperature"],
+      "grid_degrees": 0.1,
+      "asset_ids": ["ASSET-ERA5LAND-T2M-000001"]
+    }
+  ],
+  "representativity": {
+    "type": "gridded_reanalysis",
+    "local_measurement": false,
+    "requested_point": {"lat": 44.0646, "lon": 3.683},
+    "represented_point": {"lat": 44.1, "lon": 3.7}
+  },
+  "data": {
+    "thresholds": {"t25_c": 7.2, "t75_c": 16.8},
+    "comparison": {
+      "summer_start_shift_days": -11.0,
+      "summer_length_change_days": 14.0
+    }
+  },
+  "signals": [
+    {
+      "schema_version": "1.0",
+      "id": "thermal-summer-start-shift:POINT-44.0646-3.6830:1996-2005_vs_2016-2025",
+      "definition_id": "thermal-summer-start-shift",
+      "method": {"id": "thermal-seasons", "version": "1.0.0"},
+      "metric": "summer_start_shift_days",
+      "claim_level": "descriptive",
+      "value": -11.0,
+      "unit": "days",
+      "direction": "earlier",
+      "comparison": {
+        "early_period": "1996-2005",
+        "late_period": "2016-2025",
+        "early_value": 165.0,
+        "late_value": 154.0,
+        "delta": -11.0,
+        "relative_pct": null
+      },
+      "evidence": [
+        {
+          "result_pointer": "/data/comparison/summer_start_shift_days",
+          "description": "Différence entre médianes décennales calculée par la méthode thermal-seasons@1.0.0."
+        }
+      ],
+      "caveat_ids": [
+        "thermal-not-meteorological-season",
+        "gridded-reanalysis",
+        "descriptive-not-trend"
+      ],
+      "quality_status": "valid"
+    }
+  ],
+  "quality": {
+    "status": "valid",
+    "checks": [{"id": "annual_coverage", "status": "passed"}],
+    "notes": []
+  },
+  "caveats": [
+    {
+      "id": "thermal-not-meteorological-season",
+      "text": "Les saisons sont thermiques et locales ; elles ne correspondent pas aux saisons météorologiques fixes.",
+      "severity": "info"
+    }
+  ],
+  "provenance": {
+    "generated_at": "2026-08-09T20:45:00Z",
+    "generated_by": "climate-seasons-service",
+    "method_id": "thermal-seasons",
+    "method_version": "1.0.0",
+    "snapshot_id": "CLIMATE-2026-000012"
+  }
+}

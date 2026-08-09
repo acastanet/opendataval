@@ -1,0 +1,264 @@
+schema_version: "1.0"
+
+id: climate-fingerprint
+version: "4.0.0"
+status: draft
+
+product:
+  title_fr: "L'empreinte climatique du lieu"
+  question_fr: "Qu'est-ce qui a changé au cours des trente dernières années ?"
+  role: "Synthèse annuelle multidimensionnelle de l'évolution récente du contexte climatique."
+
+canonical_periods:
+  reference:
+    start: 1991
+    end: 2020
+    role: "Distribution de référence utilisée pour anomalies, seuils et classes."
+  study:
+    start: 1996
+    end: 2025
+    role: "Trente années civiles complètes visibles dans l'infographie."
+  early: {start: 1996, end: 2005}
+  middle: {start: 2006, end: 2015}
+  late: {start: 2016, end: 2025}
+
+spatial_model:
+  requested_geometry: point
+  representativity: gridded_reanalysis
+  local_measurement: false
+  datasets:
+    era5_land_grid_degrees: 0.1
+    derived_indices_grid_degrees: 0.25
+  required_claim: >-
+    Les résultats décrivent le contexte climatique des mailles de réanalyse associées
+    au lieu et non une mesure à l'échelle de la dalle OpenDataVal.
+
+inputs:
+  temperature:
+    dataset_registry_id: era5-land-timeseries
+    dataset_id: reanalysis-era5-land-timeseries
+    variable: 2m_temperature
+    source_unit: K
+    normalized_unit: degC
+  precipitation:
+    dataset_registry_id: era5-land-timeseries
+    dataset_id: reanalysis-era5-land-timeseries
+    variable: total_precipitation
+    source_unit: m
+    normalized_unit: mm
+  wind_u:
+    dataset_registry_id: era5-land-timeseries
+    dataset_id: reanalysis-era5-land-timeseries
+    variable: 10m_u_component_of_wind
+    source_unit: m_s-1
+  wind_v:
+    dataset_registry_id: era5-land-timeseries
+    dataset_id: reanalysis-era5-land-timeseries
+    variable: 10m_v_component_of_wind
+    source_unit: m_s-1
+  utci:
+    dataset_registry_id: era5-heat-utci-timeseries
+    dataset_id: derived-utci-historical-timeseries
+    variable: universal_thermal_climate_index
+    source_unit: K
+    normalized_unit: degC_utci
+  drought:
+    dataset_registry_id: era5-drought-historical-monthly
+    dataset_id: derived-drought-historical-monthly
+    variable: standardised_precipitation_evapotranspiration_index
+    accumulation_period_months: 3
+    normalized_unit: standard_deviation
+
+preprocessing:
+  timezone: UTC
+  duplicate_timestamps: keep_last
+  temperature_daily: mean
+  utci_daily: max
+  precipitation_daily:
+    operation: sum
+    conversion: "m * 1000 -> mm"
+    negative_values_on_asset_load: clipped_to_zero
+  wind_speed:
+    formula: "sqrt(u10^2 + v10^2)"
+    daily_operation: max
+  spei3:
+    temporal_operation: monthly_mean_after_timestamp_normalization
+
+quality:
+  minimum_daily_coverage_fraction_for_annual_metric: 0.90
+  minimum_complete_reference_years: 24
+  comparison_minimum_valid_years_per_decade: 8
+  missing_values_rule: "Une valeur annuelle insuffisamment complète reste null ; aucune valeur scientifique n'est inventée."
+
+metrics:
+  - id: temperature
+    label_fr: Température
+    source: ERA5-Land
+    resolution_degrees: 0.1
+    output_unit: degC
+    annual_metric: annual_mean_2m_temperature
+    calculation: "moyenne annuelle des températures moyennes quotidiennes"
+  - id: utci
+    label_fr: Stress UTCI
+    source: ERA5-HEAT
+    resolution_degrees: 0.25
+    output_unit: degC_utci
+    annual_metric: annual_p95_daily_max_utci
+    calculation: "P95 annuel des maxima UTCI quotidiens"
+    details: [days_ge_32_degC_utci, days_ge_38_degC_utci, annual_max_degC_utci]
+  - id: precipitation
+    label_fr: Précipitations
+    source: ERA5-Land
+    resolution_degrees: 0.1
+    output_unit: mm
+    annual_metric: annual_total_precipitation
+    calculation: "somme annuelle des cumuls quotidiens"
+  - id: heavy_rain
+    label_fr: Pluies intenses
+    source: ERA5-Land
+    resolution_degrees: 0.1
+    output_unit: days
+    annual_metric: annual_days_above_reference_wet_day_p95
+    reference_threshold:
+      wet_day_definition_mm: 1.0
+      percentile: 0.95
+      period: [1991, 2020]
+    calculation: "nombre annuel de jours dont le cumul quotidien est strictement supérieur au P95 des jours humides de référence"
+    details: [annual_precipitation_total_above_threshold_mm]
+    standard_relation: >-
+      Le seuil de jour humide et le P95 sont inspirés des indices ETCCDI/Climdex.
+      La métrique principale OpenDataVal est un compte de jours ; elle ne doit pas être
+      nommée R95p ou R95pTOT.
+  - id: drought
+    label_fr: Sécheresse
+    source: ERA5-Drought
+    resolution_degrees: 0.25
+    output_unit: months
+    annual_metric: annual_months_below_calendar_month_spei3_p10
+    reference_threshold:
+      variable: SPEI-3
+      percentile: 0.10
+      period: [1991, 2020]
+      grouping: calendar_month
+    calculation: >-
+      Pour chacun des douze mois du calendrier, calcul du P10 de SPEI-3 sur 1991-2020,
+      puis comptage annuel des mois dont SPEI-3 est strictement inférieur au P10 du même mois.
+    details: [annual_min_spei3]
+  - id: wind
+    label_fr: Vent fort
+    source: ERA5-Land
+    resolution_degrees: 0.1
+    output_unit: days
+    annual_metric: annual_days_above_reference_daily_max_wind_p98
+    reference_threshold:
+      percentile: 0.98
+      period: [1991, 2020]
+    calculation: "nombre annuel de jours dont le maximum quotidien de vitesse du vent 10 m est strictement supérieur au P98 de référence"
+    details: [annual_max_wind_speed_m_s]
+
+classification:
+  reference_distribution: annual_metric_values_1991_2020
+  required_reference_years: 24
+  quantiles:
+    p10: 0.10
+    p33_3: 0.333
+    p50: 0.50
+    p66_6: 0.666
+    p90: 0.90
+  anomaly_baseline: reference_mean
+  empirical_percentile: "100 * mean(reference_values <= annual_value)"
+  classes: 5
+
+comparison:
+  early_period: [1996, 2005]
+  late_period: [2016, 2025]
+  statistic: arithmetic_mean
+  output: "late_mean - early_mean"
+  precipitation_additional_output: relative_percent_change
+  statistical_trend_test: null
+  rule: >-
+    La comparaison est descriptive. En l'absence d'un test de tendance explicite,
+    elle ne doit pas être qualifiée automatiquement de tendance statistiquement significative.
+
+visual_encoding:
+  scientific_status: editorial_opendataval
+  shared_palette_semantics: "blue = less of the variable; red = more of the variable"
+  robust_position:
+    formula: "sigma=(P90-P10)/2.563; z=(value-P50)/sigma; position=clip(0.5+z/6,0,1)"
+    saturation_z: 3.0
+    fallback: empirical_percentile_with_tie_guard
+  emphasis:
+    gamma: 2.0
+    formula: "0.5 + sign(position-0.5) * (abs(position-0.5)/0.5)^2 / 2"
+  warning: >-
+    La couleur V4 est une convention de restitution OpenDataVal. Elle ne constitue
+    ni un indice scientifique universel, ni un score de danger, ni une méthode Copernicus.
+
+events:
+  status: secondary_annotation
+  max_total: 8
+  max_per_family: 2
+  automatic_labels_only: true
+  thresholds:
+    heat: "P99 du maximum UTCI quotidien sur 1991-2020"
+    heavy_rain: "P99 des précipitations quotidiennes des jours humides sur 1991-2020"
+    wind: "P99 du maximum quotidien du vent 10 m sur 1991-2020"
+    drought: "P01 de SPEI-3 de référence, regroupement mensuel"
+  semantics: >-
+    Ces événements sont des candidats climatiques détectés dans les réanalyses.
+    Sans source externe, ils ne doivent pas être renommés crue, tempête, incendie ou catastrophe.
+
+interpretation:
+  status: defined_p3
+  rules: interpretation.md
+  signal_registry: doc/climat/signals/catalogue.yaml
+  claim_level: descriptive
+
+contracts:
+  status: defined_p4
+  result_schema: packages/climate-contracts/schemas/climate-result.schema.json
+  signal_schema: packages/climate-contracts/schemas/climate-signal.schema.json
+  snapshot_schema: packages/climate-contracts/schemas/climate-snapshot.schema.json
+
+provenance_requirements:
+  - requested_point
+  - represented_grid_points
+  - dataset_ids
+  - dataset_versions_when_available
+  - retrieved_at
+  - method_id
+  - method_version
+  - generation_timestamp
+  - quality_status
+
+references:
+  normative_and_dataset:
+    - wmo-climatological-normals
+    - copernicus-era5-land-timeseries
+    - copernicus-era5-heat-utci-timeseries
+    - copernicus-era5-drought
+    - copernicus-climate-bulletin-analysis
+  scientific:
+    - utci-official
+    - vicente-serrano-2010-spei
+    - etccdi-climdex-r95p
+  project_sources:
+    - poc/climat/empreinte-climatique/docs/specification.md
+    - poc/climat/empreinte-climatique/src/empreinte_climatique/fetch.py
+    - poc/climat/empreinte-climatique/src/empreinte_climatique/assets.py
+    - poc/climat/empreinte-climatique/src/empreinte_climatique/fingerprint.py
+    - poc/climat/empreinte-climatique/src/empreinte_climatique/build.py
+
+p2_decisions:
+  wind_dataset:
+    status: resolved
+    decision: era5_land_timeseries
+  heavy_rain_naming:
+    status: resolved
+    decision: custom_count_above_wet_day_p95
+  visual_normalization:
+    status: resolved
+    decision: opendataval_editorial_v4
+
+validation_blockers:
+  - golden_master_equivalence_pending_p5

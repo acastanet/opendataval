@@ -1,0 +1,187 @@
+schema_version: "1.0"
+id: water-through-year
+version: "1.0.0"
+status: draft
+
+product:
+  title_fr: "L'eau au fil de l'année"
+  question_fr: "Comment le cycle hydroclimatique se répartit-il et a-t-il évolué ?"
+  semantic_scope: hydroclimatic_context
+
+periods:
+  reference: [1991, 2020]
+  study: [1996, 2025]
+  early: [1996, 2005]
+  middle: [2006, 2015]
+  late: [2016, 2025]
+
+inputs:
+  era5_land:
+    dataset_registry_id: era5-land-monthly-means
+    dataset_id: reanalysis-era5-land-monthly-means
+    product_type: monthly_averaged_reanalysis
+    grid_degrees: 0.1
+    native_resolution_km_approx: 9
+    variables:
+      - total_precipitation
+      - volumetric_soil_water_layer_1
+      - volumetric_soil_water_layer_2
+      - volumetric_soil_water_layer_3
+      - total_evaporation
+  drought:
+    dataset_registry_id: era5-drought-historical-monthly
+    dataset_id: derived-drought-historical-monthly
+    variable: standardised_precipitation_evapotranspiration_index
+    accumulation_period_months: 3
+    grid_degrees: 0.25
+
+monthly_means_semantics:
+  stream: moda
+  accumulated_hydrological_variables: "m of water equivalent per day"
+  monthly_total_conversion: "value * 1000 * days_in_month"
+  verification_status: externally_verified_ecmwf
+
+primary_metrics:
+  precipitation_mm:
+    source: total_precipitation
+    operation: monthly_total
+  soil_water_0_100_mm:
+    source:
+      - volumetric_soil_water_layer_1
+      - volumetric_soil_water_layer_2
+      - volumetric_soil_water_layer_3
+    formula: "1000 * (0.07 * theta1 + 0.21 * theta2 + 0.72 * theta3)"
+    operation: monthly_mean
+    semantic_status: derived_opendataval
+  actual_evapotranspiration_mm:
+    source: total_evaporation
+    source_sign_convention: "downward positive; evaporation generally negative"
+    conversion: "-value * 1000 * days_in_month"
+    operation: monthly_total
+  spei3:
+    source: ERA5-Drought
+    operation: monthly_value
+    aggregation_period_months: 3
+
+reference_monthly:
+  grouping: calendar_month
+  period: [1991, 2020]
+  statistics: [p25, median, p75]
+  percentile_method: linear
+
+study_monthly:
+  periods:
+    - [1996, 2005]
+    - [2006, 2015]
+    - [2016, 2025]
+  grouping: calendar_month
+  statistics: [p25, median, p75]
+  percentile_method: linear
+
+soil_water_reference_position:
+  metric: soil_water_0_100_mm
+  grouping: calendar_month
+  reference: [1991, 2020]
+  calculation: "100 * mean(reference_values <= value)"
+
+comparison:
+  annual_precip_change_pct:
+    yearly_statistic: annual_sum
+    decade_statistic: median
+    formula: "100 * (late_median - early_median) / early_median"
+  summer_soil_water_change_mm:
+    months: [6, 7, 8]
+    yearly_statistic: mean
+    decade_statistic: median
+    formula: "late_median - early_median"
+  dry_months_change:
+    dry_month_definition: "SPEI-3 < -1.0"
+    yearly_statistic: count_if_all_12_months_valid
+    decade_statistic: median
+    formula: "late_median - early_median"
+
+quality:
+  daily_source_month_minimum_valid_fraction: 0.90
+  monthly_source_rule: "monthly averaged ERA5-Land values are already aggregated by CDS"
+  spei_month_rule: "exactly one valid SPEI value per month; duplicate valid values invalidate the month"
+  expected_study_plus_reference_months: 420
+
+representativity:
+  type: gridded_reanalysis
+  local_measurement: false
+  required_metadata:
+    - requested_point
+    - era5_land_grid_point
+    - drought_grid_point
+    - grid_resolution
+    - site_altitude_when_available
+    - model_orography_when_available
+    - altitude_difference_when_available
+
+claims:
+  allowed_scope:
+    - precipitation_cycle
+    - modelled_soil_water_cycle
+    - actual_evapotranspiration_cycle
+    - meteorological_drought_spei3
+    - descriptive_decadal_comparison
+  forbidden_without_additional_data_or_method:
+    - groundwater_recharge
+    - observed_river_discharge
+    - drinking_water_availability
+    - irrigation_need
+    - plant_available_water
+    - field_scale_soil_moisture_measurement
+    - causal_attribution
+
+interpretation:
+  status: defined_p3
+  rules: interpretation.md
+  signal_registry: doc/climat/signals/catalogue.yaml
+  claim_level: descriptive
+
+contracts:
+  status: defined_p4
+  result_schema: packages/climate-contracts/schemas/climate-result.schema.json
+  signal_schema: packages/climate-contracts/schemas/climate-signal.schema.json
+  snapshot_schema: packages/climate-contracts/schemas/climate-snapshot.schema.json
+
+secondary_optional_metrics:
+  - runoff
+  - surface_runoff
+  - sub_surface_runoff
+  - snowfall
+  - snowmelt
+  - snow_depth_water_equivalent
+
+references:
+  - wmo-climatological-normals
+  - copernicus-era5-land-monthly-means
+  - copernicus-era5-drought
+  - ecmwf-era5-land-data-documentation
+  - vicente-serrano-2010-spei
+
+project_sources:
+  - poc/climat/bilan eau/WATER_THROUGH_YEAR_METHOD.md
+  - poc/climat/bilan eau/water_through_year/fetch.py
+  - poc/climat/bilan eau/water_through_year/data.py
+  - poc/climat/bilan eau/water_through_year/aggregation.py
+  - poc/climat/bilan eau/water_through_year/pipeline.py
+  - poc/climat/bilan eau/water_through_year/schema.py
+
+p2_decisions:
+  monthly_accumulation_conversion:
+    status: resolved
+    decision: "multiply monthly averaged daily accumulation by days_in_month"
+    evidence: "ECMWF ERA5-Land monthly means documentation and accumulated-variable conversion table"
+  evapotranspiration_sign:
+    status: resolved
+    decision: "display actual evapotranspiration as -total_evaporation"
+    evidence: "ECMWF downward-positive flux convention"
+  soil_stock_semantics:
+    status: resolved
+    decision: "derived modelled soil-water equivalent 0-100 cm"
+    forbidden_names: [reserve_utile, plant_available_water, observed_soil_stock]
+
+validation_blockers:
+  - golden_master_equivalence_pending_p5
