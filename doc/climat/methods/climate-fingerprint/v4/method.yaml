@@ -18,15 +18,9 @@ canonical_periods:
     start: 1996
     end: 2025
     role: "Trente années civiles complètes visibles dans l'infographie."
-  early:
-    start: 1996
-    end: 2005
-  middle:
-    start: 2006
-    end: 2015
-  late:
-    start: 2016
-    end: 2025
+  early: {start: 1996, end: 2005}
+  middle: {start: 2006, end: 2015}
+  late: {start: 2016, end: 2025}
 
 spatial_model:
   requested_geometry: point
@@ -112,10 +106,7 @@ metrics:
     output_unit: degC_utci
     annual_metric: annual_p95_daily_max_utci
     calculation: "P95 annuel des maxima UTCI quotidiens"
-    details:
-      - days_ge_32_degC_utci
-      - days_ge_38_degC_utci
-      - annual_max_degC_utci
+    details: [days_ge_32_degC_utci, days_ge_38_degC_utci, annual_max_degC_utci]
 
   - id: precipitation
     label_fr: Précipitations
@@ -136,12 +127,11 @@ metrics:
       percentile: 0.95
       period: [1991, 2020]
     calculation: "nombre annuel de jours dont le cumul quotidien est strictement supérieur au P95 des jours humides de référence"
-    details:
-      - annual_precipitation_total_above_threshold_mm
+    details: [annual_precipitation_total_above_threshold_mm]
     standard_relation: >-
       Le seuil de jour humide et le P95 sont inspirés des indices ETCCDI/Climdex.
-      La métrique principale OpenDataVal est un COMPTE de jours dépassant le seuil ;
-      elle ne doit pas être nommée R95p ou R95pTOT.
+      La métrique principale OpenDataVal est un compte de jours ; elle ne doit pas être
+      nommée R95p ou R95pTOT.
 
   - id: drought
     label_fr: Sécheresse
@@ -157,8 +147,7 @@ metrics:
     calculation: >-
       Pour chacun des douze mois du calendrier, calcul du P10 de SPEI-3 sur 1991-2020,
       puis comptage annuel des mois dont SPEI-3 est strictement inférieur au P10 du même mois.
-    details:
-      - annual_min_spei3
+    details: [annual_min_spei3]
 
   - id: wind
     label_fr: Vent fort
@@ -170,8 +159,7 @@ metrics:
       percentile: 0.98
       period: [1991, 2020]
     calculation: "nombre annuel de jours dont le maximum quotidien de vitesse du vent 10 m est strictement supérieur au P98 de référence"
-    details:
-      - annual_max_wind_speed_m_s
+    details: [annual_max_wind_speed_m_s]
 
 classification:
   reference_distribution: annual_metric_values_1991_2020
@@ -244,6 +232,7 @@ references:
     - copernicus-era5-drought
     - copernicus-climate-bulletin-analysis
   scientific:
+    - utci-official
     - vicente-serrano-2010-spei
     - etccdi-climdex-r95p
   project_sources:
@@ -259,8 +248,8 @@ p2_decisions:
     decision: era5_land_timeseries
     reason: >-
       Le catalogue officiel ERA5-Land time-series expose les composantes u/v du vent à 10 m,
-      et le POC V4 les télécharge déjà depuis ce produit. La future méthode canonique conserve
-      donc ERA5-Land au lieu d'ajouter ERA5 single-levels.
+      et le POC V4 les télécharge déjà depuis ce produit. La méthode canonique conserve donc
+      ERA5-Land au lieu d'ajouter ERA5 single-levels.
   heavy_rain_naming:
     status: resolved
     decision: custom_count_above_wet_day_p95
