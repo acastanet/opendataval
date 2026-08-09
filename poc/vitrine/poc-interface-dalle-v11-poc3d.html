@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#d5dcd8" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23315f47'/%3E%3Cpath d='M8 16h16M16 8v16' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <title>OpenDataVdA — Maison 200 m · LiDAR HD</title>
+  <link rel="stylesheet" href="./poc-interface-dalle-v11-poc3d.css" />
+</head>
+<body>
+  <div class="app">
+    <main class="scene" aria-label="Jumeau numérique 3D">
+      <div class="scene-window">
+        <iframe
+          id="sceneFrame"
+          class="scene-frame"
+          title="Dalle Maison 200 m — modèle 3D et LiDAR HD"
+          src="../valleraugue-mairie-3d/publication/index.html?scene=maison-200m&amp;mode=overlay&amp;embed=1"
+        ></iframe>
+      </div>
+    </main>
+
+    <header class="scene-title" aria-label="Scène affichée">
+      <span>OpenDataVdA · jumeau numérique</span>
+      <h1>Maison de Valleraugue</h1>
+    </header>
+
+    <nav class="menu-dock" aria-label="Accès aux menus">
+      <button class="menu-dock__button" type="button" data-menu-button="spheres" aria-controls="spheresMenu" aria-expanded="false" aria-label="Afficher ou masquer les 7 sphères territoriales" title="Les 7 sphères territoriales">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="M4.5 12h15M12 4.5c2.3 2.1 3.5 4.6 3.5 7.5S14.3 17.4 12 19.5c-2.3-2.1-3.5-4.6-3.5-7.5S9.7 6.6 12 4.5Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" /></svg>
+      </button>
+      <button class="menu-dock__button" type="button" data-menu-button="display" aria-controls="displayMenu" aria-expanded="false" aria-label="Afficher ou masquer les réglages d’affichage 3D" title="Réglages d’affichage 3D">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /><circle cx="9" cy="6.5" r="2" fill="currentColor" /><circle cx="15" cy="12" r="2" fill="currentColor" /><circle cx="7" cy="17.5" r="2" fill="currentColor" /></svg>
+      </button>
+      <button class="menu-dock__button" type="button" data-menu-button="more" aria-controls="moreMenu" aria-expanded="false" aria-label="Afficher ou masquer les autres outils" title="Autres outils">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.7" fill="currentColor" /><circle cx="12" cy="12" r="1.7" fill="currentColor" /><circle cx="12" cy="19" r="1.7" fill="currentColor" /></svg>
+      </button>
+    </nav>
+
+    <aside id="spheresMenu" class="rail menu-panel" aria-label="Les 7 sphères territoriales" hidden>
+      <div id="sphereStack" class="sphere-stack"></div>
+    </aside>
+
+    <aside id="displayMenu" class="tools-panel menu-panel" aria-label="Réglages d’affichage 3D" hidden>
+      <header class="tools-head">
+        <span class="tools-head__eyebrow">Jumeau numérique</span>
+        <h2>Affichage 3D</h2>
+      </header>
+      <div id="displaySettings" class="display-settings"></div>
+    </aside>
+
+    <aside id="moreMenu" class="tools-panel menu-panel" aria-label="Autres outils" hidden>
+      <header class="tools-head">
+        <span class="tools-head__eyebrow">Jumeau numérique</span>
+        <h2>Outils de scène</h2>
+        <span id="viewerStatus" class="status" data-state="loading">Scène en préparation</span>
+      </header>
+      <section class="tool-section">
+        <h3>Points de vue</h3>
+        <nav class="view-tools" aria-label="Points de vue">
+          <button class="view-button" type="button" data-view="viewReset" aria-label="Vue générale" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
+          </button>
+          <button class="view-button" type="button" data-view="viewCentre" aria-label="Vue centrale" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16M12 4v16M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+          </button>
+          <button class="view-button" type="button" data-view="viewRoof" aria-label="Vue des toitures" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v6m-2.6-2.4L12 9.2l2.6-2.6M12 12.6l7 4.2-7 4.2-7-4.2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </button>
+        </nav>
+      </section>
+      <section class="tool-section">
+        <h3>Mesures de la scène</h3>
+        <div class="scene-meta" aria-label="Mesures de la scène">
+          <span><strong id="buildingCount">—</strong>bâtiments</span>
+          <span><strong id="elevationRange">—</strong>relief</span>
+          <span><strong>200 × 200 m</strong>emprise</span>
+        </div>
+      </section>
+
+      <footer class="tools-foot">
+        <small class="provenance">Données publiques tracées<br />IGN · BRGM · Météo-France · Sandre</small>
+        <a class="full-viewer" href="../valleraugue-mairie-3d/publication/index.html?scene=maison-200m&amp;mode=overlay" target="_blank" rel="noreferrer">Mode expert</a>
+      </footer>
+    </aside>
+  </div>
+
+  <script src="./poc-interface-dalle-v11-poc3d.js"></script>
+</body>
+</html>
