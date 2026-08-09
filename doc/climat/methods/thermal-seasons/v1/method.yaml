@@ -138,6 +138,12 @@ claims:
     - statistical_trend_significance
     - local_causal_attribution
 
+interpretation:
+  status: defined_p3
+  rules: interpretation.md
+  signal_registry: doc/climat/signals/catalogue.yaml
+  claim_level: descriptive
+
 references:
   - wmo-climatological-normals
   - copernicus-era5-land-timeseries
@@ -153,6 +159,5 @@ project_sources:
   - poc/climat/saisons/thermal_seasons/schema.py
 
 validation_blockers:
-  - interpretation_rules_pending_p3
   - common_climate_result_contract_pending_p4
   - golden_master_equivalence_pending_p5
