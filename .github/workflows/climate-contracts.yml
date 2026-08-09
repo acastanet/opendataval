@@ -1,0 +1,39 @@
+name: Climate contracts
+
+on:
+  pull_request:
+    paths:
+      - "packages/climate-contracts/**"
+      - ".github/workflows/climate-contracts.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "packages/climate-contracts/**"
+      - ".github/workflows/climate-contracts.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  golden-masters:
+    name: Golden masters P5
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: packages/climate-contracts/requirements-test.txt
+
+      - name: Install test dependencies
+        run: python -m pip install -r packages/climate-contracts/requirements-test.txt
+
+      - name: Run climate contract golden masters
+        run: python -m unittest discover -s packages/climate-contracts/tests -p "test_*_golden.py" -v
