@@ -1,0 +1,166 @@
+schema_version: "1.0"
+id: climate-overview
+version: "1.0.0"
+status: draft
+
+product:
+  title_fr: "Le climat de la zone"
+  question_fr: "À quoi ressemble normalement une année climatique dans cette zone ?"
+  role: "Portrait climatologique de référence ; aucune analyse de tendance."
+
+periods:
+  reference: [1991, 2020]
+  study: null
+
+inputs:
+  primary_dataset_family: ERA5-Land
+  current_poc_dataset_id: reanalysis-era5-land-timeseries
+  variables:
+    temperature:
+      name: 2m_temperature
+      source_unit: K
+      output_unit: degC
+    precipitation:
+      name: total_precipitation
+      source_unit: m
+      output_unit: mm
+  production_acquisition_note: >-
+    La méthode dépend d'ERA5-Land. L'interface time-series actuelle du POC ne doit pas
+    être considérée comme une obligation de production ; apps/copernicus choisira un actif
+    stable et l'équivalence sera testée.
+
+geometry:
+  supported_types:
+    - Point
+    - Polygon
+    - MultiPolygon
+  point_rule: "utiliser le point de grille représentatif et conserver requested vs represented"
+  polygon_rule: "agréger les cellules intersectées avec pondération par aire d'intersection"
+  area_projection_current_poc: EPSG:6933
+  intensive_variable_aggregation: area_weighted_mean
+  precipitation_rule: >-
+    La précipitation est une hauteur d'eau. Pour une zone couvrant plusieurs cellules,
+    moyenner les hauteurs avec les poids spatiaux ; ne pas sommer les millimètres entre cellules.
+
+representativity:
+  type: gridded_reanalysis
+  local_measurement: false
+  required_metadata:
+    - requested_geometry
+    - area_m2
+    - centroid
+    - grid_cell_count
+    - grid_cells
+    - grid_cell_weights
+    - dataset_resolution
+  small_zone_warning: >-
+    Une zone plus petite que la maille climatique reçoit le contexte de la maille ;
+    aucune descente d'échelle artificielle n'est appliquée.
+
+monthly_temperature:
+  per_year_statistic: monthly_mean
+  reference_statistics:
+    - mean
+    - p10
+    - p50
+    - p90
+  reference_period: [1991, 2020]
+
+monthly_precipitation:
+  per_year_statistic: monthly_total
+  reference_statistics:
+    - mean
+    - p10
+    - p50
+    - p90
+  reference_period: [1991, 2020]
+
+annual_summary:
+  current_outputs:
+    - mean_temperature_c
+    - precipitation_mm
+    - warmest_month
+    - coldest_month
+    - wettest_month
+    - driest_month
+  validation_note: >-
+    Ces sorties sont conservées dans le POC de référence. Le futur service devra figer par
+    test l'agrégation annuelle exacte afin d'éviter toute ambiguïté entre moyenne journalière
+    annuelle et moyenne des douze climatologies mensuelles.
+
+noncanonical_poc_indicators:
+  frost_days_mean:
+    intended_definition: "daily_min_2m_temperature < 0 degC"
+    current_poc_status: approximate_from_daily_mean
+    production_status: forbidden_until_real_daily_min_available
+  hot_days_30c_mean:
+    intended_definition: "daily_max_2m_temperature >= 30 degC"
+    current_poc_status: approximate_from_daily_mean
+    production_status: forbidden_until_real_daily_max_available
+  tropical_nights_20c_mean:
+    intended_definition: "daily_min_2m_temperature >= 20 degC"
+    current_poc_status: approximate_from_daily_mean
+    production_status: forbidden_until_real_daily_min_available
+  snow_indicator:
+    current_poc_status: optional_not_implemented
+  wind_speed_mean_ms:
+    current_poc_status: optional_not_implemented
+
+visualization:
+  primary: enriched_climatogram
+  temperature:
+    central_series: mean
+    variability_band: p10_p90
+  precipitation:
+    central_series: mean
+    tooltip_statistics:
+      - p10
+      - p50
+      - p90
+  axes:
+    temperature: degC
+    precipitation: mm_month
+  prohibited_shortcut: "No arbitrary 1 degC = 2 mm relationship unless a documented ombrothermic method is intentionally added."
+
+claims:
+  allowed_scope:
+    - normal_annual_cycle
+    - monthly_temperature_context
+    - monthly_precipitation_context
+    - reference_variability
+    - warmest_coldest_wettest_driest_months
+  forbidden_without_additional_method:
+    - climate_trend
+    - local_station_measurement_claim
+    - parcel_scale_downscaling
+    - frost_hot_tropical_counts_from_daily_mean
+    - causal_attribution
+
+references:
+  - wmo-climatological-normals
+  - copernicus-era5-land-timeseries
+  - munoz-sabater-2021-era5-land
+
+project_sources:
+  - poc/climat/general/INSTRUCTIONS_AGENT_CODAGE_CLIMAT_GENERAL_ZONE_V1.md
+  - poc/climat/general/climate/overview/CLIMATE_OVERVIEW_METHOD.md
+  - poc/climat/general/climate/overview/schema.py
+  - poc/climat/general/climate/overview/outputs/zone_test_utilisateur_climate-overview.json
+
+p2_decisions:
+  core_scope:
+    status: resolved
+    decision: "temperature + precipitation climatology and spatial representativity are canonical V1"
+  approximate_extremes:
+    status: resolved
+    decision: "exclude from canonical production output until true daily min/max are used"
+  downscaling:
+    status: resolved
+    decision: "none in V1"
+
+validation_blockers:
+  - exact_annual_summary_aggregation_equivalence_pending_p5
+  - real_daily_extreme_method_if_indicators_are_reintroduced
+  - interpretation_rules_pending_p3
+  - common_climate_result_contract_pending_p4
+  - golden_master_equivalence_pending_p5
