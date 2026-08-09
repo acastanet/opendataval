@@ -66,10 +66,7 @@ primary_metrics:
 reference_monthly:
   grouping: calendar_month
   period: [1991, 2020]
-  statistics:
-    - p25
-    - median
-    - p75
+  statistics: [p25, median, p75]
   percentile_method: linear
 
 study_monthly:
@@ -78,10 +75,7 @@ study_monthly:
     - [2006, 2015]
     - [2016, 2025]
   grouping: calendar_month
-  statistics:
-    - p25
-    - median
-    - p75
+  statistics: [p25, median, p75]
   percentile_method: linear
 
 soil_water_reference_position:
@@ -140,6 +134,12 @@ claims:
     - field_scale_soil_moisture_measurement
     - causal_attribution
 
+interpretation:
+  status: defined_p3
+  rules: interpretation.md
+  signal_registry: doc/climat/signals/catalogue.yaml
+  claim_level: descriptive
+
 secondary_optional_metrics:
   - runoff
   - surface_runoff
@@ -175,12 +175,8 @@ p2_decisions:
   soil_stock_semantics:
     status: resolved
     decision: "derived modelled soil-water equivalent 0-100 cm"
-    forbidden_names:
-      - reserve_utile
-      - plant_available_water
-      - observed_soil_stock
+    forbidden_names: [reserve_utile, plant_available_water, observed_soil_stock]
 
 validation_blockers:
-  - interpretation_rules_pending_p3
   - common_climate_result_contract_pending_p4
   - golden_master_equivalence_pending_p5
