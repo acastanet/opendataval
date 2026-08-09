@@ -101,6 +101,11 @@ export async function resolveTemperature(
       license: selected.station.licence,
     }
     : { id: "meteofrance-arome", provider: "Météo-France", product: "AROME via Open-Meteo", license: "Licence fournisseur" };
+  const valueCelsius = usesAdjustedStation
+    ? round(selected!.temperatureC + adjustment!.deltaCelsius)
+    : usesStation ? round(selected!.temperatureC) : currentModel!.valueCelsius;
+  const minimumC = round(Math.min(valueCelsius, currentModel?.today?.minimumC ?? valueCelsius));
+  const maximumC = round(Math.max(valueCelsius, currentModel?.today?.maximumC ?? valueCelsius));
 
   return {
     location: {
@@ -110,9 +115,7 @@ export async function resolveTemperature(
       altitudeMeters: geographyResult.altitudeMeters,
     },
     temperature: {
-      valueCelsius: usesAdjustedStation
-        ? round(selected!.temperatureC + adjustment!.deltaCelsius)
-        : usesStation ? round(selected!.temperatureC) : currentModel!.valueCelsius,
+      valueCelsius,
       nature: usesAdjustedStation ? "station_adjusted_by_model" as const : usesStation ? "station_observation" as const : "model_at_point" as const,
       referenceTime,
       retrievedAt: now.toISOString(),
@@ -120,6 +123,11 @@ export async function resolveTemperature(
       stale: selected?.stale ?? false,
       quality: selected?.stale ? "stale" as const : "good" as const,
       adjustment,
+    },
+    today: {
+      minimumC,
+      maximumC,
+      nature: currentModel?.today ? "model_forecast" as const : "current_temperature_fallback" as const,
     },
     method: { id: "meteo-v2-temperature" as const, version: "2" as const, stationSelectionPolicyVersion: "1" as const },
     stationSelection: {

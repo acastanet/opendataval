@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { getModelTemperature } from "../src/clients/weather-model-client.js";
 import { selectStationObservation } from "../src/policies/station-selection-policy.js";
 import { buildApp } from "../src/app.js";
 
@@ -8,6 +9,27 @@ const config = {
   geographyTimeoutMs: 1500, databaseTimeoutMs: 1000, weatherModelTimeoutMs: 2000, globalTimeoutMs: 2500, version: "test",
 };
 const station = { id: "a", nom: "Station", lat: 44.08, lon: 3.64, altitudeM: 366, reseau: "meteofrance" as const, licence: "Licence Ouverte 2.0" };
+
+test("demande et normalise les températures minimale et maximale du jour", async () => {
+  const model = await getModelTemperature(
+    "http://model",
+    44.081,
+    3.641,
+    2_000,
+    async (input) => {
+      const url = new URL(String(input));
+      assert.equal(url.searchParams.get("daily"), "temperature_2m_min,temperature_2m_max");
+      assert.equal(url.searchParams.get("forecast_days"), "1");
+      return new Response(JSON.stringify({
+        current: { temperature_2m: 21.26, time: 1_785_000_000 },
+        daily: { temperature_2m_min: [12.34], temperature_2m_max: [25.67] },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  );
+
+  assert.equal(model.valueCelsius, 21.3);
+  assert.deepEqual(model.today, { minimumC: 12.3, maximumC: 25.7 });
+});
 
 test("sélectionne la meilleure observation valide", () => {
   const result = selectStationObservation(
@@ -76,13 +98,46 @@ test("route retourne le fallback modèle avec request id", async () => {
     dependencies: {
       geography: async () => ({ latitude: 44.081, longitude: 3.641, altitudeMeters: null }),
       observations: async () => [],
-      model: async () => ({ valueCelsius: 22.8, referenceTime: "2026-07-23T14:00:00.000Z" }),
+      model: async () => ({
+        valueCelsius: 22.8,
+        referenceTime: "2026-07-23T14:00:00.000Z",
+        today: { minimumC: 14.2, maximumC: 27.6 },
+      }),
       now: () => new Date("2026-07-23T14:12:00.000Z"),
     },
   });
   const response = await app.inject({ url: "/internal/v1/weather/temperature?lat=44.081&lon=3.641", headers: { "x-request-id": "req-123" } });
   assert.equal(response.statusCode, 200);
   assert.equal(response.json().temperature.nature, "model_at_point");
+  assert.deepEqual(response.json().today, {
+    minimumC: 14.2,
+    maximumC: 27.6,
+    nature: "model_forecast",
+  });
   assert.equal(response.json().requestId, "req-123");
+  await app.close();
+});
+
+test("la plage du jour contient toujours la température estimée", async () => {
+  const app = buildApp({
+    config,
+    logger: false,
+    dependencies: {
+      geography: async () => ({ latitude: 44.081, longitude: 3.641, altitudeMeters: null }),
+      observations: async () => [],
+      model: async () => ({
+        valueCelsius: 29.1,
+        referenceTime: "2026-07-23T14:00:00.000Z",
+        today: { minimumC: 15, maximumC: 28 },
+      }),
+      now: () => new Date("2026-07-23T14:12:00.000Z"),
+    },
+  });
+  const response = await app.inject({ url: "/internal/v1/weather/temperature?lat=44.081&lon=3.641" });
+  assert.deepEqual(response.json().today, {
+    minimumC: 15,
+    maximumC: 29.1,
+    nature: "model_forecast",
+  });
   await app.close();
 });

@@ -3,6 +3,10 @@ import type { FetchLike } from "./geography-client.js";
 export interface ModelTemperature {
   valueCelsius: number;
   referenceTime: string;
+  today?: {
+    minimumC: number;
+    maximumC: number;
+  };
 }
 
 const MAX_MODEL_TIME_OFFSET_MS = 45 * 60 * 1_000;
@@ -51,11 +55,34 @@ export async function getModelTemperature(
 ): Promise<ModelTemperature> {
   const body = await requestModel(baseUrl, latitude, longitude, timeoutMs, fetchImpl, (url) => {
     url.searchParams.set("current", "temperature_2m");
+    url.searchParams.set("daily", "temperature_2m_min,temperature_2m_max");
+    url.searchParams.set("forecast_days", "1");
   });
   const current = body && typeof body === "object"
     ? (body as { current?: { temperature_2m?: unknown; time?: unknown } }).current
     : undefined;
-  return modelTemperature(current?.temperature_2m, current?.time);
+  const daily = body && typeof body === "object"
+    ? (body as {
+      daily?: {
+        temperature_2m_min?: unknown;
+        temperature_2m_max?: unknown;
+      };
+    }).daily
+    : undefined;
+  const result = modelTemperature(current?.temperature_2m, current?.time);
+  const minimumC = Array.isArray(daily?.temperature_2m_min)
+    ? Number(daily.temperature_2m_min[0])
+    : Number.NaN;
+  const maximumC = Array.isArray(daily?.temperature_2m_max)
+    ? Number(daily.temperature_2m_max[0])
+    : Number.NaN;
+  if (Number.isFinite(minimumC) && Number.isFinite(maximumC)) {
+    result.today = {
+      minimumC: Math.round(minimumC * 10) / 10,
+      maximumC: Math.round(maximumC * 10) / 10,
+    };
+  }
+  return result;
 }
 
 /**
