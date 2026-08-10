@@ -89,7 +89,18 @@ def read_spei3(path: Path, *, latitude: float | None = None, longitude: float | 
                     values = values.sel({lat_name: latitude}, method="nearest")
                 if longitude is not None and lon_name:
                     values = values.sel({lon_name: longitude}, method="nearest")
-                item = values.squeeze(drop=True).to_series()
+                # Chaque fichier CDS du paquet SPEI peut ne contenir qu'un
+                # seul mois. Ne jamais supprimer cette dimension temporelle :
+                # ``squeeze(drop=True)`` transformerait alors la donnée en
+                # scalaire et ferait perdre sa date au replay.
+                spatial_singletons = [
+                    dimension
+                    for dimension, size in values.sizes.items()
+                    if dimension not in {"time", "valid_time", "date"} and size == 1
+                ]
+                if spatial_singletons:
+                    values = values.squeeze(dim=spatial_singletons, drop=True)
+                item = values.to_series()
                 if not isinstance(item, pd.Series):
                     item = pd.Series([float(item)])
                 parts.append(item)

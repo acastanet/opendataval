@@ -28,6 +28,7 @@ from climate_water_service import (  # noqa: E402
     verify_snapshot_assets,
     write_snapshot_manifest,
 )
+from climate_water_service.snapshot import read_spei3  # noqa: E402
 
 
 def inputs() -> tuple[pd.DataFrame, pd.Series]:
@@ -58,6 +59,24 @@ def write_assets(raw: Path) -> tuple[pd.DataFrame, pd.Series]:
 
 
 class SnapshotReplayTest(unittest.TestCase):
+    def test_reads_a_single_month_spatial_spei_without_losing_its_time(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "spei.nc"
+            xr.Dataset(
+                {"SPEI3": (("time", "lat", "lon"), np.array([[[1.0, 2.0], [3.0, 4.0]]]))},
+                coords={
+                    "time": [pd.Timestamp("2003-07-01")],
+                    "lat": [44.0, 44.25],
+                    "lon": [3.5, 3.75],
+                },
+            ).to_netcdf(path, engine="scipy")
+
+            series = read_spei3(path, latitude=44.0, longitude=3.75)
+
+        self.assertEqual(len(series), 1)
+        self.assertEqual(series.index[0], pd.Timestamp("2003-07-01", tz="UTC"))
+        self.assertEqual(series.iloc[0], 2.0)
+
     def test_snapshot_replay_matches_direct_compute_and_schema(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             raw = Path(temporary)
