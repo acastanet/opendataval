@@ -6,8 +6,7 @@ const analyses = [
     index: "01",
     id: "overview",
     title: "Le climat de la zone",
-    question: "À quoi ressemble normalement une année climatique dans cette zone ?",
-    method: "climate-overview@1.0.0",
+    question: "À quoi ressemble normalement une année climatique ici ?",
     src: "/climat/generated/climate-overview-v1-neutral.svg",
     alt: "Climatogramme de référence : cycle mensuel des températures et précipitations.",
     eager: true,
@@ -17,25 +16,22 @@ const analyses = [
     id: "fingerprint",
     title: "L’empreinte climatique du lieu",
     question: "Qu’est-ce qui a changé entre le début et la fin des trente dernières années ?",
-    method: "climate-fingerprint@4.0.0",
     src: "/climat/generated/climate-fingerprint-v4-neutral.svg",
-    alt: "Empreinte climatique 1996–2025 : température, stress thermique, précipitations, pluies intenses, sécheresse et vent.",
+    alt: "Empreinte climatique 1996–2025 : température, stress UTCI, précipitations, pluies intenses, sécheresse et vent.",
   },
   {
     index: "03",
     id: "seasons",
     title: "Les saisons se déplacent",
     question: "Le calendrier thermique de l’année s’est-il déplacé ?",
-    method: "thermal-seasons@1.0.0",
     src: "/climat/generated/thermal-seasons-v1-neutral.svg",
-    alt: "Déplacement des saisons thermiques et évolution de leur durée.",
+    alt: "Comparaison des saisons thermiques locales entre 1996–2005 et 2016–2025.",
   },
   {
     index: "04",
     id: "water",
     title: "L’eau au fil de l’année",
-    question: "Comment le cycle hydroclimatique se répartit-il et comment a-t-il évolué ?",
-    method: "water-through-year@1.0.0",
+    question: "Qu’est-ce qui change dans le cycle hydroclimatique ?",
     src: "/climat/generated/water-through-year-v1-neutral.svg",
     alt: "Cycle annuel de l’eau : précipitations, stock d’eau du sol modélisé, évapotranspiration et SPEI-3.",
   },
@@ -48,7 +44,7 @@ const analyses = [
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Fiche climat OpenDataVal : climat habituel, empreinte climatique, déplacement des saisons et cycle de l’eau."
+      content="Fiche climat OpenDataVal : climat habituel et principaux changements climatiques d’un lieu."
     />
     <title>Fiche climat — OpenDataVal</title>
   </head>
@@ -57,51 +53,46 @@ const analyses = [
 
     <main>
       <header class="hero">
-        <div class="hero-inner">
+        <div class="page-width">
           <div class="kicker">OPEN DATA VAL · FICHE CLIMAT</div>
-          <h1>Le climat de ce lieu</h1>
-          <p class="intro">
-            Quatre lectures complémentaires pour comprendre d’abord le climat habituel,
-            puis les changements récents, le déplacement du calendrier thermique et le cycle de l’eau.
-          </p>
+          <div class="hero-grid">
+            <div>
+              <h1>Le climat de ce lieu</h1>
+              <p class="intro">
+                Une lecture courte du climat habituel et de ses principaux changements.
+              </p>
+            </div>
 
-          <dl class="context">
-            <div>
-              <dt>Point de validation</dt>
-              <dd>44.0646° N · 3.6830° E</dd>
-            </div>
-            <div>
-              <dt>Référence climatologique</dt>
-              <dd>1991–2020</dd>
-            </div>
-            <div>
-              <dt>Évolution étudiée</dt>
-              <dd>1996–2025</dd>
-            </div>
-            <div>
-              <dt>Source principale</dt>
-              <dd>Copernicus · ERA5-Land</dd>
-            </div>
-          </dl>
+            <dl class="context" aria-label="Contexte de la fiche climat">
+              <div><dt>Lieu</dt><dd>44.0646° N · 3.6830° E</dd></div>
+              <div><dt>Référence</dt><dd>1991–2020</dd></div>
+              <div><dt>Évolution</dt><dd>1996–2025</dd></div>
+              <div><dt>Données</dt><dd>Copernicus</dd></div>
+            </dl>
+          </div>
 
-          <p class="scope-note">
-            Cette première page assemble les quatre rendus issus de <code>ClimateResult</code> validés.
-            Elle ne recalcule aucune donnée climatique dans le navigateur.
-          </p>
+          <nav class="reading" aria-label="Les quatre lectures climatiques">
+            {analyses.map((analysis) => (
+              <a href={`#${analysis.id}`}>
+                <span>{analysis.index}</span>
+                <strong>{analysis.title}</strong>
+                <small>{analysis.question}</small>
+              </a>
+            ))}
+          </nav>
         </div>
       </header>
 
-      <div class="analyses">
+      <div class="analyses page-width">
         {analyses.map((analysis) => (
-          <section class={`analysis analysis-${analysis.id}`} aria-labelledby={`title-${analysis.id}`}>
-            <div class="analysis-head">
+          <section id={analysis.id} class={`analysis analysis-${analysis.id}`} aria-labelledby={`title-${analysis.id}`}>
+            <header class="analysis-head">
               <span class="analysis-index" aria-hidden="true">{analysis.index}</span>
-              <div class="analysis-copy">
+              <div>
                 <h2 id={`title-${analysis.id}`}>{analysis.title}</h2>
                 <p>{analysis.question}</p>
               </div>
-              <span class="method">{analysis.method}</span>
-            </div>
+            </header>
 
             <figure class="visual-frame">
               <img
@@ -120,18 +111,14 @@ const analyses = [
         ))}
       </div>
 
-      <footer class="footer">
-        <div>
-          <strong>Nature des données</strong>
-          <p>
-            Réanalyses climatiques maillées : elles décrivent le contexte climatique de la maille représentative,
-            pas une mesure effectuée exactement sur la parcelle.
-          </p>
-        </div>
-        <div>
-          <strong>Chaîne de preuve</strong>
-          <p>ClimateSnapshot → méthode versionnée → ClimateResult → renderer SVG.</p>
-        </div>
+      <footer class="footer page-width">
+        <p>
+          <strong>À lire comme un contexte climatique.</strong>
+          Les réanalyses Copernicus décrivent une maille climatique représentative, pas une mesure effectuée exactement sur la parcelle.
+        </p>
+        <p>
+          Référence 1991–2020 · étude 1996–2025 · calculs scientifiques versionnés dans <code>doc/climat/</code>.
+        </p>
       </footer>
     </main>
 
@@ -139,7 +126,7 @@ const analyses = [
       :root {
         color-scheme: light;
         --paper: #deddda;
-        --paper-soft: #e9e8e5;
+        --paper-soft: #e8e7e4;
         --ink: #24313a;
         --muted: #667078;
         --line: rgba(36, 49, 58, 0.18);
@@ -147,72 +134,75 @@ const analyses = [
       }
 
       * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
 
-      html {
+      body {
+        margin: 0;
         background: var(--paper);
         color: var(--ink);
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
-      body { margin: 0; background: var(--paper); }
-
-      main { min-height: 100vh; }
-
-      .hero {
-        padding: 88px 24px 46px;
-        border-bottom: 1px solid var(--line);
+      .page-width {
+        width: min(1180px, calc(100% - 48px));
+        margin-inline: auto;
       }
 
-      .hero-inner,
-      .analyses,
-      .footer {
-        width: min(1240px, calc(100% - 48px));
-        margin-inline: auto;
+      .hero {
+        padding: 72px 0 34px;
+        border-bottom: 1px solid var(--line);
       }
 
       .kicker {
         margin-bottom: 18px;
-        font-size: 0.76rem;
+        font-size: 0.72rem;
         font-weight: 760;
-        letter-spacing: 0.16em;
+        letter-spacing: 0.15em;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+        gap: 54px;
+        align-items: end;
       }
 
       h1 {
-        max-width: 880px;
         margin: 0;
-        font-size: clamp(3rem, 8vw, 7.2rem);
+        max-width: 720px;
+        font-size: clamp(2.8rem, 6.5vw, 5.8rem);
         font-weight: 760;
-        line-height: 0.91;
-        letter-spacing: -0.065em;
+        line-height: 0.94;
+        letter-spacing: -0.055em;
       }
 
       .intro {
-        max-width: 760px;
-        margin: 34px 0 0;
-        font-size: clamp(1.05rem, 2vw, 1.35rem);
-        line-height: 1.55;
+        max-width: 650px;
+        margin: 22px 0 0;
+        font-size: clamp(1rem, 1.7vw, 1.2rem);
+        line-height: 1.5;
       }
 
       .context {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 1px;
-        margin: 48px 0 0;
+        margin: 0;
         padding: 1px;
         background: var(--line);
         border: 1px solid var(--line);
       }
 
       .context div {
-        min-height: 92px;
-        padding: 18px 20px;
+        min-height: 72px;
+        padding: 14px 16px;
         background: var(--paper-soft);
       }
 
       .context dt {
-        margin-bottom: 9px;
+        margin-bottom: 6px;
         color: var(--muted);
-        font-size: 0.72rem;
+        font-size: 0.66rem;
         font-weight: 720;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -220,97 +210,114 @@ const analyses = [
 
       .context dd {
         margin: 0;
-        font-size: 1rem;
+        font-size: 0.9rem;
         font-weight: 650;
       }
 
-      .scope-note {
-        max-width: 840px;
-        margin: 20px 0 0;
-        color: var(--muted);
-        font-size: 0.85rem;
-        line-height: 1.5;
-      }
-
-      code {
-        padding: 0.12em 0.35em;
+      .reading {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1px;
+        margin-top: 34px;
+        padding: 1px;
+        background: var(--line);
         border: 1px solid var(--line);
-        border-radius: 4px;
-        background: rgba(255,255,255,0.24);
-        font-size: 0.92em;
       }
 
-      .analyses { padding: 12px 0 80px; }
+      .reading a {
+        min-height: 124px;
+        padding: 16px 18px;
+        background: var(--paper-soft);
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .reading a:hover,
+      .reading a:focus-visible { background: #f0efec; }
+
+      .reading span {
+        display: block;
+        margin-bottom: 11px;
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 760;
+        letter-spacing: 0.1em;
+      }
+
+      .reading strong {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 0.96rem;
+      }
+
+      .reading small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.78rem;
+        line-height: 1.35;
+      }
+
+      .analyses { padding-top: 8px; }
 
       .analysis {
-        padding: 64px 0 72px;
+        scroll-margin-top: 20px;
+        padding: 44px 0 52px;
         border-bottom: 1px solid var(--line);
       }
 
       .analysis-head {
         display: grid;
-        grid-template-columns: 72px minmax(0, 1fr) auto;
-        gap: 20px;
+        grid-template-columns: 54px minmax(0, 1fr);
+        gap: 16px;
         align-items: start;
-        margin-bottom: 28px;
+        margin-bottom: 20px;
       }
 
       .analysis-index {
-        padding-top: 7px;
+        padding-top: 5px;
         color: var(--muted);
-        font-size: 0.78rem;
+        font-size: 0.72rem;
         font-weight: 760;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.1em;
       }
 
-      .analysis-copy h2 {
+      .analysis h2 {
         margin: 0;
-        font-size: clamp(1.9rem, 4.2vw, 3.7rem);
+        font-size: clamp(1.55rem, 3vw, 2.6rem);
         line-height: 1;
-        letter-spacing: -0.045em;
+        letter-spacing: -0.035em;
       }
 
-      .analysis-copy p {
+      .analysis-head p {
         max-width: 760px;
-        margin: 13px 0 0;
+        margin: 8px 0 0;
         color: var(--muted);
-        font-size: 1rem;
-        line-height: 1.5;
-      }
-
-      .method {
-        padding: 7px 9px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        color: var(--muted);
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 0.68rem;
-        white-space: nowrap;
+        font-size: 0.92rem;
+        line-height: 1.45;
       }
 
       .visual-frame {
         position: relative;
         margin: 0;
         overflow: hidden;
-        border: 1px solid rgba(36, 49, 58, 0.22);
-        border-radius: 18px;
+        border: 1px solid rgba(36, 49, 58, 0.2);
+        border-radius: 10px;
         background: var(--panel);
-        box-shadow: 0 18px 44px rgba(36, 49, 58, 0.12);
+        box-shadow: 0 10px 28px rgba(36, 49, 58, 0.09);
       }
 
       .climate-visual {
         display: block;
         width: 100%;
         height: auto;
-        min-height: 280px;
         background: var(--panel);
       }
 
       .missing-message {
         display: none;
-        min-height: 320px;
+        min-height: 280px;
         margin: 0;
-        padding: 48px;
+        padding: 36px;
         place-items: center;
         color: var(--muted);
         text-align: center;
@@ -321,46 +328,42 @@ const analyses = [
 
       .footer {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 48px;
-        padding: 0 0 72px;
-      }
-
-      .footer strong {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 0.76rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 42px;
+        padding: 34px 0 64px;
+        color: var(--muted);
       }
 
       .footer p {
         margin: 0;
-        color: var(--muted);
-        font-size: 0.9rem;
+        font-size: 0.82rem;
         line-height: 1.55;
       }
 
-      @media (max-width: 820px) {
-        .hero { padding: 72px 18px 34px; }
-        .hero-inner,
-        .analyses,
-        .footer { width: min(100% - 36px, 1240px); }
-        .context { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .analysis { padding: 48px 0 54px; }
-        .analysis-head { grid-template-columns: 44px minmax(0, 1fr); }
-        .method { grid-column: 2; justify-self: start; }
-        .footer { grid-template-columns: 1fr; gap: 28px; }
-        .visual-frame { border-radius: 12px; }
+      .footer strong { color: var(--ink); }
+
+      code {
+        padding: 0.1em 0.3em;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: rgba(255,255,255,0.24);
+        font-size: 0.92em;
       }
 
-      @media (max-width: 520px) {
-        h1 { font-size: clamp(3rem, 18vw, 5rem); }
-        .context { grid-template-columns: 1fr; }
-        .analysis-head { grid-template-columns: 1fr; gap: 8px; }
-        .analysis-index, .method { grid-column: 1; }
-        .analysis-index { padding-top: 0; }
-        .analysis-copy p { margin-top: 10px; }
+      @media (max-width: 900px) {
+        .hero-grid { grid-template-columns: 1fr; gap: 28px; }
+        .context { max-width: 620px; }
+        .reading { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+
+      @media (max-width: 620px) {
+        .page-width { width: min(100% - 28px, 1180px); }
+        .hero { padding-top: 62px; }
+        .context, .reading { grid-template-columns: 1fr; }
+        .reading a { min-height: auto; }
+        .analysis { padding: 36px 0 42px; }
+        .analysis-head { grid-template-columns: 38px minmax(0, 1fr); }
+        .footer { grid-template-columns: 1fr; gap: 18px; }
       }
     </style>
   </body>
