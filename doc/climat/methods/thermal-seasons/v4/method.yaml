@@ -1,0 +1,104 @@
+schema_version: "1.0"
+id: thermal-seasons
+version: "4.0.0"
+status: candidate
+
+product:
+  title_fr: "Les saisons se déplacent"
+  question_fr: "Le calendrier thermique local s'est-il déplacé entre le début et la fin de la période ?"
+
+change_from_v3:
+  level: MAJOR
+  reason: >-
+    V3 a confirmé que le détecteur de régime principal élimine le faux
+    franchissement d'automne, mais la QA annuelle harmonic_2 / MA31 reste trop
+    instable. V4 détermine donc les saisons sur les climatologies quotidiennes
+    des deux décennies comparées, et réserve la variabilité annuelle au bootstrap.
+
+periods:
+  reference: [1991, 2020]
+  early: [1996, 2005]
+  late: [2016, 2025]
+
+input:
+  dataset_registry_id: era5-land-timeseries
+  dataset_id: reanalysis-era5-land-timeseries
+  variable: 2m_temperature
+  grid_degrees: 0.1
+  timezone: UTC
+
+preprocessing:
+  daily_aggregation: hourly_mean_utc
+  minimum_hourly_values_per_day: 18
+  leap_day: removed
+  minimum_year_coverage_fraction: 0.98
+  maximum_interpolated_gap_days: 2
+
+thresholds:
+  source_period: [1991, 2020]
+  scope: common_fixed_reference
+  climatology: daily_mean_1991_2020
+  t25_percentile: 25
+  t75_percentile: 75
+  percentile_method: linear
+  shared_between_decades: true
+  recomputed_per_decade: false
+  recomputed_per_bootstrap: false
+
+calculation:
+  scale: decadal_daily_climatology
+  decades:
+    early: [1996, 2005]
+    late: [2016, 2025]
+  smoothing:
+    canonical:
+      id: harmonic_2
+      fit: ordinary_least_squares
+      circular: true
+    independent_control:
+      id: circular_moving_average_31d
+      window_days: 31
+      centered: true
+      circular: true
+  boundary_detection:
+    id: principal_interval_containing_annual_maximum
+    t75: [summer_start, autumn_start]
+    t25: [spring_start, winter_start]
+    crossing_interpolation: linear
+  duration:
+    summer: autumn_start_minus_summer_start_on_same_decadal_curve
+  comparison: late_decadal_boundary_minus_early_decadal_boundary
+
+qa:
+  decadal_smoother_sensitivity:
+    metric: maximum_absolute_boundary_difference_harmonic_2_vs_ma31
+    scope: each_decadal_climatology
+    robust_threshold_days: 5
+    review_threshold_days: 10
+    action_5_to_10_days: partial_document
+    action_above_10_days: rejected
+  bootstrap:
+    resampling_unit: complete_year
+    replicates: 1000
+    replacement: true
+    seed: 20260810
+    canonical_smoothing: harmonic_2
+    fixed_thresholds: [T25_ref, T75_ref]
+    paired_differences: late_minus_early_per_replicate
+    output: [p05, p25, median, p75, p95, valid_replicates, invalid_replicates, invalid_reasons]
+    role: diagnostic_uncertainty_not_decadal_eligibility
+  next_year_boundary:
+    applicable: false
+    reason: V4_does_not_derive_winter_duration_from_annual_N_plus_1_boundaries
+
+publication:
+  allowed: false
+  reason: "Candidat scientifique : replay Copernicus réel et revue explicite requis."
+
+validation_blockers:
+  - replay_real_climate_snapshot
+  - verify_shared_reference_thresholds
+  - inspect_decadal_harmonic_ma31_sensitivity
+  - inspect_bootstrap_distributions_and_invalid_replicates
+  - verify_geometric_summer_length
+  - compare_five_signals_against_v1
