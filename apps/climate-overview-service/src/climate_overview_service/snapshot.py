@@ -98,7 +98,7 @@ def build_snapshot_manifest(raw_directory: Path, *, snapshot_id: str, tile_id: s
             "dataset_id": "reanalysis-era5-land-timeseries",
             "provider": "Copernicus Climate Data Store / ECMWF",
             "variables": variables[asset_id],
-            "period": {"start": "1991-01-01", "end": "2020-12-31"},
+            "period": {"start": "1991-01-01", "end": "2025-12-31"},
             "requested_spatial": {"lat": latitude, "lon": longitude},
             "represented_spatial": {"lat": grid_latitude, "lon": grid_longitude, "resolution_degrees": 0.1},
             "retrieval": {"retrieved_at": retrieved_at, "dataset_version": dataset_version, "request_parameters": dict(request_parameters)},
