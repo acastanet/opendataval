@@ -18,6 +18,7 @@ from climate_seasons_service import (  # noqa: E402
     request_parameters,
     sha256_file,
     write_snapshot_manifest,
+    write_thermal_seasons_result_svg,
 )
 
 GOLDEN = REPO_ROOT / "poc" / "climat" / "saisons" / "tests" / "fixtures" / "thermal-seasons-fixture.json"
@@ -31,7 +32,7 @@ def _now() -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Replay P6 thermal-seasons contre le golden master V1")
+    parser = argparse.ArgumentParser(description="Replay P6/P7 thermal-seasons contre le golden master V1")
     parser.add_argument("raw_directory", type=Path, help="Dossier contenant era5-land.csv")
     parser.add_argument("--retrieved-at", help="Horodatage réel CDS ; défaut : provenance du golden master")
     parser.add_argument("--work-directory", type=Path)
@@ -65,6 +66,8 @@ def main() -> int:
     result = replay_snapshot(manifest_path, generated_at=verified_at)
     result_path = work / "climate-result.json"
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    svg_path = work / "thermal-seasons-v1-neutral.svg"
+    write_thermal_seasons_result_svg(result, svg_path)
 
     status = "pass"
     error = None
@@ -80,12 +83,14 @@ def main() -> int:
         "verified_at": verified_at,
         "retrieved_at": retrieved_at,
         "numeric_tolerance": 0.0,
+        "render_variant": "v5-neutral",
         "asset": {
             "path": str(asset),
             "sha256": sha256_file(asset),
         },
         "snapshot": str(manifest_path),
         "result": str(result_path),
+        "svg": str(svg_path),
         "golden_master": str(GOLDEN),
     }
     if error:
@@ -95,6 +100,7 @@ def main() -> int:
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if status == "pass":
         print("\nPASS — thermal-seasons P6 reproduit le golden master V1 à tolérance nulle.")
+        print(f"SVG — {svg_path}")
         return 0
     print("\nFAIL — thermal-seasons P6 diffère du golden master V1.", file=sys.stderr)
     return 1
