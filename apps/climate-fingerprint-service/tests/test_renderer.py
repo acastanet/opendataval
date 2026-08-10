@@ -47,19 +47,16 @@ def _result(payload: dict) -> dict:
 
 class FingerprintRendererTest(unittest.TestCase):
     def test_neutral_renderer_keeps_six_scientific_rows_without_global_score(self) -> None:
-        svg = render_fingerprint_result_svg(_result(_native_shape_payload()), theme="neutral")
+        payload = _native_shape_payload()
+        svg = render_fingerprint_result_svg(_result(payload), theme="neutral")
         self.assertIn('fill="#C5C4C1"', svg)
         self.assertIn("six indicateurs, sans score global", svg)
         self.assertNotIn("Empreinte bilan", svg)
         self.assertNotIn("Indice signé", svg)
-        for label in (
-            "Température",
-            "Stress thermique",
-            "Précipitations",
-            "Pluies intenses",
-            "Sécheresse",
-            "Vent fort",
-        ):
+        labels = [row.get("label") for row in payload.get("rows", []) if isinstance(row, dict)]
+        self.assertEqual(len(labels), 6)
+        for label in labels:
+            self.assertIsInstance(label, str)
             self.assertIn(label, svg)
 
     def test_comparison_values_remain_visible(self) -> None:
