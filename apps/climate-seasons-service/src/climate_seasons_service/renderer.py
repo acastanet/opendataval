@@ -35,7 +35,7 @@ TRANSITION_GRADIENT = {
 }
 
 WIDTH = 1000
-HEIGHT = 286
+HEIGHT = 302
 LEFT = 80
 PLOT_WIDTH = 720
 MONTHS_TOP = 112
@@ -94,7 +94,8 @@ def render_thermal_seasons_svg(document: Mapping[str, Any]) -> str:
         'role="img" aria-labelledby="thermal-seasons-title thermal-seasons-desc">',
         '<title id="thermal-seasons-title">Les saisons thermiques se déplacent</title>',
         '<desc id="thermal-seasons-desc">Deux calendriers thermiques locaux comparés sur la même année. '
-        'Les frontières sont définies par T25 et T75 ; les zones autour des frontières montrent P25–P75.</desc>',
+        'Les frontières sont définies par T25 et T75 ; les zones autour des frontières montrent P25–P75. '
+        'Les durées sont calculées année par année avant comparaison des médianes décennales.</desc>',
         '<defs>',
         '<filter id="soft-shadow" x="-5%" y="-5%" width="110%" height="120%">',
         f'<feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="{SHADOW_COLOR}" flood-opacity="0.20"/>',
@@ -245,7 +246,10 @@ def render_thermal_seasons_svg(document: Mapping[str, Any]) -> str:
             y += 28
 
     parts.append(
-        f'<text x="{SIG_X}" y="{HEIGHT - 18}" class="signature-sub">frontières médianes · zones = P25–P75</text>'
+        f'<text x="{SIG_X}" y="{HEIGHT - 34}" class="signature-sub">frontières médianes · zones = P25–P75</text>'
+    )
+    parts.append(
+        f'<text x="{SIG_X}" y="{HEIGHT - 18}" class="signature-sub">durées calculées année par année</text>'
     )
     parts.append("</svg>")
     return "\n".join(parts)
