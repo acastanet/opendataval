@@ -34,6 +34,7 @@ Si aucune image n'est fournie, base-toi uniquement sur le log géologique.
 Réponds uniquement avec le texte de la synthèse, sans balisage ni commentaire autour.`;
 
 const MAX_CARACTERES_REPONSE = 4000;
+const TEMPERATURE_LLM = 0.3;
 
 interface ReponseChatCompletions {
   choices?: { message?: { content?: string } }[];
@@ -73,7 +74,7 @@ export function createSyntheseurLlm(config: GeologieConfig, fetchImpl: typeof fe
           },
           body: JSON.stringify({
             model: config.llmVisionModel,
-            temperature: 0,
+            temperature: TEMPERATURE_LLM,
             max_tokens: config.llmSyntheseMaxTokens,
             messages: construireMessages(requete),
           }),
