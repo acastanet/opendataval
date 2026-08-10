@@ -11,6 +11,7 @@ on:
       - "apps/climate-water-service/**"
       - "apps/web/src/pages/climat/**"
       - "apps/web/public/climat/**"
+      - "doc/climat/validations/data/thermal-seasons-v4/**"
       - ".github/workflows/climate-sheet-web.yml"
   push:
     branches:
@@ -24,6 +25,7 @@ on:
       - "apps/climate-water-service/**"
       - "apps/web/src/pages/climat/**"
       - "apps/web/public/climat/**"
+      - "doc/climat/validations/data/thermal-seasons-v4/**"
       - ".github/workflows/climate-sheet-web.yml"
 
 permissions:
@@ -56,10 +58,12 @@ jobs:
         run: |
           test -s apps/web/public/climat/generated/climate-overview-v1-neutral.svg
           test -s apps/web/public/climat/generated/climate-fingerprint-v4-neutral.svg
-          test -s apps/web/public/climat/generated/thermal-seasons-v1-neutral.svg
+          test -s apps/web/public/climat/generated/thermal-seasons-v4.json
           test -s apps/web/public/climat/generated/water-through-year-v1-neutral.svg
           test -s apps/web/public/climat/generated/climate-commentary.json
           test -s apps/web/public/climat/generated/manifest.json
+          grep -q '"version": "4.0.0"' apps/web/public/climat/generated/thermal-seasons-v4.json
+          grep -q '"asset": "thermal-seasons-v4.json"' apps/web/public/climat/generated/manifest.json
           grep -q '"commentary": "climate-commentary.json"' apps/web/public/climat/generated/manifest.json
 
       - name: Setup pnpm
