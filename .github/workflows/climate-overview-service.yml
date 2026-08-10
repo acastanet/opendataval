@@ -1,0 +1,48 @@
+name: Climate overview service
+
+on:
+  pull_request:
+    paths:
+      - "apps/climate-overview-service/**"
+      - "packages/climate-contracts/**"
+      - "doc/climat/methods/climate-overview/**"
+      - "poc/climat/general/climate/overview/**"
+      - ".github/workflows/climate-overview-service.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "apps/climate-overview-service/**"
+      - "packages/climate-contracts/**"
+      - "doc/climat/methods/climate-overview/**"
+      - "poc/climat/general/climate/overview/**"
+      - ".github/workflows/climate-overview-service.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Native climate overview P6
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/climate-overview-service/requirements-test.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r apps/climate-overview-service/requirements-test.txt
+
+      - name: Run native service tests
+        run: python -m unittest discover -s apps/climate-overview-service/tests -p "test_*.py" -v
+
+      - name: Check local replay tool
+        run: python -m py_compile apps/climate-overview-service/scripts/verify_golden_replay.py
