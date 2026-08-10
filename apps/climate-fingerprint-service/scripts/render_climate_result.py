@@ -21,16 +21,17 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         type=Path,
-        help="SVG de sortie (défaut: climate-fingerprint-v4.svg à côté du JSON)",
+        help="SVG de sortie (défaut: climate-fingerprint-v4-neutral.svg à côté du JSON)",
     )
-    parser.add_argument("--theme", choices=("light", "neutral"), default="light")
+    parser.add_argument("--theme", choices=("light", "neutral"), default="neutral")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     result = json.loads(args.input.read_text(encoding="utf-8"))
-    output = args.output or args.input.with_name("climate-fingerprint-v4.svg")
+    default_name = "climate-fingerprint-v4-neutral.svg" if args.theme == "neutral" else "climate-fingerprint-v4.svg"
+    output = args.output or args.input.with_name(default_name)
     write_fingerprint_result_svg(result, output, theme=args.theme)
     print(output)
     return 0
