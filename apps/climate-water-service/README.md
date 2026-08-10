@@ -2,7 +2,7 @@
 
 Troisième microservice scientifique natif P6 du domaine climat OpenDataVal.
 
-Méthode : `water-through-year@1.0.0` — **draft / validation P6 en cours**.
+Méthode : `water-through-year@1.0.0` — **validated**.
 
 ## Responsabilité
 
@@ -63,13 +63,15 @@ Le snapshot contient exactement deux actifs. Pour chacun il conserve : dataset, 
 
 Le replay vérifie les deux hashes **avant** de charger les NetCDF.
 
-## Validation P6
+Le lecteur SPEI préserve explicitement la dimension temporelle des fichiers mensuels unitaires après sélection spatiale. Un test de régression couvre ce cas réel détecté pendant le replay P6.
 
-Trois niveaux :
+## Validation P6 — PASS
 
-1. parité algorithmique POC ↔ natif sur les mêmes séries mensuelles ;
-2. replay d'un `ClimateSnapshot` sérialisé + contrôle SHA-256 ;
-3. replay réel des deux actifs Copernicus contre le golden master P5 à tolérance `0.0`.
+Les trois niveaux principaux sont passés :
+
+1. parité algorithmique POC ↔ natif sur les mêmes séries mensuelles — **PASS** ;
+2. replay d'un `ClimateSnapshot` sérialisé + contrôle SHA-256 — **PASS** ;
+3. replay réel des deux actifs Copernicus contre le golden master P5 — **PASS à tolérance `0.0`**.
 
 Le golden master fixe notamment :
 
@@ -81,12 +83,22 @@ valid_months                   = 420 / 420
 signal_count                   = 3
 ```
 
+Le replay réel a utilisé un `era5-land-monthly.nc` reconstitué à partir des trois fragments mensuels 1991–2025 sans modifier les originaux.
+
+L'attestation complète est conservée dans :
+
+```text
+doc/climat/validations/water-through-year-v1-p6.md
+```
+
 ## Tests
 
 ```bash
 python -m pip install -r apps/climate-water-service/requirements-test.txt
 python -m unittest discover -s apps/climate-water-service/tests -p "test_*.py" -v
 ```
+
+Suite locale validée après le correctif SPEI : **9 tests PASS**.
 
 ## Replay réel local
 
@@ -104,7 +116,7 @@ era5-land-monthly.nc
 era5-drought-spei3.nc
 ```
 
-Résultat attendu :
+Résultat validé :
 
 ```text
 PASS — water-through-year P6 reproduit le golden master V1 à tolérance nulle.
