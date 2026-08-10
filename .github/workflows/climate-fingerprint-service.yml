@@ -1,0 +1,48 @@
+name: Climate fingerprint service
+
+on:
+  pull_request:
+    paths:
+      - "apps/climate-fingerprint-service/**"
+      - "packages/climate-contracts/**"
+      - "doc/climat/methods/climate-fingerprint/**"
+      - "poc/climat/empreinte-climatique/**"
+      - ".github/workflows/climate-fingerprint-service.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "apps/climate-fingerprint-service/**"
+      - "packages/climate-contracts/**"
+      - "doc/climat/methods/climate-fingerprint/**"
+      - "poc/climat/empreinte-climatique/**"
+      - ".github/workflows/climate-fingerprint-service.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Native fingerprint P6
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/climate-fingerprint-service/requirements-test.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r apps/climate-fingerprint-service/requirements-test.txt
+
+      - name: Run native service tests
+        run: python -m unittest discover -s apps/climate-fingerprint-service/tests -p "test_*.py" -v
+
+      - name: Check local golden replay tool
+        run: python -m py_compile apps/climate-fingerprint-service/scripts/verify_golden_replay.py

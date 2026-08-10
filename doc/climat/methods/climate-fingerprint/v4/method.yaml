@@ -2,7 +2,7 @@ schema_version: "1.0"
 
 id: climate-fingerprint
 version: "4.0.0"
-status: draft
+status: validated
 
 product:
   title_fr: "L'empreinte climatique du lieu"
@@ -226,6 +226,21 @@ p5:
   ci_workflow: .github/workflows/climate-contracts.yml
   note: "Six comparaisons structurées figées ; le résumé éditorial legacy n'est pas une preuve scientifique."
 
+p6:
+  status: native_replay_passed
+  validated_at: "2026-08-10"
+  service: apps/climate-fingerprint-service
+  validation_record: doc/climat/validations/climate-fingerprint-v4-p6.md
+  ci_workflow: .github/workflows/climate-fingerprint-service.yml
+  tests_passed: 14
+  real_snapshot_replay: pass
+  golden_master_tolerance: 0.0
+  asset_integrity: sha256_verified
+  note: >-
+    Le replay natif sur six actifs Copernicus réels reproduit le payload scientifique
+    comparable du golden master P5 avec une tolérance numérique nulle. Les actifs bruts
+    restent hors Git ; le dépôt conserve le code de replay et l'attestation de validation.
+
 provenance_requirements:
   - requested_point
   - represented_grid_points
@@ -266,5 +281,4 @@ p2_decisions:
     status: resolved
     decision: opendataval_editorial_v4
 
-validation_blockers:
-  - native_service_equivalence_pending_p6
+validation_blockers: []
