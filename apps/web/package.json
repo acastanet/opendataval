@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build:climate": "python3 ../climate-sheet-service/scripts/build_static_sheet.py --keep-existing-commentary",
+    "build": "pnpm run build:climate && astro build",
     "preview": "astro preview"
   },
   "dependencies": {

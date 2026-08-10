@@ -1,7 +1,7 @@
 ---
 import fs from "node:fs";
+import path from "node:path";
 import BoutonAccueil from "../../components/BoutonAccueil.astro";
-import seasonsResult from "../../../../../doc/climat/validations/data/thermal-seasons-v4/thermal-seasons-v4-replay.json";
 
 type ClimateCommentary = {
   summary: string;
@@ -10,20 +10,23 @@ type ClimateCommentary = {
   validation: { status: string; all_findings_have_signal_evidence: boolean };
 };
 
-const readOptionalJson = <T,>(url: URL): T | null => {
-  try { return JSON.parse(fs.readFileSync(url, "utf-8")) as T; } catch { return null; }
+const webRoot = fs.existsSync(path.resolve(process.cwd(), "public"))
+  ? process.cwd()
+  : path.resolve(process.cwd(), "apps", "web");
+const generatedDir = path.resolve(webRoot, "public", "climat", "generated");
+const readOptionalJson = <T,>(filename: string): T | null => {
+  try { return JSON.parse(fs.readFileSync(path.join(generatedDir, filename), "utf-8")) as T; } catch { return null; }
 };
 
-const commentaryCandidate = readOptionalJson<ClimateCommentary>(
-  new URL("../../../public/climat/generated/climate-commentary.json", import.meta.url),
-);
+const commentaryCandidate = readOptionalJson<ClimateCommentary>("climate-commentary.json");
 const commentary = commentaryCandidate?.validation?.status === "valid"
   && commentaryCandidate.validation.all_findings_have_signal_evidence === true
     ? commentaryCandidate
     : null;
 
-if (seasonsResult?.method?.id !== "thermal-seasons" || seasonsResult?.method?.version !== "4.0.0") {
-  throw new Error("La fiche climat attend thermal-seasons@4.0.0");
+const seasonsResult = readOptionalJson<any>("thermal-seasons-v4.json");
+if (!seasonsResult || seasonsResult?.method?.id !== "thermal-seasons" || seasonsResult?.method?.version !== "4.0.0") {
+  throw new Error("La fiche climat attend l’actif assemblé thermal-seasons@4.0.0");
 }
 
 const seasons = seasonsResult.data;
