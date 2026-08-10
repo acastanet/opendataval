@@ -27,18 +27,26 @@ class RendererTest(unittest.TestCase):
         cls.data = json.loads(GOLDEN.read_text(encoding="utf-8"))
         cls.svg = render_water_through_year_svg(cls.data)
 
-    def test_renderer_uses_four_explicit_white_bands(self) -> None:
-        self.assertEqual(self.svg.count('class="band-background"'), 4)
-        self.assertEqual(self.svg.count('class="band-title"'), 4)
+    def test_renderer_uses_two_columns_four_rows_and_eight_white_bands(self) -> None:
+        self.assertEqual(self.svg.count('class="column-title"'), 2)
+        self.assertIn('>1996–2005<', self.svg)
+        self.assertIn('>2016–2025<', self.svg)
+        self.assertEqual(self.svg.count('class="band-background"'), 8)
+        self.assertEqual(self.svg.count('class="band-title"'), 8)
         for title in ("Précipitations", "Stock d’eau du sol modélisé", "Évapotranspiration", "Indice SPEI-3"):
             self.assertIn(f'>{title}<', self.svg)
 
     def test_each_band_has_a_local_semantic_legend(self) -> None:
-        self.assertEqual(self.svg.count("Médiane mensuelle"), 4)
-        self.assertEqual(self.svg.count("Intervalle P25–P75"), 4)
-        self.assertIn("Seuil sec", self.svg)
+        self.assertEqual(self.svg.count("Médiane mensuelle"), 8)
+        self.assertEqual(self.svg.count("Intervalle P25–P75"), 8)
+        self.assertEqual(self.svg.count("Seuil sec"), 2)
         self.assertNotIn("Référence 1991–2020", self.svg)
         self.assertNotIn("Décennie récente 2016–2025", self.svg)
+
+    def test_row_summaries_use_existing_comparisons(self) -> None:
+        self.assertIn("Pluie annuelle : −9,2 %", self.svg)
+        self.assertIn("Été : −11,8 mm", self.svg)
+        self.assertIn("Mois secs : −1,0 / an", self.svg)
 
     def test_climate_result_wrapper_uses_serialized_data_without_recalculation(self) -> None:
         result = {

@@ -1,7 +1,7 @@
 """Rendu SVG natif P7 de « L'eau au fil de l'année ».
 
-Le renderer ne fait que mettre en forme ``ClimateResult.data`` : aucun seuil,
-aucune série et aucune agrégation scientifique n'y sont recalculés.
+Ce module ne fait que présenter ``ClimateResult.data``. Il ne recalcule ni
+séries, ni seuils, ni agrégations scientifiques.
 """
 
 from __future__ import annotations
@@ -12,12 +12,11 @@ from typing import Any, Mapping
 
 METHOD = {"id": "water-through-year", "version": "1.0.0"}
 MONTHS = ("JAN", "FÉV", "MAR", "AVR", "MAI", "JUN", "JUL", "AOÛ", "SEP", "OCT", "NOV", "DÉC")
-WIDTH, HEIGHT = 1120, 1000
-BAND_X, BAND_WIDTH, BAND_HEIGHT = 40, 1040, 190
-PLOT_X, PLOT_WIDTH, PLOT_HEIGHT = 220, 610, 96
-CELL = PLOT_WIDTH / 11
 EARLY, LATE = "1996-2005", "2016-2025"
-EARLY_COLOR, LATE_COLOR = "#2166AC", "#B2182B"
+WIDTH, HEIGHT = 1240, 1030
+LEFT_X, RIGHT_X, COLUMN_WIDTH = 40, 660, 540
+BAND_HEIGHT, PLOT_X_OFFSET, PLOT_WIDTH, PLOT_HEIGHT = 185, 20, 320, 92
+CELL = PLOT_WIDTH / 11
 
 BANDS = (
     {
@@ -34,7 +33,7 @@ BANDS = (
         "title": "Stock d’eau du sol modélisé",
         "key": "soil_water_0_100_mm",
         "unit": "mm · 0–100 cm",
-        "summary": "Stock estival",
+        "summary": "Été",
         "comparison": "summer_soil_water_change_mm",
         "comparison_unit": "mm",
     },
@@ -43,7 +42,7 @@ BANDS = (
         "title": "Évapotranspiration",
         "key": "actual_evapotranspiration_mm",
         "unit": "mm/mois",
-        "summary": "Profil mensuel",
+        "summary": "Évapotranspiration",
         "comparison": None,
         "comparison_unit": "",
     },
@@ -54,13 +53,13 @@ BANDS = (
         "unit": "indice sans unité",
         "summary": "Mois secs",
         "comparison": "dry_months_change",
-        "comparison_unit": "mois/an",
+        "comparison_unit": "/ an",
         "threshold": -1.0,
     },
 )
 
 
-def _fmt(value: float | None, digits: int = 0) -> str:
+def _fmt(value: float | None, digits: int = 1) -> str:
     return "—" if value is None else f"{float(value):.{digits}f}".replace(".", ",")
 
 
@@ -90,120 +89,101 @@ def _y(value: float, minimum: float, maximum: float, top: float) -> float:
     return top + PLOT_HEIGHT * (1 - max(0.0, min(1.0, ratio)))
 
 
-def _points(records: list[dict], key: str, minimum: float, maximum: float, top: float) -> list[tuple[float, float]]:
+def _path(points: list[tuple[float, float]]) -> str:
+    return " ".join(f"{'M' if index == 0 else 'L'} {x:.1f} {y:.1f}" for index, (x, y) in enumerate(points))
+
+
+def _median_points(records: list[dict], key: str, minimum: float, maximum: float, x: float, top: float) -> list[tuple[float, float]]:
     return [
-        (PLOT_X + index * CELL, _y(float(record[f"{key}_median"]), minimum, maximum, top))
+        (x + index * CELL, _y(float(record[f"{key}_median"]), minimum, maximum, top))
         for index, record in enumerate(records)
         if record.get(f"{key}_median") is not None
     ]
 
 
-def _path(points: list[tuple[float, float]]) -> str:
-    return " ".join(
-        f"{'M' if index == 0 else 'L'} {x:.1f} {y:.1f}"
-        for index, (x, y) in enumerate(points)
-    )
-
-
-def _interval(records: list[dict], key: str, minimum: float, maximum: float, top: float) -> str:
+def _interval(records: list[dict], key: str, minimum: float, maximum: float, x: float, top: float) -> str:
     upper = [
-        (PLOT_X + index * CELL, _y(float(record[f"{key}_p75"]), minimum, maximum, top))
+        (x + index * CELL, _y(float(record[f"{key}_p75"]), minimum, maximum, top))
         for index, record in enumerate(records)
-        if record.get(f"{key}_p75") is not None and record.get(f"{key}_p25") is not None
+        if record.get(f"{key}_p25") is not None and record.get(f"{key}_p75") is not None
     ]
     lower = [
-        (PLOT_X + index * CELL, _y(float(record[f"{key}_p25"]), minimum, maximum, top))
+        (x + index * CELL, _y(float(record[f"{key}_p25"]), minimum, maximum, top))
         for index, record in enumerate(records)
-        if record.get(f"{key}_p75") is not None and record.get(f"{key}_p25") is not None
+        if record.get(f"{key}_p25") is not None and record.get(f"{key}_p75") is not None
     ]
-    return "" if len(upper) < 2 else f"{_path(upper)} {' '.join(f'L {x:.1f} {y:.1f}' for x, y in reversed(lower))} Z"
+    return "" if len(upper) < 2 else f"{_path(upper)} {' '.join(f'L {px:.1f} {py:.1f}' for px, py in reversed(lower))} Z"
 
 
-def _tooltip(month: str, title: str, early: dict, late: dict, key: str, unit: str) -> str:
+def _tooltip(month: str, title: str, record: dict, key: str, unit: str) -> str:
     return escape(
         f"{month.title()} · {title}\n\n"
-        f"1996–2005 : {_fmt(early.get(f'{key}_median'), 2 if key == 'spei3' else 0)} {unit}\n"
-        f"2016–2025 : {_fmt(late.get(f'{key}_median'), 2 if key == 'spei3' else 0)} {unit}\n"
-        "Les zones colorées représentent P25–P75."
+        f"Médiane : {_fmt(record.get(f'{key}_median'), 2 if key == 'spei3' else 0)} {unit}\n"
+        f"P25–P75 : {_fmt(record.get(f'{key}_p25'), 2 if key == 'spei3' else 0)}–{_fmt(record.get(f'{key}_p75'), 2 if key == 'spei3' else 0)} {unit}"
     )
 
 
-def _comparison(band: Mapping[str, Any], comparison: Mapping[str, Any]) -> str:
-    key = band.get("comparison")
-    if not key:
-        return '<text x="860" y="86" class="comparison-note">Lecture mensuelle</text>'
-    value = comparison.get(key)
-    if value is None:
-        display = "donnée insuffisante"
-    else:
-        numeric = float(value)
-        sign = "+" if numeric > 0 else "−" if numeric < 0 else ""
-        digits = 0 if abs(numeric) >= 10 else 1
-        display = f"{sign}{_fmt(abs(numeric), digits)} {band['comparison_unit']}"
-    return (
-        f'<text x="860" y="68" class="comparison-label">{escape(str(band["summary"]))}</text>'
-        f'<text x="860" y="89" class="comparison-value">{escape(display)}</text>'
-    )
-
-
-def _legend(band: Mapping[str, Any]) -> str:
+def _legend(band: Mapping[str, Any], x: float, top: float) -> str:
     parts = [
         '<g class="local-legend">',
-        '<line x1="860" y1="116" x2="883" y2="116" class="legend-early"/>',
-        '<text x="890" y="120" class="legend-text">Médiane mensuelle</text>',
-        '<rect x="860" y="130" width="23" height="9" class="legend-interval"/>',
-        '<text x="890" y="139" class="legend-text">Intervalle P25–P75</text>',
+        f'<line x1="{x:.1f}" y1="{top:.1f}" x2="{x + 23:.1f}" y2="{top:.1f}" class="legend-median"/>',
+        f'<text x="{x + 30:.1f}" y="{top + 4:.1f}" class="legend-text">Médiane mensuelle</text>',
+        f'<rect x="{x:.1f}" y="{top + 14:.1f}" width="23" height="9" class="legend-interval"/>',
+        f'<text x="{x + 30:.1f}" y="{top + 23:.1f}" class="legend-text">Intervalle P25–P75</text>',
     ]
     if band.get("threshold") is not None:
         parts.extend([
-            '<line x1="860" y1="153" x2="883" y2="153" class="legend-threshold"/>',
-            '<text x="890" y="157" class="legend-text">Seuil sec</text>',
+            f'<line x1="{x:.1f}" y1="{top + 37:.1f}" x2="{x + 23:.1f}" y2="{top + 37:.1f}" class="legend-threshold"/>',
+            f'<text x="{x + 30:.1f}" y="{top + 41:.1f}" class="legend-text">Seuil sec</text>',
         ])
     parts.append('</g>')
     return "".join(parts)
 
 
-def _band(document: dict, band: Mapping[str, Any], top: float) -> str:
+def _band(document: dict, band: Mapping[str, Any], period: str, x: float, top: float) -> str:
     key, title, unit = str(band["key"]), str(band["title"]), str(band["unit"])
-    early, late = _records(document, EARLY), _records(document, LATE)
-    plot_top = top + 54
+    records = _records(document, period)
+    plot_x, plot_top = x + PLOT_X_OFFSET, top + 57
     minimum, maximum = _scale(document, key, band.get("threshold"))
-    early_points = _points(early, key, minimum, maximum, plot_top)
-    late_points = _points(late, key, minimum, maximum, plot_top)
+    points = _median_points(records, key, minimum, maximum, plot_x, plot_top)
     parts = [
-        f'<g class="band" data-band="{escape(str(band["id"]))}">',
-        f'<rect class="band-background" x="{BAND_X}" y="{top}" width="{BAND_WIDTH}" height="{BAND_HEIGHT}"/>',
-        f'<text x="64" y="{top + 35}" class="band-title">{escape(title)}</text>',
-        f'<text x="64" y="{top + 55}" class="band-unit">{escape(unit)}</text>',
-        _comparison(band, document.get("comparison", {})),
-        _legend(band),
+        f'<g class="data-band" data-band="{escape(str(band["id"]))}" data-period="{period}">',
+        f'<rect class="band-background" x="{x}" y="{top}" width="{COLUMN_WIDTH}" height="{BAND_HEIGHT}"/>',
+        f'<text x="{x + 20}" y="{top + 32}" class="band-title">{escape(title)}</text>',
+        f'<text x="{x + 20}" y="{top + 50}" class="band-unit">{escape(unit)}</text>',
+        _legend(band, x + 365, top + 69),
     ]
     for index, month in enumerate(MONTHS):
-        x = PLOT_X + index * CELL
-        parts.append(f'<line x1="{x:.1f}" y1="{plot_top}" x2="{x:.1f}" y2="{plot_top + PLOT_HEIGHT}" class="month-guide"/>')
-        parts.append(f'<text x="{x:.1f}" y="{top + 174}" class="month" text-anchor="middle">{month}</text>')
-    parts.append(f'<line x1="{PLOT_X + PLOT_WIDTH:.1f}" y1="{plot_top}" x2="{PLOT_X + PLOT_WIDTH:.1f}" y2="{plot_top + PLOT_HEIGHT}" class="month-guide"/>')
-    threshold = band.get("threshold")
-    if threshold is not None:
-        y = _y(float(threshold), minimum, maximum, plot_top)
-        parts.append(f'<line x1="{PLOT_X}" y1="{y:.1f}" x2="{PLOT_X + PLOT_WIDTH}" y2="{y:.1f}" class="dry-threshold"/>')
-    for records, color, opacity in ((early, EARLY_COLOR, ".16"), (late, LATE_COLOR, ".12")):
-        interval = _interval(records, key, minimum, maximum, plot_top)
-        if interval:
-            parts.append(f'<path d="{interval}" fill="{color}" opacity="{opacity}"/>')
-    if early_points:
-        parts.append(f'<path d="{_path(early_points)}" class="profile-early"/>')
-    if late_points:
-        parts.append(f'<path d="{_path(late_points)}" class="profile-late"/>')
-    for index, (early_record, late_record) in enumerate(zip(early, late, strict=True)):
-        tip = _tooltip(MONTHS[index], title, early_record, late_record, key, unit)
-        parts.append(f'<rect x="{PLOT_X + index * CELL - CELL / 2:.1f}" y="{plot_top}" width="{CELL:.1f}" height="{PLOT_HEIGHT}" fill="transparent"><title>{tip}</title></rect>')
-    if early_points:
-        parts.append(f'<text x="{early_points[-1][0] + 8:.1f}" y="{early_points[-1][1] - 5:.1f}" class="period-label">1996–2005</text>')
-    if late_points:
-        parts.append(f'<text x="{late_points[-1][0] + 8:.1f}" y="{late_points[-1][1] + 11:.1f}" class="period-label">2016–2025</text>')
+        month_x = plot_x + index * CELL
+        parts.append(f'<line x1="{month_x:.1f}" y1="{plot_top}" x2="{month_x:.1f}" y2="{plot_top + PLOT_HEIGHT}" class="month-guide"/>')
+        parts.append(f'<text x="{month_x:.1f}" y="{top + 169}" class="month" text-anchor="middle">{month}</text>')
+    parts.append(f'<line x1="{plot_x + PLOT_WIDTH:.1f}" y1="{plot_top}" x2="{plot_x + PLOT_WIDTH:.1f}" y2="{plot_top + PLOT_HEIGHT}" class="month-guide"/>')
+    if band.get("threshold") is not None:
+        y = _y(float(band["threshold"]), minimum, maximum, plot_top)
+        parts.append(f'<line x1="{plot_x}" y1="{y:.1f}" x2="{plot_x + PLOT_WIDTH}" y2="{y:.1f}" class="dry-threshold"/>')
+    interval = _interval(records, key, minimum, maximum, plot_x, plot_top)
+    if interval:
+        parts.append(f'<path d="{interval}" class="profile-interval"/>')
+    if points:
+        parts.append(f'<path d="{_path(points)}" class="profile-median"/>')
+    for index, record in enumerate(records):
+        tip = _tooltip(MONTHS[index], title, record, key, unit)
+        parts.append(f'<rect x="{plot_x + index * CELL - CELL / 2:.1f}" y="{plot_top}" width="{CELL:.1f}" height="{PLOT_HEIGHT}" fill="transparent"><title>{tip}</title></rect>')
     parts.append('</g>')
     return "".join(parts)
+
+
+def _summary(band: Mapping[str, Any], comparison: Mapping[str, Any], y: float) -> str:
+    key = band.get("comparison")
+    if key is None:
+        text = "Évapotranspiration : lecture mensuelle"
+    elif comparison.get(key) is None:
+        text = f"{band['summary']} : donnée insuffisante"
+    else:
+        value = float(comparison[key])
+        sign = "+" if value > 0 else "−" if value < 0 else ""
+        text = f"{band['summary']} : {sign}{_fmt(abs(value))} {band['comparison_unit']}"
+    return f'<text x="{WIDTH / 2:.1f}" y="{y:.1f}" class="row-summary" text-anchor="middle">{escape(text)}</text>'
 
 
 def render_water_through_year_svg(document: dict) -> str:
@@ -211,15 +191,20 @@ def render_water_through_year_svg(document: dict) -> str:
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-labelledby="water-title water-desc">',
         '<title id="water-title">L’eau au fil de l’année</title>',
-        '<desc id="water-desc">Quatre bandes mensuelles : précipitations, stock d’eau du sol modélisé, évapotranspiration et indice SPEI-3.</desc>',
-        '<style>text{font-family:system-ui,-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;fill:#24313A}.title{font-size:24px;font-weight:650}.meta{font-size:12px;fill:#52616A}.band-title{font-size:16px;font-weight:650}.band-unit,.month,.legend-text,.comparison-label,.comparison-note,.period-label{font-size:10px;fill:#52616A}.comparison-value{font-size:16px;font-weight:650}.band-background{fill:#FBFAF7}.month-guide{stroke:#9DA5A4;stroke-width:.45;stroke-dasharray:1 3;opacity:.55}.profile-early,.legend-early{fill:none;stroke:#2166AC;stroke-width:2}.profile-late{fill:none;stroke:#B2182B;stroke-width:2;stroke-dasharray:5 3}.legend-interval{fill:#2166AC;opacity:.16}.dry-threshold,.legend-threshold{stroke:#9A6238;stroke-width:1.2;stroke-dasharray:3 2}</style>',
+        '<desc id="water-desc">Huit bandes mensuelles réparties en deux colonnes temporelles pour les précipitations, le stock d’eau du sol modélisé, l’évapotranspiration et le SPEI-3.</desc>',
+        '<style>text{font-family:system-ui,-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;fill:#24313A}.title{font-size:24px;font-weight:650}.meta{font-size:12px;fill:#52616A}.column-title{font-size:17px;font-weight:650}.band-title{font-size:15px;font-weight:650}.band-unit,.month,.legend-text{font-size:9px;fill:#52616A}.row-summary{font-size:12px;font-weight:650;fill:#52616A}.band-background{fill:#FBFAF7}.month-guide{stroke:#9DA5A4;stroke-width:.45;stroke-dasharray:1 3;opacity:.55}.profile-median,.legend-median{fill:none;stroke:#2166AC;stroke-width:2}.profile-interval{fill:#2166AC;opacity:.16}.legend-interval{fill:#2166AC;opacity:.16}.dry-threshold,.legend-threshold{stroke:#9A6238;stroke-width:1.2;stroke-dasharray:3 2}</style>',
         f'<rect width="{WIDTH}" height="{HEIGHT}" fill="#C5C4C1"/>',
         '<text x="40" y="42" class="title">L’eau au fil de l’année</text>',
-        '<text x="40" y="65" class="meta">Quatre lectures mensuelles du cycle de l’eau.</text>',
-        '<text x="40" y="86" class="meta">1996–2025 · ERA5-Land + ERA5-Drought</text>',
+        '<text x="40" y="65" class="meta">Chaque carte présente une donnée pour une période donnée.</text>',
+        '<text x="40" y="86" class="meta">ERA5-Land + ERA5-Drought</text>',
+        f'<text x="{LEFT_X + COLUMN_WIDTH / 2:.1f}" y="120" class="column-title" text-anchor="middle">1996–2005</text>',
+        f'<text x="{RIGHT_X + COLUMN_WIDTH / 2:.1f}" y="120" class="column-title" text-anchor="middle">2016–2025</text>',
     ]
     for index, band in enumerate(BANDS):
-        parts.append(_band(document, band, 110 + index * 210))
+        top = 140 + index * 220
+        parts.append(_band(document, band, EARLY, LEFT_X, top))
+        parts.append(_band(document, band, LATE, RIGHT_X, top))
+        parts.append(_summary(band, document.get("comparison", {}), top + 205))
     parts.append('</svg>')
     return "\n".join(parts)
 
