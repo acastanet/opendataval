@@ -7,10 +7,14 @@ from pathlib import Path
 from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_OVERVIEW = REPO_ROOT / "poc" / "climat" / "saisons" / "output" / "p6-overview-replay" / "climate-result.json"
-DEFAULT_FINGERPRINT = REPO_ROOT / "poc" / "climat" / "saisons" / "output" / "p6-replay" / "climate-result.json"
-DEFAULT_SEASONS = REPO_ROOT / "poc" / "climat" / "saisons" / "output" / "p6-seasons-replay" / "climate-result.json"
-DEFAULT_WATER = REPO_ROOT / "poc" / "climat" / "bilan eau" / "output" / "p6-water-replay" / "climate-result.json"
+
+# Fixtures suivies par Git et utilisées par les POC/golden masters. En local ou
+# en production, chaque chemin peut être remplacé par un ClimateResult P6 réel
+# via les options --overview / --fingerprint / --seasons / --water.
+DEFAULT_OVERVIEW = REPO_ROOT / "poc" / "climat" / "general" / "climate" / "overview" / "outputs" / "zone_test_utilisateur_climate-overview.json"
+DEFAULT_FINGERPRINT = REPO_ROOT / "poc" / "climat" / "empreinte-climatique" / "example" / "climate-fingerprint-v4.json"
+DEFAULT_SEASONS = REPO_ROOT / "poc" / "climat" / "saisons" / "tests" / "fixtures" / "thermal-seasons-fixture.json"
+DEFAULT_WATER = REPO_ROOT / "poc" / "climat" / "bilan eau" / "output" / "water-through-year.json"
 DEFAULT_OUTPUT = REPO_ROOT / "apps" / "web" / "public" / "climat" / "generated"
 
 EXPECTED_METHODS = {
@@ -39,23 +43,38 @@ def _load_renderer(key: str) -> ModuleType:
     return module
 
 
+def _as_climate_result(payload: dict, key: str) -> dict:
+    """Accepte un ClimateResult P6 ou enveloppe une fixture scientifique suivie par Git."""
+    expected_id, expected_version = EXPECTED_METHODS[key]
+    method = payload.get("method")
+
+    if isinstance(method, dict) and method.get("id") == expected_id:
+        if method.get("version") != expected_version:
+            raise SystemExit(
+                f"Version inattendue pour {key}: {method.get('version')} "
+                f"(attendu {expected_version})"
+            )
+        return payload
+
+    return {
+        "product": {"id": expected_id},
+        "method": {"id": expected_id, "version": expected_version},
+        "data": payload,
+    }
+
+
 def _load(path: Path, key: str) -> dict:
     if not path.is_file():
-        raise SystemExit(f"ClimateResult absent pour {key}: {path}")
-    result = json.loads(path.read_text(encoding="utf-8"))
-    method = result.get("method") or {}
-    expected_id, expected_version = EXPECTED_METHODS[key]
-    if method.get("id") != expected_id or method.get("version") != expected_version:
-        raise SystemExit(
-            f"Méthode inattendue pour {key}: {method.get('id')}@{method.get('version')} "
-            f"(attendu {expected_id}@{expected_version})"
-        )
-    return result
+        raise SystemExit(f"Entrée climat absente pour {key}: {path}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise SystemExit(f"Entrée climat invalide pour {key}: {path}")
+    return _as_climate_result(payload, key)
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Assemble les quatre ClimateResult validés en SVG statiques pour /climat/."
+        description="Assemble les quatre rendus climat statiques pour /climat/."
     )
     parser.add_argument("--overview", type=Path, default=DEFAULT_OVERVIEW)
     parser.add_argument("--fingerprint", type=Path, default=DEFAULT_FINGERPRINT)
@@ -96,7 +115,11 @@ def main() -> int:
         "schema_version": "1.0",
         "product": "climate-sheet-static",
         "analyses": [
-            {"id": key, "method": {"id": EXPECTED_METHODS[key][0], "version": EXPECTED_METHODS[key][1]}, "svg": filename}
+            {
+                "id": key,
+                "method": {"id": EXPECTED_METHODS[key][0], "version": EXPECTED_METHODS[key][1]},
+                "svg": filename,
+            }
             for key, filename in files.items()
         ],
     }
