@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   test:
-    name: Native fingerprint P6
+    name: Native fingerprint P6/P7
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -44,5 +44,7 @@ jobs:
       - name: Run native service tests
         run: python -m unittest discover -s apps/climate-fingerprint-service/tests -p "test_*.py" -v
 
-      - name: Check local golden replay tool
-        run: python -m py_compile apps/climate-fingerprint-service/scripts/verify_golden_replay.py
+      - name: Check local tools
+        run: |
+          python -m py_compile apps/climate-fingerprint-service/scripts/verify_golden_replay.py
+          python -m py_compile apps/climate-fingerprint-service/scripts/render_climate_result.py
