@@ -73,7 +73,14 @@ jobs:
           grep -q '"version": "4.0.0"' apps/web/public/climat/generated/thermal-seasons-v4.json
           grep -q '"asset": "thermal-seasons-v4.json"' apps/web/public/climat/generated/manifest.json
           grep -q '"commentary": "climate-commentary.json"' apps/web/public/climat/generated/manifest.json
-          grep -q '"id": "thermal-seasons", "version": "4.0.0"' apps/web/public/climat/generated/climate-commentary.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("apps/web/public/climat/generated/climate-commentary.json").read_text())
+          refs = {(item["id"], item["version"]) for item in data["method_refs"]}
+          assert ("thermal-seasons", "4.0.0") in refs
+          assert ("thermal-seasons", "1.0.0") not in refs
+          PY
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
