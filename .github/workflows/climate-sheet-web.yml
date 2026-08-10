@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "apps/climate-sheet-service/**"
+      - "apps/climate-commentary-service/**"
       - "apps/climate-overview-service/**"
       - "apps/climate-fingerprint-service/**"
       - "apps/climate-seasons-service/**"
@@ -16,6 +17,7 @@ on:
       - master
     paths:
       - "apps/climate-sheet-service/**"
+      - "apps/climate-commentary-service/**"
       - "apps/climate-overview-service/**"
       - "apps/climate-fingerprint-service/**"
       - "apps/climate-seasons-service/**"
@@ -45,8 +47,10 @@ jobs:
       - name: Check climate sheet assembler
         run: python -m py_compile apps/climate-sheet-service/scripts/build_static_sheet.py
 
-      - name: Generate the four climate SVGs
-        run: python apps/climate-sheet-service/scripts/build_static_sheet.py
+      - name: Generate climate sheet with validated commentary
+        run: |
+          python apps/climate-sheet-service/scripts/build_static_sheet.py \
+            --commentary apps/climate-commentary-service/tests/fixtures/sheet-commentary.golden.json
 
       - name: Verify generated sheet assets
         run: |
@@ -54,7 +58,9 @@ jobs:
           test -s apps/web/public/climat/generated/climate-fingerprint-v4-neutral.svg
           test -s apps/web/public/climat/generated/thermal-seasons-v1-neutral.svg
           test -s apps/web/public/climat/generated/water-through-year-v1-neutral.svg
+          test -s apps/web/public/climat/generated/climate-commentary.json
           test -s apps/web/public/climat/generated/manifest.json
+          grep -q '"commentary": "climate-commentary.json"' apps/web/public/climat/generated/manifest.json
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
