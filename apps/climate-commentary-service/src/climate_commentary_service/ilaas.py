@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 
 DEFAULT_ILAAS_URL = "https://llm.ilaas.fr/v1/chat/completions"
 DEFAULT_MODEL = "mistral-medium-latest"
+DEFAULT_TEMPERATURE = 0.3
 
 
 class IlaasError(RuntimeError):
@@ -96,8 +97,8 @@ def create_ilaas_generator(
 ) -> Callable[[list[dict[str, str]]], dict[str, Any]]:
     """Construit le générateur injecté dans climate-commentary-service.
 
-    Les paramètres réseau et le modèle sont exactement ceux de la synthèse
-    géologique BRGM : ILAAS, mistral-medium-latest par défaut, température 0.
+    Les paramètres réseau et le modèle sont ceux de la synthèse géologique
+    BRGM : ILAAS, mistral-medium-latest par défaut, température 0.3.
     """
 
     def generate(messages: list[dict[str, str]]) -> dict[str, Any]:
@@ -111,7 +112,7 @@ def create_ilaas_generator(
             data=json.dumps(
                 {
                     "model": config.model,
-                    "temperature": 0,
+                    "temperature": DEFAULT_TEMPERATURE,
                     "max_tokens": config.max_tokens,
                     "messages": messages,
                 },
