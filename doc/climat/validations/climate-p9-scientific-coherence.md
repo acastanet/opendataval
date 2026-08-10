@@ -1,96 +1,73 @@
 # P9 — Audit de cohérence scientifique avant publication
 
 Date : 2026-08-10  
-Statut : **audit implémenté ; correctifs séparés par niveau de versionnement**.
+Statut : **audit exécuté ; corrections séparées par version ; thermal-seasons V1 non gelable en l'état**.
 
-## Périmètre
+## 1. Précipitations : moyenne et médiane, pas bug d'unité
 
-Cet audit traite les incohérences et fragilités apparues lors de la lecture croisée des quatre méthodes, de leurs golden masters et de leurs renderers. Il ne modifie pas silencieusement les méthodes validées.
+Sur les mêmes cumuls annuels du golden master `climate-fingerprint@4.0.0` :
 
-## 1. Précipitations — cause reproduite
+| statistique | 1996–2005 | 2016–2025 | écart |
+| --- | ---: | ---: | ---: |
+| moyenne | 1375,9 mm | 1307,1 mm | −5,0 % |
+| médiane | 1330,5 mm | 1207,8 mm | −9,2 % |
 
-Le golden master `climate-fingerprint@4.0.0` fournit les cumuls annuels 1996–2025. Sur exactement ces valeurs :
+Le `−5 %` de l'empreinte et le `−9,19 %` du module eau sont donc exacts mais ne portent pas la même statistique décennale. Le test `test_p9_precipitation_coherence.py` reproduit cette différence.
 
-- moyenne 1996–2005 : `1375,937 mm` ;
-- moyenne 2016–2025 : `1307,129 mm` ;
-- écart relatif des moyennes : `-5,0008 %` ;
-- médiane 1996–2005 : `1330,51 mm` ;
-- médiane 2016–2025 : `1207,75 mm` ;
-- écart relatif des médianes : `-9,2265 %`.
+La conversion ERA5-Land `moda` du module eau reste conforme à sa méthode : `value × 1000 × days_in_month`.
 
-Le `-5 %` de l'empreinte et le `-9,19 %` du module eau sont donc deux statistiques exactes appliquées aux mêmes données : **moyenne décennale** contre **médiane décennale**. L'écart n'est pas une erreur d'unité.
+### Décision
 
-Le code `water-through-year` applique explicitement la sémantique ERA5-Land `moda` documentée dans `method.yaml` : accumulation moyenne journalière mensuelle convertie en cumul mensuel par `value × 1000 × days_in_month`.
+`03-COMMON-CONTRACT.md` doit rendre explicite la statistique de toute comparaison de période (`mean`, `median`, etc.). Changer une statistique qui modifie une valeur publiée est un changement scientifique versionné ; il est interdit d'unifier silencieusement les deux valeurs.
 
-### Défaut de contrat
+### Non-additivité du panneau eau
 
-`03-COMMON-CONTRACT.md` n'impose actuellement ni statistique décennale commune, ni champ explicite décrivant cette statistique dans `ClimateSignal`.
-
-Décision P9 : **ne pas forcer rétroactivement une statistique unique dans les méthodes validées**. Le contrat commun doit rendre la statistique explicite (`mean`, `median`, etc.) pour toute comparaison de période. Un changement de statistique qui modifie une valeur publiée doit être versionné comme changement scientifique.
-
-### Second écart interne au panneau eau
-
-La somme des douze différences de médianes mensuelles n'est pas égale à la différence des médianes de sommes annuelles :
+La bande mensuelle montre :
 
 ```text
-sum(median_late_month - median_early_month)
-!=
-median(sum_late_year) - median(sum_early_year)
+median_late_month - median_early_month
 ```
 
-Le lecteur ne doit donc pas pouvoir interpréter la bande mensuelle comme une décomposition additive de l'encart annuel. La restitution doit soit expliciter cette non-additivité, soit utiliser une statistique additive cohérente avec l'encart.
-
-Le test `test_p9_precipitation_coherence.py` verrouille la cause moyenne/médiane afin qu'une future divergence ne soit pas diagnostiquée à tort comme une erreur d'unité.
-
-## 2. Durée de l'été thermique — calcul cohérent, libellé incomplet
-
-Dans `thermal-seasons@1.0.0` :
-
-- chaque frontière annuelle est calculée sur l'année concernée ;
-- `summer_length_days = autumn_start - summer_start` est calculé année par année ;
-- les frontières décennales affichées sont des médianes de dates ;
-- le changement de durée est une différence entre médianes des durées annuelles.
-
-Il n'existe donc pas d'identité imposant :
+alors que l'encart annuel montre :
 
 ```text
-écart de durée = écart médian de fin - écart médian de début
+median(annual_sum_late) - median(annual_sum_early)
 ```
 
-`18 + 15 = 33` et `+29 j` peuvent coexister sans erreur de calcul.
-
-Décision P9 : la publication doit porter la mention **« Durées calculées année par année. »**
-
-## 3. SPEI-3 — signe correct, résolution insuffisante pour un message fort
-
-La méthode eau définit un mois sec par `SPEI-3 < -1,0`, compte les mois par année complète, puis compare les médianes des dix comptes annuels.
-
-Une valeur négative de `dry_months_change` signifie correctement moins de mois sous le seuil dans la décennie récente. Une baisse de médianes SPEI mensuelles n'implique pas mathématiquement davantage de franchissements sous `-1`.
-
-Le test `test_p9_spei_semantics.py` verrouille ce point.
-
-### Fragilité statistique
-
-Le signal public reste toutefois fragile : chaque compte annuel est entier et la médiane de dix valeurs évolue par pas de `0,5`. Une modification de quelques années autour du centre de distribution peut déplacer le résultat d'un mois entier.
-
-Décision P9 : avant de publier `1,0 mois de moins/an` comme message principal, afficher et auditer la distribution des dix comptes annuels de chaque décennie. Jusqu'à cette vérification, SPEI reste un indicateur technique et non un constat principal du commentaire IA.
-
-## 4. Sensibilité du lissage des saisons
-
-La V1 utilise un polynôme de degré 3. P9 ajoute, sans modifier la méthode canonique, deux lissages d'audit :
-
-- ajustement harmonique circulaire à deux harmoniques ;
-- moyenne mobile circulaire centrée de 31 jours.
-
-Le module `climate_seasons_service.sensitivity` compare :
+Donc :
 
 ```text
-polynomial_degree_3
-harmonic_2
-moving_average_31d
+sum(monthly_median_differences) != difference_of_annual_medians
 ```
 
-Le script :
+Le renderer doit l'expliciter ou utiliser une statistique additive cohérente.
+
+## 2. Saisons : durée cohérente, mais lissage V1 fragile
+
+La différence `18 j plus tôt + 15 j plus tard` versus `+29 j` n'est pas une erreur : les durées sont calculées année par année puis résumées par médiane. La publication doit préciser : **« Durées calculées année par année. »**
+
+### Test de sensibilité P9
+
+P9 compare trois lissages sur les mêmes seuils T25/T75 :
+
+```text
+polynomial_degree_3   # méthode V1
+harmonic_2            # audit circulaire
+moving_average_31d    # audit circulaire
+```
+
+Sur un cycle saisonnier sinusoïdal propre, sans bruit :
+
+- les deux lissages circulaires restent à moins de 3 jours l'un de l'autre ;
+- le polynôme de degré 3 produit un écart maximal d'environ **24,2 jours**.
+
+Le test ne doit donc pas attendre que les trois méthodes coïncident : il verrouille au contraire cette sensibilité structurelle.
+
+### Décision
+
+Le replay Copernicus réel reste nécessaire pour quantifier l'effet sur le lieu de validation, mais **thermal-seasons@1.0.0 ne peut plus être considéré robuste au choix de lissage sur la seule base du golden replay**. Si le replay réel confirme un écart matériel, la correction appartient à `thermal-seasons@2.x`.
+
+Le script d'audit est :
 
 ```bash
 python apps/climate-seasons-service/scripts/audit_smoothing_sensitivity.py \
@@ -98,114 +75,65 @@ python apps/climate-seasons-service/scripts/audit_smoothing_sensitivity.py \
   --output smoothing-sensitivity.json
 ```
 
-utilise le snapshot réel et son hash ; il ne télécharge aucune donnée.
+## 3. SPEI-3 : signe correct, résolution trop grossière pour un message principal
 
-Barème d'audit :
+Le service compte par année les mois `SPEI-3 < -1`, puis compare les médianes des dix comptes annuels. Une valeur négative signifie correctement moins de mois sous le seuil.
 
-- écart maximal `<= 3 jours` : robuste ;
-- `> 3 et <= 10 jours` : revue scientifique + caveat ;
-- `> 10 jours` : sensibilité majeure, révision de méthode avant publication.
+Le test `test_p9_spei_semantics.py` montre qu'une baisse des médianes mensuelles peut coexister avec moins de franchissements sous `-1`.
 
-La CI contrôle les trois lissages sur un cycle saisonnier synthétique. Le replay Copernicus réel reste requis avant gel final.
+Cependant les comptes annuels sont entiers et la médiane de dix valeurs évolue par pas de `0,5`. Quelques années autour du centre de la distribution peuvent déplacer le résultat d'un mois entier.
 
-## 5. Fragilités de code confirmées
+### Décision
 
-### 5.1 Rang des ex aequo
+Avant de publier `1,0 mois de moins/an`, examiner les dix comptes de chaque décennie. Jusqu'alors, SPEI reste une lecture technique et ne doit pas être un constat principal du commentaire IA.
 
-`climate-fingerprint-service._rank` utilise `ordered.index(value) + 1`. Plusieurs valeurs identiques reçoivent donc le même rang de compétition et certains rangs disparaissent sans que cette convention soit documentée.
+## 4. Fragilités de code confirmées
 
-Décision : définir explicitement une règle d'ex aequo et la tester. Une correction purement technique ne doit pas modifier les métriques scientifiques elles-mêmes.
+### Fingerprint
 
-### 5.2 `fit_rmse_c` non utilisé par la QA
+- `_rank` utilise `ordered.index(value) + 1` : politique d'ex aequo implicite ; définir et tester une convention.
+- `_comparison` sérialise `display` et `qualifier` : formatage éditorial dans la couche scientifique ; conserver les nombres et des identifiants symboliques seulement.
+- `_selected_events` limite à huit événements et deux par famille : quota éditorial dans la couche scientifique ; émettre les candidats, sélectionner ailleurs.
+- le renderer calcule une pseudo-normalisation à partir de P10/P50/P90 puis affiche `−3 σ / +3 σ` sans σ scientifique : violation de `04-SCIENTIFIC-GOVERNANCE.md §14`.
+- le percentile plafonne à P100 et la classe >P90 sature : garder le percentile comme rang, mais ne pas l'utiliser seul pour représenter l'intensité hors référence.
+- le vent est calculé dans le bon ordre (`sqrt(u²+v²)` horaire → maximum journalier → P98) mais n'est pas une rafale ; libellé public : **vent horaire ERA5-Land**.
+- l'agrégation journalière UTC est reproductible mais peut décaler les événements proches de minuit par rapport au jour civil français ; caveat requis.
+- provenance et représentativité doivent provenir du `ClimateSnapshot`, pas être reconstituées arbitrairement par l'adaptateur.
 
-Le RMSE du lissage thermique est calculé et sérialisé mais `qa_annual` ne le reçoit pas. Une année mal ajustée peut être marquée `ok`.
+### Thermal seasons
 
-Décision : ajouter une règle QA versionnée fondée sur un seuil documenté et exposer la distribution des RMSE. Comme cette règle peut rendre des années auparavant valides partielles/invalides et modifier les comparaisons, elle ne doit pas être introduite comme simple PATCH scientifique.
+- `fit_rmse_c` est calculé mais n'entre pas dans `qa_annual` ; une règle RMSE qui invalide des années peut modifier les résultats et doit être versionnée scientifiquement.
+- les franchissements N+1 utilisés pour certaines durées ne passent pas leur propre QA avant emploi ; tester l'impact avant classement de version.
 
-### 5.3 Franchissements N+1 non validés
+### Climate overview
 
-La durée d'hiver d'une année dépend du printemps de N+1. Les franchissements N+1 sont actuellement calculés sans passer par `qa_annual` avant utilisation.
+- une référence mensuelle différente de 30/30 lève une exception : aucun vrai chemin `partial` ; définir `partial/insufficient` avant gel final.
+- les politiques de complétude diffèrent entre méthodes ; elles peuvent rester spécifiques mais doivent être exposées explicitement dans `ClimateResult.quality`.
+- la V1 sérialise une seule cellule de poids 1,0 tout en annonçant `area_weighted` ; ne pas promettre Polygon/MultiPolygon tant que l'agrégation multi-cellules n'est pas effectivement exécutée.
 
-Décision : aucune durée dépendante d'une frontière N+1 ne doit utiliser une frontière que sa propre QA aurait rejetée. Ce changement peut affecter les valeurs de référence et doit être testé avant choix du niveau de version.
+## 5. Versionnement décidé
 
-### 5.4 Pseudo-σ calculé dans le renderer fingerprint
+Les changements doivent rester dans des PR distinctes :
 
-Le renderer calcule une position robuste à partir de P10/P50/P90 puis affiche une légende `−3 σ / +3 σ`. Aucun σ n'est produit par la méthode scientifique. Le renderer crée donc une normalisation quantitative non présente dans `ClimateResult`, en contradiction avec `04-SCIENTIFIC-GOVERNANCE.md §14`.
+1. **P9 audit** — tests et preuves uniquement ; aucun golden master modifié.
+2. **PATCH restitution** — libellés, séparateurs français, suppression du pseudo-σ, clarification eau/saisons ; aucune valeur scientifique modifiée.
+3. **Évolution compatible de contrat** — statistique de comparaison et politique de complétude explicites dans les métadonnées communes.
+4. **MAJOR scientifique** — changement de statistique, de classification, de lissage ou de QA susceptible de modifier les valeurs validées.
+5. **Refactor scientifique/éditorial séparé** — retrait de `display`, `qualifier` et de la sélection éditoriale d'événements hors du calcul, avec vérification de l'impact sur les golden masters.
 
-Décision : supprimer cette normalisation du renderer V4 avant publication. Une nouvelle coloration fondée sur une métrique scientifique explicite devra être calculée par une méthode versionnée ou documentée comme transformation visuelle strictement déterminée à partir d'une valeur déjà fournie, sans nouvelle sémantique scientifique.
+## 6. Statut avant phase finale
 
-### 5.5 Saturation des percentiles
-
-Le percentile empirique plafonne à `100` au-delà du maximum de référence et la classe supérieure regroupe tout ce qui dépasse P90. Plusieurs années chaudes récentes deviennent visuellement indiscernables.
-
-Décision : garder le percentile comme information de rang, mais ne pas l'utiliser seul pour représenter l'intensité au-delà de la référence. Un changement de classification scientifique est MAJOR ; un changement de rendu doit rester traçable et ne pas recalculer de normalisation dans le renderer.
-
-### 5.6 Formatage éditorial dans le calcul fingerprint
-
-`_comparison` sérialise actuellement `display` et `qualifier`. Ces chaînes mélangent résultat scientifique et restitution éditoriale.
-
-Décision : le payload scientifique doit conserver les nombres et, si nécessaire, des identifiants symboliques (`qualifier_id`). La chaîne localisée et le séparateur décimal relèvent du render kit.
-
-### 5.7 Sélection éditoriale d'événements dans le calcul
-
-`_selected_events` limite à huit événements et deux par famille. Ce quota est éditorial.
-
-Décision : la couche scientifique doit produire les candidats calculés avec leur sévérité ; une couche de sélection distincte choisit ce qui est affiché. Si le golden master scientifique change, versionner explicitement la méthode ou le format de sortie selon l'impact.
-
-### 5.8 `climate-overview` et résultats partiels
-
-Le calcul overview lève une exception dès qu'un mois de référence n'a pas 30 valeurs, tandis que la gouvernance commune prévoit des statuts de qualité partiels. Il ne peut donc pas représenter une référence partiellement exploitable.
-
-Décision : définir une vraie politique `partial/insufficient` avant gel final, avec règle de complétude documentée.
-
-### 5.9 Politiques de complétude non harmonisées
-
-Les méthodes utilisent des règles différentes (90 % journalier, 12 mois complets, 30 années mensuelles, etc.). Ces règles peuvent rester spécifiques, mais `ClimateResult.quality` doit exposer sans ambiguïté la politique appliquée.
-
-### 5.10 Provenance et représentativité fingerprint
-
-Le cœur `compute_fingerprint_data` ne reçoit ni point de grille, ni version de dataset, ni dates de récupération/génération. L'enveloppe `ClimateResult` doit garantir que ces métadonnées viennent du `ClimateSnapshot`, pas d'une valeur fabriquée par l'adaptateur.
-
-### 5.11 Journée UTC
-
-L'agrégation journalière est cohérente en UTC. Pour la France, les maxima proches de minuit peuvent différer d'une journée civile locale. Décision : conserver UTC pour la reproductibilité V1, mais ajouter un caveat explicite aux métriques quotidiennes sensibles.
-
-### 5.12 Vent
-
-L'ordre des opérations est correct : norme `sqrt(u²+v²)` au pas horaire, puis maximum journalier, puis seuil P98 de référence. La grandeur n'est toutefois pas une rafale.
-
-Décision : libellé public **« Vent fort — vitesse horaire ERA5-Land »** ou formulation équivalente, jamais « rafale » ou « tempête ».
-
-### 5.13 Multi-cellules overview
-
-La V1 implémentée sérialise une seule cellule de poids `1.0` tout en annonçant `spatial_weighting: area_weighted`. La documentation générale ne doit pas laisser entendre qu'une vraie agrégation Polygon/MultiPolygon est déjà exécutée par ce chemin de code.
-
-## 6. Versionnement décidé
-
-Les corrections sont séparées :
-
-1. **P9 audit** : tests, preuves et documentation uniquement ; aucune valeur scientifique modifiée.
-2. **PATCH de restitution/structure** : libellés, suppression de pseudo-σ dans le renderer, formatage localisé hors calcul lorsque cela ne change pas les valeurs scientifiques.
-3. **Évolution de contrat compatible** : exposer explicitement la statistique de comparaison et les politiques de complétude dans les métadonnées communes.
-4. **MAJOR scientifique** : tout changement de statistique décennale, de classification, de QA RMSE ou de règle susceptible de modifier les valeurs validées/golden masters.
-
-Les étapes 2 à 4 doivent être réalisées dans des PR distinctes.
-
-## 7. Statut de sortie P9
-
-| Contrôle | Résultat | Décision |
+| Contrôle | Résultat | Statut |
 | --- | --- | --- |
-| Précipitations | moyenne vs médiane reproduit exactement l'écart | défaut de contrat ; ne pas unifier silencieusement |
-| Bande eau vs encart annuel | non-additivité des médianes | note/encodage à corriger avant publication |
-| Durée saisons | calcul cohérent année par année | ajouter la mention explicative |
-| SPEI | signe correct, résolution grossière | distribution décennale à auditer avant message principal |
-| Lissage saisons | outil d'audit ajouté | replay réel requis |
-| Rang fingerprint | convention d'ex aequo implicite | corriger/documenter |
-| QA saisons | RMSE et N+1 insuffisamment branchés | évolution scientifique séparée |
-| Renderer fingerprint | normalisation pseudo-σ confirmée | correction bloquante avant publication |
-| Overview partial | état partiel non représentable | politique de qualité à définir |
-| Provenance fingerprint | dépend trop de l'adaptateur | compléter avant gel final |
+| pluie −5 / −9,2 | moyenne vs médiane démontré | contrat à expliciter |
+| pluie mensuelle / annuelle | non-additivité démontrée | renderer à clarifier |
+| durée été | calcul cohérent année par année | renderer à clarifier |
+| SPEI | signe correct, faible résolution | ne pas mettre en avant |
+| lissage saisons | ~24,2 j sur cycle propre | **bloquant scientifique** |
+| pseudo-σ fingerprint | calculé dans renderer | **bloquant restitution** |
+| rank ex aequo | convention implicite | correction/documentation |
+| QA RMSE / N+1 | insuffisante | évolution scientifique séparée |
+| overview partial | non représentable | contrat qualité à compléter |
+| provenance fingerprint | dépend de l'adaptateur | à compléter avant gel |
 
-## 8. Ce que P9 ne change pas
-
-P9 ne modifie pas les `ClimateResult` validés, les golden masters, les seuils T25/T75, le calcul SPEI-3, la conversion ERA5-Land ou le niveau de preuve `descriptive`. Il transforme les alertes en contrôles et en décisions versionnées.
+P9 ne modifie pas les valeurs de référence. Il transforme les alertes en preuves et fixe les frontières entre PATCH, contrat compatible et MAJOR scientifique.
