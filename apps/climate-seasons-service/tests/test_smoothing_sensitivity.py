@@ -35,14 +35,24 @@ class SmoothingSensitivityTest(unittest.TestCase):
         self.assertTrue(np.isfinite(harmonic).all())
         self.assertTrue(np.isfinite(moving).all())
 
-    def test_clean_seasonal_cycle_is_not_sensitive_to_smoother_choice(self) -> None:
+    def test_clean_cycle_exposes_material_polynomial_sensitivity(self) -> None:
         values = annual_cycle()
         t25, t75 = compute_thresholds(values)
         crossings = crossing_sensitivity(values, t25, t75)
         self.assertTrue(all(item is not None for item in crossings.values()))
-        spread = max_crossing_spread_days(crossings)
-        self.assertIsNotNone(spread)
-        self.assertLess(float(spread), 3.0)
+
+        overall_spread = max_crossing_spread_days(crossings)
+        self.assertIsNotNone(overall_spread)
+        # Le polynôme de degré 3 n'est pas circulaire et s'écarte fortement des
+        # deux lissages circulaires, même sur un cycle sinusoïdal sans bruit.
+        self.assertGreater(float(overall_spread), 10.0)
+
+        circular_spread = max_crossing_spread_days({
+            "harmonic_2": crossings["harmonic_2"],
+            "moving_average_31d": crossings["moving_average_31d"],
+        })
+        self.assertIsNotNone(circular_spread)
+        self.assertLess(float(circular_spread), 3.0)
 
     def test_invalid_even_moving_window_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
