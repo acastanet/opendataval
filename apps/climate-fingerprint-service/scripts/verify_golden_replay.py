@@ -71,6 +71,7 @@ def verify(raw_directory: Path, *, retrieved_at: str, work_directory: Path) -> d
 
     metadata_path = work_directory / "acquisition-metadata.json"
     result_path = work_directory / "climate-result.json"
+    svg_path = work_directory / "climate-fingerprint-v4.svg"
     report_path = work_directory / "golden-replay-report.json"
     snapshot_path = raw_directory / "climate-snapshot.json"
 
@@ -113,10 +114,14 @@ def verify(raw_directory: Path, *, retrieved_at: str, work_directory: Path) -> d
 
     if str(SERVICE_SRC) not in sys.path:
         sys.path.insert(0, str(SERVICE_SRC))
-    from climate_fingerprint_service import assert_fingerprint_equivalent
+    from climate_fingerprint_service import (
+        assert_fingerprint_equivalent,
+        write_fingerprint_result_svg,
+    )
 
     result = json.loads(result_path.read_text(encoding="utf-8"))
     golden = json.loads(GOLDEN_MASTER.read_text(encoding="utf-8"))
+    write_fingerprint_result_svg(result, svg_path)
 
     status = "pass"
     error: str | None = None
@@ -135,6 +140,7 @@ def verify(raw_directory: Path, *, retrieved_at: str, work_directory: Path) -> d
         "raw_directory": str(raw_directory),
         "snapshot": str(snapshot_path),
         "result": str(result_path),
+        "svg": str(svg_path),
         "golden_master": str(GOLDEN_MASTER),
         "numeric_tolerance": 0.0,
         "assets": [
@@ -155,7 +161,7 @@ def verify(raw_directory: Path, *, retrieved_at: str, work_directory: Path) -> d
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Construit un ClimateSnapshot local et vérifie le replay P6 contre le golden master V4."
+        description="Construit un ClimateSnapshot local, vérifie P6 et produit le SVG V4."
     )
     parser.add_argument("raw_directory", type=Path, help="Dossier contenant les six fichiers téléchargés")
     parser.add_argument(
@@ -179,6 +185,7 @@ def main() -> int:
         print("\nFAIL — le recalcul P6 diffère du golden master V4.", file=sys.stderr)
         return 1
     print("\nPASS — le recalcul P6 reproduit le golden master V4 à tolérance nulle.")
+    print(f"SVG — {report['svg']}")
     return 0
 
 
