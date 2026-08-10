@@ -30,18 +30,27 @@ class RendererTest(unittest.TestCase):
     def test_renderer_uses_four_main_bands_and_four_delta_strips(self) -> None:
         self.assertEqual(self.svg.count('class="band-background"'), 4)
         self.assertEqual(self.svg.count('class="delta-strip"'), 4)
+        self.assertEqual(self.svg.count('class="delta-zero"'), 4)
+        self.assertEqual(self.svg.count('class="delta-value"'), 48)
         self.assertEqual(self.svg.count('class="month"'), 48)
         self.assertEqual(self.svg.count('class="band-title"'), 4)
         for title in ("Précipitations", "Stock d’eau du sol modélisé", "Évapotranspiration", "Indice SPEI-3"):
             self.assertIn(f'>{title}<', self.svg)
 
     def test_each_band_has_a_local_semantic_legend(self) -> None:
-        self.assertEqual(self.svg.count("Médiane mensuelle"), 4)
+        self.assertEqual(self.svg.count("1996–2005 · médiane mensuelle"), 4)
+        self.assertEqual(self.svg.count("2016–2025 · médiane mensuelle"), 4)
         self.assertEqual(self.svg.count("Intervalle P25–P75"), 4)
         self.assertEqual(self.svg.count("Écart entre les deux décennies"), 4)
         self.assertEqual(self.svg.count("Seuil sec"), 1)
         self.assertNotIn("Référence 1991–2020", self.svg)
         self.assertNotIn("Décennie récente 2016–2025", self.svg)
+
+    def test_renderer_uses_descriptive_language_and_explains_spei_threshold(self) -> None:
+        self.assertIn("Le cycle saisonnier domine ; les écarts entre décennies sont localisés.", self.svg)
+        self.assertIn("seuil des mois secs retenu : SPEI-3 &lt; −1", self.svg)
+        for forbidden in ("tendance", "significatif", "dégradation", "assèchement"):
+            self.assertNotIn(forbidden, self.svg.lower())
 
     def test_row_summaries_use_existing_comparisons(self) -> None:
         comparison = self.data["comparison"]
@@ -49,9 +58,9 @@ class RendererTest(unittest.TestCase):
         self.assertEqual(comparison["summer_soil_water_change_mm"], -11.78)
         self.assertEqual(comparison["dry_months_change"], -1.0)
         for label, value in (
-            ("Pluie annuelle", "−9,2 %"),
-            ("Stock estival", "−11,8 mm"),
-            ("Mois secs SPEI-3", "−1,0 / an"),
+            ("Pluie annuelle", "9,2 % de moins"),
+            ("Stock estival", "11,8 mm de moins"),
+            ("Mois secs SPEI-3", "1 mois de moins par an"),
         ):
             self.assertIn(f'>{label}<', self.svg)
             self.assertIn(f'>{value}<', self.svg)
