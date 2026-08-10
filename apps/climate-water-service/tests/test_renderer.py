@@ -27,26 +27,34 @@ class RendererTest(unittest.TestCase):
         cls.data = json.loads(GOLDEN.read_text(encoding="utf-8"))
         cls.svg = render_water_through_year_svg(cls.data)
 
-    def test_renderer_uses_two_columns_four_rows_and_eight_white_bands(self) -> None:
-        self.assertEqual(self.svg.count('class="column-title"'), 2)
-        self.assertIn('>1996–2005<', self.svg)
-        self.assertIn('>2016–2025<', self.svg)
-        self.assertEqual(self.svg.count('class="band-background"'), 8)
-        self.assertEqual(self.svg.count('class="band-title"'), 8)
+    def test_renderer_uses_four_main_bands_and_four_delta_strips(self) -> None:
+        self.assertEqual(self.svg.count('class="band-background"'), 4)
+        self.assertEqual(self.svg.count('class="delta-strip"'), 4)
+        self.assertEqual(self.svg.count('class="month"'), 48)
+        self.assertEqual(self.svg.count('class="band-title"'), 4)
         for title in ("Précipitations", "Stock d’eau du sol modélisé", "Évapotranspiration", "Indice SPEI-3"):
             self.assertIn(f'>{title}<', self.svg)
 
     def test_each_band_has_a_local_semantic_legend(self) -> None:
-        self.assertEqual(self.svg.count("Médiane mensuelle"), 8)
-        self.assertEqual(self.svg.count("Intervalle P25–P75"), 8)
-        self.assertEqual(self.svg.count("Seuil sec"), 2)
+        self.assertEqual(self.svg.count("Médiane mensuelle"), 4)
+        self.assertEqual(self.svg.count("Intervalle P25–P75"), 4)
+        self.assertEqual(self.svg.count("Écart entre les deux décennies"), 4)
+        self.assertEqual(self.svg.count("Seuil sec"), 1)
         self.assertNotIn("Référence 1991–2020", self.svg)
         self.assertNotIn("Décennie récente 2016–2025", self.svg)
 
     def test_row_summaries_use_existing_comparisons(self) -> None:
-        self.assertIn("Pluie annuelle : −9,2 %", self.svg)
-        self.assertIn("Été : −11,8 mm", self.svg)
-        self.assertIn("Mois secs : −1,0 / an", self.svg)
+        comparison = self.data["comparison"]
+        self.assertEqual(comparison["annual_precip_change_pct"], -9.19)
+        self.assertEqual(comparison["summer_soil_water_change_mm"], -11.78)
+        self.assertEqual(comparison["dry_months_change"], -1.0)
+        for label, value in (
+            ("Pluie annuelle", "−9,2 %"),
+            ("Stock estival", "−11,8 mm"),
+            ("Mois secs SPEI-3", "−1,0 / an"),
+        ):
+            self.assertIn(f'>{label}<', self.svg)
+            self.assertIn(f'>{value}<', self.svg)
 
     def test_climate_result_wrapper_uses_serialized_data_without_recalculation(self) -> None:
         result = {
