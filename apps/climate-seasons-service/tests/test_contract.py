@@ -56,14 +56,19 @@ class ContractTest(unittest.TestCase):
         schema_dir = REPO_ROOT / "packages" / "climate-contracts" / "schemas"
         result_schema = json.loads((schema_dir / "climate-result.schema.json").read_text(encoding="utf-8"))
         signal_schema = json.loads((schema_dir / "climate-signal.schema.json").read_text(encoding="utf-8"))
-        # ClimateResult utilise un $ref relatif. Pour une validation hermétique en
-        # CI, on injecte le schéma local au lieu de laisser jsonschema tenter une
-        # récupération réseau sans URI de base.
         result_schema["properties"]["signals"]["items"] = signal_schema
         Draft202012Validator(result_schema).validate(self.result)
         validator = Draft202012Validator(signal_schema)
         for signal in self.result["signals"]:
             validator.validate(signal)
+
+    def test_comparison_metadata_and_completeness_policy_are_explicit(self) -> None:
+        for signal in self.result["signals"]:
+            self.assertEqual(signal["metadata"]["comparison_statistic"], "median")
+        policy = next(check for check in self.result["quality"]["checks"] if check["id"] == "completeness-policy")
+        self.assertEqual(policy["threshold"]["minimum_hourly_values_per_day"], 18)
+        self.assertEqual(policy["threshold"]["minimum_annual_fraction"], 0.98)
+        self.assertEqual(policy["threshold"]["maximum_interpolated_gap_days"], 2)
 
     def test_result_invariants_and_evidence(self) -> None:
         validate_result_invariants(self.result)
