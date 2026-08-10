@@ -16,7 +16,8 @@ def nearest_grid_point(latitude: float, longitude: float, step: float = 0.1) -> 
 
 
 def request_parameters(latitude: float, longitude: float) -> tuple[GridPoint, dict]:
+    """Paramètres des actifs historiques réutilisés depuis l'empreinte (1991–2025)."""
     grid = nearest_grid_point(latitude, longitude, 0.1)
     area = [grid.latitude + 0.001, grid.longitude - 0.001, grid.latitude - 0.001, grid.longitude + 0.001]
-    common = {"date": "1991-01-01/2020-12-31", "data_format": "csv", "area": area}
+    common = {"date": "1991-01-01/2025-12-31", "data_format": "csv", "area": area}
     return grid, common
