@@ -1,0 +1,193 @@
+{
+  "scope": "canonical decadal climatology resampling of complete years",
+  "interpretation": "diagnostic uncertainty; it does not determine whether the decadal curve is calculable",
+  "seed": 20260810,
+  "replicates": 1000,
+  "resampling_unit": "year",
+  "replacement": true,
+  "thresholds": {
+    "t25_c": 4.896,
+    "t75_c": 16.38,
+    "scope": "common_fixed_reference"
+  },
+  "early": {
+    "replicates_total": 1000,
+    "replicates_valid": 1000,
+    "replicates_invalid": 0,
+    "invalid_rate": 0.0,
+    "invalid_reasons": {},
+    "metrics": {
+      "spring_start_doy": {
+        "count": 1000,
+        "p05": 48.57,
+        "p25": 54.9,
+        "median": 58.93,
+        "p75": 62.78,
+        "p95": 67.56
+      },
+      "summer_start_doy": {
+        "count": 1000,
+        "p05": 152.59,
+        "p25": 155.18,
+        "median": 156.9,
+        "p75": 158.97,
+        "p95": 161.23
+      },
+      "autumn_start_doy": {
+        "count": 1000,
+        "p05": 251.42,
+        "p25": 254.13,
+        "median": 255.69,
+        "p75": 257.07,
+        "p95": 258.94
+      },
+      "winter_start_doy": {
+        "count": 1000,
+        "p05": 328.75,
+        "p25": 330.75,
+        "median": 332.16,
+        "p75": 333.78,
+        "p95": 336.47
+      },
+      "summer_length_days": {
+        "count": 1000,
+        "p05": 92.58,
+        "p25": 95.98,
+        "median": 98.5,
+        "p75": 100.99,
+        "p95": 104.54
+      }
+    }
+  },
+  "late": {
+    "replicates_total": 1000,
+    "replicates_valid": 1000,
+    "replicates_invalid": 0,
+    "invalid_rate": 0.0,
+    "invalid_reasons": {},
+    "metrics": {
+      "spring_start_doy": {
+        "count": 1000,
+        "p05": 30.09,
+        "p25": 36.41,
+        "median": 40.38,
+        "p75": 44.06,
+        "p95": 49.66
+      },
+      "summer_start_doy": {
+        "count": 1000,
+        "p05": 146.39,
+        "p25": 148.89,
+        "median": 150.66,
+        "p75": 152.43,
+        "p95": 154.85
+      },
+      "autumn_start_doy": {
+        "count": 1000,
+        "p05": 262.63,
+        "p25": 263.91,
+        "median": 264.84,
+        "p75": 265.81,
+        "p95": 267.21
+      },
+      "winter_start_doy": {
+        "count": 1000,
+        "p05": 339.69,
+        "p25": 343.52,
+        "median": 346.52,
+        "p75": 349.71,
+        "p95": 353.93
+      },
+      "summer_length_days": {
+        "count": 1000,
+        "p05": 108.86,
+        "p25": 111.9,
+        "median": 114.1,
+        "p75": 116.44,
+        "p95": 119.59
+      }
+    }
+  },
+  "differences_late_minus_early": {
+    "replicates_total": 1000,
+    "valid_pairs": 1000,
+    "invalid_pairs": 0,
+    "valid_pair_rate": 1.0,
+    "invalid_reasons": {},
+    "metrics": {
+      "spring_start_shift_days": {
+        "count": 1000,
+        "p05": -32.0,
+        "p25": -24.37,
+        "median": -18.73,
+        "p75": -12.75,
+        "p95": -5.09,
+        "valid_pairs": 1000,
+        "invalid_pairs": 0,
+        "valid_pair_rate": 1.0,
+        "proportion_negative": 0.991,
+        "proportion_zero": 0.0,
+        "proportion_positive": 0.009
+      },
+      "summer_start_shift_days": {
+        "count": 1000,
+        "p05": -12.51,
+        "p25": -8.89,
+        "median": -6.39,
+        "p75": -3.73,
+        "p95": -0.2,
+        "valid_pairs": 1000,
+        "invalid_pairs": 0,
+        "valid_pair_rate": 1.0,
+        "proportion_negative": 0.958,
+        "proportion_zero": 0.001,
+        "proportion_positive": 0.041
+      },
+      "autumn_start_shift_days": {
+        "count": 1000,
+        "p05": 5.22,
+        "p25": 7.59,
+        "median": 9.21,
+        "p75": 11.06,
+        "p95": 14.17,
+        "valid_pairs": 1000,
+        "invalid_pairs": 0,
+        "valid_pair_rate": 1.0,
+        "proportion_negative": 0.0,
+        "proportion_zero": 0.0,
+        "proportion_positive": 1.0
+      },
+      "winter_start_shift_days": {
+        "count": 1000,
+        "p05": 6.41,
+        "p25": 10.95,
+        "median": 14.39,
+        "p75": 17.82,
+        "p95": 22.27,
+        "valid_pairs": 1000,
+        "invalid_pairs": 0,
+        "valid_pair_rate": 1.0,
+        "proportion_negative": 0.001,
+        "proportion_zero": 0.0,
+        "proportion_positive": 0.999
+      },
+      "summer_length_change_days": {
+        "count": 1000,
+        "p05": 7.62,
+        "p25": 12.2,
+        "median": 15.72,
+        "p75": 18.94,
+        "p95": 23.77,
+        "valid_pairs": 1000,
+        "invalid_pairs": 0,
+        "valid_pair_rate": 1.0,
+        "proportion_negative": 0.001,
+        "proportion_zero": 0.0,
+        "proportion_positive": 0.999
+      }
+    }
+  },
+  "invalid_rate_early": 0.0,
+  "invalid_rate_late": 0.0,
+  "valid_pair_rate": 1.0
+}
