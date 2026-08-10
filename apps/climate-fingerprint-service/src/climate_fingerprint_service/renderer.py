@@ -21,10 +21,11 @@ COMMON_PALETTE: tuple[tuple[float, str], ...] = (
     (1.00, "#B2182B"),
 )
 
-ROBUST_SIGMA_FACTOR = 2.563
-EXCEPTIONAL_Z = 3.0
 EMPHASIS_GAMMA = 2.0
 BAND_PLATE = "#FBFAF7"
+PUBLIC_LABELS = {
+    "wind": "Vent fort · vent horaire",
+}
 
 
 @dataclass(frozen=True)
@@ -60,38 +61,19 @@ def _interpolate_color(stops: tuple[tuple[float, str], ...], position: float) ->
     return stops[-1][1]
 
 
-def _robust_position(cell: Mapping[str, Any], reference: object) -> float | None:
-    value = cell.get("value")
-    if not isinstance(value, (int, float)) or not isinstance(reference, Mapping):
-        return None
-    p10, p50, p90 = reference.get("p10"), reference.get("p50"), reference.get("p90")
-    if not all(isinstance(threshold, (int, float)) for threshold in (p10, p50, p90)):
-        return None
-    spread = (float(p90) - float(p10)) / ROBUST_SIGMA_FACTOR
-    if spread <= 0:
-        return None
-    z = (float(value) - float(p50)) / spread
-    return min(1.0, max(0.0, 0.5 + z / (2 * EXCEPTIONAL_Z)))
+def _cell_position(cell: Mapping[str, Any]) -> float:
+    """Position visuelle dérivée uniquement du percentile déjà calculé par la méthode.
 
-
-def _cell_position(cell: Mapping[str, Any], reference: object = None) -> float:
-    robust = _robust_position(cell, reference)
-    if robust is not None:
-        return robust
-    class_index = cell.get("class_index")
-    fallback = (
-        (0.00, 0.25, 0.50, 0.75, 1.00)[class_index]
-        if isinstance(class_index, int) and 0 <= class_index <= 4
-        else 0.50
-    )
+    Le renderer ne reconstruit aucun écart-type, z-score ou normalisation
+    scientifique à partir des seuils de référence.
+    """
     percentile = cell.get("percentile")
     if isinstance(percentile, (int, float)):
-        position = float(percentile) / 100
-        if isinstance(class_index, int) and abs(position - fallback) > 0.55:
-            position = fallback
-    else:
-        position = fallback
-    return min(1.0, max(0.0, position))
+        return min(1.0, max(0.0, float(percentile) / 100.0))
+    class_index = cell.get("class_index")
+    if isinstance(class_index, int) and 0 <= class_index <= 4:
+        return (0.00, 0.25, 0.50, 0.75, 1.00)[class_index]
+    return 0.50
 
 
 def _emphasise(position: float) -> float:
@@ -99,27 +81,60 @@ def _emphasise(position: float) -> float:
     return 0.5 + copysign(abs(offset / 0.5) ** EMPHASIS_GAMMA, offset) / 2
 
 
-def _cell_color(cell: Mapping[str, Any], reference: object = None) -> str:
-    return _interpolate_color(COMMON_PALETTE, _emphasise(_cell_position(cell, reference)))
+def _cell_color(cell: Mapping[str, Any]) -> str:
+    return _interpolate_color(COMMON_PALETTE, _emphasise(_cell_position(cell)))
+
+
+def _fmt_fr(value: object, digits: int | None = None, *, signed: bool = False) -> str:
+    if not isinstance(value, (int, float)):
+        return "—"
+    number = float(value)
+    if digits is None:
+        text = f"{number:g}"
+    else:
+        text = f"{number:.{digits}f}"
+    if signed and number > 0:
+        text = "+" + text
+    return text.replace(".", ",")
+
+
+def _row_label(row: Mapping[str, Any]) -> str:
+    row_id = str(row.get("id", ""))
+    return PUBLIC_LABELS.get(row_id, str(row.get("label", "Indicateur")))
 
 
 def _cell_tooltip(row: Mapping[str, Any], cell: Mapping[str, Any]) -> str:
-    label = str(row.get("label", "Indicateur"))
+    label = _row_label(row)
     year = cell.get("year")
     unit = str(row.get("unit", ""))
     if cell.get("applicable") is False:
         return f"{year} — {label}\nIndicateur non pertinent pour ce lieu"
     if cell.get("value") is None:
         return f"{year} — {label}\nDonnée indisponible"
-    lines = [f"{year} — {label}", f"Valeur : {cell['value']} {unit}"]
+    lines = [f"{year} — {label}", f"Valeur : {_fmt_fr(cell['value'])} {unit}"]
     if cell.get("anomaly") is not None:
-        lines.append(f"Écart vs 1991–2020 : {cell['anomaly']:+} {unit}")
+        lines.append(f"Écart vs 1991–2020 : {_fmt_fr(cell['anomaly'], signed=True)} {unit}")
     if cell.get("percentile") is not None:
-        lines.append(f"Percentile : P{cell['percentile']}")
+        lines.append(f"Percentile : P{_fmt_fr(cell['percentile'])}")
     if cell.get("class"):
         lines.append(f"Classe : {cell['class']}")
     lines.append(f"Source : {row.get('source', 'réanalyse climatique')}")
     return "\n".join(lines)
+
+
+def _comparison_label(row_id: str, row: Mapping[str, Any], comparison: object) -> str:
+    if not isinstance(comparison, Mapping):
+        return "donnée insuffisante"
+    delta = comparison.get("delta")
+    relative_pct = comparison.get("relative_pct")
+    if not isinstance(delta, (int, float)):
+        return "donnée insuffisante"
+    if row_id == "precipitation" and isinstance(relative_pct, (int, float)):
+        return f"{_fmt_fr(relative_pct, 0, signed=True)} %"
+    if row_id in {"temperature", "utci"}:
+        return f"{_fmt_fr(delta, 2, signed=True)} {row.get('unit', '')}"
+    suffix = "jours/an" if row.get("unit") == "jours" else "mois/an"
+    return f"{_fmt_fr(delta, 1, signed=True)} {suffix}"
 
 
 def _fingerprint_data(result: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -136,7 +151,7 @@ def _fingerprint_data(result: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def render_fingerprint_data_svg(fingerprint: Mapping[str, Any], *, theme: str = "light") -> str:
-    """Rend les six séries scientifiques sans score global calculé par le renderer."""
+    """Rend les six séries scientifiques sans score ou normalisation scientifique calculé par le renderer."""
     rows = fingerprint.get("rows")
     if not isinstance(rows, list) or len(rows) != 6:
         raise FingerprintRenderError("Contrat d'empreinte invalide : six lignes attendues")
@@ -165,7 +180,7 @@ def render_fingerprint_data_svg(fingerprint: Mapping[str, Any], *, theme: str = 
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-labelledby="title description">',
         '<title id="title">L’empreinte climatique du lieu</title>',
-        '<desc id="description">Trente années, de 1996 à 2025, pour six indicateurs comparés à la référence 1991–2020. Aucune note globale n’est calculée.</desc>',
+        '<desc id="description">Trente années, de 1996 à 2025, pour six indicateurs comparés à la référence 1991–2020. La couleur représente le percentile déjà calculé par la méthode ; aucune normalisation statistique n’est calculée dans le renderer.</desc>',
         '<defs>',
         '<pattern id="missing" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#F1F2F0"/><line x1="0" y1="0" x2="0" y2="6" stroke="#AEB7B3" stroke-width="1.5"/></pattern>',
         '<pattern id="not-applicable" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#F7F6F2"/><circle cx="2.5" cy="2.5" r="0.8" fill="#AFAFA8"/></pattern>',
@@ -200,7 +215,7 @@ def render_fingerprint_data_svg(fingerprint: Mapping[str, Any], *, theme: str = 
         y = top + row_index * (cell_height + row_gap)
         parts.append(
             f'<text x="{left - 14}" y="{y + 21}" class="row" text-anchor="end">'
-            f'{escape(str(row.get("label", "Indicateur")))}</text>'
+            f'{escape(_row_label(row))}</text>'
         )
         parts.extend(band_relief(y))
         years = row.get("years", [])
@@ -213,7 +228,7 @@ def render_fingerprint_data_svg(fingerprint: Mapping[str, Any], *, theme: str = 
                 elif cell.get("value") is None:
                     color, missing = "url(#missing)", True
                 else:
-                    color = _cell_color(cell, row.get("reference"))
+                    color = _cell_color(cell)
                 x = column_x(index)
                 tooltip = escape(_cell_tooltip(row, cell))
                 parts.append(
@@ -222,11 +237,7 @@ def render_fingerprint_data_svg(fingerprint: Mapping[str, Any], *, theme: str = 
                 )
 
         metric_comparison = comparisons.get(row_id, {}) if isinstance(comparisons, Mapping) else {}
-        delta_label = (
-            str(metric_comparison.get("display", "donnée insuffisante"))
-            if isinstance(metric_comparison, Mapping)
-            else "donnée insuffisante"
-        )
+        delta_label = _comparison_label(row_id, row, metric_comparison)
         qualifier = str(metric_comparison.get("qualifier", "")) if isinstance(metric_comparison, Mapping) else ""
         parts.append(f'<text x="{delta_x}" y="{y + 18}" class="delta">{escape(delta_label)}</text>')
         if qualifier in {"variabilité élevée", "pas d’évolution nette"}:
@@ -246,14 +257,14 @@ def render_fingerprint_data_svg(fingerprint: Mapping[str, Any], *, theme: str = 
     legend_y = matrix_bottom + 38
     parts.append(
         f'<text x="{matrix_center:.1f}" y="{legend_y - 7}" class="legend" text-anchor="middle">'
-        'Écart à la référence 1991–2020, accentué sur les extrêmes</text>'
+        'Position dans la distribution 1991–2020</text>'
     )
-    parts.append(f'<text x="{bar_x - 10:.1f}" y="{legend_y + 12}" class="legend" text-anchor="end">−3 σ</text>')
+    parts.append(f'<text x="{bar_x - 10:.1f}" y="{legend_y + 12}" class="legend" text-anchor="end">faible</text>')
     parts.append(f'<rect x="{bar_x:.1f}" y="{legend_y + 3}" width="{bar_width}" height="10" fill="url(#common-gradient)"/>')
-    parts.append(f'<text x="{bar_x + bar_width + 10:.1f}" y="{legend_y + 12}" class="legend">+3 σ</text>')
+    parts.append(f'<text x="{bar_x + bar_width + 10:.1f}" y="{legend_y + 12}" class="legend">élevée</text>')
     parts.append(
         f'<text x="{matrix_center:.1f}" y="{legend_y + 27}" class="legend" text-anchor="middle">'
-        'une année ordinaire reste blanche · seul l’exceptionnel se colore</text>'
+        'couleur issue du percentile calculé · P50 au centre</text>'
     )
     if missing or not_applicable:
         states: list[str] = []

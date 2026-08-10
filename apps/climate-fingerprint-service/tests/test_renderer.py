@@ -59,11 +59,25 @@ class FingerprintRendererTest(unittest.TestCase):
             self.assertIsInstance(label, str)
             self.assertIn(label, svg)
 
-    def test_comparison_values_remain_visible(self) -> None:
+    def test_comparison_values_are_formatted_by_renderer_in_french(self) -> None:
         svg = render_fingerprint_result_svg(_result(_native_shape_payload()), theme="neutral")
-        self.assertIn("+1.12 °C", svg)
-        self.assertIn("+1.62 °C UTCI", svg)
+        self.assertIn("+1,12 °C", svg)
+        self.assertIn("+1,62 °C UTCI", svg)
         self.assertIn("1996–2005 et 2016–2025", svg)
+        self.assertNotIn("+1.12 °C", svg)
+
+    def test_renderer_uses_only_scientific_percentile_for_color_legend(self) -> None:
+        svg = render_fingerprint_result_svg(_result(_native_shape_payload()), theme="neutral")
+        self.assertIn("Position dans la distribution 1991–2020", svg)
+        self.assertIn("couleur issue du percentile calculé", svg)
+        self.assertNotIn("−3 σ", svg)
+        self.assertNotIn("+3 σ", svg)
+
+    def test_public_wind_label_does_not_imply_gust_or_storm(self) -> None:
+        svg = render_fingerprint_result_svg(_result(_native_shape_payload()), theme="neutral")
+        self.assertIn("Vent fort · vent horaire", svg)
+        self.assertNotIn("rafale", svg.lower())
+        self.assertNotIn("tempête", svg.lower())
 
     def test_renderer_does_not_mutate_climate_result(self) -> None:
         result = _result(_native_shape_payload())

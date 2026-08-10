@@ -41,7 +41,7 @@ VARIABLES = (
         "unit": "mm/mois",
         "key": "precipitation_mm",
         "summary_key": "annual_precip_change_pct",
-        "summary_label": "Pluie annuelle",
+        "summary_label": "Pluie annuelle · médiane",
         "summary_unit": "%",
     },
     {
@@ -66,13 +66,13 @@ VARIABLES = (
     },
     {
         "slug": "spei3",
-        "title": "Indice SPEI-3",
+        "title": "Indice SPEI-3 · lecture technique",
         "question": "Quand le contexte est-il plus sec ou plus humide ?",
         "unit": "indice standardisé",
         "key": "spei3",
-        "summary_key": "dry_months_change",
-        "summary_label": "Mois secs SPEI-3",
-        "summary_unit": "mois/an",
+        "summary_key": None,
+        "summary_label": None,
+        "summary_unit": None,
     },
 )
 
@@ -268,7 +268,7 @@ def _band(
         parts.append(f'<path d="{late_path}" class="profile late-line"/>')
 
     parts.append(
-        f'<text x="{PLOT_X}" y="{delta_label_y}" class="delta-label">Écart 2016–2025 − 1996–2005</text>'
+        f'<text x="{PLOT_X}" y="{delta_label_y}" class="delta-label">Écart des médianes mensuelles : 2016–2025 − 1996–2005</text>'
     )
     parts.append(
         f'<line x1="{PLOT_X}" y1="{delta_zero:.1f}" x2="{PLOT_X + PLOT_WIDTH}" y2="{delta_zero:.1f}" class="delta-zero"/>'
@@ -298,16 +298,27 @@ def _band(
             f'<text x="{SUMMARY_X}" y="{y + 72}" class="summary-value">'
             f'{escape(_summary_text(None if value is None else float(value), str(config["summary_unit"])))}</text>'
         )
-        parts.append(
-            f'<text x="{SUMMARY_X}" y="{y + 91}" class="summary-note">2016–2025 vs 1996–2005</text>'
-        )
+        if key == "precipitation_mm":
+            parts.append(
+                f'<text x="{SUMMARY_X}" y="{y + 91}" class="summary-note">médiane des cumuls annuels</text>'
+            )
+            parts.append(
+                f'<text x="{SUMMARY_X}" y="{y + 105}" class="summary-note">≠ somme des écarts mensuels</text>'
+            )
+        else:
+            parts.append(
+                f'<text x="{SUMMARY_X}" y="{y + 91}" class="summary-note">2016–2025 vs 1996–2005</text>'
+            )
 
     if key == "spei3":
         parts.append(
-            f'<text x="{SUMMARY_X}" y="{y + 132}" class="threshold-note">Seuil des mois secs :</text>'
+            f'<text x="{SUMMARY_X}" y="{y + 118}" class="threshold-note">Indicateur technique :</text>'
         )
         parts.append(
-            f'<text x="{SUMMARY_X}" y="{y + 148}" class="threshold-note">SPEI-3 &lt; −1</text>'
+            f'<text x="{SUMMARY_X}" y="{y + 134}" class="threshold-note">seuil mois sec SPEI-3 &lt; −1</text>'
+        )
+        parts.append(
+            f'<text x="{SUMMARY_X}" y="{y + 150}" class="summary-note">pas de synthèse annuelle mise en avant</text>'
         )
 
     parts.append("</g>")
@@ -319,7 +330,7 @@ def render_water_through_year_svg(document: Mapping[str, Any]) -> str:
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-labelledby="water-title water-desc">',
         '<title id="water-title">L’eau au fil de l’année</title>',
-        '<desc id="water-desc">Quatre lectures du cycle hydroclimatique. Le cycle saisonnier domine ; les écarts entre 1996–2005 et 2016–2025 sont montrés mois par mois sans amplification graphique.</desc>',
+        '<desc id="water-desc">Quatre lectures du cycle hydroclimatique. Les courbes et écarts mensuels représentent des médianes mensuelles ; l’encart de pluie annuelle représente une médiane des cumuls annuels et n’est pas additif avec les douze écarts mensuels.</desc>',
         '<defs><filter id="soft-shadow" x="-5%" y="-10%" width="110%" height="125%"><feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#1C2529" flood-opacity=".16"/></filter></defs>',
         (
             "<style>"

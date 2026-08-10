@@ -38,7 +38,7 @@ class RendererTest(unittest.TestCase):
             "Stock d’eau du sol modélisé",
             "Évapotranspiration modélisée",
             "Indice SPEI-3",
-            "Écart 2016–2025 − 1996–2005",
+            "Écart des médianes mensuelles : 2016–2025 − 1996–2005",
         ):
             self.assertIn(label, svg)
 
@@ -51,17 +51,21 @@ class RendererTest(unittest.TestCase):
         self.assertIn("stroke-dasharray:6 4", svg)
         self.assertIn("P25–P75", svg)
 
-    def test_validated_summaries_are_preserved_without_inventing_evapotranspiration_summary(self) -> None:
+    def test_public_summaries_distinguish_annual_and_monthly_statistics(self) -> None:
         svg = render_water_through_year_svg(self.data)
+        self.assertIn("Pluie annuelle · médiane", svg)
         self.assertIn("9,2 % de moins", svg)
+        self.assertIn("médiane des cumuls annuels", svg)
+        self.assertIn("≠ somme des écarts mensuels", svg)
         self.assertIn("11,8 mm de moins", svg)
-        self.assertIn("1,0 mois de moins / an", svg)
         self.assertNotIn("Évapotranspiration annuelle", svg)
 
-    def test_spei_threshold_is_explicit(self) -> None:
+    def test_spei_remains_visible_but_without_fragile_annual_callout(self) -> None:
         svg = render_water_through_year_svg(self.data)
-        self.assertIn("Seuil des mois secs :", svg)
-        self.assertIn("SPEI-3 &lt; −1", svg)
+        self.assertIn("Indice SPEI-3 · lecture technique", svg)
+        self.assertIn("seuil mois sec SPEI-3 &lt; −1", svg)
+        self.assertIn("pas de synthèse annuelle mise en avant", svg)
+        self.assertNotIn("1,0 mois de moins / an", svg)
         self.assertIn('class="dry-threshold"', svg)
 
     def test_climate_result_wrapper_uses_data_without_mutation(self) -> None:
