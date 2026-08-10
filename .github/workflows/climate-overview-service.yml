@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   test:
-    name: Native climate overview P6
+    name: Native climate overview P6/P7
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -44,5 +44,7 @@ jobs:
       - name: Run native service tests
         run: python -m unittest discover -s apps/climate-overview-service/tests -p "test_*.py" -v
 
-      - name: Check local replay tool
-        run: python -m py_compile apps/climate-overview-service/scripts/verify_golden_replay.py
+      - name: Check local tools
+        run: |
+          python -m py_compile apps/climate-overview-service/scripts/verify_golden_replay.py
+          python -m py_compile apps/climate-overview-service/scripts/render_climate_result.py
