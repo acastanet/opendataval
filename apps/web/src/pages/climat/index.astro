@@ -2,24 +2,10 @@
 import fs from "node:fs";
 import BoutonAccueil from "../../components/BoutonAccueil.astro";
 
-type CommentaryFinding = {
-  id: string;
-  text: string;
-  signal_ids: string[];
-  claim_level: string;
-};
-
-type CommentaryCaveat = {
-  id: string;
-  text: string;
-  signal_ids?: string[];
-};
-
 type ClimateCommentary = {
   summary: string;
-  findings: CommentaryFinding[];
-  caveats: CommentaryCaveat[];
-  generation: { model: string; prompt_version: string };
+  findings: Array<{ id: string; text: string; signal_ids: string[]; claim_level: string }>;
+  caveats: Array<{ id: string; text: string; signal_ids?: string[] }>;
   validation: { status: string; all_findings_have_signal_evidence: boolean };
 };
 
@@ -27,47 +13,53 @@ const commentaryUrl = new URL("../../../public/climat/generated/climate-commenta
 let commentary: ClimateCommentary | null = null;
 try {
   const candidate = JSON.parse(fs.readFileSync(commentaryUrl, "utf-8")) as ClimateCommentary;
-  if (candidate.validation?.status === "valid" && candidate.validation?.all_findings_have_signal_evidence === true) {
-    commentary = candidate;
-  }
+  if (candidate.validation?.status === "valid" && candidate.validation?.all_findings_have_signal_evidence === true) commentary = candidate;
 } catch {
   commentary = null;
 }
 
-const analyses = [
-  {
-    index: "01",
-    id: "overview",
-    title: "Le climat de la zone",
-    question: "À quoi ressemble normalement une année climatique ici ?",
-    src: "/climat/generated/climate-overview-v1-neutral.svg",
-    alt: "Climatogramme de référence : cycle mensuel des températures et précipitations.",
-    eager: true,
-  },
-  {
-    index: "02",
-    id: "fingerprint",
-    title: "L’empreinte climatique du lieu",
-    question: "Qu’est-ce qui a changé entre le début et la fin des trente dernières années ?",
-    src: "/climat/generated/climate-fingerprint-v4-neutral.svg",
-    alt: "Empreinte climatique 1996–2025 : température, stress UTCI, précipitations, pluies intenses, sécheresse et vent.",
-  },
-  {
-    index: "03",
-    id: "seasons",
-    title: "Les saisons se déplacent",
-    question: "Le calendrier thermique de l’année s’est-il déplacé ?",
-    src: "/climat/generated/thermal-seasons-v1-neutral.svg",
-    alt: "Comparaison des saisons thermiques locales entre 1996–2005 et 2016–2025.",
-  },
-  {
-    index: "04",
-    id: "water",
-    title: "L’eau au fil de l’année",
-    question: "Qu’est-ce qui change dans le cycle hydroclimatique ?",
-    src: "/climat/generated/water-through-year-v1-neutral.svg",
-    alt: "Cycle annuel de l’eau : précipitations, stock d’eau du sol modélisé, évapotranspiration et SPEI-3.",
-  },
+const seasonsUrl = new URL(
+  "../../../../../doc/climat/validations/data/thermal-seasons-v4/thermal-seasons-v4-replay.json",
+  import.meta.url,
+);
+const seasonsResult = JSON.parse(fs.readFileSync(seasonsUrl, "utf-8"));
+if (seasonsResult?.method?.id !== "thermal-seasons" || seasonsResult?.method?.version !== "4.0.0") {
+  throw new Error("La fiche climat attend thermal-seasons@4.0.0");
+}
+
+const seasons = seasonsResult.data;
+const early = seasons.decades["1996-2005"].canonical_boundaries;
+const late = seasons.decades["2016-2025"].canonical_boundaries;
+const shifts = seasons.comparison;
+const bootstrap = seasons.qa.bootstrap.differences_late_minus_early.metrics;
+
+const timeline = (boundaries: any) => [
+  { label: "Hiver", kind: "winter", width: boundaries.spring_start },
+  { label: "Printemps", kind: "spring", width: boundaries.summer_start - boundaries.spring_start },
+  { label: "Été", kind: "summer", width: boundaries.autumn_start - boundaries.summer_start },
+  { label: "Automne", kind: "autumn", width: boundaries.winter_start - boundaries.autumn_start },
+  { label: "Hiver", kind: "winter", width: 365 - boundaries.winter_start },
+];
+
+const formatDays = (value: number) => {
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return `${sign}${Math.abs(value).toFixed(1).replace(".", ",")} j`;
+};
+const pct = (days: number) => `${((days / 365) * 100).toFixed(4)}%`;
+
+const seasonSignals = [
+  { label: "Début du printemps", value: shifts.spring_start_shift_days, stable: bootstrap.spring_start_shift_days.proportion_negative },
+  { label: "Début de l’été", value: shifts.summer_start_shift_days, stable: bootstrap.summer_start_shift_days.proportion_negative },
+  { label: "Début de l’automne", value: shifts.autumn_start_shift_days, stable: bootstrap.autumn_start_shift_days.proportion_positive },
+  { label: "Début de l’hiver", value: shifts.winter_start_shift_days, stable: bootstrap.winter_start_shift_days.proportion_positive },
+  { label: "Durée de l’été", value: shifts.summer_length_change_days, stable: bootstrap.summer_length_change_days.proportion_positive },
+];
+
+const readings = [
+  ["01", "climat", "Le climat de la zone", "Le fonctionnement habituel"],
+  ["02", "empreinte", "L’empreinte climatique du lieu", "Ce qui a changé"],
+  ["03", "saisons", "Les saisons se déplacent", "Le calendrier thermique"],
+  ["04", "eau", "L’eau au fil de l’année", "Le cycle hydroclimatique"],
 ];
 ---
 <!doctype html>
@@ -75,204 +67,199 @@ const analyses = [
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Fiche climat OpenDataVal : climat habituel et principaux changements climatiques d’un lieu." />
+    <meta name="description" content="Fiche climat OpenDataVal : climat habituel et évolution récente d’un lieu." />
     <title>Fiche climat — OpenDataVal</title>
   </head>
   <body>
     <BoutonAccueil />
-
-    <main>
+    <main class="sheet">
       <header class="hero">
-        <div class="page-width">
-          <div class="kicker">OPEN DATA VAL · FICHE CLIMAT</div>
-          <div class="hero-grid">
-            <div>
-              <h1>Le climat de ce lieu</h1>
-              <p class="intro">Une lecture courte du climat habituel et de ses principaux changements.</p>
-            </div>
-
-            <dl class="context" aria-label="Contexte de la fiche climat">
-              <div><dt>Lieu</dt><dd>44.0646° N · 3.6830° E</dd></div>
-              <div><dt>Référence</dt><dd>1991–2020</dd></div>
-              <div><dt>Évolution</dt><dd>1996–2025</dd></div>
-              <div><dt>Données</dt><dd>Copernicus</dd></div>
-            </dl>
-          </div>
-
-          <nav class="reading" aria-label="Les quatre lectures climatiques">
-            {analyses.map((analysis) => (
-              <a href={`#${analysis.id}`}>
-                <span>{analysis.index}</span>
-                <strong>{analysis.title}</strong>
-                <small>{analysis.question}</small>
-              </a>
-            ))}
-          </nav>
+        <div>
+          <div class="eyebrow">OPEN DATA VAL · FICHE CLIMAT</div>
+          <h1>Le climat<br />du lieu</h1>
+          <p class="lede">Une lecture courte du climat habituel et de son évolution récente, à partir de la maille de réanalyse associée au lieu.</p>
+        </div>
+        <div class="meta">
+          <strong>Val-d’Aigoual · point test</strong>
+          44.0646° N · 3.6830° E<br />
+          Référence : 1991–2020<br />
+          Évolution : 1996–2025<br />
+          Source principale : Copernicus / ERA5-Land
         </div>
       </header>
 
+      <nav class="reading" aria-label="Les quatre lectures climatiques">
+        {readings.map(([index, id, title, subtitle]) => (
+          <a href={`#${id}`}>
+            <span>{index}</span>
+            <strong>{title}</strong>
+            <small>{subtitle}</small>
+          </a>
+        ))}
+      </nav>
+
+      <section class="brief" aria-labelledby="brief-title">
+        <div class="eyebrow" id="brief-title">LECTURE EN 30 SECONDES</div>
+        <div class="brief-grid">
+          <div class="brief-main">Un climat montagnard humide à saison chaude marquée, dans lequel le calendrier thermique se décale nettement entre le début et la fin de la période étudiée.</div>
+          <div class="brief-card"><strong>11,1 °C</strong><span>température annuelle moyenne sur la référence.</span></div>
+          <div class="brief-card"><strong>1 327 mm</strong><span>précipitations annuelles sur 1991–2020.</span></div>
+          <div class="brief-card"><strong>{formatDays(shifts.summer_length_change_days)}</strong><span>allongement de l’été thermique selon V4.</span></div>
+        </div>
+      </section>
+
       {commentary && (
-        <section class="commentary page-width" aria-labelledby="commentary-title">
-          <header class="commentary-head">
-            <div>
-              <span class="commentary-kicker">LECTURE IA CONTRÔLÉE</span>
-              <h2 id="commentary-title">En bref</h2>
-            </div>
-            <span class="commentary-status">Signaux validés</span>
-          </header>
-
+        <section class="commentary" aria-labelledby="commentary-title">
+          <div class="eyebrow">LECTURE IA CONTRÔLÉE</div>
+          <h2 id="commentary-title">En bref</h2>
           <p class="commentary-summary">{commentary.summary}</p>
-
-          <ol class="commentary-findings">
-            {commentary.findings.map((finding) => (
-              <li>{finding.text}</li>
-            ))}
-          </ol>
-
-          {commentary.caveats.length > 0 && (
-            <div class="commentary-caveats">
-              {commentary.caveats.map((caveat) => <p>{caveat.text}</p>)}
-            </div>
-          )}
-
-          <p class="commentary-meta">
-            Commentaire généré uniquement à partir des <code>ClimateSignal</code> calculés et validés · aucun calcul climatique effectué par l’IA.
-          </p>
+          <ol>{commentary.findings.map((finding) => <li>{finding.text}</li>)}</ol>
+          {commentary.caveats.length > 0 && <div class="caveats">{commentary.caveats.map((c) => <p>{c.text}</p>)}</div>}
+          <p class="micro">Commentaire généré uniquement à partir des ClimateSignal autorisés ; aucun calcul climatique n’est effectué par l’IA.</p>
         </section>
       )}
 
-      <div class="analyses page-width">
-        {analyses.map((analysis) => (
-          <section id={analysis.id} class={`analysis analysis-${analysis.id}`} aria-labelledby={`title-${analysis.id}`}>
-            <header class="analysis-head">
-              <span class="analysis-index" aria-hidden="true">{analysis.index}</span>
-              <div>
-                <h2 id={`title-${analysis.id}`}>{analysis.title}</h2>
-                <p>{analysis.question}</p>
-              </div>
-            </header>
+      <section id="climat" class="analysis">
+        <header class="section-head">
+          <span class="num">01</span>
+          <div><div class="eyebrow">LE CLIMAT DE LA ZONE</div><h2>À quoi ressemble une année habituelle&nbsp;?</h2><p>Le rythme annuel avant de regarder les changements.</p></div>
+        </header>
+        <figure class="visual-frame">
+          <img src="/climat/generated/climate-overview-v1-neutral.svg" alt="Climatogramme de référence : cycle mensuel des températures et précipitations." loading="eager" />
+        </figure>
+      </section>
 
-            <figure class="visual-frame">
-              <img
-                class="climate-visual"
-                src={analysis.src}
-                alt={analysis.alt}
-                loading={analysis.eager ? "eager" : "lazy"}
-                decoding="async"
-                onerror="this.closest('.visual-frame')?.classList.add('missing')"
-              />
-              <figcaption class="missing-message">
-                SVG non généré. Exécuter <code>python apps/climate-sheet-service/scripts/build_static_sheet.py</code>.
-              </figcaption>
-            </figure>
-          </section>
-        ))}
-      </div>
+      <section id="empreinte" class="analysis">
+        <header class="section-head">
+          <span class="num">02</span>
+          <div><div class="eyebrow">L’EMPREINTE CLIMATIQUE DU LIEU</div><h2>Qu’est-ce qui a changé&nbsp;?</h2><p>Six familles de signaux, lues relativement à la référence 1991–2020.</p></div>
+        </header>
+        <figure class="visual-frame">
+          <img src="/climat/generated/climate-fingerprint-v4-neutral.svg" alt="Empreinte climatique 1996–2025 : température, UTCI, précipitations, pluies intenses, sécheresse et vent horaire." loading="lazy" />
+        </figure>
+        <p class="micro block-note">La couleur exprime la position dans la distribution de référence ; aucune légende en pseudo-σ n’est reconstruite dans le rendu.</p>
+      </section>
 
-      <footer class="footer page-width">
-        <p>
-          <strong>À lire comme un contexte climatique.</strong>
-          Les réanalyses Copernicus décrivent une maille climatique représentative, pas une mesure effectuée exactement sur la parcelle.
-        </p>
-        <p>Référence 1991–2020 · étude 1996–2025 · calculs scientifiques versionnés dans <code>doc/climat/</code>.</p>
+      <section id="saisons" class="analysis seasons-section">
+        <header class="section-head">
+          <span class="num">03</span>
+          <div><div class="eyebrow">LES SAISONS SE DÉPLACENT · V4</div><h2>Le calendrier thermique a changé.</h2><p>Deux climatologies décennales comparées avec les mêmes seuils T25/T75 calculés sur 1991–2020.</p></div>
+        </header>
+
+        <div class="season-summary">
+          {seasonSignals.map((signal) => (
+            <article class="shift-card">
+              <strong>{formatDays(signal.value)}</strong>
+              <span>{signal.label}</span>
+              <small>{(signal.stable * 100).toFixed(1).replace(".", ",")} % des bootstrap gardent ce sens</small>
+            </article>
+          ))}
+        </div>
+
+        <div class="season-panel">
+          <div class="timeline-row">
+            <strong>1996–2005</strong>
+            <div class="timeline" aria-label="Saisons thermiques 1996 à 2005">
+              {timeline(early).map((segment) => <span class={`segment ${segment.kind}`} style={`width:${pct(segment.width)}`}>{segment.label}</span>)}
+            </div>
+          </div>
+          <div class="timeline-row">
+            <strong>2016–2025</strong>
+            <div class="timeline" aria-label="Saisons thermiques 2016 à 2025">
+              {timeline(late).map((segment) => <span class={`segment ${segment.kind}`} style={`width:${pct(segment.width)}`}>{segment.label}</span>)}
+            </div>
+          </div>
+          <div class="month-axis"><span></span>{["jan", "fév", "mar", "avr", "mai", "jun", "jul", "aoû", "sep", "oct", "nov", "déc"].map((m) => <span>{m}</span>)}</div>
+
+          <div class="season-method">
+            <div><strong>T25</strong><span>{seasons.thresholds.t25_c.toFixed(3).replace(".", ",")} °C</span></div>
+            <div><strong>T75</strong><span>{seasons.thresholds.t75_c.toFixed(3).replace(".", ",")} °C</span></div>
+            <div><strong>Contrôle</strong><span>harmonic₂ / MA31 : {seasons.decades["1996-2005"].sensitivity.max_boundary_difference_days.toFixed(2).replace(".", ",")} j · {seasons.decades["2016-2025"].sensitivity.max_boundary_difference_days.toFixed(2).replace(".", ",")} j</span></div>
+            <div><strong>Bootstrap</strong><span>1 000 / 1 000 paires valides</span></div>
+          </div>
+          <p class="micro">Les seuils restent fixes dans le calcul central et dans les 1 000 réplications. Le bootstrap décrit la robustesse au choix des années ; il ne constitue pas un test de significativité.</p>
+        </div>
+      </section>
+
+      <section id="eau" class="analysis">
+        <header class="section-head">
+          <span class="num">04</span>
+          <div><div class="eyebrow">L’EAU AU FIL DE L’ANNÉE</div><h2>Le cycle de l’eau change de façon contrastée.</h2><p>Pluie, eau du sol modélisée, évapotranspiration et SPEI-3.</p></div>
+        </header>
+        <figure class="visual-frame">
+          <img src="/climat/generated/water-through-year-v1-neutral.svg" alt="Cycle annuel de l’eau : précipitations, stock d’eau du sol modélisé, évapotranspiration et SPEI-3." loading="lazy" />
+        </figure>
+        <p class="micro block-note"><strong>Lecture :</strong> les écarts mensuels sont des différences de médianes mensuelles ; l’encart annuel est une médiane de cumuls annuels. Ils ne sont pas additifs.</p>
+      </section>
+
+      <footer class="footer">
+        <p><strong>Représentativité.</strong><br />Contexte climatique de la maille ERA5-Land associée au lieu, pas mesure sur la parcelle. Point représenté : 44,1° N · 3,7° E · grille 0,1°.</p>
+        <p><strong>Lecture scientifique.</strong><br />Comparaisons descriptives. Pas de test de tendance statistique ni d’attribution causale dans cette fiche. Les méthodes et preuves sont versionnées dans <code>doc/climat/</code>.</p>
       </footer>
     </main>
 
     <style>
-      :root {
-        color-scheme: light;
-        --paper: #deddda;
-        --paper-soft: #e8e7e4;
-        --ink: #24313a;
-        --muted: #667078;
-        --line: rgba(36, 49, 58, 0.18);
-        --panel: #c9c8c5;
-        --white: #f7f6f2;
-      }
-
-      * { box-sizing: border-box; }
-      html { scroll-behavior: smooth; }
-      body {
-        margin: 0;
-        background: var(--paper);
-        color: var(--ink);
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      }
-
-      .page-width { width: min(1180px, calc(100% - 48px)); margin-inline: auto; }
-      .hero { padding: 72px 0 34px; border-bottom: 1px solid var(--line); }
-      .kicker, .commentary-kicker { font-size: 0.72rem; font-weight: 760; letter-spacing: 0.15em; }
-      .kicker { margin-bottom: 18px; }
-      .hero-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr); gap: 54px; align-items: end; }
-      h1 { margin: 0; max-width: 720px; font-size: clamp(2.8rem, 6.5vw, 5.8rem); font-weight: 760; line-height: 0.94; letter-spacing: -0.055em; }
-      .intro { max-width: 650px; margin: 22px 0 0; font-size: clamp(1rem, 1.7vw, 1.2rem); line-height: 1.5; }
-
-      .context, .reading { display: grid; gap: 1px; padding: 1px; background: var(--line); border: 1px solid var(--line); }
-      .context { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
-      .context div { min-height: 72px; padding: 14px 16px; background: var(--paper-soft); }
-      .context dt { margin-bottom: 6px; color: var(--muted); font-size: 0.66rem; font-weight: 720; letter-spacing: 0.08em; text-transform: uppercase; }
-      .context dd { margin: 0; font-size: 0.9rem; font-weight: 650; }
-
-      .reading { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 34px; }
-      .reading a { min-height: 124px; padding: 16px 18px; background: var(--paper-soft); color: inherit; text-decoration: none; }
-      .reading a:hover, .reading a:focus-visible { background: #f0efec; }
-      .reading span { display: block; margin-bottom: 11px; color: var(--muted); font-size: 0.68rem; font-weight: 760; letter-spacing: 0.1em; }
-      .reading strong { display: block; margin-bottom: 7px; font-size: 0.96rem; }
-      .reading small { display: block; color: var(--muted); font-size: 0.78rem; line-height: 1.35; }
-
-      .commentary {
-        margin-top: 30px;
-        padding: 28px 32px 26px;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: var(--white);
-        box-shadow: 0 8px 22px rgba(36, 49, 58, 0.07);
-      }
-      .commentary-head { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
-      .commentary-kicker { display: block; margin-bottom: 8px; color: var(--muted); }
-      .commentary h2 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.5rem); letter-spacing: -0.04em; }
-      .commentary-status { padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
-      .commentary-summary { max-width: 900px; margin: 20px 0; font-size: clamp(1.05rem, 1.8vw, 1.25rem); line-height: 1.5; font-weight: 620; }
-      .commentary-findings { display: grid; gap: 10px; margin: 0; padding-left: 1.4rem; }
-      .commentary-findings li { padding-left: 5px; font-size: 0.94rem; line-height: 1.48; }
-      .commentary-caveats { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
-      .commentary-caveats p { margin: 5px 0; color: var(--muted); font-size: 0.78rem; line-height: 1.45; }
-      .commentary-meta { margin: 14px 0 0; color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
-
-      .analyses { padding-top: 8px; }
-      .analysis { scroll-margin-top: 20px; padding: 44px 0 52px; border-bottom: 1px solid var(--line); }
-      .analysis-head { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 16px; align-items: start; margin-bottom: 20px; }
-      .analysis-index { padding-top: 5px; color: var(--muted); font-size: 0.72rem; font-weight: 760; letter-spacing: 0.1em; }
-      .analysis h2 { margin: 0; font-size: clamp(1.55rem, 3vw, 2.6rem); line-height: 1; letter-spacing: -0.035em; }
-      .analysis-head p { max-width: 760px; margin: 8px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
-      .visual-frame { position: relative; margin: 0; overflow: hidden; border: 1px solid rgba(36, 49, 58, 0.2); border-radius: 10px; background: var(--panel); box-shadow: 0 10px 28px rgba(36, 49, 58, 0.09); }
-      .climate-visual { display: block; width: 100%; height: auto; background: var(--panel); }
-      .missing-message { display: none; min-height: 280px; margin: 0; padding: 36px; place-items: center; color: var(--muted); text-align: center; }
-      .visual-frame.missing .climate-visual { display: none; }
-      .visual-frame.missing .missing-message { display: grid; }
-
-      .footer { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 42px; padding: 34px 0 64px; color: var(--muted); }
-      .footer p { margin: 0; font-size: 0.82rem; line-height: 1.55; }
-      .footer strong { color: var(--ink); }
-      code { padding: 0.1em 0.3em; border: 1px solid var(--line); border-radius: 4px; background: rgba(255,255,255,0.24); font-size: 0.92em; }
-
-      @media (max-width: 900px) {
-        .hero-grid { grid-template-columns: 1fr; gap: 28px; }
-        .context { max-width: 620px; }
-        .reading { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      }
-      @media (max-width: 620px) {
-        .page-width { width: min(100% - 28px, 1180px); }
-        .hero { padding-top: 62px; }
-        .context, .reading { grid-template-columns: 1fr; }
-        .reading a { min-height: auto; }
-        .commentary { padding: 22px 20px; }
-        .commentary-head { display: block; }
-        .commentary-status { display: inline-block; margin-top: 12px; }
-        .analysis { padding: 36px 0 42px; }
-        .analysis-head { grid-template-columns: 38px minmax(0, 1fr); }
-        .footer { grid-template-columns: 1fr; gap: 18px; }
-      }
+      :root { color-scheme: light; --bg:#d0cfcc; --paper:#f8f7f3; --ink:#171816; --muted:#656863; --line:#c9c8c2; --white:#fff; --winter:#92adc0; --spring:#9dbb75; --summer:#e2ad54; --autumn:#c87951; }
+      * { box-sizing:border-box; }
+      html { scroll-behavior:smooth; }
+      body { margin:0; background:var(--bg); color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+      .sheet { width:min(1180px,calc(100% - 40px)); margin:34px auto; background:var(--paper); box-shadow:0 18px 55px rgba(31,34,30,.12); }
+      .hero { padding:52px 58px 34px; display:grid; grid-template-columns:1.4fr .6fr; gap:36px; border-bottom:1px solid var(--line); }
+      .eyebrow { margin-bottom:12px; color:var(--muted); font-size:.72rem; font-weight:800; letter-spacing:.14em; }
+      h1 { margin:0; font-size:clamp(3rem,7vw,5.4rem); line-height:.9; letter-spacing:-.055em; }
+      .lede { max-width:730px; margin:24px 0 0; font-size:1.18rem; line-height:1.45; color:#3c3f3a; }
+      .meta { align-self:end; padding-left:18px; border-left:2px solid var(--ink); font-size:.86rem; line-height:1.65; }
+      .meta strong { display:block; font-size:1rem; }
+      .reading { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--line); }
+      .reading a { min-height:100px; padding:17px 20px; border-right:1px solid var(--line); color:inherit; text-decoration:none; }
+      .reading a:last-child { border-right:0; }
+      .reading span,.reading small { display:block; color:var(--muted); }
+      .reading span { margin-bottom:8px; font-size:.68rem; font-weight:800; letter-spacing:.1em; }
+      .reading strong { display:block; font-size:.9rem; }
+      .reading small { margin-top:5px; font-size:.74rem; }
+      .brief { padding:32px 58px 38px; background:#ecebe6; border-bottom:1px solid var(--line); }
+      .brief-grid { display:grid; grid-template-columns:1.2fr repeat(3,1fr); gap:12px; }
+      .brief-main,.brief-card { min-height:130px; padding:20px; border:1px solid var(--line); background:var(--paper); }
+      .brief-main { font-size:1.22rem; font-weight:720; line-height:1.35; }
+      .brief-card strong { display:block; font-size:2.2rem; letter-spacing:-.04em; }
+      .brief-card span { display:block; margin-top:7px; color:var(--muted); font-size:.78rem; line-height:1.4; }
+      .commentary { margin:30px 58px 0; padding:26px 28px; border:1px solid var(--line); background:var(--white); }
+      .commentary h2 { margin:0; font-size:2rem; letter-spacing:-.04em; }
+      .commentary-summary { max-width:850px; font-size:1.08rem; font-weight:650; line-height:1.5; }
+      .commentary li { margin:7px 0; font-size:.9rem; line-height:1.45; }
+      .caveats { margin-top:18px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:.76rem; }
+      .analysis { scroll-margin-top:18px; padding:52px 58px 60px; border-bottom:1px solid var(--line); }
+      .section-head { display:grid; grid-template-columns:74px 1fr; gap:16px; margin-bottom:27px; }
+      .num { color:#8c8f88; font-size:3.4rem; font-weight:300; line-height:.9; letter-spacing:-.06em; }
+      h2 { margin:0; font-size:clamp(2rem,4vw,3.15rem); line-height:1; letter-spacing:-.045em; }
+      .section-head p { margin:9px 0 0; color:var(--muted); font-size:.94rem; }
+      .visual-frame { margin:0; overflow:hidden; border:1px solid var(--line); background:#c9c8c5; box-shadow:0 10px 28px rgba(36,49,58,.08); }
+      .visual-frame img { display:block; width:100%; height:auto; }
+      .micro { color:var(--muted); font-size:.72rem; line-height:1.5; }
+      .block-note { margin:12px 0 0; }
+      .season-summary { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:18px; }
+      .shift-card { min-height:116px; padding:16px; border:1px solid var(--line); background:#fff; }
+      .shift-card strong { display:block; font-size:1.8rem; letter-spacing:-.04em; }
+      .shift-card span,.shift-card small { display:block; }
+      .shift-card span { margin-top:7px; font-size:.76rem; font-weight:700; }
+      .shift-card small { margin-top:10px; color:var(--muted); font-size:.66rem; line-height:1.35; }
+      .season-panel { padding:26px; border:1px solid var(--line); background:#fff; }
+      .timeline-row { display:grid; grid-template-columns:120px 1fr; gap:14px; align-items:center; margin:16px 0; }
+      .timeline-row > strong { font-size:.78rem; }
+      .timeline { display:flex; height:52px; overflow:hidden; border:1px solid #b7b8b3; }
+      .segment { display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:.67rem; font-weight:800; white-space:nowrap; }
+      .winter { background:var(--winter); }.spring { background:var(--spring); }.summer { background:var(--summer); }.autumn { background:var(--autumn); }
+      .month-axis { display:grid; grid-template-columns:120px repeat(12,1fr); gap:14px 0; margin-top:6px; color:var(--muted); font-size:.58rem; text-align:center; text-transform:uppercase; }
+      .season-method { display:grid; grid-template-columns:.7fr .7fr 1.5fr 1.2fr; margin-top:26px; border:1px solid var(--line); }
+      .season-method div { padding:14px; border-right:1px solid var(--line); }
+      .season-method div:last-child { border-right:0; }
+      .season-method strong,.season-method span { display:block; }
+      .season-method strong { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; }
+      .season-method span { margin-top:5px; color:var(--muted); font-size:.72rem; line-height:1.4; }
+      .footer { display:grid; grid-template-columns:1fr 1fr; gap:30px; padding:28px 58px 38px; color:var(--muted); font-size:.72rem; line-height:1.55; }
+      .footer p { margin:0; }.footer strong { color:var(--ink); } code { font-size:.92em; }
+      @media (max-width:900px) { .hero { grid-template-columns:1fr; }.meta { border-left:0; border-top:2px solid var(--ink); padding:15px 0 0; }.reading { grid-template-columns:1fr 1fr; }.brief-grid { grid-template-columns:1fr 1fr; }.season-summary { grid-template-columns:1fr 1fr; }.season-method { grid-template-columns:1fr 1fr; }.season-method div:nth-child(2) { border-right:0; }.season-method div:nth-child(-n+2) { border-bottom:1px solid var(--line); } }
+      @media (max-width:620px) { .sheet { width:100%; margin:0; }.hero,.brief,.analysis { padding-left:22px; padding-right:22px; }.commentary { margin-left:22px; margin-right:22px; }.reading { grid-template-columns:1fr; }.reading a { min-height:auto; border-right:0; border-bottom:1px solid var(--line); }.brief-grid { grid-template-columns:1fr; }.section-head { grid-template-columns:48px 1fr; }.num { font-size:2.6rem; }.season-summary { grid-template-columns:1fr; }.timeline-row { grid-template-columns:1fr; gap:7px; }.month-axis { display:none; }.season-method { grid-template-columns:1fr; }.season-method div { border-right:0; border-bottom:1px solid var(--line); }.footer { grid-template-columns:1fr; padding-left:22px; padding-right:22px; } }
     </style>
   </body>
 </html>
