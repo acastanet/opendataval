@@ -14,6 +14,7 @@ from .result import ResultContext, build_climate_result
 
 TEMPERATURE_FILENAME = "era5-land.csv"
 PRECIPITATION_FILENAME = "era5-land-precipitation.csv"
+SNAPSHOT_FILENAME = "climate-overview-snapshot.json"
 
 
 class SnapshotError(ValueError):
@@ -116,7 +117,7 @@ def build_snapshot_manifest(raw_directory: Path, *, snapshot_id: str, tile_id: s
     }
 
 
-def write_snapshot_manifest(raw_directory: Path, manifest: Mapping[str, Any], filename: str = "climate-snapshot.json") -> Path:
+def write_snapshot_manifest(raw_directory: Path, manifest: Mapping[str, Any], filename: str = SNAPSHOT_FILENAME) -> Path:
     output = raw_directory / filename
     output.write_text(json.dumps(dict(manifest), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return output
