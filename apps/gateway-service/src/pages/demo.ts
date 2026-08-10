@@ -275,7 +275,7 @@ function renderMapDemo(config: GatewayConfig, service: ServiceDescriptor): strin
         <div class="field">
           <label><input id="map-geologie" type="checkbox"> Afficher la géologie BRGM</label>
         </div>
-        <span class="option__effect">Rend visible la couche raster BRGM superposée au fond, à 72&nbsp;% d’opacité.</span>
+        <span class="option__effect">Rend visible la couche raster BRGM superposée au fond, à 100&nbsp;% d’opacité.</span>
         <span class="option__param">geologie=true</span>
         <span class="option__inactive"></span>
       </div>

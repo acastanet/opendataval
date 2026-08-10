@@ -127,7 +127,7 @@ export function construireStyle(options: OptionsStyle): Record<string, unknown> 
     type: "raster",
     source: id(IDS_CARTOGRAPHIQUES.sources.geologie, prefixe),
     layout: visibilite(options.geologie),
-    paint: { "raster-opacity": 0.72 },
+    paint: { "raster-opacity": 1 },
   });
 
   // Modèle d'altitude. En « standard », les archives PMTiles locales — des WebP sans

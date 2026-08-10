@@ -20,7 +20,7 @@ Tous sont facultatifs, et **tous ont toujours un effet** — la seule dépendanc
 | Paramètre | Valeurs | Défaut | Effet |
 |---|---|---|---|
 | `fond` | `plan`, `photo`, `satellite`, `nu` | `plan` | rend visible l’une des trois couches raster de fond, ou aucune |
-| `geologie` | booléen (`1`/`true`) | `false` | visibilité de la couche BRGM, superposée à 72 % d’opacité |
+| `geologie` | booléen (`1`/`true`) | `false` | visibilité de la couche BRGM, superposée à 100 % d’opacité |
 | `teintes` | booléen | `false` | visibilité des teintes hypsométriques (`color-relief`) |
 | `ombrage` | `aucun`, `doux`, `naturel`, `sculpte`, `multi` | `naturel` | préréglage complet de la couche `hillshade` |
 | `altitude` | `standard`, `hd` | `standard` | source du modèle d’altitude (voir ci-dessous) |

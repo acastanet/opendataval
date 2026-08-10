@@ -40,6 +40,7 @@ test("garde toutes les couches présentes et ne pilote que leur visibilité", ()
   assert.equal(couche(complet, "basemap-photo").layout?.visibility, "visible");
   assert.equal(couche(complet, "basemap-plan").layout?.visibility, "none");
   assert.equal(couche(complet, "geologie-layer").layout?.visibility, "visible");
+  assert.equal(couche(complet, "geologie-layer").paint?.["raster-opacity"], 1);
   assert.equal(couche(complet, "relief-color").layout?.visibility, "visible");
 });
 
