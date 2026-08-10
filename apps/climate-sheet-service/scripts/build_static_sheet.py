@@ -16,9 +16,12 @@ for source in SERVICE_SOURCES:
     if str(source) not in sys.path:
         sys.path.insert(0, str(source))
 
-from climate_fingerprint_service import write_fingerprint_result_svg  # noqa: E402
-from climate_overview_service import write_overview_result_svg  # noqa: E402
-from climate_seasons_service import write_thermal_seasons_result_svg  # noqa: E402
+# La fiche statique dépend uniquement des renderers P7. Importer les modules
+# renderer directement évite de charger les moteurs scientifiques et leurs
+# dépendances numériques (numpy, pandas, xarray...) dans l'assembleur web.
+from climate_fingerprint_service.renderer import write_fingerprint_result_svg  # noqa: E402
+from climate_overview_service.renderer import write_overview_result_svg  # noqa: E402
+from climate_seasons_service.renderer import write_thermal_seasons_result_svg  # noqa: E402
 from climate_water_service.renderer import write_water_result_svg  # noqa: E402
 
 DEFAULT_OVERVIEW = REPO_ROOT / "poc" / "climat" / "saisons" / "output" / "p6-overview-replay" / "climate-result.json"
