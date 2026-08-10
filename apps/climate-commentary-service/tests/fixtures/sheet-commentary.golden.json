@@ -14,7 +14,7 @@
     {"id": "thermal-seasons", "version": "1.0.0"},
     {"id": "water-through-year", "version": "1.0.0"}
   ],
-  "summary": "Le climat du lieu présente un réchauffement récent, un calendrier thermique décalé et des évolutions du cycle de l’eau qui ne vont pas toutes dans le même sens.",
+  "summary": "La synthèse validée décrit le climat de référence et met surtout en évidence un réchauffement récent ainsi qu’un stock d’eau estival modélisé plus faible.",
   "findings": [
     {
       "id": "finding-climat-habituel",
@@ -29,15 +29,9 @@
       "claim_level": "descriptive"
     },
     {
-      "id": "finding-saisons",
-      "text": "L’été thermique commence 17,69 jours plus tôt, l’automne 15,27 jours plus tard et l’été thermique dure 28,66 jours de plus.",
-      "signal_ids": ["summer-start:validation", "autumn-start:validation", "summer-length:validation"],
-      "claim_level": "descriptive"
-    },
-    {
       "id": "finding-eau",
-      "text": "La période récente présente 9,19 % de précipitations annuelles en moins et 11,78 mm de stock d’eau estival modélisé en moins, tandis que le nombre de mois secs SPEI-3 est inférieur de 1,0 mois par an.",
-      "signal_ids": ["water-precip:validation", "water-soil:validation", "water-dry-months:validation"],
+      "text": "Le stock d’eau estival modélisé est inférieur de 11,78 mm dans la période récente.",
+      "signal_ids": ["water-soil:validation"],
       "claim_level": "descriptive"
     }
   ],
@@ -45,12 +39,12 @@
     {
       "id": "gridded-reanalysis",
       "text": "Ces résultats décrivent le contexte de la maille de réanalyse associée au lieu, pas une mesure réalisée exactement sur la parcelle.",
-      "signal_ids": ["overview-temp:validation", "fingerprint-temp:validation", "summer-start:validation", "water-precip:validation"]
+      "signal_ids": ["overview-temp:validation", "fingerprint-temp:validation", "water-soil:validation"]
     },
     {
       "id": "descriptive-not-trend",
       "text": "Les écarts entre périodes sont descriptifs et ne constituent pas un test de tendance statistique.",
-      "signal_ids": ["fingerprint-temp:validation", "summer-start:validation", "water-precip:validation"]
+      "signal_ids": ["fingerprint-temp:validation", "water-soil:validation"]
     }
   ],
   "abstentions": [],
@@ -58,7 +52,7 @@
     "generated_at": "2026-08-10T08:00:00Z",
     "service": "climate-commentary-service",
     "model": "test-model",
-    "prompt_version": "climate-commentary-p1@1.0.0"
+    "prompt_version": "climate-commentary-p1@1.1.0"
   },
   "validation": {
     "status": "valid",

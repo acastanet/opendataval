@@ -10,7 +10,12 @@ SERVICE_SRC = REPO_ROOT / "apps" / "climate-commentary-service" / "src"
 if str(SERVICE_SRC) not in sys.path:
     sys.path.insert(0, str(SERVICE_SRC))
 
-from climate_commentary_service import build_commentary, build_prompt_payload, generate_commentary  # noqa: E402
+from climate_commentary_service import (  # noqa: E402
+    CommentaryValidationError,
+    build_commentary,
+    build_prompt_payload,
+    generate_commentary,
+)
 from climate_commentary_service.catalogue import caveat_texts, load_catalogue  # noqa: E402
 
 FIXTURES = REPO_ROOT / "apps" / "climate-commentary-service" / "tests" / "fixtures"
@@ -34,11 +39,33 @@ class CommentaryServiceTest(unittest.TestCase):
         )
         self.assertEqual(commentary, self.golden)
 
-    def test_prompt_contains_signals_but_not_scientific_data_payloads(self) -> None:
+    def test_prompt_applies_p9_sheet_selection_before_model(self) -> None:
         catalogue = load_catalogue(CATALOGUE)
         payload = build_prompt_payload(self.results, caveat_texts=caveat_texts(catalogue))
         self.assertEqual(payload["scope"], "sheet")
-        self.assertEqual(len(payload["signals"]), 10)
+        self.assertEqual(len(payload["signals"]), 5)
+        ids = {signal["id"] for signal in payload["signals"]}
+        self.assertEqual(
+            ids,
+            {
+                "overview-temp:validation",
+                "overview-precip:validation",
+                "fingerprint-temp:validation",
+                "fingerprint-utci:validation",
+                "water-soil:validation",
+            },
+        )
+        excluded = {item["signal_id"] for item in payload["editorial_policy"]["excluded_signals"]}
+        self.assertEqual(
+            excluded,
+            {
+                "summer-start:validation",
+                "autumn-start:validation",
+                "summer-length:validation",
+                "water-precip:validation",
+                "water-dry-months:validation",
+            },
+        )
         self.assertTrue(all("data" not in ref for ref in payload["result_refs"]))
         self.assertIn("gridded-reanalysis", {item["id"] for item in payload["caveats"]})
 
@@ -59,6 +86,26 @@ class CommentaryServiceTest(unittest.TestCase):
         self.assertEqual(commentary, self.golden)
         self.assertEqual(captured["messages"][0]["role"], "system")
         self.assertEqual(captured["messages"][1]["role"], "user")
+
+    def test_generator_cannot_reintroduce_a_signal_excluded_from_prompt(self) -> None:
+        stale_payload = json.loads(json.dumps(self.model_payload))
+        stale_payload["findings"].append(
+            {
+                "id": "finding-saison-interdit",
+                "text": "L'été thermique commence plus tôt.",
+                "signal_ids": ["summer-start:validation"],
+                "claim_level": "descriptive",
+            }
+        )
+
+        with self.assertRaisesRegex(CommentaryValidationError, "exclu par P9"):
+            generate_commentary(
+                self.results,
+                lambda _messages: stale_payload,
+                model="test-model",
+                generated_at="2026-08-10T08:00:00Z",
+                commentary_id="COMMENTARY-P9-REJECT",
+            )
 
     def test_insufficient_result_does_not_expose_its_signals_to_model(self) -> None:
         results = json.loads(json.dumps(self.results))
