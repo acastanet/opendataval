@@ -19,6 +19,7 @@ from climate_water_service import (  # noqa: E402
     sha256_file,
     write_snapshot_manifest,
 )
+from climate_water_service.renderer import write_water_result_svg  # noqa: E402
 
 GOLDEN = REPO_ROOT / "poc" / "climat" / "bilan eau" / "output" / "water-through-year.json"
 LAT = 44.06462321251746
@@ -32,7 +33,7 @@ def _now() -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Replay P6 water-through-year contre le golden master V1")
+    parser = argparse.ArgumentParser(description="Replay P6 water-through-year contre le golden master V1 avec rendu P7")
     parser.add_argument("raw_directory", type=Path, help="Dossier contenant les deux NetCDF Copernicus")
     parser.add_argument("--retrieved-at", help="Horodatage réel CDS ; défaut : provenance du golden master")
     parser.add_argument("--work-directory", type=Path)
@@ -69,7 +70,9 @@ def main() -> int:
     manifest_path = write_snapshot_manifest(raw, manifest)
     result = replay_snapshot(manifest_path, generated_at=verified_at)
     result_path = work / "climate-result.json"
+    svg_path = work / "water-through-year-v1-neutral.svg"
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_water_result_svg(result, svg_path)
 
     status, error = "pass", None
     try:
@@ -83,12 +86,14 @@ def main() -> int:
         "verified_at": verified_at,
         "retrieved_at": retrieved_at,
         "numeric_tolerance": 0.0,
+        "render_theme": "neutral",
         "assets": [
             {"path": str(raw / name), "sha256": sha256_file(raw / name)}
             for name in EXPECTED
         ],
         "snapshot": str(manifest_path),
         "result": str(result_path),
+        "svg": str(svg_path),
         "golden_master": str(GOLDEN),
     }
     if error:
@@ -98,6 +103,7 @@ def main() -> int:
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if status == "pass":
         print("\nPASS — water-through-year P6 reproduit le golden master V1 à tolérance nulle.")
+        print(f"SVG — {svg_path}")
         return 0
     print("\nFAIL — water-through-year P6 diffère du golden master V1.", file=sys.stderr)
     return 1
