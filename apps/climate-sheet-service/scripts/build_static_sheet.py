@@ -23,6 +23,7 @@ EXPECTED_METHODS = {
     "seasons": ("thermal-seasons", "4.0.0"),
     "water": ("water-through-year", "1.0.0"),
 }
+EXPECTED_METHOD_REFS = {value for value in EXPECTED_METHODS.values()}
 
 RENDERER_FILES = {
     "overview": REPO_ROOT / "apps" / "climate-overview-service" / "src" / "climate_overview_service" / "renderer.py",
@@ -68,6 +69,15 @@ def _load(path: Path, key: str) -> dict:
     return _as_climate_result(payload, key)
 
 
+def _commentary_method_refs(commentary: dict) -> set[tuple[str, str]]:
+    refs: set[tuple[str, str]] = set()
+    for ref in commentary.get("method_refs") or []:
+        if not isinstance(ref, dict):
+            continue
+        refs.add((str(ref.get("id", "")), str(ref.get("version", ""))))
+    return refs
+
+
 def _load_validated_commentary(path: Path) -> dict:
     if not path.is_file():
         raise SystemExit(f"ClimateCommentary absent : {path}")
@@ -83,6 +93,10 @@ def _load_validated_commentary(path: Path) -> dict:
         raise SystemExit("ClimateCommentary sans ancrage complet : publication refusée")
     if validation.get("unsupported_claims"):
         raise SystemExit("ClimateCommentary contient des claims non supportés : publication refusée")
+    if _commentary_method_refs(commentary) != EXPECTED_METHOD_REFS:
+        raise SystemExit(
+            "ClimateCommentary produit pour des versions différentes de la fiche : publication refusée"
+        )
     for finding in commentary.get("findings") or []:
         if not finding.get("signal_ids"):
             raise SystemExit("ClimateCommentary contient un finding sans signal_id")
@@ -146,29 +160,12 @@ def main() -> int:
         "product": "climate-sheet-static",
         "analyses": [
             {
-                "id": "overview",
-                "method": {"id": EXPECTED_METHODS["overview"][0], "version": EXPECTED_METHODS["overview"][1]},
-                "asset": files["overview"],
-                "asset_type": "svg",
-            },
-            {
-                "id": "fingerprint",
-                "method": {"id": EXPECTED_METHODS["fingerprint"][0], "version": EXPECTED_METHODS["fingerprint"][1]},
-                "asset": files["fingerprint"],
-                "asset_type": "svg",
-            },
-            {
-                "id": "seasons",
-                "method": {"id": EXPECTED_METHODS["seasons"][0], "version": EXPECTED_METHODS["seasons"][1]},
-                "asset": files["seasons"],
-                "asset_type": "climate-result",
-            },
-            {
-                "id": "water",
-                "method": {"id": EXPECTED_METHODS["water"][0], "version": EXPECTED_METHODS["water"][1]},
-                "asset": files["water"],
-                "asset_type": "svg",
-            },
+                "id": key,
+                "method": {"id": EXPECTED_METHODS[key][0], "version": EXPECTED_METHODS[key][1]},
+                "asset": files[key],
+                "asset_type": "climate-result" if key == "seasons" else "svg",
+            }
+            for key in ("overview", "fingerprint", "seasons", "water")
         ],
     }
     if commentary_manifest:
