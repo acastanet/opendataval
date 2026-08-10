@@ -1,6 +1,6 @@
 # climate-water-service
 
-Troisième microservice scientifique natif P6 du domaine climat OpenDataVal.
+Troisième microservice scientifique natif P6/P7 du domaine climat OpenDataVal.
 
 Méthode : `water-through-year@1.0.0` — **validated**.
 
@@ -16,11 +16,13 @@ ClimateResult
 │   ├── évapotranspiration réelle modélisée
 │   ├── SPEI-3
 │   └── comparaison 1996–2005 / 2016–2025
-└── signals
-    └── 3 ClimateSignal descriptifs
+├── signals
+│   └── 3 ClimateSignal descriptifs
+└── renderer P7
+    └── water-through-year-v1-neutral.svg
 ```
 
-Il ne télécharge pas les données CDS et ne produit pas encore de SVG/HTML.
+Le renderer lit uniquement `ClimateResult.data` : il ne recalcule ni agrégation, ni percentile, ni comparaison hydroclimatique.
 
 ## Entrées canoniques
 
@@ -91,14 +93,45 @@ L'attestation complète est conservée dans :
 doc/climat/validations/water-through-year-v1-p6.md
 ```
 
+## Renderer P7
+
+Le rendu canonique est le thème neutre :
+
+```text
+water-through-year-v1-neutral.svg
+```
+
+Le renderer natif reprend la composition V1 du POC et n'accède qu'aux valeurs déjà sérialisées dans le résultat scientifique.
+
+La CI compare le renderer historique et le renderer natif sur :
+
+```text
+poc/climat/bilan eau/output/water-through-year.json
+```
+
+et exige une **égalité textuelle complète du SVG**.
+
+Pour rendre un `ClimateResult` existant :
+
+```bash
+python apps/climate-water-service/scripts/render_climate_result.py \
+  "poc/climat/bilan eau/output/p6-water-replay/climate-result.json"
+```
+
+La sortie par défaut est créée à côté du JSON :
+
+```text
+water-through-year-v1-neutral.svg
+```
+
+Le replay complet P6 génère également ce SVG automatiquement.
+
 ## Tests
 
 ```bash
 python -m pip install -r apps/climate-water-service/requirements-test.txt
 python -m unittest discover -s apps/climate-water-service/tests -p "test_*.py" -v
 ```
-
-Suite locale validée après le correctif SPEI : **9 tests PASS**.
 
 ## Replay réel local
 
@@ -122,10 +155,9 @@ Résultat validé :
 PASS — water-through-year P6 reproduit le golden master V1 à tolérance nulle.
 ```
 
-## Hors périmètre de cette tranche
+## Hors périmètre
 
 - téléchargement CDS ;
 - API HTTP ;
-- rendu SVG/HTML ;
 - commentaire IA ;
 - recharge de nappe, débit de rivière ou réserve utile.
