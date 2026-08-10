@@ -53,12 +53,13 @@ class ContractTest(unittest.TestCase):
         )
 
     def test_result_and_signals_validate_against_p4_schemas(self) -> None:
-        result_schema = json.loads(
-            (REPO_ROOT / "packages" / "climate-contracts" / "schemas" / "climate-result.schema.json").read_text(encoding="utf-8")
-        )
-        signal_schema = json.loads(
-            (REPO_ROOT / "packages" / "climate-contracts" / "schemas" / "climate-signal.schema.json").read_text(encoding="utf-8")
-        )
+        schema_dir = REPO_ROOT / "packages" / "climate-contracts" / "schemas"
+        result_schema = json.loads((schema_dir / "climate-result.schema.json").read_text(encoding="utf-8"))
+        signal_schema = json.loads((schema_dir / "climate-signal.schema.json").read_text(encoding="utf-8"))
+        # ClimateResult utilise un $ref relatif. Pour une validation hermétique en
+        # CI, on injecte le schéma local au lieu de laisser jsonschema tenter une
+        # récupération réseau sans URI de base.
+        result_schema["properties"]["signals"]["items"] = signal_schema
         Draft202012Validator(result_schema).validate(self.result)
         validator = Draft202012Validator(signal_schema)
         for signal in self.result["signals"]:
