@@ -1,29 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
-import sys
 from pathlib import Path
+from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SERVICE_SOURCES = (
-    REPO_ROOT / "apps" / "climate-overview-service" / "src",
-    REPO_ROOT / "apps" / "climate-fingerprint-service" / "src",
-    REPO_ROOT / "apps" / "climate-seasons-service" / "src",
-    REPO_ROOT / "apps" / "climate-water-service" / "src",
-)
-for source in SERVICE_SOURCES:
-    if str(source) not in sys.path:
-        sys.path.insert(0, str(source))
-
-# La fiche statique dépend uniquement des renderers P7. Importer les modules
-# renderer directement évite de charger les moteurs scientifiques et leurs
-# dépendances numériques (numpy, pandas, xarray...) dans l'assembleur web.
-from climate_fingerprint_service.renderer import write_fingerprint_result_svg  # noqa: E402
-from climate_overview_service.renderer import write_overview_result_svg  # noqa: E402
-from climate_seasons_service.renderer import write_thermal_seasons_result_svg  # noqa: E402
-from climate_water_service.renderer import write_water_result_svg  # noqa: E402
-
 DEFAULT_OVERVIEW = REPO_ROOT / "poc" / "climat" / "saisons" / "output" / "p6-overview-replay" / "climate-result.json"
 DEFAULT_FINGERPRINT = REPO_ROOT / "poc" / "climat" / "saisons" / "output" / "p6-replay" / "climate-result.json"
 DEFAULT_SEASONS = REPO_ROOT / "poc" / "climat" / "saisons" / "output" / "p6-seasons-replay" / "climate-result.json"
@@ -36,6 +19,24 @@ EXPECTED_METHODS = {
     "seasons": ("thermal-seasons", "1.0.0"),
     "water": ("water-through-year", "1.0.0"),
 }
+
+RENDERER_FILES = {
+    "overview": REPO_ROOT / "apps" / "climate-overview-service" / "src" / "climate_overview_service" / "renderer.py",
+    "fingerprint": REPO_ROOT / "apps" / "climate-fingerprint-service" / "src" / "climate_fingerprint_service" / "renderer.py",
+    "seasons": REPO_ROOT / "apps" / "climate-seasons-service" / "src" / "climate_seasons_service" / "renderer.py",
+    "water": REPO_ROOT / "apps" / "climate-water-service" / "src" / "climate_water_service" / "renderer.py",
+}
+
+
+def _load_renderer(key: str) -> ModuleType:
+    """Charge uniquement renderer.py, sans exécuter le __init__ du service scientifique."""
+    path = RENDERER_FILES[key]
+    spec = importlib.util.spec_from_file_location(f"climate_sheet_{key}_renderer", path)
+    if spec is None or spec.loader is None:
+        raise SystemExit(f"Renderer impossible à charger pour {key}: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _load(path: Path, key: str) -> dict:
@@ -74,6 +75,11 @@ def main() -> int:
     seasons = _load(args.seasons.resolve(), "seasons")
     water = _load(args.water.resolve(), "water")
 
+    overview_renderer = _load_renderer("overview")
+    fingerprint_renderer = _load_renderer("fingerprint")
+    seasons_renderer = _load_renderer("seasons")
+    water_renderer = _load_renderer("water")
+
     files = {
         "overview": "climate-overview-v1-neutral.svg",
         "fingerprint": "climate-fingerprint-v4-neutral.svg",
@@ -81,10 +87,10 @@ def main() -> int:
         "water": "water-through-year-v1-neutral.svg",
     }
 
-    write_overview_result_svg(overview, output / files["overview"])
-    write_fingerprint_result_svg(fingerprint, output / files["fingerprint"], theme="neutral")
-    write_thermal_seasons_result_svg(seasons, output / files["seasons"])
-    write_water_result_svg(water, output / files["water"])
+    overview_renderer.write_overview_result_svg(overview, output / files["overview"])
+    fingerprint_renderer.write_fingerprint_result_svg(fingerprint, output / files["fingerprint"], theme="neutral")
+    seasons_renderer.write_thermal_seasons_result_svg(seasons, output / files["seasons"])
+    water_renderer.write_water_result_svg(water, output / files["water"])
 
     manifest = {
         "schema_version": "1.0",
