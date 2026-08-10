@@ -2,7 +2,7 @@
 
 Deuxième microservice scientifique natif P6 du domaine climat OpenDataVal.
 
-Méthode : `thermal-seasons@1.0.0`.
+Méthode : `thermal-seasons@1.0.0` — **validated**.
 
 ## Responsabilité
 
@@ -59,23 +59,29 @@ période  1991-01-01 / 2025-12-31
 grille   point ERA5-Land 0,1° le plus proche
 ```
 
-## Validation
+## Validation P6 — PASS
 
-Trois niveaux :
+Les trois niveaux de validation sont maintenant passés :
 
-1. **parité algorithmique** POC ↔ service natif sur les mêmes séries horaires ;
-2. **replay snapshot** CSV + SHA-256 sur fixture sérialisée ;
-3. **replay réel** de `poc/climat/saisons/output/raw/era5-land.csv` contre `tests/fixtures/thermal-seasons-fixture.json`.
+1. **parité algorithmique** POC ↔ service natif sur les mêmes séries horaires — PASS ;
+2. **replay snapshot** CSV + SHA-256 sur fixture sérialisée — PASS ;
+3. **replay réel** de `era5-land.csv` contre la fixture V1 — PASS à tolérance `0.0`.
 
 Le golden master P5 fixe notamment :
 
 ```text
-spring_start_shift_days  = -1.66
-summer_start_shift_days  = -17.69
-autumn_start_shift_days  = +15.27
-winter_start_shift_days  = +5.59
+spring_start_shift_days   = -1.66
+summer_start_shift_days   = -17.69
+autumn_start_shift_days   = +15.27
+winter_start_shift_days   = +5.59
 summer_length_change_days = +28.66
-annual_ok = 29 / 30
+annual_ok                  = 29 / 30
+```
+
+L'attestation de validation est conservée dans :
+
+```text
+doc/climat/validations/thermal-seasons-v1-p6.md
 ```
 
 ## Tests
@@ -96,7 +102,7 @@ python apps/climate-seasons-service/scripts/verify_golden_replay.py \
 
 La commande utilise uniquement `era5-land.csv`, construit un snapshot, vérifie le SHA-256, rejoue le calcul natif et compare le payload scientifique au golden master avec une tolérance de `0.0`.
 
-Résultat attendu :
+Résultat validé :
 
 ```text
 PASS — thermal-seasons P6 reproduit le golden master V1 à tolérance nulle.
