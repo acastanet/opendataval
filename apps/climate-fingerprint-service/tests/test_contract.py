@@ -68,6 +68,15 @@ class NativeContractTest(unittest.TestCase):
             "climate_fingerprint_service.result",
         )
 
+    def test_comparison_metadata_and_completeness_policy_are_explicit(self) -> None:
+        for signal in self.result["signals"]:
+            self.assertEqual(signal["metadata"]["comparison_statistic"], "mean")
+            self.assertTrue(signal["metadata"]["yearly_statistic"])
+        policy = next(check for check in self.result["quality"]["checks"] if check["id"] == "completeness-policy")
+        self.assertEqual(policy["threshold"]["daily_fraction"], 0.90)
+        self.assertEqual(policy["threshold"]["spei_months_per_year"], 12)
+        self.assertEqual(policy["threshold"]["minimum_reference_years"], 24)
+
     def test_evidence_resolves_to_signal_values(self) -> None:
         for signal in self.result["signals"]:
             pointer = signal["evidence"][0]["result_pointer"]
