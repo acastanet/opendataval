@@ -49,6 +49,7 @@ class ThermalSeasonsRendererTest(unittest.TestCase):
         self.assertIn("Début automne : 15 j plus tard", svg)
         self.assertIn("Été thermique : +29 j", svg)
         self.assertIn("frontières médianes · zones = P25–P75", svg)
+        self.assertIn("durées calculées année par année", svg)
 
     def test_climate_result_wrapper_does_not_mutate_input(self) -> None:
         result = _result(copy.deepcopy(self.golden))
