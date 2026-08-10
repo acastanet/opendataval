@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -35,10 +36,14 @@ RENDERER_FILES = {
 def _load_renderer(key: str) -> ModuleType:
     """Charge uniquement renderer.py, sans exécuter le __init__ du service scientifique."""
     path = RENDERER_FILES[key]
-    spec = importlib.util.spec_from_file_location(f"climate_sheet_{key}_renderer", path)
+    module_name = f"climate_sheet_{key}_renderer"
+    spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
         raise SystemExit(f"Renderer impossible à charger pour {key}: {path}")
     module = importlib.util.module_from_spec(spec)
+    # dataclasses et certains mécanismes d'introspection consultent sys.modules
+    # pendant l'exécution du module.
+    sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
 
