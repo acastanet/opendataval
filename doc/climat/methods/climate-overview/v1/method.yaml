@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: climate-overview
 version: "1.0.0"
-status: draft
+status: validated
 
 product:
   title_fr: "Le climat de la zone"
@@ -73,8 +73,8 @@ annual_summary:
     - wettest_month
     - driest_month
   validation_note: >-
-    Ces sorties sont figées par le golden master P5. Le futur service P6 devra reproduire
-    leur agrégation exacte avant de pouvoir remplacer le POC.
+    Ces sorties ont été reproduites par le service natif P6 contre le golden master P5
+    à tolérance numérique nulle.
 
 noncanonical_poc_indicators:
   frost_days_mean:
@@ -139,6 +139,20 @@ p5:
   ci_workflow: .github/workflows/climate-contracts.yml
   note: "Le noyau canonique est figé ; les trois compteurs thermiques approximatifs sont conservés uniquement pour traçabilité et n'émettent aucun ClimateSignal."
 
+p6:
+  status: native_replay_passed
+  service: apps/climate-overview-service
+  validation_record: doc/climat/validations/climate-overview-v1-p6.md
+  ci_workflow: .github/workflows/climate-overview-service.yml
+  source_assets_verified_sha256: 2
+  golden_master_replay: passed
+  numeric_tolerance: 0.0
+  canonical_signal_count: 7
+  note: >-
+    Replay réel confirmé le 2026-08-10 à partir des deux CSV ERA5-Land de la copie
+    déjà validée sous poc/climat/saisons/output/raw ; le noyau canonique 1991-2020
+    reproduit le golden master P5 à tolérance numérique nulle.
+
 references:
   - wmo-climatological-normals
   - copernicus-era5-land-timeseries
@@ -161,6 +175,7 @@ p2_decisions:
     status: resolved
     decision: "none in V1"
 
-validation_blockers:
-  - native_service_equivalence_pending_p6
+future_method_requirements:
   - real_daily_extreme_method_if_indicators_are_reintroduced
+
+validation_blockers: []
