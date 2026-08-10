@@ -30,7 +30,7 @@ Le fournisseur officiel est le même que pour `geologie-service` :
 
 - endpoint OpenAI-compatible : `https://llm.ilaas.fr/v1/chat/completions` ;
 - modèle par défaut : `mistral-medium-latest` ;
-- température : `0` ;
+- température par défaut : `0.3` ;
 - même clé serveur ;
 - même configuration de synthèse.
 
@@ -44,7 +44,7 @@ GEOLOGIE_LLM_VISION_TIMEOUT_MS
 GEOLOGIE_LLM_SYNTHESE_MAX_TOKENS
 ```
 
-Les valeurs par défaut sont identiques à celles de la lecture des fiches BRGM : `mistral-medium-latest`, 45 s et 700 tokens.
+Les valeurs par défaut sont alignées sur la lecture des fiches BRGM : `mistral-medium-latest`, température `0.3`, 45 s et 700 tokens.
 
 Si `GEOLOGIE_LLM_API_KEY` est absente ou si ILAAS échoue, aucun commentaire IA n'est produit. La fiche reste utilisable avec ses quatre infographies ; aucun texte de secours n'est inventé.
 

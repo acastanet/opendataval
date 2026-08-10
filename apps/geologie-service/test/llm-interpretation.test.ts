@@ -45,6 +45,17 @@ test("retourne la synthèse texte quand le LLM répond correctement, sans image"
   assert.equal(resultat, "Log sur 3 niveaux, alluvions puis granite.");
 });
 
+test("utilise la température ILAAS par défaut 0.3", async () => {
+  let corpsRequete: { temperature?: number } | undefined;
+  const fetchImpl = (async (_url, init) => {
+    corpsRequete = JSON.parse(String((init as RequestInit).body));
+    return reponseChat("synthèse");
+  }) as unknown as typeof fetch;
+  const syntheseur = createSyntheseurLlm(config(), fetchImpl);
+  await syntheseur.synthetiser(REQUETE_SANS_IMAGE);
+  assert.equal(corpsRequete?.temperature, 0.3);
+});
+
 test("envoie les images en content parts image_url, sans dépasser le nombre fourni", async () => {
   let corpsRequete: { messages: { role: string; content: unknown }[] } | undefined;
   const fetchImpl = (async (_url, init) => {
