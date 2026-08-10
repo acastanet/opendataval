@@ -1,0 +1,53 @@
+name: Climate sheet web
+
+on:
+  pull_request:
+    paths:
+      - "apps/climate-sheet-service/**"
+      - "apps/web/src/pages/climat/**"
+      - "apps/web/public/climat/**"
+      - ".github/workflows/climate-sheet-web.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "apps/climate-sheet-service/**"
+      - "apps/web/src/pages/climat/**"
+      - "apps/web/public/climat/**"
+      - ".github/workflows/climate-sheet-web.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Static climate sheet
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check climate sheet assembler
+        run: python -m py_compile apps/climate-sheet-service/scripts/build_static_sheet.py
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web
+        run: pnpm build:web
