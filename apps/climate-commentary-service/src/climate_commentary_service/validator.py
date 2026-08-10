@@ -91,12 +91,20 @@ def _validate_finding_numbers(text: str, signals: list[dict[str, Any]]) -> None:
             )
 
 
+def _definition_methods(definition: dict[str, Any]) -> set[str]:
+    methods = definition.get("methods")
+    if isinstance(methods, list):
+        return {str(item) for item in methods if item}
+    method = definition.get("method")
+    return {str(method)} if method else set()
+
+
 def _validate_signal_against_catalogue(signal: dict[str, Any], catalogue: dict[str, Any]) -> None:
     definition_id = str(signal.get("definition_id", ""))
     definition = signal_definition(catalogue, definition_id)
     method = signal.get("method") or {}
     expected_method = f"{method.get('id')}@{method.get('version')}"
-    if definition.get("method") != expected_method:
+    if expected_method not in _definition_methods(definition):
         raise CommentaryValidationError(
             f"Méthode incohérente pour {definition_id}: {expected_method}"
         )

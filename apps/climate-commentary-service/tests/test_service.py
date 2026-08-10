@@ -20,6 +20,15 @@ from climate_commentary_service.catalogue import caveat_texts, load_catalogue  #
 
 FIXTURES = REPO_ROOT / "apps" / "climate-commentary-service" / "tests" / "fixtures"
 CATALOGUE = REPO_ROOT / "doc" / "climat" / "signals" / "catalogue.yaml"
+V4_RESULT = (
+    REPO_ROOT
+    / "doc"
+    / "climat"
+    / "validations"
+    / "data"
+    / "thermal-seasons-v4"
+    / "thermal-seasons-v4-replay.json"
+)
 
 
 class CommentaryServiceTest(unittest.TestCase):
@@ -28,6 +37,7 @@ class CommentaryServiceTest(unittest.TestCase):
         cls.results = json.loads((FIXTURES / "sheet-results.json").read_text(encoding="utf-8"))
         cls.model_payload = json.loads((FIXTURES / "sheet-model-payload.json").read_text(encoding="utf-8"))
         cls.golden = json.loads((FIXTURES / "sheet-commentary.golden.json").read_text(encoding="utf-8"))
+        cls.v4_result = json.loads(V4_RESULT.read_text(encoding="utf-8"))
 
     def test_build_commentary_matches_golden(self) -> None:
         commentary = build_commentary(
@@ -68,6 +78,33 @@ class CommentaryServiceTest(unittest.TestCase):
         )
         self.assertTrue(all("data" not in ref for ref in payload["result_refs"]))
         self.assertIn("gridded-reanalysis", {item["id"] for item in payload["caveats"]})
+
+    def test_prompt_allows_validated_thermal_seasons_v4(self) -> None:
+        results = json.loads(json.dumps(self.results))
+        results[2] = self.v4_result
+        catalogue = load_catalogue(CATALOGUE)
+        payload = build_prompt_payload(results, caveat_texts=caveat_texts(catalogue))
+
+        v4_signals = [
+            signal
+            for signal in payload["signals"]
+            if (signal.get("method") or {}).get("id") == "thermal-seasons"
+        ]
+        self.assertEqual(len(v4_signals), 5)
+        self.assertTrue(all(signal["method"]["version"] == "4.0.0" for signal in v4_signals))
+        self.assertEqual(
+            {signal["definition_id"] for signal in v4_signals},
+            {
+                "thermal-spring-start-shift",
+                "thermal-summer-start-shift",
+                "thermal-autumn-start-shift",
+                "thermal-winter-start-shift",
+                "thermal-summer-length-change",
+            },
+        )
+        excluded_ids = {item["signal_id"] for item in payload["editorial_policy"]["excluded_signals"]}
+        self.assertTrue(all(signal["id"] not in excluded_ids for signal in v4_signals))
+        self.assertIn("decadal-climatology-season-model", {item["id"] for item in payload["caveats"]})
 
     def test_generator_only_returns_editorial_payload(self) -> None:
         captured = {}
