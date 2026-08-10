@@ -47,6 +47,7 @@ jobs:
         run: |
           python -m py_compile apps/climate-commentary-service/scripts/prepare_prompt.py
           python -m py_compile apps/climate-commentary-service/scripts/build_commentary.py
+          python -m py_compile apps/climate-commentary-service/scripts/generate_ilaas_commentary.py
 
       - name: Run commentary tests
         run: python -m unittest discover -s apps/climate-commentary-service/tests -p "test_*.py" -v
