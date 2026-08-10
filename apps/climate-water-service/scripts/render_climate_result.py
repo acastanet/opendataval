@@ -10,7 +10,7 @@ SERVICE_SRC = REPO_ROOT / "apps" / "climate-water-service" / "src"
 if str(SERVICE_SRC) not in sys.path:
     sys.path.insert(0, str(SERVICE_SRC))
 
-from climate_water_service import write_water_result_svg  # noqa: E402
+from climate_water_service.renderer import write_water_result_svg  # noqa: E402
 
 
 def main() -> int:
