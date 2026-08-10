@@ -24,14 +24,10 @@ EXAMPLE_JSON = (
     / "example"
     / "climate-fingerprint-v4.json"
 )
-EXAMPLE_NEUTRAL_SVG = EXAMPLE_JSON.with_name("climate-fingerprint-v4-neutral.svg")
-EXAMPLE_LIGHT_SVG = EXAMPLE_JSON.with_suffix(".svg")
 
 
 def _native_shape_payload() -> dict:
     payload = json.loads(EXAMPLE_JSON.read_text(encoding="utf-8"))
-    # Ces champs appartiennent au POC/rendu historique et ne sont pas présents
-    # dans le payload scientifique P6. Le renderer ne doit pas en dépendre.
     payload.pop("summary", None)
     payload.pop("provenance", None)
     for row in payload.get("rows", []):
@@ -50,20 +46,44 @@ def _result(payload: dict) -> dict:
 
 
 class FingerprintRendererTest(unittest.TestCase):
-    def test_native_climate_result_reproduces_canonical_neutral_svg_exactly(self) -> None:
-        generated = render_fingerprint_result_svg(_result(_native_shape_payload()), theme="neutral")
-        expected = EXAMPLE_NEUTRAL_SVG.read_text(encoding="utf-8").replace("\r\n", "\n").rstrip("\n")
-        self.assertEqual(generated, expected)
+    def test_neutral_renderer_keeps_six_scientific_rows_without_global_score(self) -> None:
+        payload = _native_shape_payload()
+        svg = render_fingerprint_result_svg(_result(payload), theme="neutral")
+        self.assertIn('fill="#C5C4C1"', svg)
+        self.assertIn("six indicateurs, sans score global", svg)
+        self.assertNotIn("Empreinte bilan", svg)
+        self.assertNotIn("Indice signé", svg)
+        labels = [row.get("label") for row in payload.get("rows", []) if isinstance(row, dict)]
+        self.assertEqual(len(labels), 6)
+        for label in labels:
+            self.assertIsInstance(label, str)
+            self.assertIn(label, svg)
 
-    def test_light_theme_remains_available_as_variant(self) -> None:
+    def test_comparison_values_are_formatted_by_renderer_in_french(self) -> None:
+        svg = render_fingerprint_result_svg(_result(_native_shape_payload()), theme="neutral")
+        self.assertIn("+1,12 °C", svg)
+        self.assertIn("+1,62 °C UTCI", svg)
+        self.assertIn("1996–2005 et 2016–2025", svg)
+        self.assertNotIn("+1.12 °C", svg)
+
+    def test_renderer_uses_only_scientific_percentile_for_color_legend(self) -> None:
+        svg = render_fingerprint_result_svg(_result(_native_shape_payload()), theme="neutral")
+        self.assertIn("Position dans la distribution 1991–2020", svg)
+        self.assertIn("couleur issue du percentile calculé", svg)
+        self.assertNotIn("−3 σ", svg)
+        self.assertNotIn("+3 σ", svg)
+
+    def test_public_wind_label_does_not_imply_gust_or_storm(self) -> None:
+        svg = render_fingerprint_result_svg(_result(_native_shape_payload()), theme="neutral")
+        self.assertIn("Vent fort · vent horaire", svg)
+        self.assertNotIn("rafale", svg.lower())
+        self.assertNotIn("tempête", svg.lower())
+
+    def test_renderer_does_not_mutate_climate_result(self) -> None:
         result = _result(_native_shape_payload())
-        light = render_fingerprint_result_svg(result, theme="light")
-        expected = EXAMPLE_LIGHT_SVG.read_text(encoding="utf-8").replace("\r\n", "\n").rstrip("\n")
-        self.assertEqual(light, expected)
-        neutral = render_fingerprint_result_svg(result, theme="neutral")
-        self.assertIn('fill="#C5C4C1"', neutral)
-        self.assertIn("+1.12 °C", neutral)
-        self.assertIn("+1.62 °C UTCI", neutral)
+        before = copy.deepcopy(result)
+        render_fingerprint_result_svg(result, theme="neutral")
+        self.assertEqual(result, before)
 
     def test_renderer_rejects_wrong_method(self) -> None:
         result = _result(_native_shape_payload())

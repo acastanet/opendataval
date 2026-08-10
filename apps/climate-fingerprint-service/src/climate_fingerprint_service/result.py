@@ -19,18 +19,26 @@ _DATASETS = [
             "10m_v_component_of_wind",
         ],
         "grid_degrees": 0.1,
+        "asset_ids": [
+            "era5-land-temperature",
+            "era5-land-precipitation",
+            "era5-land-u10",
+            "era5-land-v10",
+        ],
     },
     {
         "registry_id": "era5-heat-utci-timeseries",
         "dataset_id": "derived-utci-historical-timeseries",
         "variables": ["universal_thermal_climate_index"],
         "grid_degrees": 0.25,
+        "asset_ids": ["era5-heat-utci"],
     },
     {
         "registry_id": "era5-drought-historical-monthly",
         "dataset_id": "derived-drought-historical-monthly",
         "variables": ["standardised_precipitation_evapotranspiration_index"],
         "grid_degrees": 0.25,
+        "asset_ids": ["era5-drought-spei3"],
     },
 ]
 
@@ -52,6 +60,7 @@ class FingerprintContext:
     longitude: float
     snapshot_id: str
     represented: Mapping[str, Any] = field(default_factory=dict)
+    retrieval: Mapping[str, Any] = field(default_factory=dict)
     generated_at: str | None = None
 
 
@@ -123,11 +132,22 @@ def build_climate_result(
             "status": status,
             "checks": [
                 {
+                    "id": "completeness-policy",
+                    "status": "pass",
+                    "scope": "annual daily metrics and monthly SPEI-3",
+                    "rule": "daily annual metrics require >=90% of expected days; SPEI annual counts require all 12 calendar months; reference thresholds require >=24 complete reference years",
+                    "threshold": {
+                        "daily_fraction": 0.90,
+                        "spei_months_per_year": 12,
+                        "minimum_reference_years": 24,
+                    },
+                },
+                {
                     "id": "comparison-signals",
                     "status": "pass" if len(signals) == 6 else "partial",
                     "count": len(signals),
                     "expected": 6,
-                }
+                },
             ],
             "notes": [
                 "ClimateResult produit nativement par climate-fingerprint-service.",
@@ -144,5 +164,6 @@ def build_climate_result(
             "method_id": METHOD["id"],
             "method_version": METHOD["version"],
             "snapshot_id": context.snapshot_id,
+            "source_assets": deepcopy(dict(context.retrieval)),
         },
     }

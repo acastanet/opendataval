@@ -48,3 +48,4 @@ jobs:
         run: |
           python -m py_compile apps/climate-seasons-service/scripts/verify_golden_replay.py
           python -m py_compile apps/climate-seasons-service/scripts/render_climate_result.py
+          python -m py_compile apps/climate-seasons-service/scripts/audit_smoothing_sensitivity.py

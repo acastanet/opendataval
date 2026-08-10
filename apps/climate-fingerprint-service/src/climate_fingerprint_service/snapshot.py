@@ -322,6 +322,26 @@ def _represented_context(snapshot: Mapping[str, Any]) -> dict[str, Any]:
     return represented
 
 
+def _retrieval_context(snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    retrieval: dict[str, Any] = {}
+    for asset_id, asset in _asset_map(snapshot).items():
+        block = asset.get("retrieval")
+        if not isinstance(block, Mapping):
+            raise SnapshotError(f"retrieval manquant dans le snapshot : {asset_id}")
+        retrieved_at = block.get("retrieved_at")
+        request_parameters = block.get("request_parameters")
+        if not isinstance(retrieved_at, str) or not retrieved_at:
+            raise SnapshotError(f"retrieval.retrieved_at manquant : {asset_id}")
+        if not isinstance(request_parameters, Mapping):
+            raise SnapshotError(f"retrieval.request_parameters manquant : {asset_id}")
+        retrieval[asset_id] = {
+            "retrieved_at": retrieved_at,
+            "dataset_version": block.get("dataset_version"),
+            "request_parameters": dict(request_parameters),
+        }
+    return retrieval
+
+
 def replay_snapshot(manifest_path: Path, *, generated_at: str | None = None) -> dict[str, Any]:
     snapshot, series = load_series_from_snapshot(manifest_path)
     requested = snapshot.get("requested_location")
@@ -348,6 +368,7 @@ def replay_snapshot(manifest_path: Path, *, generated_at: str | None = None) -> 
             longitude=float(longitude),
             snapshot_id=str(snapshot["snapshot_id"]),
             represented=_represented_context(snapshot),
+            retrieval=_retrieval_context(snapshot),
             generated_at=generated_at,
         ),
     )

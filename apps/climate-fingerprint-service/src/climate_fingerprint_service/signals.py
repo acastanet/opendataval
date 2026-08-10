@@ -12,6 +12,7 @@ _SIGNAL_MAP = {
         "value_field": "delta",
         "unit": "degC",
         "direction_mode": "higher_lower",
+        "yearly_statistic": "annual_mean",
         "caveats": ["gridded-reanalysis", "descriptive-not-trend"],
     },
     "utci": {
@@ -20,6 +21,7 @@ _SIGNAL_MAP = {
         "value_field": "delta",
         "unit": "degC_utci",
         "direction_mode": "higher_lower",
+        "yearly_statistic": "annual_p95_daily_max",
         "caveats": [
             "gridded-reanalysis",
             "descriptive-not-trend",
@@ -32,6 +34,7 @@ _SIGNAL_MAP = {
         "value_field": "relative_pct",
         "unit": "percent",
         "direction_mode": "higher_lower",
+        "yearly_statistic": "annual_sum",
         "caveats": ["gridded-reanalysis", "descriptive-not-trend"],
     },
     "heavy_rain": {
@@ -40,6 +43,7 @@ _SIGNAL_MAP = {
         "value_field": "delta",
         "unit": "days_per_year",
         "direction_mode": "frequency",
+        "yearly_statistic": "annual_count",
         "caveats": [
             "gridded-reanalysis",
             "descriptive-not-trend",
@@ -53,6 +57,7 @@ _SIGNAL_MAP = {
         "value_field": "delta",
         "unit": "months_per_year",
         "direction_mode": "frequency",
+        "yearly_statistic": "annual_month_count",
         "caveats": ["descriptive-not-trend", "spei3-meteorological-drought"],
     },
     "wind": {
@@ -61,6 +66,7 @@ _SIGNAL_MAP = {
         "value_field": "delta",
         "unit": "days_per_year",
         "direction_mode": "frequency",
+        "yearly_statistic": "annual_count",
         "caveats": [
             "gridded-reanalysis",
             "descriptive-not-trend",
@@ -139,7 +145,11 @@ def build_signals(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
                 ],
                 "caveat_ids": list(config["caveats"]),
                 "quality_status": "valid",
-                "metadata": {"producer": "climate-fingerprint-service"},
+                "metadata": {
+                    "producer": "climate-fingerprint-service",
+                    "yearly_statistic": config["yearly_statistic"],
+                    "comparison_statistic": "mean",
+                },
             }
         )
     return signals

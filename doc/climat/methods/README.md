@@ -24,6 +24,7 @@ method.yaml
 science.md
 technical.md
 interpretation.md
+visualization.md
 CHANGELOG.md
 ```
 
@@ -33,9 +34,10 @@ Rôle des fichiers :
 - `science.md` — question, fondements scientifiques, portée et limites ;
 - `technical.md` — algorithme exact et décisions d'implémentation ;
 - `interpretation.md` — `ClimateSignal` autorisés, formulations permises/interdites, caveats et abstention ;
+- `visualization.md` — traduction de la méthode en infographie : hiérarchie, comparaison, légendes et limites graphiques ;
 - `CHANGELOG.md` — décisions de version.
 
-Le cadre commun de commentaire IA est dans `doc/climat/06-AI-INTERPRETATION.md`, le registre sémantique des signaux dans `doc/climat/signals/catalogue.yaml`, et les contrats communs dans `packages/climate-contracts/`.
+Les règles visuelles communes sont dans `doc/climat/05-VISUALIZATION-GUIDELINES.md`. Le cadre commun de commentaire IA est dans `doc/climat/06-AI-INTERPRETATION.md`, le registre sémantique des signaux dans `doc/climat/signals/catalogue.yaml`, et les contrats communs dans `packages/climate-contracts/`.
 
 ## Décisions scientifiques majeures
 

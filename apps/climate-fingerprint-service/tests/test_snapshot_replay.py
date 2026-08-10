@@ -84,7 +84,7 @@ def _metadata() -> dict[str, dict[str, object]]:
         is_land = spec.dataset_registry_id == "era5-land-timeseries"
         metadata[spec.asset_id] = {
             "retrieved_at": "2026-08-09T20:00:00Z",
-            "dataset_version": None,
+            "dataset_version": f"fixture-{spec.asset_id}",
             "period_start": "1991-01-01",
             "period_end": "2025-12-31",
             "request_parameters": {
@@ -146,6 +146,24 @@ class SnapshotReplayTest(unittest.TestCase):
             self.assertEqual(replayed["snapshot_id"], "SNAPSHOT-TEST-FINGERPRINT-V4")
             self.assertEqual(len(replayed["signals"]), 6)
             self.assertEqual(_validate_schema(replayed, "climate-result.schema.json"), [])
+
+            represented_assets = replayed["representativity"]["assets"]
+            self.assertEqual(set(represented_assets), {spec.asset_id for spec in ASSET_SPECS})
+
+            provenance_assets = replayed["provenance"]["source_assets"]
+            self.assertEqual(set(provenance_assets), {spec.asset_id for spec in ASSET_SPECS})
+            for spec in ASSET_SPECS:
+                provenance = provenance_assets[spec.asset_id]
+                self.assertEqual(provenance["retrieved_at"], "2026-08-09T20:00:00Z")
+                self.assertEqual(provenance["dataset_version"], f"fixture-{spec.asset_id}")
+                self.assertTrue(provenance["request_parameters"]["test_fixture"])
+
+            declared_asset_ids = {
+                asset_id
+                for dataset in replayed["datasets"]
+                for asset_id in dataset.get("asset_ids", [])
+            }
+            self.assertEqual(declared_asset_ids, {spec.asset_id for spec in ASSET_SPECS})
 
     def test_tampered_asset_is_rejected_before_replay(self) -> None:
         series = _series()

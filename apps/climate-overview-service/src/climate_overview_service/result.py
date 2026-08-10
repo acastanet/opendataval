@@ -69,11 +69,21 @@ def build_climate_result(series: ClimateOverviewInput, *, context: ResultContext
         "quality": {
             "status": "valid",
             "checks": [
+                {
+                    "id": "completeness-policy",
+                    "status": "pass",
+                    "scope": "monthly climatology for reference 1991-2020",
+                    "rule": "V1 requires exactly 30 annual values for temperature and precipitation in every calendar month; otherwise compute fails rather than emitting partial data",
+                    "threshold": {"required_years_per_calendar_month": 30},
+                },
                 {"id": "reference-months", "status": "pass", "count": len(data["monthly"])},
                 {"id": "canonical-signals", "status": "pass", "count": len(signals)},
                 {"id": "legacy-approximate-extremes", "status": "excluded"},
             ],
-            "notes": ["Les anciens compteurs gel/chaleur/nuits tropicales fondés sur la moyenne journalière sont exclus du résultat canonique P6."],
+            "notes": [
+                "Les anciens compteurs gel/chaleur/nuits tropicales fondés sur la moyenne journalière sont exclus du résultat canonique P6.",
+                "La politique V1 overview ne sait pas encore produire un statut partial : une référence mensuelle incomplète est rejetée par le calcul."
+            ],
         },
         "caveats": [{"id": caveat_id, "text": _CAVEATS[caveat_id], "severity": "info"} for caveat_id in caveat_ids],
         "provenance": {"generated_at": generated_at, "generated_by": "climate_overview_service", "method_id": METHOD["id"], "method_version": METHOD["version"], "snapshot_id": context.snapshot_id, "retrieved_at": context.retrieved_at},

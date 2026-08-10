@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import copy
 import json
 import sys
 import tempfile
 import unittest
-from copy import deepcopy
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -25,59 +25,57 @@ class RendererTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.data = json.loads(GOLDEN.read_text(encoding="utf-8"))
-        cls.svg = render_water_through_year_svg(cls.data)
 
-    def test_renderer_uses_four_main_bands_and_four_delta_strips(self) -> None:
-        self.assertEqual(self.svg.count('class="band-background"'), 4)
-        self.assertEqual(self.svg.count('class="delta-strip"'), 4)
-        self.assertEqual(self.svg.count('class="delta-zero"'), 4)
-        self.assertEqual(self.svg.count('class="delta-value"'), 48)
-        self.assertEqual(self.svg.count('class="month"'), 48)
-        self.assertEqual(self.svg.count('class="band-title"'), 4)
-        for title in ("Précipitations", "Stock d’eau du sol modélisé", "Évapotranspiration", "Indice SPEI-3"):
-            self.assertIn(f'>{title}<', self.svg)
+    def test_renderer_has_four_pedagogical_bands_and_monthly_deltas(self) -> None:
+        svg = render_water_through_year_svg(self.data)
 
-    def test_each_band_has_a_local_semantic_legend(self) -> None:
-        self.assertEqual(self.svg.count("1996–2005 · médiane mensuelle"), 4)
-        self.assertEqual(self.svg.count("2016–2025 · médiane mensuelle"), 4)
-        self.assertEqual(self.svg.count("Intervalle P25–P75"), 4)
-        self.assertEqual(self.svg.count("Écart entre les deux décennies"), 4)
-        self.assertEqual(self.svg.count("Seuil sec"), 1)
-        self.assertNotIn("Référence 1991–2020", self.svg)
-        self.assertNotIn("Décennie récente 2016–2025", self.svg)
+        self.assertEqual(svg.count('class="band-background"'), 4)
+        self.assertEqual(svg.count('class="delta-zero"'), 4)
+        self.assertEqual(svg.count('class="delta-bar"'), 48)
 
-    def test_renderer_uses_descriptive_language_and_explains_spei_threshold(self) -> None:
-        self.assertIn("Le cycle saisonnier domine ; les écarts entre décennies sont localisés.", self.svg)
-        self.assertIn("seuil des mois secs retenu : SPEI-3 &lt; −1", self.svg)
-        for forbidden in ("tendance", "significatif", "dégradation", "assèchement"):
-            self.assertNotIn(forbidden, self.svg.lower())
-
-    def test_row_summaries_use_existing_comparisons(self) -> None:
-        comparison = self.data["comparison"]
-        self.assertEqual(comparison["annual_precip_change_pct"], -9.19)
-        self.assertEqual(comparison["summer_soil_water_change_mm"], -11.78)
-        self.assertEqual(comparison["dry_months_change"], -1.0)
-        for label, value in (
-            ("Pluie annuelle", "9,2 % de moins"),
-            ("Stock estival", "11,8 mm de moins"),
-            ("Mois secs SPEI-3", "1 mois de moins par an"),
+        for label in (
+            "Précipitations",
+            "Stock d’eau du sol modélisé",
+            "Évapotranspiration modélisée",
+            "Indice SPEI-3",
+            "Écart des médianes mensuelles : 2016–2025 − 1996–2005",
         ):
-            self.assertIn(f'>{label}<', self.svg)
-            self.assertIn(f'>{value}<', self.svg)
+            self.assertIn(label, svg)
 
-    def test_climate_result_wrapper_uses_serialized_data_without_recalculation(self) -> None:
+    def test_periods_are_identified_by_colour_and_line_style(self) -> None:
+        svg = render_water_through_year_svg(self.data)
+        self.assertGreaterEqual(svg.count(">1996–2005<"), 4)
+        self.assertGreaterEqual(svg.count(">2016–2025<"), 4)
+        self.assertIn(".early-line{fill:none;stroke:#2166AC", svg)
+        self.assertIn(".late-line{fill:none;stroke:#B2182B", svg)
+        self.assertIn("stroke-dasharray:6 4", svg)
+        self.assertIn("P25–P75", svg)
+
+    def test_public_summaries_distinguish_annual_and_monthly_statistics(self) -> None:
+        svg = render_water_through_year_svg(self.data)
+        self.assertIn("Pluie annuelle · médiane", svg)
+        self.assertIn("9,2 % de moins", svg)
+        self.assertIn("médiane des cumuls annuels", svg)
+        self.assertIn("≠ somme des écarts mensuels", svg)
+        self.assertIn("11,8 mm de moins", svg)
+        self.assertNotIn("Évapotranspiration annuelle", svg)
+
+    def test_spei_remains_visible_but_without_fragile_annual_callout(self) -> None:
+        svg = render_water_through_year_svg(self.data)
+        self.assertIn("Indice SPEI-3 · lecture technique", svg)
+        self.assertIn("seuil mois sec SPEI-3 &lt; −1", svg)
+        self.assertIn("pas de synthèse annuelle mise en avant", svg)
+        self.assertNotIn("1,0 mois de moins / an", svg)
+        self.assertIn('class="dry-threshold"', svg)
+
+    def test_climate_result_wrapper_uses_data_without_mutation(self) -> None:
         result = {
             "method": {"id": "water-through-year", "version": "1.0.0"},
-            "data": self.data,
+            "data": copy.deepcopy(self.data),
         }
-        self.assertEqual(render_water_result_svg(result), self.svg)
-
-    def test_renderer_does_not_mutate_scientific_data(self) -> None:
-        before = deepcopy(self.data)
-
-        render_water_through_year_svg(self.data)
-
-        self.assertEqual(self.data, before)
+        before = copy.deepcopy(result)
+        self.assertEqual(render_water_result_svg(result), render_water_through_year_svg(self.data))
+        self.assertEqual(result, before)
 
     def test_wrong_method_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -86,15 +84,16 @@ class RendererTest(unittest.TestCase):
                 "data": self.data,
             })
 
-    def test_writer_creates_the_new_svg(self) -> None:
+    def test_writer_creates_current_svg(self) -> None:
         result = {
             "method": {"id": "water-through-year", "version": "1.0.0"},
             "data": self.data,
         }
+        expected = render_water_result_svg(result)
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "water-through-year-v1-neutral.svg"
             write_water_result_svg(result, output)
-            self.assertEqual(output.read_text(encoding="utf-8"), self.svg)
+            self.assertEqual(output.read_text(encoding="utf-8"), expected)
 
 
 if __name__ == "__main__":

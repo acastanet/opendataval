@@ -1,0 +1,53 @@
+name: Climate commentary service
+
+on:
+  pull_request:
+    paths:
+      - "apps/climate-commentary-service/**"
+      - "packages/climate-contracts/schemas/climate-commentary.schema.json"
+      - "packages/climate-contracts/schemas/climate-signal.schema.json"
+      - "doc/climat/06-AI-INTERPRETATION.md"
+      - "doc/climat/signals/catalogue.yaml"
+      - ".github/workflows/climate-commentary-service.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "apps/climate-commentary-service/**"
+      - "packages/climate-contracts/schemas/climate-commentary.schema.json"
+      - "packages/climate-contracts/schemas/climate-signal.schema.json"
+      - "doc/climat/06-AI-INTERPRETATION.md"
+      - "doc/climat/signals/catalogue.yaml"
+      - ".github/workflows/climate-commentary-service.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Controlled AI commentary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/climate-commentary-service/requirements-test.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r apps/climate-commentary-service/requirements-test.txt
+
+      - name: Check scripts
+        run: |
+          python -m py_compile apps/climate-commentary-service/scripts/prepare_prompt.py
+          python -m py_compile apps/climate-commentary-service/scripts/build_commentary.py
+          python -m py_compile apps/climate-commentary-service/scripts/generate_ilaas_commentary.py
+
+      - name: Run commentary tests
+        run: python -m unittest discover -s apps/climate-commentary-service/tests -p "test_*.py" -v

@@ -64,6 +64,15 @@ class ContractTest(unittest.TestCase):
         for signal in self.result["signals"]:
             validator.validate(signal)
 
+    def test_comparison_metadata_and_completeness_policy_are_explicit(self) -> None:
+        self.assertEqual(len(self.result["signals"]), 3)
+        for signal in self.result["signals"]:
+            self.assertEqual(signal["metadata"]["comparison_statistic"], "median")
+            self.assertTrue(signal["metadata"]["yearly_statistic"])
+        policy = next(check for check in self.result["quality"]["checks"] if check["id"] == "completeness-policy")
+        self.assertEqual(policy["threshold"]["expected_months"], 420)
+        self.assertEqual(policy["threshold"]["spei_months_per_year"], 12)
+
     def test_invariants(self) -> None:
         validate_result_invariants(self.result)
         self.assertEqual(len(self.result["signals"]), 3)

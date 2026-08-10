@@ -44,6 +44,11 @@ class ContractTest(unittest.TestCase):
         for signal in self.result["signals"]:
             validator.validate(signal)
 
+    def test_completeness_policy_is_explicit_even_while_v1_is_strict(self) -> None:
+        policy = next(check for check in self.result["quality"]["checks"] if check["id"] == "completeness-policy")
+        self.assertEqual(policy["threshold"]["required_years_per_calendar_month"], 30)
+        self.assertIn("fails rather than emitting partial", policy["rule"])
+
     def test_invariants_and_seven_signals(self) -> None:
         validate_result_invariants(self.result)
         self.assertEqual(len(self.result["signals"]), 7)

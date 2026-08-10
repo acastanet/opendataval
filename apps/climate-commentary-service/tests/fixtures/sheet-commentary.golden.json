@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "commentary_id": "COMMENTARY-VALIDATION",
+  "scope": "sheet",
+  "result_ids": [
+    "RESULT-OVERVIEW-VALIDATION",
+    "RESULT-FINGERPRINT-VALIDATION",
+    "RESULT-SEASONS-VALIDATION",
+    "RESULT-WATER-VALIDATION"
+  ],
+  "method_refs": [
+    {"id": "climate-overview", "version": "1.0.0"},
+    {"id": "climate-fingerprint", "version": "4.0.0"},
+    {"id": "thermal-seasons", "version": "1.0.0"},
+    {"id": "water-through-year", "version": "1.0.0"}
+  ],
+  "summary": "La synthèse validée décrit le climat de référence et met surtout en évidence un réchauffement récent ainsi qu’un stock d’eau estival modélisé plus faible.",
+  "findings": [
+    {
+      "id": "finding-climat-habituel",
+      "text": "La climatologie de référence associe une température moyenne annuelle de 11,1 °C à environ 1327,3 mm de précipitations par an.",
+      "signal_ids": ["overview-temp:validation", "overview-precip:validation"],
+      "claim_level": "descriptive"
+    },
+    {
+      "id": "finding-rechauffement",
+      "text": "Entre les deux décennies comparées, la température est plus élevée de 1,12 °C et l’UTCI de 1,62 °C.",
+      "signal_ids": ["fingerprint-temp:validation", "fingerprint-utci:validation"],
+      "claim_level": "descriptive"
+    },
+    {
+      "id": "finding-eau",
+      "text": "Le stock d’eau estival modélisé est inférieur de 11,78 mm dans la période récente.",
+      "signal_ids": ["water-soil:validation"],
+      "claim_level": "descriptive"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "gridded-reanalysis",
+      "text": "Ces résultats décrivent le contexte de la maille de réanalyse associée au lieu, pas une mesure réalisée exactement sur la parcelle.",
+      "signal_ids": ["overview-temp:validation", "fingerprint-temp:validation", "water-soil:validation"]
+    },
+    {
+      "id": "descriptive-not-trend",
+      "text": "Les écarts entre périodes sont descriptifs et ne constituent pas un test de tendance statistique.",
+      "signal_ids": ["fingerprint-temp:validation", "water-soil:validation"]
+    }
+  ],
+  "abstentions": [],
+  "generation": {
+    "generated_at": "2026-08-10T08:00:00Z",
+    "service": "climate-commentary-service",
+    "model": "test-model",
+    "prompt_version": "climate-commentary-p1@1.1.0"
+  },
+  "validation": {
+    "status": "valid",
+    "all_findings_have_signal_evidence": true,
+    "unsupported_claims": []
+  }
+}

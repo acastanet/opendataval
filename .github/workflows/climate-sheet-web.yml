@@ -4,16 +4,29 @@ on:
   pull_request:
     paths:
       - "apps/climate-sheet-service/**"
+      - "apps/climate-commentary-service/**"
+      - "apps/climate-overview-service/**"
+      - "apps/climate-fingerprint-service/**"
+      - "apps/climate-seasons-service/**"
+      - "apps/climate-water-service/**"
       - "apps/web/src/pages/climat/**"
       - "apps/web/public/climat/**"
+      - "doc/climat/validations/data/thermal-seasons-v4/**"
+      - "Dockerfile.caddy"
       - ".github/workflows/climate-sheet-web.yml"
   push:
-    branches:
-      - master
+    branches: [master]
     paths:
       - "apps/climate-sheet-service/**"
+      - "apps/climate-commentary-service/**"
+      - "apps/climate-overview-service/**"
+      - "apps/climate-fingerprint-service/**"
+      - "apps/climate-seasons-service/**"
+      - "apps/climate-water-service/**"
       - "apps/web/src/pages/climat/**"
       - "apps/web/public/climat/**"
+      - "doc/climat/validations/data/thermal-seasons-v4/**"
+      - "Dockerfile.caddy"
       - ".github/workflows/climate-sheet-web.yml"
 
 permissions:
@@ -23,7 +36,7 @@ jobs:
   test:
     name: Static climate sheet
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -34,8 +47,52 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Check climate sheet assembler
-        run: python -m py_compile apps/climate-sheet-service/scripts/build_static_sheet.py
+      - name: Check climate production scripts
+        run: |
+          python -m py_compile apps/climate-sheet-service/scripts/build_static_sheet.py
+          python -m py_compile apps/climate-sheet-service/scripts/produce_sheet.py
+
+      - name: Verify one-command production without LLM
+        run: |
+          python apps/climate-sheet-service/scripts/produce_sheet.py \
+            --commentary-mode off \
+            --output-dir /tmp/climate-production
+          test -s /tmp/climate-production/manifest.json
+          test -s /tmp/climate-production/thermal-seasons-v4.json
+
+      - name: Reject stale V1 commentary
+        run: |
+          if python apps/climate-sheet-service/scripts/build_static_sheet.py \
+            --commentary apps/climate-commentary-service/tests/fixtures/sheet-commentary.golden.json \
+            --output-dir /tmp/climate-sheet-stale; then
+            echo "Le commentaire V1 aurait dû être refusé" >&2
+            exit 1
+          fi
+
+      - name: Generate climate sheet with V4-compatible commentary
+        run: |
+          python apps/climate-sheet-service/scripts/build_static_sheet.py \
+            --commentary apps/climate-sheet-service/tests/fixtures/sheet-commentary-v4.integration.json
+
+      - name: Verify generated sheet assets
+        run: |
+          test -s apps/web/public/climat/generated/climate-overview-v1-neutral.svg
+          test -s apps/web/public/climat/generated/climate-fingerprint-v4-neutral.svg
+          test -s apps/web/public/climat/generated/thermal-seasons-v4.json
+          test -s apps/web/public/climat/generated/water-through-year-v1-neutral.svg
+          test -s apps/web/public/climat/generated/climate-commentary.json
+          test -s apps/web/public/climat/generated/manifest.json
+          grep -q '"version": "4.0.0"' apps/web/public/climat/generated/thermal-seasons-v4.json
+          grep -q '"asset": "thermal-seasons-v4.json"' apps/web/public/climat/generated/manifest.json
+          grep -q '"commentary": "climate-commentary.json"' apps/web/public/climat/generated/manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("apps/web/public/climat/generated/climate-commentary.json").read_text())
+          refs = {(item["id"], item["version"]) for item in data["method_refs"]}
+          assert ("thermal-seasons", "4.0.0") in refs
+          assert ("thermal-seasons", "1.0.0") not in refs
+          PY
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -51,3 +108,20 @@ jobs:
 
       - name: Build web
         run: pnpm build:web
+
+      - name: Build production Caddy image
+        run: docker build --file Dockerfile.caddy --tag opendataval-caddy:climate-ci .
+
+      - name: Verify climate publication in final image
+        run: |
+          docker run --rm --entrypoint sh opendataval-caddy:climate-ci -ec '
+            test -s /srv/climat/index.html
+            test -s /srv/climat/generated/climate-overview-v1-neutral.svg
+            test -s /srv/climat/generated/climate-fingerprint-v4-neutral.svg
+            test -s /srv/climat/generated/thermal-seasons-v4.json
+            test -s /srv/climat/generated/water-through-year-v1-neutral.svg
+            test -s /srv/climat/generated/manifest.json
+            test -s /srv/climat/generated/climate-commentary.json
+            grep -q "LECTURE IA CONTRÔLÉE" /srv/climat/index.html
+            grep -q "thermal-seasons-v4.json" /srv/climat/generated/manifest.json
+          '

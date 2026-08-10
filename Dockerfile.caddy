@@ -5,7 +5,8 @@ ENV npm_config_fetch_retries=5 \
     npm_config_fetch_retry_maxtimeout=120000 \
     npm_config_fetch_timeout=300000 \
     npm_config_store_dir=/pnpm/store
-RUN npm install -g pnpm@11.10.0
+RUN apk add --no-cache python3 \
+ && npm install -g pnpm@11.10.0
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/package.json
@@ -18,7 +19,21 @@ COPY packages/shared packages/shared
 COPY apps/web apps/web
 COPY apps/meteo-web apps/meteo-web
 COPY doc/architecture/conception-v2 doc/architecture/conception-v2
-RUN pnpm --filter web build \
+
+# Fiche climat statique : le build Caddy doit être autonome et reproductible depuis
+# un checkout propre. Les données brutes Copernicus ne sont pas nécessaires ici :
+# on assemble les résultats/fixtures scientifiques déjà validés et suivis par Git.
+COPY apps/climate-sheet-service/scripts/build_static_sheet.py apps/climate-sheet-service/scripts/build_static_sheet.py
+COPY apps/climate-overview-service/src/climate_overview_service/renderer.py apps/climate-overview-service/src/climate_overview_service/renderer.py
+COPY apps/climate-fingerprint-service/src/climate_fingerprint_service/renderer.py apps/climate-fingerprint-service/src/climate_fingerprint_service/renderer.py
+COPY apps/climate-water-service/src/climate_water_service/renderer.py apps/climate-water-service/src/climate_water_service/renderer.py
+COPY doc/climat/validations/data/thermal-seasons-v4/thermal-seasons-v4-replay.json doc/climat/validations/data/thermal-seasons-v4/thermal-seasons-v4-replay.json
+COPY poc/climat/general/climate/overview/outputs/zone_test_utilisateur_climate-overview.json poc/climat/general/climate/overview/outputs/zone_test_utilisateur_climate-overview.json
+COPY poc/climat/empreinte-climatique/example/climate-fingerprint-v4.json poc/climat/empreinte-climatique/example/climate-fingerprint-v4.json
+COPY ["poc/climat/bilan eau/output/water-through-year.json", "poc/climat/bilan eau/output/water-through-year.json"]
+
+RUN python3 apps/climate-sheet-service/scripts/build_static_sheet.py --keep-existing-commentary \
+ && pnpm --filter web build \
  && pnpm --filter meteo-web run generate:api \
  && pnpm --filter meteo-web build
 
