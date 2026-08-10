@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: water-through-year
 version: "1.0.0"
-status: draft
+status: validated
 
 product:
   title_fr: "L'eau au fil de l'année"
@@ -152,6 +152,18 @@ p5:
   ci_workflow: .github/workflows/climate-contracts.yml
   note: "420 mois valides sur 420 pour les quatre variables principales."
 
+p6:
+  status: native_replay_passed
+  service: apps/climate-water-service
+  ci_workflow: .github/workflows/climate-water-service.yml
+  validation: doc/climat/validations/water-through-year-v1-p6.md
+  replay:
+    real_assets: true
+    numeric_tolerance: 0.0
+    land_asset_reconstructed_from_fragments: true
+    spei_single_month_time_dimension_fix: true
+  note: "Replay des actifs Copernicus réels conforme au golden master ; le lecteur SPEI préserve la dimension temporelle des fichiers mensuels unitaires."
+
 secondary_optional_metrics:
   - runoff
   - surface_runoff
@@ -189,5 +201,4 @@ p2_decisions:
     decision: "derived modelled soil-water equivalent 0-100 cm"
     forbidden_names: [reserve_utile, plant_available_water, observed_soil_stock]
 
-validation_blockers:
-  - native_service_equivalence_pending_p6
+validation_blockers: []
