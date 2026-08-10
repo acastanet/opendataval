@@ -18,3 +18,8 @@ poc/**/output*/
 poc/**/publication*/
 poc/**/.venv/
 poc/**/.work*/
+
+# Exceptions minimales nécessaires au build reproductible de /climat/.
+# Ce sont de petits payloads scientifiques/présentation suivis par Git, pas les sorties 3D lourdes.
+!poc/climat/general/climate/overview/outputs/zone_test_utilisateur_climate-overview.json
+!poc/climat/bilan eau/output/water-through-year.json

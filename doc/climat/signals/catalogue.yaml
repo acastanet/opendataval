@@ -1,11 +1,10 @@
-schema_version: "0.1"
+schema_version: "0.2"
 status: p3_semantic_registry
-last_reviewed: "2026-08-09"
+last_reviewed: "2026-08-10"
 
 # Registre sémantique des signaux autorisés par les quatre méthodes.
-# Le JSON Schema exact de ClimateSignal sera défini en P4.
-# Ce fichier fixe les identifiants, la méthode productrice, le niveau de preuve
-# et les caveats attendus afin d'éviter que le service IA invente sa propre sémantique.
+# Un même definition_id peut être conservé entre versions d'une méthode lorsque
+# sa sémantique, sa métrique, son unité et son niveau de preuve restent identiques.
 
 claim_levels:
   descriptive:
@@ -132,44 +131,44 @@ signals:
     caveats: [candidate-not-impact-event, gridded-reanalysis]
 
   thermal-spring-start-shift:
-    method: thermal-seasons@1.0.0
+    methods: [thermal-seasons@1.0.0, thermal-seasons@4.0.0]
     metric: spring_start_shift_days
     unit: days
     claim_level: descriptive
     directions: [earlier, later, stable]
-    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend]
+    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend, decadal-climatology-season-model]
 
   thermal-summer-start-shift:
-    method: thermal-seasons@1.0.0
+    methods: [thermal-seasons@1.0.0, thermal-seasons@4.0.0]
     metric: summer_start_shift_days
     unit: days
     claim_level: descriptive
     directions: [earlier, later, stable]
-    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend]
+    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend, decadal-climatology-season-model]
 
   thermal-autumn-start-shift:
-    method: thermal-seasons@1.0.0
+    methods: [thermal-seasons@1.0.0, thermal-seasons@4.0.0]
     metric: autumn_start_shift_days
     unit: days
     claim_level: descriptive
     directions: [earlier, later, stable]
-    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend]
+    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend, decadal-climatology-season-model]
 
   thermal-winter-start-shift:
-    method: thermal-seasons@1.0.0
+    methods: [thermal-seasons@1.0.0, thermal-seasons@4.0.0]
     metric: winter_start_shift_days
     unit: days
     claim_level: descriptive
     directions: [earlier, later, stable]
-    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend]
+    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend, decadal-climatology-season-model]
 
   thermal-summer-length-change:
-    method: thermal-seasons@1.0.0
+    methods: [thermal-seasons@1.0.0, thermal-seasons@4.0.0]
     metric: summer_length_change_days
     unit: days
     claim_level: descriptive
     directions: [longer, shorter, stable]
-    caveats: [thermal-not-meteorological-season, descriptive-not-trend, not-heatwave-duration]
+    caveats: [thermal-not-meteorological-season, gridded-reanalysis, descriptive-not-trend, decadal-climatology-season-model, not-heatwave-duration]
 
   thermal-season-length-change:
     method: thermal-seasons@1.0.0
@@ -233,6 +232,7 @@ caveats:
   not-storm-observation: "Vent fort dans la réanalyse ne prouve pas une tempête nommée ou des dégâts."
   candidate-not-impact-event: "Candidat climatique automatique, pas événement d'impact confirmé."
   thermal-not-meteorological-season: "Saison thermique locale T25/T75, pas saison fixe DJF/MAM/JJA/SON."
+  decadal-climatology-season-model: "Frontières issues de climatologies quotidiennes décennales, lissées par harmonique à deux harmoniques et contrôlées par moyenne mobile circulaire 31 jours."
   not-heatwave-duration: "Durée d'été thermique différente de la durée des canicules."
   not-water-resource: "Précipitations différentes de la ressource en eau disponible."
   modelled-soil-water-not-reserve-utile: "Stock dérivé ERA5-Land 0-100 cm, pas réserve utile ni observation locale."

@@ -9,33 +9,30 @@ from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
-# Fixtures suivies par Git et utilisées par les POC/golden masters. En local ou
-# en production, chaque chemin peut être remplacé par un ClimateResult P6 réel
-# via les options --overview / --fingerprint / --seasons / --water.
 DEFAULT_OVERVIEW = REPO_ROOT / "poc" / "climat" / "general" / "climate" / "overview" / "outputs" / "zone_test_utilisateur_climate-overview.json"
 DEFAULT_FINGERPRINT = REPO_ROOT / "poc" / "climat" / "empreinte-climatique" / "example" / "climate-fingerprint-v4.json"
-DEFAULT_SEASONS = REPO_ROOT / "poc" / "climat" / "saisons" / "tests" / "fixtures" / "thermal-seasons-fixture.json"
+DEFAULT_SEASONS = REPO_ROOT / "doc" / "climat" / "validations" / "data" / "thermal-seasons-v4" / "thermal-seasons-v4-replay.json"
 DEFAULT_WATER = REPO_ROOT / "poc" / "climat" / "bilan eau" / "output" / "water-through-year.json"
 DEFAULT_OUTPUT = REPO_ROOT / "apps" / "web" / "public" / "climat" / "generated"
 COMMENTARY_FILENAME = "climate-commentary.json"
+SEASONS_FILENAME = "thermal-seasons-v4.json"
 
 EXPECTED_METHODS = {
     "overview": ("climate-overview", "1.0.0"),
     "fingerprint": ("climate-fingerprint", "4.0.0"),
-    "seasons": ("thermal-seasons", "1.0.0"),
+    "seasons": ("thermal-seasons", "4.0.0"),
     "water": ("water-through-year", "1.0.0"),
 }
+EXPECTED_METHOD_REFS = {value for value in EXPECTED_METHODS.values()}
 
 RENDERER_FILES = {
     "overview": REPO_ROOT / "apps" / "climate-overview-service" / "src" / "climate_overview_service" / "renderer.py",
     "fingerprint": REPO_ROOT / "apps" / "climate-fingerprint-service" / "src" / "climate_fingerprint_service" / "renderer.py",
-    "seasons": REPO_ROOT / "apps" / "climate-seasons-service" / "src" / "climate_seasons_service" / "renderer.py",
     "water": REPO_ROOT / "apps" / "climate-water-service" / "src" / "climate_water_service" / "renderer.py",
 }
 
 
 def _load_renderer(key: str) -> ModuleType:
-    """Charge uniquement renderer.py, sans exécuter le __init__ du service scientifique."""
     path = RENDERER_FILES[key]
     module_name = f"climate_sheet_{key}_renderer"
     spec = importlib.util.spec_from_file_location(module_name, path)
@@ -48,18 +45,14 @@ def _load_renderer(key: str) -> ModuleType:
 
 
 def _as_climate_result(payload: dict, key: str) -> dict:
-    """Accepte un ClimateResult P6 ou enveloppe une fixture scientifique suivie par Git."""
     expected_id, expected_version = EXPECTED_METHODS[key]
     method = payload.get("method")
-
     if isinstance(method, dict) and method.get("id") == expected_id:
         if method.get("version") != expected_version:
             raise SystemExit(
-                f"Version inattendue pour {key}: {method.get('version')} "
-                f"(attendu {expected_version})"
+                f"Version inattendue pour {key}: {method.get('version')} (attendu {expected_version})"
             )
         return payload
-
     return {
         "product": {"id": expected_id},
         "method": {"id": expected_id, "version": expected_version},
@@ -74,6 +67,15 @@ def _load(path: Path, key: str) -> dict:
     if not isinstance(payload, dict):
         raise SystemExit(f"Entrée climat invalide pour {key}: {path}")
     return _as_climate_result(payload, key)
+
+
+def _commentary_method_refs(commentary: dict) -> set[tuple[str, str]]:
+    refs: set[tuple[str, str]] = set()
+    for ref in commentary.get("method_refs") or []:
+        if not isinstance(ref, dict):
+            continue
+        refs.add((str(ref.get("id", "")), str(ref.get("version", ""))))
+    return refs
 
 
 def _load_validated_commentary(path: Path) -> dict:
@@ -91,6 +93,10 @@ def _load_validated_commentary(path: Path) -> dict:
         raise SystemExit("ClimateCommentary sans ancrage complet : publication refusée")
     if validation.get("unsupported_claims"):
         raise SystemExit("ClimateCommentary contient des claims non supportés : publication refusée")
+    if _commentary_method_refs(commentary) != EXPECTED_METHOD_REFS:
+        raise SystemExit(
+            "ClimateCommentary produit pour des versions différentes de la fiche : publication refusée"
+        )
     for finding in commentary.get("findings") or []:
         if not finding.get("signal_ids"):
             raise SystemExit("ClimateCommentary contient un finding sans signal_id")
@@ -98,17 +104,16 @@ def _load_validated_commentary(path: Path) -> dict:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Assemble les quatre rendus climat statiques pour /climat/."
-    )
+    parser = argparse.ArgumentParser(description="Assemble les actifs statiques de /climat/.")
     parser.add_argument("--overview", type=Path, default=DEFAULT_OVERVIEW)
     parser.add_argument("--fingerprint", type=Path, default=DEFAULT_FINGERPRINT)
     parser.add_argument("--seasons", type=Path, default=DEFAULT_SEASONS)
     parser.add_argument("--water", type=Path, default=DEFAULT_WATER)
+    parser.add_argument("--commentary", type=Path)
     parser.add_argument(
-        "--commentary",
-        type=Path,
-        help="ClimateCommentary préalablement validé par climate-commentary-service",
+        "--keep-existing-commentary",
+        action="store_true",
+        help="Conserve un climate-commentary.json déjà présent si --commentary est absent.",
     )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     return parser
@@ -126,20 +131,22 @@ def main() -> int:
 
     overview_renderer = _load_renderer("overview")
     fingerprint_renderer = _load_renderer("fingerprint")
-    seasons_renderer = _load_renderer("seasons")
     water_renderer = _load_renderer("water")
 
     files = {
         "overview": "climate-overview-v1-neutral.svg",
         "fingerprint": "climate-fingerprint-v4-neutral.svg",
-        "seasons": "thermal-seasons-v1-neutral.svg",
+        "seasons": SEASONS_FILENAME,
         "water": "water-through-year-v1-neutral.svg",
     }
 
     overview_renderer.write_overview_result_svg(overview, output / files["overview"])
     fingerprint_renderer.write_fingerprint_result_svg(fingerprint, output / files["fingerprint"], theme="neutral")
-    seasons_renderer.write_thermal_seasons_result_svg(seasons, output / files["seasons"])
     water_renderer.write_water_result_svg(water, output / files["water"])
+    (output / SEASONS_FILENAME).write_text(
+        json.dumps(seasons, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     commentary_file = output / COMMENTARY_FILENAME
     commentary_manifest = None
@@ -150,19 +157,23 @@ def main() -> int:
             encoding="utf-8",
         )
         commentary_manifest = COMMENTARY_FILENAME
+    elif args.keep_existing_commentary and commentary_file.is_file():
+        _load_validated_commentary(commentary_file)
+        commentary_manifest = COMMENTARY_FILENAME
     elif commentary_file.exists():
         commentary_file.unlink()
 
     manifest = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "product": "climate-sheet-static",
         "analyses": [
             {
                 "id": key,
                 "method": {"id": EXPECTED_METHODS[key][0], "version": EXPECTED_METHODS[key][1]},
-                "svg": filename,
+                "asset": files[key],
+                "asset_type": "climate-result" if key == "seasons" else "svg",
             }
-            for key, filename in files.items()
+            for key in ("overview", "fingerprint", "seasons", "water")
         ],
     }
     if commentary_manifest:
