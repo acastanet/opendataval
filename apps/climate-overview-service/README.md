@@ -2,7 +2,7 @@
 
 Quatrième microservice scientifique natif P6 du domaine climat OpenDataVal.
 
-Méthode : `climate-overview@1.0.0` — **draft / validation P6 en cours**.
+Méthode : `climate-overview@1.0.0` — **validated**.
 
 ## Responsabilité
 
@@ -36,6 +36,8 @@ tropical_nights_20c_mean
 
 étaient approximés à partir de la température moyenne journalière. Ils sont **non canoniques** et ne sont ni recalculés ni émis comme signaux P6. Leur éventuelle réintroduction exigera de vraies températures quotidiennes min/max et une méthode dédiée.
 
+Ils ne bloquent pas la validation du noyau canonique V1 actuel.
+
 ## Représentativité
 
 Pour le cas point / petite zone OpenDataVal, la V1 utilise le point de grille ERA5-Land 0,1° représentatif et conserve explicitement :
@@ -49,16 +51,16 @@ Le support multi-cellules des polygones plus grands reste dans la méthode gén�
 
 ## ClimateSnapshot
 
-Le service réutilise les actifs 1991–2025 déjà acquis pour l'empreinte climatique et ne télécharge rien au runtime :
+Le service réutilise deux actifs ERA5-Land déjà acquis dans la chaîne climat et ne télécharge rien au runtime :
 
 ```text
 era5-land.csv
 era5-land-precipitation.csv
 ```
 
-Le calcul overview consomme uniquement 1991–2020. Le snapshot conserve honnêtement la couverture 1991–2025 des actifs et vérifie leurs SHA-256 avant calcul.
+Les actifs couvrent 1991–2025 ; le calcul overview consomme uniquement 1991–2020. Le snapshot conserve honnêtement la couverture complète des actifs et vérifie leurs SHA-256 avant calcul.
 
-Pour éviter d'écraser le snapshot de l'empreinte dans le dossier `raw` partagé, son manifeste s'appelle :
+Pour éviter d'écraser un autre snapshot dans un dossier `raw` partagé, son manifeste s'appelle :
 
 ```text
 climate-overview-snapshot.json
@@ -82,6 +84,37 @@ signal_count       = 7
 
 Le comparateur P6 ignore explicitement les trois anciens compteurs d'extrêmes non canoniques.
 
+## Validation P6 — PASS
+
+Le replay réel a été exécuté avec la copie déjà validée des deux CSV située sous :
+
+```text
+poc/climat/saisons/output/raw
+```
+
+Cette copie est identique aux actifs déjà validés dans la chaîne climat.
+
+Résultat :
+
+```text
+PASS — climate-overview P6 reproduit le golden master V1 à tolérance nulle.
+```
+
+Validation confirmée :
+
+- deux actifs vérifiés par SHA-256 ;
+- 12 mois climatologiques ;
+- 7 signaux canoniques ;
+- équivalence au golden master P5 ;
+- tolérance numérique `0.0` ;
+- aucun downscaling artificiel.
+
+Attestation :
+
+```text
+doc/climat/validations/climate-overview-v1-p6.md
+```
+
 ## Tests
 
 ```bash
@@ -91,20 +124,14 @@ python -m unittest discover -s apps/climate-overview-service/tests -p "test_*.py
 
 ## Replay réel local
 
-Avec le dossier raw déjà utilisé par l'empreinte :
+Le script accepte n'importe quel dossier contenant les deux CSV attendus. Dans le replay de validation, le dossier utilisé était :
 
 ```bash
 python apps/climate-overview-service/scripts/verify_golden_replay.py \
-  "poc/climat/empreinte-climatique/output/raw"
+  "poc/climat/saisons/output/raw"
 ```
 
-Si le snapshot de l'empreinte est présent, son horodatage réel d'acquisition est réutilisé. Sinon fournir `--retrieved-at`.
-
-Résultat attendu :
-
-```text
-PASS — climate-overview P6 reproduit le golden master V1 à tolérance nulle.
-```
+Les fichiers bruts et les artefacts de replay restent volontairement hors Git.
 
 ## Hors périmètre de cette tranche
 
