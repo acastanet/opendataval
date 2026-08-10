@@ -81,7 +81,9 @@ export function urlBrgm(baseUrl: string, tuile: CoordonneesTuile): string {
     WIDTH: "256",
     HEIGHT: "256",
     FORMAT: "image/png",
-    TRANSPARENT: "true",
+    // Opaque, comme les autres fonds : en transparent, le BRGM renvoie de l'alpha=0 hors
+    // recouvrement, et `raster-opacity` ne change rien à des pixels déjà transparents.
+    TRANSPARENT: "false",
   });
   return `${baseUrl}?${query}`;
 }
