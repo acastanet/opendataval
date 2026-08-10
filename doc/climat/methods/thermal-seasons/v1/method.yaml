@@ -156,6 +156,19 @@ p5:
   ci_workflow: .github/workflows/climate-contracts.yml
   note: "29 années ok sur 30 ; les cinq comparaisons figées restent des signaux valides."
 
+p6:
+  status: native_equivalence_passed_real_replay_pending
+  service: apps/climate-seasons-service
+  ci_workflow: .github/workflows/climate-seasons-service.yml
+  algorithmic_equivalence: passed
+  snapshot_replay: passed
+  real_golden_replay: pending
+  replay_tool: apps/climate-seasons-service/scripts/verify_golden_replay.py
+  note: >-
+    Le calcul natif reproduit le POC sur les mêmes séries et le snapshot mono-actif
+    est rejouable avec contrôle SHA-256. Le passage à validated attend uniquement
+    le replay de l'actif ERA5-Land réel contre la fixture P5 à tolérance nulle.
+
 references:
   - wmo-climatological-normals
   - copernicus-era5-land-timeseries
@@ -171,4 +184,4 @@ project_sources:
   - poc/climat/saisons/thermal_seasons/schema.py
 
 validation_blockers:
-  - native_service_equivalence_pending_p6
+  - native_real_golden_replay_pending_p6
