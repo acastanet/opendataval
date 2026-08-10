@@ -19,6 +19,7 @@ from .snapshot import (
     verify_snapshot_asset,
     write_snapshot_manifest,
 )
+from .v2 import METHOD_V2, build_climate_result_v2, build_v2_signals, compute_thermal_seasons_v2_data
 from .validate import resolve_json_pointer, validate_result_invariants
 
 __all__ = [
@@ -28,6 +29,10 @@ __all__ = [
     "ResultContext",
     "build_climate_result",
     "build_signals",
+    "METHOD_V2",
+    "compute_thermal_seasons_v2_data",
+    "build_climate_result_v2",
+    "build_v2_signals",
     "assert_thermal_seasons_equivalent",
     "comparable_payload",
     "ThermalSeasonsRenderError",
