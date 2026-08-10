@@ -14,8 +14,7 @@ on:
       - "doc/climat/validations/data/thermal-seasons-v4/**"
       - ".github/workflows/climate-sheet-web.yml"
   push:
-    branches:
-      - master
+    branches: [master]
     paths:
       - "apps/climate-sheet-service/**"
       - "apps/climate-commentary-service/**"
@@ -49,10 +48,19 @@ jobs:
       - name: Check climate sheet assembler
         run: python -m py_compile apps/climate-sheet-service/scripts/build_static_sheet.py
 
-      - name: Generate climate sheet with validated commentary
+      - name: Reject stale V1 commentary
+        run: |
+          if python apps/climate-sheet-service/scripts/build_static_sheet.py \
+            --commentary apps/climate-commentary-service/tests/fixtures/sheet-commentary.golden.json \
+            --output-dir /tmp/climate-sheet-stale; then
+            echo "Le commentaire V1 aurait dû être refusé" >&2
+            exit 1
+          fi
+
+      - name: Generate climate sheet with V4-compatible commentary
         run: |
           python apps/climate-sheet-service/scripts/build_static_sheet.py \
-            --commentary apps/climate-commentary-service/tests/fixtures/sheet-commentary.golden.json
+            --commentary apps/climate-sheet-service/tests/fixtures/sheet-commentary-v4.integration.json
 
       - name: Verify generated sheet assets
         run: |
@@ -65,6 +73,14 @@ jobs:
           grep -q '"version": "4.0.0"' apps/web/public/climat/generated/thermal-seasons-v4.json
           grep -q '"asset": "thermal-seasons-v4.json"' apps/web/public/climat/generated/manifest.json
           grep -q '"commentary": "climate-commentary.json"' apps/web/public/climat/generated/manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("apps/web/public/climat/generated/climate-commentary.json").read_text())
+          refs = {(item["id"], item["version"]) for item in data["method_refs"]}
+          assert ("thermal-seasons", "4.0.0") in refs
+          assert ("thermal-seasons", "1.0.0") not in refs
+          PY
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4

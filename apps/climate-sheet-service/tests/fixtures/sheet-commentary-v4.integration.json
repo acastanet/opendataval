@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "commentary_id": "COMMENTARY-SHEET-V4-INTEGRATION",
+  "scope": "sheet",
+  "result_ids": [
+    "RESULT-OVERVIEW-VALIDATION",
+    "RESULT-FINGERPRINT-VALIDATION",
+    "RESULT-THERMAL-SEASONS-V4-SNAPSHOT-THERMAL-SEASONS-V1-20260810T040002Z",
+    "RESULT-WATER-VALIDATION"
+  ],
+  "method_refs": [
+    {"id": "climate-overview", "version": "1.0.0"},
+    {"id": "climate-fingerprint", "version": "4.0.0"},
+    {"id": "thermal-seasons", "version": "4.0.0"},
+    {"id": "water-through-year", "version": "1.0.0"}
+  ],
+  "summary": "La synthèse décrit le climat de référence et les évolutions descriptives autorisées pour la fiche V4.",
+  "findings": [
+    {
+      "id": "finding-climat-habituel",
+      "text": "La climatologie de référence est décrite par les signaux validés du bloc climat.",
+      "signal_ids": ["overview-temp:validation"],
+      "claim_level": "descriptive"
+    }
+  ],
+  "caveats": [],
+  "abstentions": [],
+  "generation": {
+    "generated_at": "2026-08-10T13:00:00Z",
+    "service": "climate-commentary-service",
+    "model": "test-model",
+    "prompt_version": "climate-commentary-p1@1.1.0"
+  },
+  "validation": {
+    "status": "valid",
+    "all_findings_have_signal_evidence": true,
+    "unsupported_claims": []
+  }
+}
