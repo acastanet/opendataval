@@ -24,7 +24,8 @@ EXAMPLE_JSON = (
     / "example"
     / "climate-fingerprint-v4.json"
 )
-EXAMPLE_SVG = EXAMPLE_JSON.with_suffix(".svg")
+EXAMPLE_NEUTRAL_SVG = EXAMPLE_JSON.with_name("climate-fingerprint-v4-neutral.svg")
+EXAMPLE_LIGHT_SVG = EXAMPLE_JSON.with_suffix(".svg")
 
 
 def _native_shape_payload() -> dict:
@@ -49,16 +50,17 @@ def _result(payload: dict) -> dict:
 
 
 class FingerprintRendererTest(unittest.TestCase):
-    def test_native_climate_result_reproduces_v4_svg_exactly(self) -> None:
-        generated = render_fingerprint_result_svg(_result(_native_shape_payload()))
-        expected = EXAMPLE_SVG.read_text(encoding="utf-8").replace("\r\n", "\n").rstrip("\n")
+    def test_native_climate_result_reproduces_canonical_neutral_svg_exactly(self) -> None:
+        generated = render_fingerprint_result_svg(_result(_native_shape_payload()), theme="neutral")
+        expected = EXAMPLE_NEUTRAL_SVG.read_text(encoding="utf-8").replace("\r\n", "\n").rstrip("\n")
         self.assertEqual(generated, expected)
 
-    def test_neutral_theme_changes_only_presentation(self) -> None:
+    def test_light_theme_remains_available_as_variant(self) -> None:
         result = _result(_native_shape_payload())
         light = render_fingerprint_result_svg(result, theme="light")
+        expected = EXAMPLE_LIGHT_SVG.read_text(encoding="utf-8").replace("\r\n", "\n").rstrip("\n")
+        self.assertEqual(light, expected)
         neutral = render_fingerprint_result_svg(result, theme="neutral")
-        self.assertIn('fill="#FAFAF7"', light)
         self.assertIn('fill="#C5C4C1"', neutral)
         self.assertIn("+1.12 °C", neutral)
         self.assertIn("+1.62 °C UTCI", neutral)
