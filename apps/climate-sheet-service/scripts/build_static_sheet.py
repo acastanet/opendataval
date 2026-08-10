@@ -110,6 +110,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--seasons", type=Path, default=DEFAULT_SEASONS)
     parser.add_argument("--water", type=Path, default=DEFAULT_WATER)
     parser.add_argument("--commentary", type=Path)
+    parser.add_argument(
+        "--keep-existing-commentary",
+        action="store_true",
+        help="Conserve un climate-commentary.json déjà présent si --commentary est absent.",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     return parser
 
@@ -151,6 +156,9 @@ def main() -> int:
             json.dumps(commentary, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
+        commentary_manifest = COMMENTARY_FILENAME
+    elif args.keep_existing_commentary and commentary_file.is_file():
+        _load_validated_commentary(commentary_file)
         commentary_manifest = COMMENTARY_FILENAME
     elif commentary_file.exists():
         commentary_file.unlink()
