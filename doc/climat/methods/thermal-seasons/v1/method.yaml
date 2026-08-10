@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: thermal-seasons
 version: "1.0.0"
-status: draft
+status: validated
 
 product:
   title_fr: "Les saisons se déplacent"
@@ -156,6 +156,20 @@ p5:
   ci_workflow: .github/workflows/climate-contracts.yml
   note: "29 années ok sur 30 ; les cinq comparaisons figées restent des signaux valides."
 
+p6:
+  status: native_replay_passed
+  service: apps/climate-seasons-service
+  ci_workflow: .github/workflows/climate-seasons-service.yml
+  algorithmic_equivalence: passed
+  snapshot_replay: passed
+  real_golden_replay: passed
+  numeric_tolerance: 0.0
+  replay_tool: apps/climate-seasons-service/scripts/verify_golden_replay.py
+  validation_attestation: doc/climat/validations/thermal-seasons-v1-p6.md
+  note: >-
+    Le calcul natif reproduit le POC sur les mêmes séries et rejoue l'actif ERA5-Land
+    réel avec contrôle SHA-256. La comparaison au golden master V1 passe à tolérance nulle.
+
 references:
   - wmo-climatological-normals
   - copernicus-era5-land-timeseries
@@ -170,5 +184,4 @@ project_sources:
   - poc/climat/saisons/thermal_seasons/aggregate.py
   - poc/climat/saisons/thermal_seasons/schema.py
 
-validation_blockers:
-  - native_service_equivalence_pending_p6
+validation_blockers: []

@@ -1,10 +1,10 @@
 # Changelog — Thermal Seasons V1
 
-## 1.0.0 — extraction canonique P2
+## 1.0.0 — méthode validée P6
 
-Statut : `draft`.
+Statut : `validated`.
 
-Cette version formalise sans modifier le code la méthode actuellement implémentée dans `poc/climat/saisons/`.
+Cette version formalise la méthode canonique des saisons thermiques locales et son équivalence avec le service scientifique natif P6.
 
 ### Figé
 
@@ -30,10 +30,16 @@ Cette version formalise sans modifier le code la méthode actuellement implémen
 - la comparaison entre décennies reste descriptive tant qu'aucun test de tendance n'est ajouté ;
 - l'indicateur de saison de croissance reste secondaire et séparé de la méthode T25/T75.
 
-### À résoudre avant `validated`
+### Validation P3–P6
 
-- règles d'interprétation P3 ;
-- contrat `ClimateResult` / `ClimateSignal` P4 ;
-- golden master P5 ;
-- choix d'un actif ERA5-Land de production stable et test d'équivalence ;
-- statut final de la saison de croissance secondaire.
+- règles d'interprétation P3 définies ;
+- contrats `ClimateResult` / `ClimateSignal` P4 définis ;
+- golden master P5 figé ;
+- service natif `apps/climate-seasons-service` implémenté ;
+- parité algorithmique POC ↔ natif validée ;
+- `ClimateSnapshot` mono-actif `era5-land.csv` avec contrôle SHA-256 validé ;
+- replay réel contre le golden master V1 validé le 2026-08-10 ;
+- tolérance numérique du replay réel : `0.0` ;
+- attestation : `doc/climat/validations/thermal-seasons-v1-p6.md`.
+
+La qualité de référence reste `29/30` années valides ; les cinq signaux de comparaison demeurent valides et descriptifs.
