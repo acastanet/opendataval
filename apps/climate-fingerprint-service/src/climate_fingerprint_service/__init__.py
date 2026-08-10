@@ -1,6 +1,12 @@
 from .compute import FingerprintSeriesInput, compute_fingerprint_data
 from .equivalence import assert_fingerprint_equivalent, comparable_payload
 from .legacy_metadata import legacy_poc_acquisition_metadata
+from .renderer import (
+    FingerprintRenderError,
+    render_fingerprint_data_svg,
+    render_fingerprint_result_svg,
+    write_fingerprint_result_svg,
+)
 from .result import FingerprintContext, build_climate_result
 from .signals import build_signals
 from .snapshot import (
@@ -34,4 +40,8 @@ __all__ = [
     "replay_snapshot",
     "verify_snapshot_assets",
     "write_snapshot_manifest",
+    "FingerprintRenderError",
+    "render_fingerprint_data_svg",
+    "render_fingerprint_result_svg",
+    "write_fingerprint_result_svg",
 ]
