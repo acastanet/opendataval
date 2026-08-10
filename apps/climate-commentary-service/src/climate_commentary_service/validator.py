@@ -14,7 +14,7 @@ CLAIM_RANK = {
     "statistical_trend": 1,
     "causal_attribution": 2,
 }
-NUMBER_RE = re.compile(r"(?<![A-Za-z0-9_])[-+−]?\d+(?:[.,]\d+)?")
+NUMBER_RE = re.compile(r"(?<![A-Za-z0-9_-])[-+−]?\d+(?:[.,]\d+)?(?![A-Za-z0-9_])")
 
 
 class CommentaryValidationError(ValueError):
