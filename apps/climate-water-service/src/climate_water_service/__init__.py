@@ -1,5 +1,11 @@
 from .compute import WaterContext, WaterThroughYearInput, compute_water_through_year_data
 from .equivalence import assert_water_equivalent, comparable_payload
+from .renderer import (
+    extract_water_data,
+    render_water_result_svg,
+    render_water_through_year_svg,
+    write_water_result_svg,
+)
 from .request import GridPoint, nearest_grid_point, request_parameters
 from .result import ResultContext, build_climate_result
 from .signals import build_signals
@@ -25,6 +31,10 @@ __all__ = [
     "build_signals",
     "assert_water_equivalent",
     "comparable_payload",
+    "extract_water_data",
+    "render_water_result_svg",
+    "render_water_through_year_svg",
+    "write_water_result_svg",
     "GridPoint",
     "nearest_grid_point",
     "request_parameters",
