@@ -1,131 +1,225 @@
 """Rendu SVG natif P7 de « L'eau au fil de l'année ».
 
-Aucun calcul scientifique : toutes les valeurs proviennent de ClimateResult.data.
-Le rendu reproduit le renderer POC V1 neutral.
+Le renderer ne fait que mettre en forme ``ClimateResult.data`` : aucun seuil,
+aucune série et aucune agrégation scientifique n'y sont recalculés.
 """
 
 from __future__ import annotations
 
 from html import escape
 from pathlib import Path
-from typing import Mapping, Any
+from typing import Any, Mapping
 
 METHOD = {"id": "water-through-year", "version": "1.0.0"}
 MONTHS = ("JAN", "FÉV", "MAR", "AVR", "MAI", "JUN", "JUL", "AOÛ", "SEP", "OCT", "NOV", "DÉC")
-WIDTH, HEIGHT = 1120, 450
-LEFT, PLOT_WIDTH, RIGHT_X = 118, 700, 862
-CELL = PLOT_WIDTH / 12
-PROFILE_TOPS = (145, 287)
-SOIL_COLORS = ((20, "#9A6238"), (40, "#E6C7A3"), (60, "#FBFAF7"), (80, "#92C5DE"), (101, "#2166AC"))
+WIDTH, HEIGHT = 1120, 1000
+BAND_X, BAND_WIDTH, BAND_HEIGHT = 40, 1040, 190
+PLOT_X, PLOT_WIDTH, PLOT_HEIGHT = 220, 610, 96
+CELL = PLOT_WIDTH / 11
+EARLY, LATE = "1996-2005", "2016-2025"
+EARLY_COLOR, LATE_COLOR = "#2166AC", "#B2182B"
+
+BANDS = (
+    {
+        "id": "precipitation",
+        "title": "Précipitations",
+        "key": "precipitation_mm",
+        "unit": "mm/mois",
+        "summary": "Pluie annuelle",
+        "comparison": "annual_precip_change_pct",
+        "comparison_unit": "%",
+    },
+    {
+        "id": "soil",
+        "title": "Stock d’eau du sol modélisé",
+        "key": "soil_water_0_100_mm",
+        "unit": "mm · 0–100 cm",
+        "summary": "Stock estival",
+        "comparison": "summer_soil_water_change_mm",
+        "comparison_unit": "mm",
+    },
+    {
+        "id": "evapotranspiration",
+        "title": "Évapotranspiration",
+        "key": "actual_evapotranspiration_mm",
+        "unit": "mm/mois",
+        "summary": "Profil mensuel",
+        "comparison": None,
+        "comparison_unit": "",
+    },
+    {
+        "id": "spei3",
+        "title": "Indice SPEI-3",
+        "key": "spei3",
+        "unit": "indice sans unité",
+        "summary": "Mois secs",
+        "comparison": "dry_months_change",
+        "comparison_unit": "mois/an",
+        "threshold": -1.0,
+    },
+)
 
 
 def _fmt(value: float | None, digits: int = 0) -> str:
     return "—" if value is None else f"{float(value):.{digits}f}".replace(".", ",")
 
 
-def _color(percentile: float | None) -> str:
-    if percentile is None:
-        return "#E4E1DC"
-    return next(color for edge, color in SOIL_COLORS if percentile < edge)
+def _records(document: dict, period: str) -> list[dict]:
+    return list(document["monthly"].get(period, {}).values())
 
 
-def _tooltip(month: str, label: str, data: dict) -> str:
+def _scale(document: dict, key: str, threshold: float | None) -> tuple[float, float]:
+    values = [
+        float(record[field])
+        for period in (EARLY, LATE)
+        for record in _records(document, period)
+        for field in (f"{key}_p25", f"{key}_p75")
+        if record.get(field) is not None
+    ]
+    if threshold is not None:
+        values.append(threshold)
+    if not values:
+        return 0.0, 1.0
+    minimum, maximum = min(values), max(values)
+    padding = max((maximum - minimum) * 0.12, 0.2 if key == "spei3" else 1.0)
+    return minimum - padding, maximum + padding
+
+
+def _y(value: float, minimum: float, maximum: float, top: float) -> float:
+    ratio = 0.5 if maximum == minimum else (value - minimum) / (maximum - minimum)
+    return top + PLOT_HEIGHT * (1 - max(0.0, min(1.0, ratio)))
+
+
+def _points(records: list[dict], key: str, minimum: float, maximum: float, top: float) -> list[tuple[float, float]]:
+    return [
+        (PLOT_X + index * CELL, _y(float(record[f"{key}_median"]), minimum, maximum, top))
+        for index, record in enumerate(records)
+        if record.get(f"{key}_median") is not None
+    ]
+
+
+def _path(points: list[tuple[float, float]]) -> str:
+    return " ".join(
+        f"{'M' if index == 0 else 'L'} {x:.1f} {y:.1f}"
+        for index, (x, y) in enumerate(points)
+    )
+
+
+def _interval(records: list[dict], key: str, minimum: float, maximum: float, top: float) -> str:
+    upper = [
+        (PLOT_X + index * CELL, _y(float(record[f"{key}_p75"]), minimum, maximum, top))
+        for index, record in enumerate(records)
+        if record.get(f"{key}_p75") is not None and record.get(f"{key}_p25") is not None
+    ]
+    lower = [
+        (PLOT_X + index * CELL, _y(float(record[f"{key}_p25"]), minimum, maximum, top))
+        for index, record in enumerate(records)
+        if record.get(f"{key}_p75") is not None and record.get(f"{key}_p25") is not None
+    ]
+    return "" if len(upper) < 2 else f"{_path(upper)} {' '.join(f'L {x:.1f} {y:.1f}' for x, y in reversed(lower))} Z"
+
+
+def _tooltip(month: str, title: str, early: dict, late: dict, key: str, unit: str) -> str:
     return escape(
-        f"{month.title()} · {label}\n\n"
-        f"Précipitations : {_fmt(data.get('precipitation_mm_median'))} mm/mois\n"
-        f"P25–P75 : {_fmt(data.get('precipitation_mm_p25'))}–{_fmt(data.get('precipitation_mm_p75'))} mm\n"
-        f"Stock d’eau modélisé 0–100 cm : {_fmt(data.get('soil_water_0_100_mm_median'))} mm\n"
-        f"Évapotranspiration réelle : {_fmt(data.get('actual_evapotranspiration_mm_median'))} mm/mois\n"
-        f"SPEI-3 : {_fmt(data.get('spei3_median'), 2)}\n\n"
-        "Sources : ERA5-Land / ERA5-Drought"
+        f"{month.title()} · {title}\n\n"
+        f"1996–2005 : {_fmt(early.get(f'{key}_median'), 2 if key == 'spei3' else 0)} {unit}\n"
+        f"2016–2025 : {_fmt(late.get(f'{key}_median'), 2 if key == 'spei3' else 0)} {unit}\n"
+        "Les zones colorées représentent P25–P75."
     )
 
 
-def _scales(document: dict) -> tuple[float, float, float, float, float, float]:
-    records = [item for label in ("1996-2005", "2016-2025") for item in document["monthly"].get(label, {}).values()]
-
-    def maximum(key: str, fallback: float) -> float:
-        vals = [float(entry[key]) for entry in records if entry.get(key) is not None]
-        return max(vals) if vals else fallback
-
-    soil_values = [float(entry["soil_water_0_100_mm_median"]) for entry in records if entry.get("soil_water_0_100_mm_median") is not None]
-    return maximum("precipitation_mm_median", 1), max(min(soil_values, default=0), 0), max(soil_values, default=1), maximum("actual_evapotranspiration_mm_median", 1), 0, 1
-
-
-def _comparison_block(comparison: dict) -> str:
-    items = (
-        ("Pluie annuelle", comparison.get("annual_precip_change_pct"), "%", True),
-        ("Stock du sol en été", comparison.get("summer_soil_water_change_mm"), "mm", False),
-        ("Déficit SPEI-3", comparison.get("dry_months_change"), "mois/an", False),
+def _comparison(band: Mapping[str, Any], comparison: Mapping[str, Any]) -> str:
+    key = band.get("comparison")
+    if not key:
+        return '<text x="860" y="86" class="comparison-note">Lecture mensuelle</text>'
+    value = comparison.get(key)
+    if value is None:
+        display = "donnée insuffisante"
+    else:
+        numeric = float(value)
+        sign = "+" if numeric > 0 else "−" if numeric < 0 else ""
+        digits = 0 if abs(numeric) >= 10 else 1
+        display = f"{sign}{_fmt(abs(numeric), digits)} {band['comparison_unit']}"
+    return (
+        f'<text x="860" y="68" class="comparison-label">{escape(str(band["summary"]))}</text>'
+        f'<text x="860" y="89" class="comparison-value">{escape(display)}</text>'
     )
-    parts = ['<text x="862" y="148" class="compare-title">Écart entre</text>',
-             '<text x="862" y="164" class="compare-title">les décennies</text>']
-    y = 198
-    for label, value, unit, percentage in items:
-        parts.append(f'<text x="862" y="{y}" class="compare-label">{label}</text>')
-        if value is None:
-            display = "donnée insuffisante"
-        else:
-            sign = "+" if value > 0 else "−" if value < 0 else ""
-            digits = 0 if abs(float(value)) >= 10 else 1
-            display = f"{sign}{_fmt(abs(float(value)), digits)} {unit}"
-        parts.append(f'<text x="862" y="{y + 21}" class="compare-value">{escape(display)}</text>')
-        y += 66
+
+
+def _legend(band: Mapping[str, Any]) -> str:
+    parts = [
+        '<g class="local-legend">',
+        '<line x1="860" y1="116" x2="883" y2="116" class="legend-early"/>',
+        '<text x="890" y="120" class="legend-text">Médiane mensuelle</text>',
+        '<rect x="860" y="130" width="23" height="9" class="legend-interval"/>',
+        '<text x="890" y="139" class="legend-text">Intervalle P25–P75</text>',
+    ]
+    if band.get("threshold") is not None:
+        parts.extend([
+            '<line x1="860" y1="153" x2="883" y2="153" class="legend-threshold"/>',
+            '<text x="890" y="157" class="legend-text">Seuil sec</text>',
+        ])
+    parts.append('</g>')
     return "".join(parts)
 
 
-def _profile(label: str, data: dict, top: float, precip_max: float, soil_min: float, soil_max: float, eta_max: float) -> str:
-    parts = [f'<text x="{LEFT - 12}" y="{top + 54}" class="period" text-anchor="end">{label}</text>']
-    for index, (month, entry) in enumerate(zip(MONTHS, data.values(), strict=True)):
-        x = LEFT + index * CELL
-        cx = x + CELL / 2
-        tip = _tooltip(month, label, entry)
-        precip = entry.get("precipitation_mm_median")
-        if precip is not None:
-            height = 36 * float(precip) / precip_max if precip_max else 0
-            parts.append(f'<rect x="{cx - 7:.1f}" y="{top + 42 - height:.1f}" width="14" height="{height:.1f}" fill="#2166AC"><title>{tip}</title></rect>')
-        soil = entry.get("soil_water_0_100_mm_median")
-        if soil is None:
-            soil_height, soil_y, color = 12, top + 48, "#E4E1DC"
-        else:
-            ratio = 0.5 if soil_max == soil_min else (float(soil) - soil_min) / (soil_max - soil_min)
-            soil_height = 17 + 27 * max(0, min(1, ratio))
-            soil_y, color = top + 95 - soil_height, _color(entry.get("soil_water_reference_percentile_median"))
-        parts.append(f'<rect x="{x + 1:.1f}" y="{soil_y:.1f}" width="{CELL - 2:.1f}" height="{soil_height:.1f}" fill="{color}"><title>{tip}</title></rect>')
-        eta = entry.get("actual_evapotranspiration_mm_median")
-        if eta is not None:
-            height = 24 * float(eta) / eta_max if eta_max else 0
-            parts.append(f'<rect x="{cx - 5:.1f}" y="{top + 102:.1f}" width="10" height="{height:.1f}" fill="#A67C52"><title>{tip}</title></rect>')
-        spei = entry.get("spei3_median")
-        spei_color = "#E4E1DC" if spei is None else "#2166AC" if float(spei) >= 0.5 else "#9A6238" if float(spei) <= -0.5 else "#FBFAF7"
-        parts.append(f'<rect x="{x + 1:.1f}" y="{top + 132:.1f}" width="{CELL - 2:.1f}" height="8" fill="{spei_color}" stroke="#9DA5A4" stroke-width=".35"><title>{tip}</title></rect>')
+def _band(document: dict, band: Mapping[str, Any], top: float) -> str:
+    key, title, unit = str(band["key"]), str(band["title"]), str(band["unit"])
+    early, late = _records(document, EARLY), _records(document, LATE)
+    plot_top = top + 54
+    minimum, maximum = _scale(document, key, band.get("threshold"))
+    early_points = _points(early, key, minimum, maximum, plot_top)
+    late_points = _points(late, key, minimum, maximum, plot_top)
+    parts = [
+        f'<g class="band" data-band="{escape(str(band["id"]))}">',
+        f'<rect class="band-background" x="{BAND_X}" y="{top}" width="{BAND_WIDTH}" height="{BAND_HEIGHT}"/>',
+        f'<text x="64" y="{top + 35}" class="band-title">{escape(title)}</text>',
+        f'<text x="64" y="{top + 55}" class="band-unit">{escape(unit)}</text>',
+        _comparison(band, document.get("comparison", {})),
+        _legend(band),
+    ]
+    for index, month in enumerate(MONTHS):
+        x = PLOT_X + index * CELL
+        parts.append(f'<line x1="{x:.1f}" y1="{plot_top}" x2="{x:.1f}" y2="{plot_top + PLOT_HEIGHT}" class="month-guide"/>')
+        parts.append(f'<text x="{x:.1f}" y="{top + 174}" class="month" text-anchor="middle">{month}</text>')
+    parts.append(f'<line x1="{PLOT_X + PLOT_WIDTH:.1f}" y1="{plot_top}" x2="{PLOT_X + PLOT_WIDTH:.1f}" y2="{plot_top + PLOT_HEIGHT}" class="month-guide"/>')
+    threshold = band.get("threshold")
+    if threshold is not None:
+        y = _y(float(threshold), minimum, maximum, plot_top)
+        parts.append(f'<line x1="{PLOT_X}" y1="{y:.1f}" x2="{PLOT_X + PLOT_WIDTH}" y2="{y:.1f}" class="dry-threshold"/>')
+    for records, color, opacity in ((early, EARLY_COLOR, ".16"), (late, LATE_COLOR, ".12")):
+        interval = _interval(records, key, minimum, maximum, plot_top)
+        if interval:
+            parts.append(f'<path d="{interval}" fill="{color}" opacity="{opacity}"/>')
+    if early_points:
+        parts.append(f'<path d="{_path(early_points)}" class="profile-early"/>')
+    if late_points:
+        parts.append(f'<path d="{_path(late_points)}" class="profile-late"/>')
+    for index, (early_record, late_record) in enumerate(zip(early, late, strict=True)):
+        tip = _tooltip(MONTHS[index], title, early_record, late_record, key, unit)
+        parts.append(f'<rect x="{PLOT_X + index * CELL - CELL / 2:.1f}" y="{plot_top}" width="{CELL:.1f}" height="{PLOT_HEIGHT}" fill="transparent"><title>{tip}</title></rect>')
+    if early_points:
+        parts.append(f'<text x="{early_points[-1][0] + 8:.1f}" y="{early_points[-1][1] - 5:.1f}" class="period-label">1996–2005</text>')
+    if late_points:
+        parts.append(f'<text x="{late_points[-1][0] + 8:.1f}" y="{late_points[-1][1] + 11:.1f}" class="period-label">2016–2025</text>')
+    parts.append('</g>')
     return "".join(parts)
 
 
 def render_water_through_year_svg(document: dict) -> str:
-    """Affiche les médianes déjà sérialisées dans le document JSON."""
-    precip_max, soil_min, soil_max, eta_max, _, _ = _scales(document)
+    """Affiche les statistiques mensuelles déjà sérialisées dans le document JSON."""
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-labelledby="water-title water-desc">',
         '<title id="water-title">L’eau au fil de l’année</title>',
-        '<desc id="water-desc">Deux profils hydriques mensuels comparant 1996–2005 et 2016–2025 : précipitations, stock d’eau modélisé dans les 0–100 cm, évapotranspiration réelle et SPEI-3.</desc>',
-        '<defs><filter id="soft-shadow" x="-5%" y="-10%" width="110%" height="125%"><feDropShadow dx="0" dy="5" stdDeviation="3" flood-color="#1C2529" flood-opacity=".2"/></filter></defs>',
-        '<style>text{font-family:system-ui,-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;fill:#24313A}.title{font-size:23px;font-weight:650}.meta{font-size:12px;fill:#52616A}.month{font-size:9px;fill:#52616A}.period{font-size:13px;font-weight:650}.key{font-size:10px;fill:#52616A}.compare-title{font-size:14px;font-weight:650}.compare-label{font-size:11px;fill:#52616A}.compare-value{font-size:16px;font-weight:650}</style>',
+        '<desc id="water-desc">Quatre bandes mensuelles : précipitations, stock d’eau du sol modélisé, évapotranspiration et indice SPEI-3.</desc>',
+        '<style>text{font-family:system-ui,-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;fill:#24313A}.title{font-size:24px;font-weight:650}.meta{font-size:12px;fill:#52616A}.band-title{font-size:16px;font-weight:650}.band-unit,.month,.legend-text,.comparison-label,.comparison-note,.period-label{font-size:10px;fill:#52616A}.comparison-value{font-size:16px;font-weight:650}.band-background{fill:#FBFAF7}.month-guide{stroke:#9DA5A4;stroke-width:.45;stroke-dasharray:1 3;opacity:.55}.profile-early,.legend-early{fill:none;stroke:#2166AC;stroke-width:2}.profile-late{fill:none;stroke:#B2182B;stroke-width:2;stroke-dasharray:5 3}.legend-interval{fill:#2166AC;opacity:.16}.dry-threshold,.legend-threshold{stroke:#9A6238;stroke-width:1.2;stroke-dasharray:3 2}</style>',
         f'<rect width="{WIDTH}" height="{HEIGHT}" fill="#C5C4C1"/>',
-        '<text x="40" y="40" class="title">L’eau au fil de l’année</text>',
-        '<text x="40" y="63" class="meta">La pluie n’est qu’une partie de l’histoire.</text>',
-        '<text x="40" y="88" class="meta">1996–2025 · référence 1991–2020 · ERA5-Land + ERA5-Drought</text>',
-        f'<g filter="url(#soft-shadow)"><rect x="{LEFT}" y="188" width="{PLOT_WIDTH}" height="52" fill="#1C2529" opacity=".12"/><rect x="{LEFT}" y="330" width="{PLOT_WIDTH}" height="52" fill="#1C2529" opacity=".12"/></g>',
+        '<text x="40" y="42" class="title">L’eau au fil de l’année</text>',
+        '<text x="40" y="65" class="meta">Quatre lectures mensuelles du cycle de l’eau.</text>',
+        '<text x="40" y="86" class="meta">1996–2025 · ERA5-Land + ERA5-Drought</text>',
     ]
-    for index, month in enumerate(MONTHS):
-        x = LEFT + index * CELL + CELL / 2
-        parts.append(f'<text x="{x:.1f}" y="122" class="month" text-anchor="middle">{month}</text>')
-        parts.append(f'<line x1="{LEFT + index * CELL:.1f}" y1="128" x2="{LEFT + index * CELL:.1f}" y2="382" stroke="#52616A" stroke-width=".45" stroke-dasharray="1 3" opacity=".42"/>')
-    parts.append(f'<line x1="{LEFT + PLOT_WIDTH:.1f}" y1="128" x2="{LEFT + PLOT_WIDTH:.1f}" y2="382" stroke="#52616A" stroke-width=".45" stroke-dasharray="1 3" opacity=".42"/>')
-    parts.append('<text x="40" y="180" class="key">pluie</text><text x="40" y="207" class="key">stock du sol</text><text x="40" y="228" class="key">évapotranspiration</text><text x="40" y="242" class="key">SPEI-3</text>')
-    parts.append(_profile("1996–2005", document["monthly"].get("1996-2005", {}), PROFILE_TOPS[0], precip_max, soil_min, soil_max, eta_max))
-    parts.append(_profile("2016–2025", document["monthly"].get("2016-2025", {}), PROFILE_TOPS[1], precip_max, soil_min, soil_max, eta_max))
-    parts.append(_comparison_block(document.get("comparison", {})))
+    for index, band in enumerate(BANDS):
+        parts.append(_band(document, band, 110 + index * 210))
     parts.append('</svg>')
     return "\n".join(parts)
 
