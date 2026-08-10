@@ -17,6 +17,7 @@ DEFAULT_FINGERPRINT = REPO_ROOT / "poc" / "climat" / "empreinte-climatique" / "e
 DEFAULT_SEASONS = REPO_ROOT / "poc" / "climat" / "saisons" / "tests" / "fixtures" / "thermal-seasons-fixture.json"
 DEFAULT_WATER = REPO_ROOT / "poc" / "climat" / "bilan eau" / "output" / "water-through-year.json"
 DEFAULT_OUTPUT = REPO_ROOT / "apps" / "web" / "public" / "climat" / "generated"
+COMMENTARY_FILENAME = "climate-commentary.json"
 
 EXPECTED_METHODS = {
     "overview": ("climate-overview", "1.0.0"),
@@ -41,8 +42,6 @@ def _load_renderer(key: str) -> ModuleType:
     if spec is None or spec.loader is None:
         raise SystemExit(f"Renderer impossible à charger pour {key}: {path}")
     module = importlib.util.module_from_spec(spec)
-    # dataclasses et certains mécanismes d'introspection consultent sys.modules
-    # pendant l'exécution du module.
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
@@ -77,6 +76,27 @@ def _load(path: Path, key: str) -> dict:
     return _as_climate_result(payload, key)
 
 
+def _load_validated_commentary(path: Path) -> dict:
+    if not path.is_file():
+        raise SystemExit(f"ClimateCommentary absent : {path}")
+    commentary = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(commentary, dict):
+        raise SystemExit(f"ClimateCommentary invalide : {path}")
+    validation = commentary.get("validation") or {}
+    if commentary.get("scope") != "sheet":
+        raise SystemExit("ClimateCommentary attendu avec scope=sheet")
+    if validation.get("status") != "valid":
+        raise SystemExit("ClimateCommentary non validé : publication refusée")
+    if validation.get("all_findings_have_signal_evidence") is not True:
+        raise SystemExit("ClimateCommentary sans ancrage complet : publication refusée")
+    if validation.get("unsupported_claims"):
+        raise SystemExit("ClimateCommentary contient des claims non supportés : publication refusée")
+    for finding in commentary.get("findings") or []:
+        if not finding.get("signal_ids"):
+            raise SystemExit("ClimateCommentary contient un finding sans signal_id")
+    return commentary
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Assemble les quatre rendus climat statiques pour /climat/."
@@ -85,6 +105,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--fingerprint", type=Path, default=DEFAULT_FINGERPRINT)
     parser.add_argument("--seasons", type=Path, default=DEFAULT_SEASONS)
     parser.add_argument("--water", type=Path, default=DEFAULT_WATER)
+    parser.add_argument(
+        "--commentary",
+        type=Path,
+        help="ClimateCommentary préalablement validé par climate-commentary-service",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     return parser
 
@@ -116,6 +141,18 @@ def main() -> int:
     seasons_renderer.write_thermal_seasons_result_svg(seasons, output / files["seasons"])
     water_renderer.write_water_result_svg(water, output / files["water"])
 
+    commentary_file = output / COMMENTARY_FILENAME
+    commentary_manifest = None
+    if args.commentary:
+        commentary = _load_validated_commentary(args.commentary.resolve())
+        commentary_file.write_text(
+            json.dumps(commentary, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        commentary_manifest = COMMENTARY_FILENAME
+    elif commentary_file.exists():
+        commentary_file.unlink()
+
     manifest = {
         "schema_version": "1.0",
         "product": "climate-sheet-static",
@@ -128,6 +165,9 @@ def main() -> int:
             for key, filename in files.items()
         ],
     }
+    if commentary_manifest:
+        manifest["commentary"] = commentary_manifest
+
     (output / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -136,6 +176,8 @@ def main() -> int:
     print(output)
     for filename in files.values():
         print(f"- {filename}")
+    if commentary_manifest:
+        print(f"- {commentary_manifest}")
     return 0
 
 
