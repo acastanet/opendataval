@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: thermal-seasons
 version: "4.0.0"
-status: candidate
+status: validated
 
 product:
   title_fr: "Les saisons se déplacent"
@@ -91,14 +91,28 @@ qa:
     applicable: false
     reason: V4_does_not_derive_winter_duration_from_annual_N_plus_1_boundaries
 
-publication:
-  allowed: false
-  reason: "Candidat scientifique : replay Copernicus réel et revue explicite requis."
+validation:
+  status: real_snapshot_replay_passed
+  decision: A
+  validated_at: "2026-08-10"
+  snapshot_id: SNAPSHOT-THERMAL-SEASONS-V1-20260810T040002Z
+  validation_attestation: doc/climat/validations/thermal-seasons-v4-real-replay.md
+  replay_result: doc/climat/validations/data/thermal-seasons-v4/thermal-seasons-v4-replay.json
+  replay_comparison: doc/climat/validations/data/thermal-seasons-v4/thermal-seasons-v1-v4-comparison.json
+  bootstrap_evidence: doc/climat/validations/data/thermal-seasons-v4/thermal-seasons-v4-bootstrap.json
+  tests_passed: 31
+  central_decades_ok: true
+  bootstrap_valid_pairs: 1000
+  bootstrap_invalid_pairs: 0
+  note: >-
+    Validation scientifique sur le même ClimateSnapshot ERA5-Land réel que P6 V1,
+    avec seuils T25/T75 fixes 1991-2020, contrôle harmonic_2 / MA31 et bootstrap
+    apparié de 1000 réplications sans réplication invalide. Les signaux restent descriptifs.
 
-validation_blockers:
-  - replay_real_climate_snapshot
-  - verify_shared_reference_thresholds
-  - inspect_decadal_harmonic_ma31_sensitivity
-  - inspect_bootstrap_distributions_and_invalid_replicates
-  - verify_geometric_summer_length
-  - compare_five_signals_against_v1
+publication:
+  allowed: true
+  reason: >-
+    Validation scientifique réelle réussie. L'activation dans les renderers,
+    la fiche /climat/ et le commentaire IA reste une étape d'intégration distincte.
+
+validation_blockers: []
