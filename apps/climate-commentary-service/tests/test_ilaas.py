@@ -14,6 +14,7 @@ if str(SERVICE_SRC) not in sys.path:
 from climate_commentary_service.ilaas import (  # noqa: E402
     DEFAULT_ILAAS_URL,
     DEFAULT_MODEL,
+    DEFAULT_TEMPERATURE,
     IlaasConfig,
     IlaasError,
     create_ilaas_generator,
@@ -53,10 +54,11 @@ class IlaasTest(unittest.TestCase):
         config = IlaasConfig.from_env({})
         self.assertEqual(config.url, DEFAULT_ILAAS_URL)
         self.assertEqual(config.model, DEFAULT_MODEL)
+        self.assertEqual(DEFAULT_TEMPERATURE, 0.3)
         self.assertEqual(config.timeout_seconds, 45.0)
         self.assertEqual(config.max_tokens, 700)
 
-    def test_generator_calls_openai_compatible_ilaas_with_temperature_zero(self) -> None:
+    def test_generator_calls_openai_compatible_ilaas_with_temperature_default(self) -> None:
         captured: dict = {}
 
         def fake_open(request: Request, timeout: float):
@@ -94,7 +96,7 @@ class IlaasTest(unittest.TestCase):
         self.assertEqual(captured["timeout"], 45)
         self.assertEqual(captured["authorization"], "Bearer cle-test")
         self.assertEqual(captured["body"]["model"], "mistral-medium-latest")
-        self.assertEqual(captured["body"]["temperature"], 0)
+        self.assertEqual(captured["body"]["temperature"], 0.3)
         self.assertEqual(captured["body"]["max_tokens"], 700)
 
     def test_missing_shared_key_disables_generation(self) -> None:
