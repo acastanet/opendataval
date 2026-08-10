@@ -1,0 +1,899 @@
+{
+  "schema_version": "1.0",
+  "snapshot_id": "SNAPSHOT-THERMAL-SEASONS-V1-20260810T040002Z",
+  "methods": {
+    "v1": {
+      "id": "thermal-seasons",
+      "version": "1.0.0"
+    },
+    "v2": {
+      "id": "thermal-seasons",
+      "version": "2.0.0"
+    }
+  },
+  "comparison": {
+    "spring_start_shift_days": {
+      "v1": -1.66,
+      "v2": null,
+      "v2_minus_v1": null
+    },
+    "summer_start_shift_days": {
+      "v1": -17.69,
+      "v2": null,
+      "v2_minus_v1": null
+    },
+    "autumn_start_shift_days": {
+      "v1": 15.27,
+      "v2": null,
+      "v2_minus_v1": null
+    },
+    "winter_start_shift_days": {
+      "v1": 5.59,
+      "v2": null,
+      "v2_minus_v1": null
+    },
+    "summer_length_change_days": {
+      "v1": 28.66,
+      "v2": null,
+      "v2_minus_v1": null
+    }
+  },
+  "annual": [
+    {
+      "year": 1996,
+      "v1_status": "invalid_crossings",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.484,
+      "v2_smoother_crossing_spread_days": null,
+      "differences": {
+        "spring_start_doy": null,
+        "summer_start_doy": null,
+        "autumn_start_doy": null,
+        "winter_start_doy": null,
+        "summer_length_days": null
+      }
+    },
+    {
+      "year": 1997,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.452,
+      "v2_smoother_crossing_spread_days": 104.22,
+      "differences": {
+        "spring_start_doy": -6.01,
+        "summer_start_doy": 6.25,
+        "autumn_start_doy": 8.03,
+        "winter_start_doy": -11.24,
+        "summer_length_days": 1.78
+      }
+    },
+    {
+      "year": 1998,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.476,
+      "v2_smoother_crossing_spread_days": 5.92,
+      "differences": {
+        "spring_start_doy": 0.33,
+        "summer_start_doy": -18.67,
+        "autumn_start_doy": 2.22,
+        "winter_start_doy": -13.74,
+        "summer_length_days": 20.88
+      }
+    },
+    {
+      "year": 1999,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.467,
+      "v2_smoother_crossing_spread_days": 8.49,
+      "differences": {
+        "spring_start_doy": 9.88,
+        "summer_start_doy": -11.27,
+        "autumn_start_doy": -3.43,
+        "winter_start_doy": -7.2,
+        "summer_length_days": 7.84
+      }
+    },
+    {
+      "year": 2000,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.287,
+      "v2_smoother_crossing_spread_days": 14.21,
+      "differences": {
+        "spring_start_doy": 6.03,
+        "summer_start_doy": -20.17,
+        "autumn_start_doy": 2.78,
+        "winter_start_doy": -0.81,
+        "summer_length_days": 22.95
+      }
+    },
+    {
+      "year": 2001,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.944,
+      "v2_smoother_crossing_spread_days": 9.35,
+      "differences": {
+        "spring_start_doy": 9.97,
+        "summer_start_doy": -10.98,
+        "autumn_start_doy": -5.26,
+        "winter_start_doy": -4.03,
+        "summer_length_days": 5.73
+      }
+    },
+    {
+      "year": 2002,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.327,
+      "v2_smoother_crossing_spread_days": 11.93,
+      "differences": {
+        "spring_start_doy": -2.35,
+        "summer_start_doy": -20.54,
+        "autumn_start_doy": 4.94,
+        "winter_start_doy": 4.58,
+        "summer_length_days": 25.47
+      }
+    },
+    {
+      "year": 2003,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.71,
+      "v2_smoother_crossing_spread_days": 13.89,
+      "differences": {
+        "spring_start_doy": 19.01,
+        "summer_start_doy": -3.87,
+        "autumn_start_doy": -13.87,
+        "winter_start_doy": -8.22,
+        "summer_length_days": -10.0
+      }
+    },
+    {
+      "year": 2004,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.498,
+      "v2_smoother_crossing_spread_days": 12.52,
+      "differences": {
+        "spring_start_doy": 18.62,
+        "summer_start_doy": -17.63,
+        "autumn_start_doy": -10.18,
+        "winter_start_doy": -1.01,
+        "summer_length_days": 7.45
+      }
+    },
+    {
+      "year": 2005,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.676,
+      "v2_smoother_crossing_spread_days": 6.61,
+      "differences": {
+        "spring_start_doy": 17.48,
+        "summer_start_doy": -16.58,
+        "autumn_start_doy": -12.73,
+        "winter_start_doy": -1.93,
+        "summer_length_days": 3.84
+      }
+    },
+    {
+      "year": 2006,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.474,
+      "v2_smoother_crossing_spread_days": 11.67,
+      "differences": {
+        "spring_start_doy": 18.78,
+        "summer_start_doy": -13.49,
+        "autumn_start_doy": -14.2,
+        "winter_start_doy": 3.21,
+        "summer_length_days": -0.71
+      }
+    },
+    {
+      "year": 2007,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.737,
+      "v2_smoother_crossing_spread_days": null,
+      "differences": {
+        "spring_start_doy": 10.52,
+        "summer_start_doy": -18.47,
+        "autumn_start_doy": 5.36,
+        "winter_start_doy": -3.98,
+        "summer_length_days": 23.83
+      }
+    },
+    {
+      "year": 2008,
+      "v1_status": "ok",
+      "v2_status": "ok",
+      "v2_fit_rmse_c": 2.33,
+      "v2_smoother_crossing_spread_days": 2.67,
+      "differences": {
+        "spring_start_doy": 11.21,
+        "summer_start_doy": -23.77,
+        "autumn_start_doy": 0.76,
+        "winter_start_doy": -7.84,
+        "summer_length_days": 24.52
+      }
+    },
+    {
+      "year": 2009,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.481,
+      "v2_smoother_crossing_spread_days": 4.86,
+      "differences": {
+        "spring_start_doy": 10.74,
+        "summer_start_doy": -5.46,
+        "autumn_start_doy": -7.26,
+        "winter_start_doy": -5.32,
+        "summer_length_days": -1.8
+      }
+    },
+    {
+      "year": 2010,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.796,
+      "v2_smoother_crossing_spread_days": 7.35,
+      "differences": {
+        "spring_start_doy": 13.48,
+        "summer_start_doy": -13.19,
+        "autumn_start_doy": -2.03,
+        "winter_start_doy": -11.74,
+        "summer_length_days": 11.16
+      }
+    },
+    {
+      "year": 2011,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.359,
+      "v2_smoother_crossing_spread_days": 9.76,
+      "differences": {
+        "spring_start_doy": 9.6,
+        "summer_start_doy": -6.7,
+        "autumn_start_doy": -2.1,
+        "winter_start_doy": 0.64,
+        "summer_length_days": 4.59
+      }
+    },
+    {
+      "year": 2012,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 3.121,
+      "v2_smoother_crossing_spread_days": 7.97,
+      "differences": {
+        "spring_start_doy": 10.8,
+        "summer_start_doy": -10.1,
+        "autumn_start_doy": -7.31,
+        "winter_start_doy": -4.89,
+        "summer_length_days": 2.79
+      }
+    },
+    {
+      "year": 2013,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.666,
+      "v2_smoother_crossing_spread_days": 11.8,
+      "differences": {
+        "spring_start_doy": 13.4,
+        "summer_start_doy": -16.81,
+        "autumn_start_doy": -7.29,
+        "winter_start_doy": -3.9,
+        "summer_length_days": 9.52
+      }
+    },
+    {
+      "year": 2014,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.191,
+      "v2_smoother_crossing_spread_days": null,
+      "differences": {
+        "spring_start_doy": 11.45,
+        "summer_start_doy": -12.21,
+        "autumn_start_doy": -5.92,
+        "winter_start_doy": 11.92,
+        "summer_length_days": 6.3
+      }
+    },
+    {
+      "year": 2015,
+      "v1_status": "ok",
+      "v2_status": "invalid_crossings",
+      "v2_fit_rmse_c": 2.469,
+      "v2_smoother_crossing_spread_days": null,
+      "differences": {
+        "spring_start_doy": null,
+        "summer_start_doy": null,
+        "autumn_start_doy": null,
+        "winter_start_doy": null,
+        "summer_length_days": null
+      }
+    },
+    {
+      "year": 2016,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.219,
+      "v2_smoother_crossing_spread_days": null,
+      "differences": {
+        "spring_start_doy": -8.48,
+        "summer_start_doy": -12.94,
+        "autumn_start_doy": -11.34,
+        "winter_start_doy": 6.24,
+        "summer_length_days": 1.61
+      }
+    },
+    {
+      "year": 2017,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.7,
+      "v2_smoother_crossing_spread_days": 11.06,
+      "differences": {
+        "spring_start_doy": 1.64,
+        "summer_start_doy": 1.98,
+        "autumn_start_doy": -2.62,
+        "winter_start_doy": -9.71,
+        "summer_length_days": -4.61
+      }
+    },
+    {
+      "year": 2018,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.555,
+      "v2_smoother_crossing_spread_days": null,
+      "differences": {
+        "spring_start_doy": 22.9,
+        "summer_start_doy": -13.36,
+        "autumn_start_doy": -18.55,
+        "winter_start_doy": 16.26,
+        "summer_length_days": -5.18
+      }
+    },
+    {
+      "year": 2019,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.441,
+      "v2_smoother_crossing_spread_days": 21.16,
+      "differences": {
+        "spring_start_doy": -6.69,
+        "summer_start_doy": -2.06,
+        "autumn_start_doy": -11.86,
+        "winter_start_doy": -1.74,
+        "summer_length_days": -9.8
+      }
+    },
+    {
+      "year": 2020,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.368,
+      "v2_smoother_crossing_spread_days": 11.44,
+      "differences": {
+        "spring_start_doy": -15.04,
+        "summer_start_doy": -2.05,
+        "autumn_start_doy": -9.19,
+        "winter_start_doy": 3.3,
+        "summer_length_days": -7.14
+      }
+    },
+    {
+      "year": 2021,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.436,
+      "v2_smoother_crossing_spread_days": 13.25,
+      "differences": {
+        "spring_start_doy": -6.59,
+        "summer_start_doy": -7.36,
+        "autumn_start_doy": -1.1,
+        "winter_start_doy": -9.7,
+        "summer_length_days": 6.27
+      }
+    },
+    {
+      "year": 2022,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.513,
+      "v2_smoother_crossing_spread_days": null,
+      "differences": {
+        "spring_start_doy": 16.11,
+        "summer_start_doy": -2.88,
+        "autumn_start_doy": -18.29,
+        "winter_start_doy": 14.63,
+        "summer_length_days": -15.41
+      }
+    },
+    {
+      "year": 2023,
+      "v1_status": "ok",
+      "v2_status": "partial",
+      "v2_fit_rmse_c": 2.52,
+      "v2_smoother_crossing_spread_days": null,
+      "differences": {
+        "spring_start_doy": 8.5,
+        "summer_start_doy": -3.5,
+        "autumn_start_doy": -13.65,
+        "winter_start_doy": 5.13,
+        "summer_length_days": -10.16
+      }
+    },
+    {
+      "year": 2024,
+      "v1_status": "ok",
+      "v2_status": "smoother_sensitivity_rejected",
+      "v2_fit_rmse_c": 2.552,
+      "v2_smoother_crossing_spread_days": 14.82,
+      "differences": {
+        "spring_start_doy": -23.42,
+        "summer_start_doy": -1.29,
+        "autumn_start_doy": -10.79,
+        "winter_start_doy": 11.65,
+        "summer_length_days": -9.5
+      }
+    },
+    {
+      "year": 2025,
+      "v1_status": "ok",
+      "v2_status": "invalid_crossings",
+      "v2_fit_rmse_c": 2.501,
+      "v2_smoother_crossing_spread_days": null,
+      "differences": {
+        "spring_start_doy": null,
+        "summer_start_doy": null,
+        "autumn_start_doy": null,
+        "winter_start_doy": null,
+        "summer_length_days": null
+      }
+    }
+  ],
+  "v1_quality": {
+    "status": "partial",
+    "checks": [
+      {
+        "id": "completeness-policy",
+        "status": "partial",
+        "scope": "hourly ERA5-Land converted to no-leap daily years before thermal crossings",
+        "rule": "daily mean requires >=18 hourly values; annual input requires >=98% valid no-leap days; internal gaps up to 2 days may be interpolated before crossing QA",
+        "threshold": {
+          "minimum_hourly_values_per_day": 18,
+          "minimum_annual_fraction": 0.98,
+          "maximum_interpolated_gap_days": 2
+        }
+      },
+      {
+        "id": "annual-crossings",
+        "status": "partial",
+        "annual_ok": 29,
+        "annual_total": 30
+      },
+      {
+        "id": "five-comparison-signals",
+        "status": "pass",
+        "count": 5
+      }
+    ],
+    "notes": [
+      "Une année avec franchissements invalides reste visible comme donnée partielle ; les comparaisons utilisent uniquement les années valides."
+    ]
+  },
+  "v2_quality": {
+    "status": "insufficient",
+    "checks": [
+      {
+        "id": "completeness-policy",
+        "status": "pass",
+        "scope": "hourly-to-daily thermal seasons V2",
+        "rule": ">=18 hourly values/day, >=98% valid no-leap days/year, gaps <=2 days interpolated, complete 1991-2020 reference"
+      },
+      {
+        "id": "fit-rmse",
+        "status": "partial",
+        "threshold_policy": "reference annual harmonic RMSE P95",
+        "threshold_c": 2.877
+      },
+      {
+        "id": "smoother-sensitivity",
+        "status": "partial",
+        "review_threshold_days": 3.0,
+        "reject_threshold_days": 10.0
+      },
+      {
+        "id": "five-comparison-signals",
+        "status": "partial",
+        "count": 0
+      }
+    ],
+    "notes": [
+      "Candidat V2 : lissage harmonique circulaire à deux harmoniques.",
+      "La moyenne mobile circulaire 31 j est un contrôle de sensibilité, pas la source du signal.",
+      "Une frontière N+1 n'est utilisée pour la durée d'hiver que si sa propre QA est ok."
+    ]
+  },
+  "v2_qa": {
+    "fit_rmse": {
+      "reference_percentile": 95.0,
+      "threshold_c": 2.877,
+      "reference_distribution": {
+        "count": 30,
+        "p25": 2.444,
+        "median": 2.491,
+        "p75": 2.704,
+        "p95": 2.877,
+        "max": 3.121,
+        "annual": [
+          {
+            "year": 1991,
+            "value": 2.706
+          },
+          {
+            "year": 1992,
+            "value": 2.655
+          },
+          {
+            "year": 1993,
+            "value": 2.634
+          },
+          {
+            "year": 1994,
+            "value": 2.721
+          },
+          {
+            "year": 1995,
+            "value": 2.71
+          },
+          {
+            "year": 1996,
+            "value": 2.484
+          },
+          {
+            "year": 1997,
+            "value": 2.452
+          },
+          {
+            "year": 1998,
+            "value": 2.476
+          },
+          {
+            "year": 1999,
+            "value": 2.467
+          },
+          {
+            "year": 2000,
+            "value": 2.287
+          },
+          {
+            "year": 2001,
+            "value": 2.944
+          },
+          {
+            "year": 2002,
+            "value": 2.327
+          },
+          {
+            "year": 2003,
+            "value": 2.71
+          },
+          {
+            "year": 2004,
+            "value": 2.498
+          },
+          {
+            "year": 2005,
+            "value": 2.676
+          },
+          {
+            "year": 2006,
+            "value": 2.474
+          },
+          {
+            "year": 2007,
+            "value": 2.737
+          },
+          {
+            "year": 2008,
+            "value": 2.33
+          },
+          {
+            "year": 2009,
+            "value": 2.481
+          },
+          {
+            "year": 2010,
+            "value": 2.796
+          },
+          {
+            "year": 2011,
+            "value": 2.359
+          },
+          {
+            "year": 2012,
+            "value": 3.121
+          },
+          {
+            "year": 2013,
+            "value": 2.666
+          },
+          {
+            "year": 2014,
+            "value": 2.191
+          },
+          {
+            "year": 2015,
+            "value": 2.469
+          },
+          {
+            "year": 2016,
+            "value": 2.219
+          },
+          {
+            "year": 2017,
+            "value": 2.7
+          },
+          {
+            "year": 2018,
+            "value": 2.555
+          },
+          {
+            "year": 2019,
+            "value": 2.441
+          },
+          {
+            "year": 2020,
+            "value": 2.368
+          }
+        ]
+      },
+      "study_distribution": {
+        "count": 30,
+        "p25": 2.437,
+        "median": 2.482,
+        "p75": 2.638,
+        "p95": 2.877,
+        "max": 3.121,
+        "annual": [
+          {
+            "year": 1996,
+            "value": 2.484
+          },
+          {
+            "year": 1997,
+            "value": 2.452
+          },
+          {
+            "year": 1998,
+            "value": 2.476
+          },
+          {
+            "year": 1999,
+            "value": 2.467
+          },
+          {
+            "year": 2000,
+            "value": 2.287
+          },
+          {
+            "year": 2001,
+            "value": 2.944
+          },
+          {
+            "year": 2002,
+            "value": 2.327
+          },
+          {
+            "year": 2003,
+            "value": 2.71
+          },
+          {
+            "year": 2004,
+            "value": 2.498
+          },
+          {
+            "year": 2005,
+            "value": 2.676
+          },
+          {
+            "year": 2006,
+            "value": 2.474
+          },
+          {
+            "year": 2007,
+            "value": 2.737
+          },
+          {
+            "year": 2008,
+            "value": 2.33
+          },
+          {
+            "year": 2009,
+            "value": 2.481
+          },
+          {
+            "year": 2010,
+            "value": 2.796
+          },
+          {
+            "year": 2011,
+            "value": 2.359
+          },
+          {
+            "year": 2012,
+            "value": 3.121
+          },
+          {
+            "year": 2013,
+            "value": 2.666
+          },
+          {
+            "year": 2014,
+            "value": 2.191
+          },
+          {
+            "year": 2015,
+            "value": 2.469
+          },
+          {
+            "year": 2016,
+            "value": 2.219
+          },
+          {
+            "year": 2017,
+            "value": 2.7
+          },
+          {
+            "year": 2018,
+            "value": 2.555
+          },
+          {
+            "year": 2019,
+            "value": 2.441
+          },
+          {
+            "year": 2020,
+            "value": 2.368
+          },
+          {
+            "year": 2021,
+            "value": 2.436
+          },
+          {
+            "year": 2022,
+            "value": 2.513
+          },
+          {
+            "year": 2023,
+            "value": 2.52
+          },
+          {
+            "year": 2024,
+            "value": 2.552
+          },
+          {
+            "year": 2025,
+            "value": 2.501
+          }
+        ]
+      }
+    },
+    "smoother_sensitivity": {
+      "review_threshold_days": 3.0,
+      "reject_threshold_days": 10.0,
+      "study_distribution": {
+        "count": 21,
+        "p25": 7.97,
+        "median": 11.44,
+        "p75": 13.25,
+        "p95": 21.16,
+        "max": 104.22,
+        "annual": [
+          {
+            "year": 1997,
+            "value": 104.22
+          },
+          {
+            "year": 1998,
+            "value": 5.92
+          },
+          {
+            "year": 1999,
+            "value": 8.49
+          },
+          {
+            "year": 2000,
+            "value": 14.21
+          },
+          {
+            "year": 2001,
+            "value": 9.35
+          },
+          {
+            "year": 2002,
+            "value": 11.93
+          },
+          {
+            "year": 2003,
+            "value": 13.89
+          },
+          {
+            "year": 2004,
+            "value": 12.52
+          },
+          {
+            "year": 2005,
+            "value": 6.61
+          },
+          {
+            "year": 2006,
+            "value": 11.67
+          },
+          {
+            "year": 2008,
+            "value": 2.67
+          },
+          {
+            "year": 2009,
+            "value": 4.86
+          },
+          {
+            "year": 2010,
+            "value": 7.35
+          },
+          {
+            "year": 2011,
+            "value": 9.76
+          },
+          {
+            "year": 2012,
+            "value": 7.97
+          },
+          {
+            "year": 2013,
+            "value": 11.8
+          },
+          {
+            "year": 2017,
+            "value": 11.06
+          },
+          {
+            "year": 2019,
+            "value": 21.16
+          },
+          {
+            "year": 2020,
+            "value": 11.44
+          },
+          {
+            "year": 2021,
+            "value": 13.25
+          },
+          {
+            "year": 2024,
+            "value": 14.82
+          }
+        ]
+      }
+    },
+    "next_year_rule": "winter length uses next-year spring only when that year's canonical crossing assessment is status=ok"
+  },
+  "automatic_checks": {
+    "early_has_at_least_8_ok_years": false,
+    "late_has_at_least_8_ok_years": false,
+    "five_v2_signals_available": false
+  },
+  "scientific_review_required": true,
+  "publication_authorized": false,
+  "note": "Ce rapport compare les deux méthodes sur le même ClimateSnapshot ; il n'autorise pas à lui seul le passage de V2 à validated."
+}
