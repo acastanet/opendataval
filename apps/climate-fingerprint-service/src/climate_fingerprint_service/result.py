@@ -123,11 +123,22 @@ def build_climate_result(
             "status": status,
             "checks": [
                 {
+                    "id": "completeness-policy",
+                    "status": "pass",
+                    "scope": "annual daily metrics and monthly SPEI-3",
+                    "rule": "daily annual metrics require >=90% of expected days; SPEI annual counts require all 12 calendar months; reference thresholds require >=24 complete reference years",
+                    "threshold": {
+                        "daily_fraction": 0.90,
+                        "spei_months_per_year": 12,
+                        "minimum_reference_years": 24,
+                    },
+                },
+                {
                     "id": "comparison-signals",
                     "status": "pass" if len(signals) == 6 else "partial",
                     "count": len(signals),
                     "expected": 6,
-                }
+                },
             ],
             "notes": [
                 "ClimateResult produit nativement par climate-fingerprint-service.",
