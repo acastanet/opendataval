@@ -43,3 +43,6 @@ jobs:
 
       - name: Run native service tests
         run: python -m unittest discover -s apps/climate-fingerprint-service/tests -p "test_*.py" -v
+
+      - name: Check local golden replay tool
+        run: python -m py_compile apps/climate-fingerprint-service/scripts/verify_golden_replay.py
