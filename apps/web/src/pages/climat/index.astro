@@ -1,5 +1,38 @@
 ---
+import fs from "node:fs";
 import BoutonAccueil from "../../components/BoutonAccueil.astro";
+
+type CommentaryFinding = {
+  id: string;
+  text: string;
+  signal_ids: string[];
+  claim_level: string;
+};
+
+type CommentaryCaveat = {
+  id: string;
+  text: string;
+  signal_ids?: string[];
+};
+
+type ClimateCommentary = {
+  summary: string;
+  findings: CommentaryFinding[];
+  caveats: CommentaryCaveat[];
+  generation: { model: string; prompt_version: string };
+  validation: { status: string; all_findings_have_signal_evidence: boolean };
+};
+
+const commentaryUrl = new URL("../../../public/climat/generated/climate-commentary.json", import.meta.url);
+let commentary: ClimateCommentary | null = null;
+try {
+  const candidate = JSON.parse(fs.readFileSync(commentaryUrl, "utf-8")) as ClimateCommentary;
+  if (candidate.validation?.status === "valid" && candidate.validation?.all_findings_have_signal_evidence === true) {
+    commentary = candidate;
+  }
+} catch {
+  commentary = null;
+}
 
 const analyses = [
   {
@@ -42,10 +75,7 @@ const analyses = [
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="Fiche climat OpenDataVal : climat habituel et principaux changements climatiques d’un lieu."
-    />
+    <meta name="description" content="Fiche climat OpenDataVal : climat habituel et principaux changements climatiques d’un lieu." />
     <title>Fiche climat — OpenDataVal</title>
   </head>
   <body>
@@ -58,9 +88,7 @@ const analyses = [
           <div class="hero-grid">
             <div>
               <h1>Le climat de ce lieu</h1>
-              <p class="intro">
-                Une lecture courte du climat habituel et de ses principaux changements.
-              </p>
+              <p class="intro">Une lecture courte du climat habituel et de ses principaux changements.</p>
             </div>
 
             <dl class="context" aria-label="Contexte de la fiche climat">
@@ -82,6 +110,36 @@ const analyses = [
           </nav>
         </div>
       </header>
+
+      {commentary && (
+        <section class="commentary page-width" aria-labelledby="commentary-title">
+          <header class="commentary-head">
+            <div>
+              <span class="commentary-kicker">LECTURE IA CONTRÔLÉE</span>
+              <h2 id="commentary-title">En bref</h2>
+            </div>
+            <span class="commentary-status">Signaux validés</span>
+          </header>
+
+          <p class="commentary-summary">{commentary.summary}</p>
+
+          <ol class="commentary-findings">
+            {commentary.findings.map((finding) => (
+              <li>{finding.text}</li>
+            ))}
+          </ol>
+
+          {commentary.caveats.length > 0 && (
+            <div class="commentary-caveats">
+              {commentary.caveats.map((caveat) => <p>{caveat.text}</p>)}
+            </div>
+          )}
+
+          <p class="commentary-meta">
+            Commentaire généré uniquement à partir des <code>ClimateSignal</code> calculés et validés · aucun calcul climatique effectué par l’IA.
+          </p>
+        </section>
+      )}
 
       <div class="analyses page-width">
         {analyses.map((analysis) => (
@@ -116,9 +174,7 @@ const analyses = [
           <strong>À lire comme un contexte climatique.</strong>
           Les réanalyses Copernicus décrivent une maille climatique représentative, pas une mesure effectuée exactement sur la parcelle.
         </p>
-        <p>
-          Référence 1991–2020 · étude 1996–2025 · calculs scientifiques versionnés dans <code>doc/climat/</code>.
-        </p>
+        <p>Référence 1991–2020 · étude 1996–2025 · calculs scientifiques versionnés dans <code>doc/climat/</code>.</p>
       </footer>
     </main>
 
@@ -131,11 +187,11 @@ const analyses = [
         --muted: #667078;
         --line: rgba(36, 49, 58, 0.18);
         --panel: #c9c8c5;
+        --white: #f7f6f2;
       }
 
       * { box-sizing: border-box; }
       html { scroll-behavior: smooth; }
-
       body {
         margin: 0;
         background: var(--paper);
@@ -143,224 +199,76 @@ const analyses = [
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
-      .page-width {
-        width: min(1180px, calc(100% - 48px));
-        margin-inline: auto;
-      }
+      .page-width { width: min(1180px, calc(100% - 48px)); margin-inline: auto; }
+      .hero { padding: 72px 0 34px; border-bottom: 1px solid var(--line); }
+      .kicker, .commentary-kicker { font-size: 0.72rem; font-weight: 760; letter-spacing: 0.15em; }
+      .kicker { margin-bottom: 18px; }
+      .hero-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr); gap: 54px; align-items: end; }
+      h1 { margin: 0; max-width: 720px; font-size: clamp(2.8rem, 6.5vw, 5.8rem); font-weight: 760; line-height: 0.94; letter-spacing: -0.055em; }
+      .intro { max-width: 650px; margin: 22px 0 0; font-size: clamp(1rem, 1.7vw, 1.2rem); line-height: 1.5; }
 
-      .hero {
-        padding: 72px 0 34px;
-        border-bottom: 1px solid var(--line);
-      }
+      .context, .reading { display: grid; gap: 1px; padding: 1px; background: var(--line); border: 1px solid var(--line); }
+      .context { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+      .context div { min-height: 72px; padding: 14px 16px; background: var(--paper-soft); }
+      .context dt { margin-bottom: 6px; color: var(--muted); font-size: 0.66rem; font-weight: 720; letter-spacing: 0.08em; text-transform: uppercase; }
+      .context dd { margin: 0; font-size: 0.9rem; font-weight: 650; }
 
-      .kicker {
-        margin-bottom: 18px;
-        font-size: 0.72rem;
-        font-weight: 760;
-        letter-spacing: 0.15em;
-      }
+      .reading { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 34px; }
+      .reading a { min-height: 124px; padding: 16px 18px; background: var(--paper-soft); color: inherit; text-decoration: none; }
+      .reading a:hover, .reading a:focus-visible { background: #f0efec; }
+      .reading span { display: block; margin-bottom: 11px; color: var(--muted); font-size: 0.68rem; font-weight: 760; letter-spacing: 0.1em; }
+      .reading strong { display: block; margin-bottom: 7px; font-size: 0.96rem; }
+      .reading small { display: block; color: var(--muted); font-size: 0.78rem; line-height: 1.35; }
 
-      .hero-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
-        gap: 54px;
-        align-items: end;
-      }
-
-      h1 {
-        margin: 0;
-        max-width: 720px;
-        font-size: clamp(2.8rem, 6.5vw, 5.8rem);
-        font-weight: 760;
-        line-height: 0.94;
-        letter-spacing: -0.055em;
-      }
-
-      .intro {
-        max-width: 650px;
-        margin: 22px 0 0;
-        font-size: clamp(1rem, 1.7vw, 1.2rem);
-        line-height: 1.5;
-      }
-
-      .context {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1px;
-        margin: 0;
-        padding: 1px;
-        background: var(--line);
+      .commentary {
+        margin-top: 30px;
+        padding: 28px 32px 26px;
         border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--white);
+        box-shadow: 0 8px 22px rgba(36, 49, 58, 0.07);
       }
-
-      .context div {
-        min-height: 72px;
-        padding: 14px 16px;
-        background: var(--paper-soft);
-      }
-
-      .context dt {
-        margin-bottom: 6px;
-        color: var(--muted);
-        font-size: 0.66rem;
-        font-weight: 720;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-
-      .context dd {
-        margin: 0;
-        font-size: 0.9rem;
-        font-weight: 650;
-      }
-
-      .reading {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 1px;
-        margin-top: 34px;
-        padding: 1px;
-        background: var(--line);
-        border: 1px solid var(--line);
-      }
-
-      .reading a {
-        min-height: 124px;
-        padding: 16px 18px;
-        background: var(--paper-soft);
-        color: inherit;
-        text-decoration: none;
-      }
-
-      .reading a:hover,
-      .reading a:focus-visible { background: #f0efec; }
-
-      .reading span {
-        display: block;
-        margin-bottom: 11px;
-        color: var(--muted);
-        font-size: 0.68rem;
-        font-weight: 760;
-        letter-spacing: 0.1em;
-      }
-
-      .reading strong {
-        display: block;
-        margin-bottom: 7px;
-        font-size: 0.96rem;
-      }
-
-      .reading small {
-        display: block;
-        color: var(--muted);
-        font-size: 0.78rem;
-        line-height: 1.35;
-      }
+      .commentary-head { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+      .commentary-kicker { display: block; margin-bottom: 8px; color: var(--muted); }
+      .commentary h2 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.5rem); letter-spacing: -0.04em; }
+      .commentary-status { padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
+      .commentary-summary { max-width: 900px; margin: 20px 0; font-size: clamp(1.05rem, 1.8vw, 1.25rem); line-height: 1.5; font-weight: 620; }
+      .commentary-findings { display: grid; gap: 10px; margin: 0; padding-left: 1.4rem; }
+      .commentary-findings li { padding-left: 5px; font-size: 0.94rem; line-height: 1.48; }
+      .commentary-caveats { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
+      .commentary-caveats p { margin: 5px 0; color: var(--muted); font-size: 0.78rem; line-height: 1.45; }
+      .commentary-meta { margin: 14px 0 0; color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
 
       .analyses { padding-top: 8px; }
-
-      .analysis {
-        scroll-margin-top: 20px;
-        padding: 44px 0 52px;
-        border-bottom: 1px solid var(--line);
-      }
-
-      .analysis-head {
-        display: grid;
-        grid-template-columns: 54px minmax(0, 1fr);
-        gap: 16px;
-        align-items: start;
-        margin-bottom: 20px;
-      }
-
-      .analysis-index {
-        padding-top: 5px;
-        color: var(--muted);
-        font-size: 0.72rem;
-        font-weight: 760;
-        letter-spacing: 0.1em;
-      }
-
-      .analysis h2 {
-        margin: 0;
-        font-size: clamp(1.55rem, 3vw, 2.6rem);
-        line-height: 1;
-        letter-spacing: -0.035em;
-      }
-
-      .analysis-head p {
-        max-width: 760px;
-        margin: 8px 0 0;
-        color: var(--muted);
-        font-size: 0.92rem;
-        line-height: 1.45;
-      }
-
-      .visual-frame {
-        position: relative;
-        margin: 0;
-        overflow: hidden;
-        border: 1px solid rgba(36, 49, 58, 0.2);
-        border-radius: 10px;
-        background: var(--panel);
-        box-shadow: 0 10px 28px rgba(36, 49, 58, 0.09);
-      }
-
-      .climate-visual {
-        display: block;
-        width: 100%;
-        height: auto;
-        background: var(--panel);
-      }
-
-      .missing-message {
-        display: none;
-        min-height: 280px;
-        margin: 0;
-        padding: 36px;
-        place-items: center;
-        color: var(--muted);
-        text-align: center;
-      }
-
+      .analysis { scroll-margin-top: 20px; padding: 44px 0 52px; border-bottom: 1px solid var(--line); }
+      .analysis-head { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 16px; align-items: start; margin-bottom: 20px; }
+      .analysis-index { padding-top: 5px; color: var(--muted); font-size: 0.72rem; font-weight: 760; letter-spacing: 0.1em; }
+      .analysis h2 { margin: 0; font-size: clamp(1.55rem, 3vw, 2.6rem); line-height: 1; letter-spacing: -0.035em; }
+      .analysis-head p { max-width: 760px; margin: 8px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
+      .visual-frame { position: relative; margin: 0; overflow: hidden; border: 1px solid rgba(36, 49, 58, 0.2); border-radius: 10px; background: var(--panel); box-shadow: 0 10px 28px rgba(36, 49, 58, 0.09); }
+      .climate-visual { display: block; width: 100%; height: auto; background: var(--panel); }
+      .missing-message { display: none; min-height: 280px; margin: 0; padding: 36px; place-items: center; color: var(--muted); text-align: center; }
       .visual-frame.missing .climate-visual { display: none; }
       .visual-frame.missing .missing-message { display: grid; }
 
-      .footer {
-        display: grid;
-        grid-template-columns: 1.2fr 0.8fr;
-        gap: 42px;
-        padding: 34px 0 64px;
-        color: var(--muted);
-      }
-
-      .footer p {
-        margin: 0;
-        font-size: 0.82rem;
-        line-height: 1.55;
-      }
-
+      .footer { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 42px; padding: 34px 0 64px; color: var(--muted); }
+      .footer p { margin: 0; font-size: 0.82rem; line-height: 1.55; }
       .footer strong { color: var(--ink); }
-
-      code {
-        padding: 0.1em 0.3em;
-        border: 1px solid var(--line);
-        border-radius: 4px;
-        background: rgba(255,255,255,0.24);
-        font-size: 0.92em;
-      }
+      code { padding: 0.1em 0.3em; border: 1px solid var(--line); border-radius: 4px; background: rgba(255,255,255,0.24); font-size: 0.92em; }
 
       @media (max-width: 900px) {
         .hero-grid { grid-template-columns: 1fr; gap: 28px; }
         .context { max-width: 620px; }
         .reading { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
-
       @media (max-width: 620px) {
         .page-width { width: min(100% - 28px, 1180px); }
         .hero { padding-top: 62px; }
         .context, .reading { grid-template-columns: 1fr; }
         .reading a { min-height: auto; }
+        .commentary { padding: 22px 20px; }
+        .commentary-head { display: block; }
+        .commentary-status { display: inline-block; margin-top: 12px; }
         .analysis { padding: 36px 0 42px; }
         .analysis-head { grid-template-columns: 38px minmax(0, 1fr); }
         .footer { grid-template-columns: 1fr; gap: 18px; }
