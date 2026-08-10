@@ -11,6 +11,8 @@ ClimateResult
   ↓
 ClimateSignal[]
   ↓
+sélection éditoriale déterministe P9
+  ↓
 prompt contrôlé
   ↓
 ILAAS / mistral-medium-latest
@@ -64,12 +66,27 @@ Après l'appel ILAAS, le résultat est soumis au validateur existant. Il contrô
 
 Le fournisseur LLM n'est donc jamais l'autorité scientifique.
 
+## Sélection P9 pour la fiche
+
+Un signal scientifique valide n'est pas automatiquement un bon signal de synthèse publique. La sélection de la fiche est déterministe et s'effectue **avant** l'appel au LLM.
+
+Sont temporairement exclus du commentaire transversal :
+
+- `thermal-seasons@1.0.0` : sensibilité au lissage mise en évidence par l'audit P9 ;
+- `water-annual-precipitation-change` : comparaison par médiane distincte de la comparaison par moyenne de l'empreinte ;
+- `water-dry-months-change` : résolution trop grossière avant audit des dix comptes annuels ;
+- `fingerprint-drought-frequency-change` : indicateur public de sécheresse de référence non encore arrêté.
+
+Ces exclusions ne rendent pas les signaux scientifiques invalides. Elles empêchent seulement leur utilisation dans la synthèse transversale finale tant que leur statut public n'est pas stabilisé.
+
+Le service vérifie aussi la réponse du modèle : un `finding` ou un caveat qui référence un signal non fourni au prompt est rejeté.
+
 ## Prompt
 
 Version :
 
 ```text
-climate-commentary-p1@1.0.0
+climate-commentary-p1@1.1.0
 ```
 
 Le prompt demande une phrase de synthèse et au plus cinq constats courts. Il interdit calcul climatique, connaissance extérieure, significativité absente et attribution causale.
@@ -84,7 +101,7 @@ python apps/climate-commentary-service/scripts/generate_ilaas_commentary.py \
   --output climate-commentary.json
 ```
 
-Le fichier n'est écrit que si la réponse ILAAS est un JSON éditorial valide **et** si le `ClimateCommentary` final passe tous les contrôles P8.
+Le fichier n'est écrit que si la réponse ILAAS est un JSON éditorial valide **et** si le `ClimateCommentary` final passe tous les contrôles P8/P9.
 
 Pour décomposer manuellement le processus, les commandes `prepare_prompt.py` et `build_commentary.py` restent disponibles.
 
@@ -99,7 +116,7 @@ python -m pip install -r apps/climate-commentary-service/requirements-test.txt
 python -m unittest discover -s apps/climate-commentary-service/tests -p "test_*.py" -v
 ```
 
-La CI n'appelle jamais ILAAS. L'adaptateur réseau est testé avec une réponse OpenAI-compatible simulée, puis les tests P8 vérifient le commentaire et les refus attendus.
+La CI n'appelle jamais ILAAS. L'adaptateur réseau est testé avec une réponse OpenAI-compatible simulée, puis les tests P8/P9 vérifient le commentaire, la sélection et les refus attendus.
 
 ## Hors périmètre
 
