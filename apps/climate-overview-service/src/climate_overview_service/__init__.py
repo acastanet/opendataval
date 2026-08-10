@@ -1,5 +1,6 @@
 from .compute import ClimateOverviewInput, OverviewContext, compute_climate_overview_data
 from .equivalence import assert_overview_equivalent, comparable_payload
+from .renderer import render_climate_overview_svg, render_overview_result_svg, write_overview_result_svg
 from .request import GridPoint, nearest_grid_point, request_parameters
 from .result import ResultContext, build_climate_result
 from .signals import build_signals
@@ -20,6 +21,7 @@ __all__ = [
     "ClimateOverviewInput", "OverviewContext", "compute_climate_overview_data",
     "ResultContext", "build_climate_result", "build_signals",
     "assert_overview_equivalent", "comparable_payload",
+    "render_climate_overview_svg", "render_overview_result_svg", "write_overview_result_svg",
     "GridPoint", "nearest_grid_point", "request_parameters",
     "SnapshotError", "SnapshotIntegrityError", "build_snapshot_manifest",
     "read_precipitation", "read_temperature", "replay_snapshot", "sha256_file",
