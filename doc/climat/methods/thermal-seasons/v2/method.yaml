@@ -1,0 +1,128 @@
+schema_version: "1.0"
+id: thermal-seasons
+version: "2.0.0"
+status: candidate
+
+product:
+  title_fr: "Les saisons se déplacent"
+  question_fr: "Le calendrier thermique local se déplace-t-il ?"
+
+change_from_v1:
+  level: MAJOR
+  reason: >-
+    Le lissage polynomial de degré 3 de la V1 n'est pas circulaire et l'audit P9
+    montre un écart de frontière supérieur à 10 jours même sur un cycle annuel
+    synthétique propre. La V2 change donc le lissage canonique et ajoute une QA
+    susceptible d'exclure des années des comparaisons.
+
+periods:
+  reference: [1991, 2020]
+  study: [1996, 2025]
+  early: [1996, 2005]
+  middle: [2006, 2015]
+  late: [2016, 2025]
+
+input:
+  dataset_registry_id: era5-land-timeseries
+  dataset_id: reanalysis-era5-land-timeseries
+  variable: 2m_temperature
+  grid_degrees: 0.1
+  timezone: UTC
+
+preprocessing:
+  daily_aggregation: hourly_mean_utc
+  minimum_hourly_values_per_day: 18
+  leap_day: removed
+  minimum_year_coverage_fraction: 0.98
+  maximum_interpolated_gap_days: 2
+
+thresholds:
+  climatology: daily_mean_1991_2020
+  t25_percentile: 25
+  t75_percentile: 75
+  percentile_method: linear
+
+smoothing:
+  canonical:
+    id: harmonic_2
+    model: >-
+      c0 + a1*sin(2*pi*t/365) + b1*cos(2*pi*t/365)
+      + a2*sin(4*pi*t/365) + b2*cos(4*pi*t/365)
+    fit: ordinary_least_squares
+    circular: true
+  independent_control:
+    id: circular_moving_average_31d
+    window_days: 31
+    centered: true
+    circular: true
+
+crossings:
+  interpolation: linear
+  required_order: spring_start < summer_start < autumn_start < winter_start
+
+qa:
+  fit_rmse:
+    statistic: rmse_daily_temperature_vs_harmonic_fit
+    threshold: reference_year_distribution_p95
+    reference_period: [1991, 2020]
+    action_above_threshold: annual_status_partial
+  smoother_sensitivity:
+    metric: maximum_absolute_boundary_difference_harmonic_vs_31d_control
+    review_threshold_days: 3
+    reject_threshold_days: 10
+    action_3_to_10_days: annual_status_partial
+    action_above_10_days: annual_status_rejected
+  next_year_boundary:
+    rule: >-
+      La durée d'hiver de l'année N n'utilise le printemps N+1 que si les
+      franchissements canoniques de N+1 ont eux-mêmes passé la QA avec status=ok.
+    missing_or_rejected_action: winter_length_null
+
+comparison:
+  statistic: median
+  minimum_valid_years_per_decade: 8
+  eligible_annual_status: ok
+  output: late_median_minus_early_median
+  statistical_trend_test: null
+
+outputs:
+  annual:
+    - spring_start_doy
+    - summer_start_doy
+    - autumn_start_doy
+    - winter_start_doy
+    - spring_length_days
+    - summer_length_days
+    - autumn_length_days
+    - winter_length_days
+    - fit_rmse_c
+    - smoother_crossing_spread_days
+    - status
+    - qa_reasons
+  comparison:
+    - spring_start_shift_days
+    - summer_start_shift_days
+    - autumn_start_shift_days
+    - winter_start_shift_days
+    - summer_length_change_days
+
+publication:
+  allowed: false
+  reason: "Candidat scientifique : replay Copernicus réel et revue V1/V2 requis."
+
+validation_blockers:
+  - replay_real_climate_snapshot
+  - compare_v1_v2_annual_boundaries_and_decadal_signals
+  - inspect_30_year_rmse_distribution
+  - inspect_30_year_smoother_sensitivity_distribution
+  - confirm_at_least_8_ok_years_in_early_and_late_periods
+
+scientific_references:
+  - "Cvitan 1995, International Journal of Climatology, DOI 10.1002/joc.3370151007"
+  - "Yettella & England 2018, Journal of Geophysical Research: Atmospheres, DOI 10.1029/2018JD029066"
+  - "Song et al. 2021, Quarterly Journal of the Royal Meteorological Society, DOI 10.1002/qj.3944"
+
+project_evidence:
+  - doc/climat/validations/climate-p9-scientific-coherence.md
+  - apps/climate-seasons-service/src/climate_seasons_service/sensitivity.py
+  - apps/climate-seasons-service/tests/test_smoothing_sensitivity.py
