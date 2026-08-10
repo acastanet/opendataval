@@ -2,7 +2,7 @@
 
 Premier microservice scientifique natif de la phase P6 du domaine climat OpenDataVal.
 
-Méthode : `climate-fingerprint@4.0.0`.
+Méthode : `climate-fingerprint@4.0.0` — **validated**.
 
 ## Responsabilité
 
@@ -80,11 +80,11 @@ PYTHONPATH=apps/climate-fingerprint-service/src \
 python -m climate_fingerprint_service.snapshot_cli metadata-template \
   --latitude 44.06465392551458 \
   --longitude 3.6829349237761435 \
-  --retrieved-at 2026-08-09T20:00:00Z \
+  --retrieved-at 2026-08-10T03:20:00Z \
   --output /chemin/acquisition-metadata.json
 ```
 
-La valeur `--retrieved-at` ci-dessus n'est qu'un exemple de format : elle doit être remplacée par la date réelle de récupération des actifs utilisés.
+La valeur `--retrieved-at` ci-dessus est un exemple de format : elle doit être remplacée par la date réelle de récupération des actifs utilisés.
 
 Le générateur verrouille les paramètres historiques :
 
@@ -92,20 +92,19 @@ Le générateur verrouille les paramètres historiques :
 - ERA5-HEAT : grille 0,25°, UTCI, CSV, même période ;
 - ERA5-Drought : grille 0,25°, SPEI-3, version `1_0`, produit `reanalysis`, dataset `consolidated_dataset`, années 1991–2025 et 12 mois.
 
-### Construire un snapshot depuis des actifs déjà acquis
+### Vérifier un téléchargement réel en une commande
 
-Le fichier de métadonnées est un objet JSON indexé par les six `asset_id` :
+Le script :
 
 ```text
-era5-land-temperature
-era5-land-precipitation
-era5-land-u10
-era5-land-v10
-era5-heat-utci
-era5-drought-spei3
+apps/climate-fingerprint-service/scripts/verify_golden_replay.py
 ```
 
-Commande depuis la racine du dépôt :
+prend un dossier contenant les six actifs, génère les métadonnées, construit le snapshot, vérifie les SHA-256, rejoue le service et compare le résultat au golden master P5.
+
+Voir `LOCAL-REPLAY.md` pour la commande complète.
+
+### Construire manuellement un snapshot
 
 ```bash
 PYTHONPATH=apps/climate-fingerprint-service/src \
@@ -116,7 +115,7 @@ python -m climate_fingerprint_service.snapshot_cli build \
   --tile-id GPD-44.064654-3.682935 \
   --latitude 44.064654 \
   --longitude 3.682935 \
-  --created-at 2026-08-09T20:05:00Z
+  --created-at 2026-08-10T03:25:00Z
 ```
 
 Le manifest `climate-snapshot.json` est écrit dans le même répertoire que les actifs afin que les URI restent relatives et portables.
@@ -140,7 +139,7 @@ Les `ClimateSignal` pointent vers les valeurs natives via `evidence.result_point
 
 ## Équivalence P6
 
-Trois niveaux sont maintenant distingués.
+Les trois niveaux de validation sont désormais passés.
 
 ### 1. Équivalence algorithmique — PASS
 
@@ -159,7 +158,7 @@ Sont comparés :
 
 La palette V4, le résumé éditorial et la provenance de publication ne font pas partie de l'équivalence scientifique.
 
-### 2. Replay ClimateSnapshot — PASS sur fixture sérialisée
+### 2. Replay ClimateSnapshot — PASS
 
 `test_snapshot_replay.py` écrit réellement les six actifs de test en CSV/NetCDF, construit un `ClimateSnapshot`, valide son JSON Schema, vérifie les SHA-256, recharge les séries et compare le résultat rejoué au calcul direct.
 
@@ -167,25 +166,23 @@ Le test vérifie aussi qu'une modification d'un seul fichier après création du
 
 `test_legacy_metadata.py` verrouille en plus les requêtes CDS historiques qui ont produit le cas POC.
 
-### 3. Replay du golden master P5 réel — bloqué par les actifs historiques
+### 3. Replay du golden master P5 réel — PASS
 
-Le golden master P5 réel est :
+Un replay local a été exécuté sur six actifs Copernicus réels pour le cas golden master :
+
+- 14 tests du service : PASS ;
+- six actifs vérifiés par SHA-256 ;
+- `ClimateSnapshot` réel rejoué ;
+- comparaison au golden master P5 : PASS ;
+- tolérance numérique : `0.0`.
+
+Le détail de gouvernance est consigné dans :
 
 ```text
-packages/climate-contracts/tests/golden-masters/climate-fingerprint/v4/poc-output.json
+doc/climat/validations/climate-fingerprint-v4-p6.md
 ```
 
-Il est explicitement `demo: false`, avec le point demandé `44.06465392551458 / 3.6829349237761435`, une maille ERA5-Land `44.1 / 3.7` et une maille UTCI/SPEI `44.0 / 3.75`.
-
-Le POC écrivait ses six actifs dans `output/raw/`, mais `output/` est ignoré par Git. Le dépôt conserve donc le résultat final mais pas les octets source historiques.
-
-Le dernier verrou de validation consiste à :
-
-1. retrouver une ancienne copie locale de `poc/climat/empreinte-climatique/output/raw/`, **ou** régénérer les six actifs avec les paramètres historiques verrouillés ;
-2. fournir la date réelle d'acquisition ;
-3. créer `climate-snapshot.json` ;
-4. rejouer le service natif ;
-5. comparer le payload au golden master à tolérance nulle.
+Les fichiers climatiques bruts restent hors Git. Leur intégrité et leur provenance sont prises en charge par le snapshot ; le dépôt ne les duplique pas.
 
 ## Tests
 
@@ -206,8 +203,11 @@ Le workflow `.github/workflows/climate-fingerprint-service.yml` exécute ces tes
 ```text
 apps/climate-fingerprint-service/
 ├── README.md
+├── LOCAL-REPLAY.md
 ├── requirements.txt
 ├── requirements-test.txt
+├── scripts/
+│   └── verify_golden_replay.py
 ├── src/climate_fingerprint_service/
 │   ├── __init__.py
 │   ├── compute.py
@@ -228,11 +228,11 @@ apps/climate-fingerprint-service/
 
 ## Hors périmètre de cette tranche
 
-- téléchargement CDS ;
+- téléchargement CDS dans le service scientifique ;
 - API HTTP ;
 - cache distribué ;
 - rendu SVG/HTML ;
 - commentaire IA ;
 - orchestration de fiche climat.
 
-La priorité reste la reproductibilité scientifique avant l'exposition HTTP.
+Le cœur scientifique natif de `climate-fingerprint@4.0.0` est maintenant validé. La suite peut porter sur son exposition et son intégration dans l'architecture de fiche climat.
