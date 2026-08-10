@@ -13,7 +13,7 @@ for path in (SERVICE_SRC, POC_ROOT):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from climate_water_service import (  # noqa: E402
+from climate_water_service.renderer import (  # noqa: E402
     render_water_result_svg,
     render_water_through_year_svg,
     write_water_result_svg,
