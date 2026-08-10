@@ -1,5 +1,11 @@
 from .compute import ThermalSeasonsContext, ThermalSeasonsInput, compute_thermal_seasons_data
 from .equivalence import assert_thermal_seasons_equivalent, comparable_payload
+from .renderer import (
+    ThermalSeasonsRenderError,
+    render_thermal_seasons_result_svg,
+    render_thermal_seasons_svg,
+    write_thermal_seasons_result_svg,
+)
 from .request import GridPoint, nearest_grid_point, request_parameters
 from .result import ResultContext, build_climate_result
 from .signals import build_signals
@@ -24,6 +30,10 @@ __all__ = [
     "build_signals",
     "assert_thermal_seasons_equivalent",
     "comparable_payload",
+    "ThermalSeasonsRenderError",
+    "render_thermal_seasons_svg",
+    "render_thermal_seasons_result_svg",
+    "write_thermal_seasons_result_svg",
     "GridPoint",
     "nearest_grid_point",
     "request_parameters",
