@@ -112,6 +112,13 @@ def build_climate_result(series: WaterThroughYearInput, *, context: ResultContex
         "quality": {
             "status": status,
             "checks": [
+                {
+                    "id": "completeness-policy",
+                    "status": "pass" if status == "valid" else "partial",
+                    "scope": "monthly ERA5-Land and SPEI-3",
+                    "rule": "420 reference+study months expected for each primary variable; annual SPEI dry-month count is emitted only when all 12 months are valid",
+                    "threshold": {"expected_months": 420, "spei_months_per_year": 12},
+                },
                 {"id": "monthly-completeness", "status": "pass" if status == "valid" else "partial", "variables": variables},
                 {"id": "three-comparison-signals", "status": "pass" if len(signals) == 3 else "partial", "count": len(signals)},
             ],
