@@ -9,18 +9,24 @@ _CONFIG = {
         "definition_id": "water-annual-precipitation-change",
         "unit": "percent",
         "mode": "higher_lower",
+        "yearly_statistic": "annual_sum",
+        "comparison_statistic": "median",
         "caveats": ["gridded-reanalysis", "descriptive-not-trend", "not-water-resource"],
     },
     "summer_soil_water_change_mm": {
         "definition_id": "water-summer-soil-water-change",
         "unit": "mm_modelled_water_equivalent",
         "mode": "higher_lower",
+        "yearly_statistic": "summer_mean",
+        "comparison_statistic": "median",
         "caveats": ["modelled-soil-water-not-reserve-utile", "gridded-reanalysis", "descriptive-not-trend"],
     },
     "dry_months_change": {
         "definition_id": "water-dry-months-change",
         "unit": "months_per_year",
         "mode": "frequency",
+        "yearly_statistic": "annual_count_spei3_lt_minus_1",
+        "comparison_statistic": "median",
         "caveats": ["spei3-meteorological-drought", "descriptive-not-trend"],
     },
 }
@@ -78,6 +84,10 @@ def build_signals(data: Mapping[str, Any]) -> list[dict[str, Any]]:
             }],
             "caveat_ids": list(config["caveats"]),
             "quality_status": "valid",
-            "metadata": {"producer": "climate-water-service"},
+            "metadata": {
+                "producer": "climate-water-service",
+                "yearly_statistic": config["yearly_statistic"],
+                "comparison_statistic": config["comparison_statistic"],
+            },
         })
     return signals

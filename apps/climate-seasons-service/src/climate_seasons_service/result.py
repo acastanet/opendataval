@@ -96,6 +96,17 @@ def build_climate_result(
         "quality": {
             "status": quality_status,
             "checks": [
+                {
+                    "id": "completeness-policy",
+                    "status": "pass" if quality_status == "valid" else "partial",
+                    "scope": "hourly ERA5-Land converted to no-leap daily years before thermal crossings",
+                    "rule": "daily mean requires >=18 hourly values; annual input requires >=98% valid no-leap days; internal gaps up to 2 days may be interpolated before crossing QA",
+                    "threshold": {
+                        "minimum_hourly_values_per_day": 18,
+                        "minimum_annual_fraction": 0.98,
+                        "maximum_interpolated_gap_days": 2,
+                    },
+                },
                 {"id": "annual-crossings", "status": "partial" if quality_status == "partial" else "pass", "annual_ok": annual_ok, "annual_total": annual_total},
                 {"id": "five-comparison-signals", "status": "pass", "count": len(signals)},
             ],

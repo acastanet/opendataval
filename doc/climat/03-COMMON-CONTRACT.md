@@ -332,3 +332,95 @@ P4 est terminé lorsque :
 - les exemples passent la validation structurelle ;
 - les invariants inter-documents sont explicitement documentés ;
 - P5 peut commencer sans redéfinir les contrats fondamentaux.
+
+## 12. Invariant P9 — statistique d'une comparaison de périodes
+
+Deux signaux utilisant les mêmes périodes ne sont comparables que si leur statistique d'agrégation est connue.
+
+Tout `ClimateSignal` décrivant une comparaison entre deux périodes doit exposer dans `metadata` :
+
+```text
+comparison_statistic
+```
+
+Valeurs recommandées :
+
+```text
+mean
+median
+sum
+count
+percentile
+```
+
+Lorsque la comparaison comporte plusieurs niveaux d'agrégation, les préciser séparément :
+
+```text
+metadata:
+  yearly_statistic: annual_sum
+  comparison_statistic: median
+```
+
+Exemples actuels :
+
+```text
+climate-fingerprint
+→ comparaison_statistic = mean
+
+thermal-seasons
+→ comparaison_statistic = median
+
+water-through-year
+→ comparaison_statistic = median
+```
+
+Cette métadonnée est descriptive du calcul existant. Elle ne réconcilie pas les méthodes.
+
+### Interdiction de réconciliation silencieuse
+
+Changer `mean` en `median` ou inversement lorsque la valeur publiée change constitue une évolution de méthode scientifique et doit être versionné selon `04-SCIENTIFIC-GOVERNANCE.md`.
+
+Le renderer et le commentaire IA doivent pouvoir distinguer deux valeurs calculées sur les mêmes périodes avec des statistiques différentes.
+
+## 13. Invariant P9 — politique de complétude explicite
+
+Le mot `valid` n'implique pas la même règle brute pour toutes les méthodes. Chaque méthode peut conserver une politique adaptée à sa variable, mais cette politique doit être visible dans `ClimateResult.quality`.
+
+Chaque résultat doit inclure dans `quality.checks` un contrôle :
+
+```text
+id = completeness-policy
+```
+
+avec au minimum :
+
+```text
+scope
+rule
+threshold
+```
+
+Exemples :
+
+```text
+fingerprint
+→ année quotidienne valide si >= 90 % des jours attendus
+
+overview
+→ V1 exige actuellement 30 valeurs annuelles par mois de référence
+
+water-through-year
+→ année SPEI comptée seulement si 12 mois valides
+
+thermal-seasons
+→ année quotidienne acceptée selon la couverture documentée puis QA des franchissements
+```
+
+La différence entre ces politiques n'est pas un défaut en soi ; leur invisibilité dans l'enveloppe commune en est un.
+
+## 14. Invariants P9 supplémentaires
+
+13. tout signal de comparaison de périodes expose `metadata.comparison_statistic` ;
+14. toute méthode expose sa politique de complétude via `quality.checks[id=completeness-policy]` ;
+15. une statistique mensuelle non additive ne doit pas être présentée comme une décomposition d'une statistique annuelle différente ;
+16. la provenance et la représentativité sérialisées dans `ClimateResult` doivent être dérivées du `ClimateSnapshot` ou d'un contexte explicitement fourni, jamais fabriquées par le renderer ou le commentaire IA.
