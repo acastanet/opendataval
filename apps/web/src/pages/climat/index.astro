@@ -1,6 +1,7 @@
 ---
 import fs from "node:fs";
 import BoutonAccueil from "../../components/BoutonAccueil.astro";
+import seasonsResult from "../../../../../doc/climat/validations/data/thermal-seasons-v4/thermal-seasons-v4-replay.json";
 
 type ClimateCommentary = {
   summary: string;
@@ -21,11 +22,8 @@ const commentary = commentaryCandidate?.validation?.status === "valid"
     ? commentaryCandidate
     : null;
 
-const seasonsResult = readOptionalJson<any>(
-  new URL("../../../public/climat/generated/thermal-seasons-v4.json", import.meta.url),
-);
-if (!seasonsResult || seasonsResult?.method?.id !== "thermal-seasons" || seasonsResult?.method?.version !== "4.0.0") {
-  throw new Error("La fiche climat attend l’actif généré thermal-seasons@4.0.0");
+if (seasonsResult?.method?.id !== "thermal-seasons" || seasonsResult?.method?.version !== "4.0.0") {
+  throw new Error("La fiche climat attend thermal-seasons@4.0.0");
 }
 
 const seasons = seasonsResult.data;
@@ -109,16 +107,14 @@ const nav = [
 
     <section id="saisons" class="analysis seasons">
       <header><span>03</span><div><p class="kicker">LES SAISONS SE DÉPLACENT · V4</p><h2>Le calendrier thermique a changé.</h2><p>Deux climatologies décennales comparées avec T25/T75 fixes sur 1991–2020.</p></div></header>
-
       <div class="signals">{seasonSignals.map(([label,value,stable]) => <article><b>{fmtDays(value as number)}</b><span>{label}</span><small>{fmtPct(stable as number)} des bootstrap gardent ce sens</small></article>)}</div>
-
       <div class="season-box">
         {[['1996–2005',early],['2016–2025',late]].map(([label,b]) => <div class="timeline-row"><b>{label}</b><div class="timeline">{timeline(b).map(([name,kind,width]) => <span class={kind as string} style={`width:${pct(width as number)}`}>{name}</span>)}</div></div>)}
         <div class="months"><span></span>{["jan","fév","mar","avr","mai","jun","jul","aoû","sep","oct","nov","déc"].map(m => <span>{m}</span>)}</div>
         <div class="method">
           <div><b>T25</b><span>{seasons.thresholds.t25_c.toFixed(3).replace(".", ",")} °C</span></div>
           <div><b>T75</b><span>{seasons.thresholds.t75_c.toFixed(3).replace(".", ",")} °C</span></div>
-          <div><b>Harmonic₂ / MA31</b><span>{early.sensitivity ?? ""}</span><span>{seasons.decades["1996-2005"].sensitivity.max_boundary_difference_days.toFixed(2).replace(".", ",")} j · {seasons.decades["2016-2025"].sensitivity.max_boundary_difference_days.toFixed(2).replace(".", ",")} j</span></div>
+          <div><b>Harmonic₂ / MA31</b><span>{seasons.decades["1996-2005"].sensitivity.max_boundary_difference_days.toFixed(2).replace(".", ",")} j · {seasons.decades["2016-2025"].sensitivity.max_boundary_difference_days.toFixed(2).replace(".", ",")} j</span></div>
           <div><b>Bootstrap</b><span>1 000 / 1 000 paires valides</span></div>
         </div>
         <p class="micro">Les seuils restent fixes dans le calcul central et dans les 1 000 réplications. Le bootstrap décrit la robustesse au choix des années ; ce n’est pas un test de significativité.</p>
