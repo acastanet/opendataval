@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Générez le cadran des saisons thermiques d’un point GPS." />
+    <title>Cadran des saisons thermiques</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <main>
+      <section class="intro" aria-labelledby="title">
+        <p class="eyebrow">Climat local · ERA5-Land</p>
+        <h1 id="title">Les saisons<br />se déplacent</h1>
+        <p class="lead">
+          Entrez un point GPS pour comparer les saisons thermiques de 1996–2005
+          à celles de 2016–2025.
+        </p>
+
+        <form id="coordinates-form">
+          <div class="fields">
+            <label>
+              Point GPS — latitude, longitude
+              <input id="coordinates" name="coordinates" type="text"
+                value="44.20485692495915, 3.5139766462697613"
+                placeholder="44.20485692495915, 3.5139766462697613"
+                required autocomplete="off" spellcheck="false" />
+            </label>
+          </div>
+          <button type="submit">Générer le cadran</button>
+        </form>
+
+        <p id="status" class="status" role="status" aria-live="polite">
+          La première génération d’une maille peut prendre quelques minutes.
+        </p>
+
+        <nav class="downloads" aria-label="Téléchargements" hidden>
+          <a id="download-svg" href="#">Télécharger le SVG</a>
+          <a id="download-png" href="#">Télécharger le PNG</a>
+        </nav>
+
+        <section class="reference-wheels" aria-labelledby="reference-title">
+          <h2 id="reference-title">Exemples de cadrans</h2>
+          <div class="reference-wheels-grid">
+            <img src="/vignettes/cadran-1.png" alt="Exemple de cadran des saisons thermiques" />
+            <img src="/vignettes/cadran-2.png" alt="Exemple de cadran des saisons thermiques" />
+            <img src="/vignettes/cadran-3.png" alt="Exemple de cadran des saisons thermiques" />
+          </div>
+        </section>
+
+        <details>
+          <summary>À propos de la méthode</summary>
+          <p>
+            Le cadran décrit des saisons thermiques locales calculées sur la réanalyse
+            maillée ERA5-Land. Il ne représente ni des saisons météorologiques fixes,
+            ni une mesure effectuée sur la parcelle.
+          </p>
+        </details>
+      </section>
+
+      <section class="visual" aria-label="Aperçu du cadran">
+        <div id="placeholder" class="placeholder">
+          <span>Votre cadran apparaîtra ici</span>
+        </div>
+        <img id="wheel" alt="Cadran des saisons thermiques du point GPS demandé" hidden />
+      </section>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

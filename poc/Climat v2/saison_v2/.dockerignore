@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.git/
+.env
+doc/
+input/
+output/
+tests/
+scripts/
+*.png
+*.svg
+wheel-preview.html
+data.js
+app.js
+styles.css
+index.html
