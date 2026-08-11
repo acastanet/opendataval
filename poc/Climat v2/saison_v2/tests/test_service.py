@@ -103,6 +103,7 @@ class ApiTest(unittest.TestCase):
         self.assertIn('id="coordinates-form"', response.text)
         self.assertIn('id="coordinates"', response.text)
         self.assertIn('id="wheel-title"', response.text)
+        self.assertIn('id="locate"', response.text)
         self.assertIn('/vignettes/cadran-1.png', response.text)
 
     def test_reference_thumbnail_is_served(self) -> None:

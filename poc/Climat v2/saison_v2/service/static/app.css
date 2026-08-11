@@ -116,6 +116,18 @@ button {
 button:hover { background: var(--red); border-color: var(--red); }
 button:disabled { cursor: wait; opacity: 0.58; }
 
+.locate {
+  width: auto;
+  margin-top: 0.8rem;
+  padding: 0.68rem 0.9rem;
+  border-color: var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.locate:hover { border-color: var(--blue); background: var(--blue); color: var(--paper); }
+
 .status {
   min-height: 2.8rem;
   margin: 1rem 0 0;

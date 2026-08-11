@@ -5,12 +5,44 @@ const placeholder = document.querySelector("#placeholder");
 const downloads = document.querySelector(".downloads");
 const downloadSvg = document.querySelector("#download-svg");
 const downloadPng = document.querySelector("#download-png");
-const submit = form.querySelector("button");
+const submit = form.querySelector("button[type=submit]");
 const coordinates = document.querySelector("#coordinates");
 const wheelTitle = document.querySelector("#wheel-title");
+const locate = document.querySelector("#locate");
 let previewUrl = null;
 
 coordinates.addEventListener("input", () => coordinates.setCustomValidity(""));
+
+locate.addEventListener("click", () => {
+  if (!navigator.geolocation) {
+    status.classList.add("error");
+    status.textContent = "La géolocalisation n’est pas disponible dans ce navigateur.";
+    return;
+  }
+
+  locate.disabled = true;
+  status.classList.remove("error");
+  status.textContent = "Recherche de votre position…";
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      coordinates.value = `${coords.latitude.toFixed(8)}, ${coords.longitude.toFixed(8)}`;
+      coordinates.setCustomValidity("");
+      status.textContent = "Position renseignée. Vous pouvez maintenant générer le cadran.";
+      locate.disabled = false;
+    },
+    (error) => {
+      const messages = {
+        1: "L’autorisation de géolocalisation a été refusée.",
+        2: "Votre position est indisponible pour le moment.",
+        3: "La recherche de votre position a expiré.",
+      };
+      status.classList.add("error");
+      status.textContent = messages[error.code] || "Impossible de récupérer votre position.";
+      locate.disabled = false;
+    },
+    { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 }
+  );
+});
 
 function endpoint(extension, latitude, longitude, title = "", download = false) {
   const parameters = new URLSearchParams({ lat: latitude, lon: longitude });

@@ -53,6 +53,10 @@ Invoke-WebRequest http://localhost:8000/healthz
 L'interface est disponible sur <http://localhost:8000>, la documentation API
 sur <http://localhost:8000/docs>.
 
+Le bouton « Me localiser » demande l’autorisation du navigateur et renseigne le
+champ GPS sans envoyer la position avant la génération. Il fonctionne sur
+`localhost` et, en ligne, nécessite HTTPS.
+
 La première demande pour une maille ERA5-Land peut prendre plusieurs minutes.
 Les données et rendus sont ensuite conservés dans le volume Docker
 `seasons-data` : les demandes suivantes pour la même maille sont servies depuis
