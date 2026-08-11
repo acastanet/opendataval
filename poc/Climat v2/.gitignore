@@ -1,0 +1,19 @@
+# POC voisins encore locaux et hors périmètre du microservice saison_v2.
+/climate_shared/
+/fiche_climat/
+/RAPPORT-VALIDATION.md
+/build-all.bat
+/requirements.txt
+
+# Sources de données, rendus et ancienne maquette locale de saison_v2.
+/saison_v2/input/
+/saison_v2/output/
+/saison_v2/doc/
+/saison_v2/render-check.png
+/saison_v2/seasons-wheel*.png
+/saison_v2/seasons-wheel*.svg
+/saison_v2/wheel-preview.html
+/saison_v2/data.js
+/saison_v2/app.js
+/saison_v2/styles.css
+/saison_v2/index.html
