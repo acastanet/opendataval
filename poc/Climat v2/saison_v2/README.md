@@ -28,6 +28,12 @@ GET /api/v1/wheel.png?lat=44.20485692495915&lon=3.5139766462697613
 GET /api/v1/wheel?lat=44.20485692495915&lon=3.5139766462697613&format=json
 ```
 
+Le paramètre facultatif `title` personnalise le titre affiché dans le cadran :
+
+```text
+GET /api/v1/wheel.svg?lat=44.20485692495915&lon=3.5139766462697613&title=Mont%20Aigoual
+```
+
 Ajouter `download=true` aux routes `.svg` et `.png` pour obtenir un nom de
 fichier de téléchargement. `/healthz` sert de sonde de santé. Les coordonnées
 sont validées en WGS84 ; la donnée représentée est celle de la maille ERA5-Land

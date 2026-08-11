@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from xml.sax.saxutils import escape
 
 ROOT = Path(__file__).resolve().parents[1]
 ENGINE = ROOT / "engine"
@@ -28,7 +29,7 @@ from seasons_wheel.render import build_document, render_wheel_svg  # noqa: E402
 from .collector import CollectedAsset, collect_temperature, validate_coordinates
 from .validation import TechnicalValidationError, validate_result, validate_temperature_series
 
-GENERATOR_VERSION = "thermal-seasons-v4-wheel-service-5"
+GENERATOR_VERSION = "thermal-seasons-v4-wheel-service-6"
 FONT_DIRECTORY = Path(__file__).resolve().parent / "assets" / "fonts"
 EMBEDDED_FONTS = (
     ("Dancing Script", "400 700", FONT_DIRECTORY / "DancingScript[wght].ttf"),
@@ -57,9 +58,16 @@ def _lock_for(key: str) -> threading.Lock:
         return _generation_locks.setdefault(key, threading.Lock())
 
 
-def _cache_key(latitude: float, longitude: float, config_path: Path) -> str:
+def _normalise_title(title: str | None) -> str | None:
+    if title is None:
+        return None
+    normalised = " ".join(title.split())
+    return normalised or None
+
+
+def _cache_key(latitude: float, longitude: float, title: str | None, config_path: Path) -> str:
     config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()
-    value = f"{GENERATOR_VERSION}|{latitude:.8f}|{longitude:.8f}|{config_hash}"
+    value = f"{GENERATOR_VERSION}|{latitude:.8f}|{longitude:.8f}|{title or ''}|{config_hash}"
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
 
 
@@ -125,10 +133,10 @@ def _embed_font(svg: str) -> str:
     return f"{svg[:end + 1]}<style>{_embedded_font_css()}</style>{svg[end + 1:]}"
 
 
-def _render_svg(result: dict[str, Any], config_path: Path) -> str:
+def _render_svg(result: dict[str, Any], config_path: Path, title: str | None = None) -> str:
     document = build_document(result)
     quality_status = result.get("quality", {}).get("status")
-    document["location_title"] = (
+    document["location_title"] = escape(title) if title else (
         "Point GPS" if quality_status == "valid" else "Point GPS — interprétation prudente"
     )
     config = WheelConfig.from_file(config_path).merged(
@@ -151,13 +159,14 @@ def _render_png(svg: str, target: Path) -> None:
     temporary.replace(target)
 
 
-def generate_wheel(latitude: float, longitude: float) -> WheelBundle:
+def generate_wheel(latitude: float, longitude: float, title: str | None = None) -> WheelBundle:
     """Génère les trois artefacts et les conserve dans le volume de cache."""
 
     latitude, longitude = validate_coordinates(latitude, longitude)
+    title = _normalise_title(title)
     root = data_root()
     config_path = ROOT / "wheel-config.json"
-    key = _cache_key(latitude, longitude, config_path)
+    key = _cache_key(latitude, longitude, title, config_path)
     directory = root / "rendered" / key
     svg_path = directory / "wheel.svg"
     png_path = directory / "wheel.png"
@@ -173,7 +182,7 @@ def generate_wheel(latitude: float, longitude: float) -> WheelBundle:
             directory.mkdir(parents=True, exist_ok=True)
             asset = collect_temperature(latitude, longitude, root)
             result = _result(latitude, longitude, asset)
-            svg = _render_svg(result, config_path)
+            svg = _render_svg(result, config_path, title)
             _atomic_text(svg_path, svg)
             _atomic_text(result_path, json.dumps(result, ensure_ascii=False, indent=2) + "\n")
             _render_png(svg, png_path)

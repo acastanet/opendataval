@@ -67,6 +67,14 @@ class ServiceRenderTest(unittest.TestCase):
         svg = _render_svg(result, ROOT / "wheel-config.json")
         self.assertIn("interprétation prudente", svg)
 
+    def test_service_svg_uses_and_escapes_the_custom_title(self) -> None:
+        result = json.loads(
+            (ROOT / "output" / "thermal-seasons-v4-replay.json").read_text(encoding="utf-8")
+        )
+        svg = _render_svg(result, ROOT / "wheel-config.json", "Mont <Aigoual> & vallée")
+        self.assertIn("Mont &lt;Aigoual&gt; &amp; vallée", svg)
+        self.assertNotIn(">Point GPS<", svg)
+
 
 class ApiTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -94,6 +102,7 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('id="coordinates-form"', response.text)
         self.assertIn('id="coordinates"', response.text)
+        self.assertIn('id="wheel-title"', response.text)
         self.assertIn('/vignettes/cadran-1.png', response.text)
 
     def test_reference_thumbnail_is_served(self) -> None:
@@ -107,11 +116,12 @@ class ApiTest(unittest.TestCase):
         self.assertIn(".placeholder[hidden] { display: none; }", response.text)
 
     def test_svg_endpoint(self) -> None:
-        with patch("service.main.generate_wheel", return_value=self.bundle):
-            response = self.client.get("/api/v1/wheel.svg?lat=44.2&lon=3.5")
+        with patch("service.main.generate_wheel", return_value=self.bundle) as generate:
+            response = self.client.get("/api/v1/wheel.svg?lat=44.2&lon=3.5&title=Mont%20Aigoual")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["content-type"], "image/svg+xml")
         self.assertIn(b"<svg", response.content)
+        generate.assert_called_once_with(44.2, 3.5, "Mont Aigoual")
 
     def test_json_endpoint(self) -> None:
         with patch("service.main.generate_wheel", return_value=self.bundle):

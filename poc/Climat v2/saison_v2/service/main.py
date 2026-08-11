@@ -35,9 +35,9 @@ app.add_middleware(
 app.mount("/vignettes", StaticFiles(directory=STATIC / "vignettes"), name="vignettes")
 
 
-def _bundle(latitude: float, longitude: float) -> WheelBundle:
+def _bundle(latitude: float, longitude: float, title: str | None = None) -> WheelBundle:
     try:
-        return generate_wheel(latitude, longitude)
+        return generate_wheel(latitude, longitude, title)
     except CoordinatesError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except CredentialsError as exc:
@@ -81,9 +81,10 @@ def health() -> dict[str, str]:
 def wheel_svg(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
+    title: str | None = Query(None, max_length=80, description="Titre affiché dans le cadran."),
     download: bool = False,
 ) -> FileResponse:
-    bundle = _bundle(lat, lon)
+    bundle = _bundle(lat, lon, title)
     return FileResponse(
         bundle.svg_path,
         media_type="image/svg+xml",
@@ -95,9 +96,10 @@ def wheel_svg(
 def wheel_png(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
+    title: str | None = Query(None, max_length=80, description="Titre affiché dans le cadran."),
     download: bool = False,
 ) -> FileResponse:
-    bundle = _bundle(lat, lon)
+    bundle = _bundle(lat, lon, title)
     return FileResponse(
         bundle.png_path,
         media_type="image/png",
@@ -109,9 +111,10 @@ def wheel_png(
 def wheel(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
+    title: str | None = Query(None, max_length=80, description="Titre affiché dans le cadran."),
     format: Literal["svg", "png", "json"] = "svg",
 ) -> Response:
-    bundle = _bundle(lat, lon)
+    bundle = _bundle(lat, lon, title)
     if format == "json":
         return JSONResponse(json.loads(bundle.result_path.read_text(encoding="utf-8")))
     path = bundle.svg_path if format == "svg" else bundle.png_path

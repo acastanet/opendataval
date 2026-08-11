@@ -69,6 +69,9 @@ GET /api/v1/wheel?lat=44.20485692495915&lon=3.5139766462697613&format=json
 GET /healthz
 ```
 
+Ajouter `title=Nom%20du%20lieu` à une route de cadran pour personnaliser le
+titre visible dans les exports PNG et SVG.
+
 Les routes PNG et SVG acceptent `download=true` pour déclencher le
 téléchargement. Toutes les coordonnées sont validées en WGS84.
 
