@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#eef3ef" />
+    <title>Style VAL — Référentiel de design OpenDataVdA</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --encre: #14251d;
+        --encre-douce: #52645b;
+        --vert: #24543d;
+        --vert-profond: #173e2b;
+        --vert-clair: #dce9e1;
+        --brume: #eef3ef;
+        --papier: #fbfcfa;
+        --blanc: #ffffff;
+        --torrent: #3d6f7d;
+        --chataigne: #795039;
+        --lichen: #718260;
+        --granite: #89958e;
+        --alerte: #a94332;
+        --ligne: rgb(20 37 29 / 16%);
+        --ligne-forte: rgb(20 37 29 / 31%);
+        --verre: rgb(255 255 255 / 72%);
+        --verre-fort: rgb(255 255 255 / 88%);
+        --ombre: 0 14px 38px rgb(20 37 29 / 9%);
+        --rayon: 2px;
+        --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+        --font-body: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--encre);
+        background:
+          linear-gradient(90deg, rgb(36 84 61 / 3%) 1px, transparent 1px),
+          linear-gradient(rgb(36 84 61 / 3%) 1px, transparent 1px),
+          var(--brume);
+        background-size: 36px 36px;
+        font-family: var(--font-body);
+        line-height: 1.55;
+      }
+
+      a { color: var(--vert); }
+      button, a { font: inherit; }
+      a:focus-visible, button:focus-visible {
+        outline: 2px solid var(--vert);
+        outline-offset: 3px;
+      }
+
+      .conteneur {
+        width: min(calc(100% - 2rem), 74rem);
+        margin-inline: auto;
+      }
+
+      .barre-officielle {
+        border-bottom: 1px solid rgb(255 255 255 / 15%);
+        background: var(--vert-profond);
+        color: rgb(255 255 255 / 78%);
+        font-size: .7rem;
+        font-weight: 720;
+        letter-spacing: .09em;
+        text-transform: uppercase;
+      }
+
+      .barre-officielle .conteneur {
+        display: flex;
+        min-height: 2.3rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .barre-officielle span:last-child { color: rgb(255 255 255 / 52%); }
+
+      header {
+        position: relative;
+        overflow: hidden;
+        border-bottom: 1px solid var(--ligne);
+        background:
+          radial-gradient(circle at 82% 26%, rgb(113 130 96 / 23%), transparent 24rem),
+          linear-gradient(115deg, rgb(255 255 255 / 94%), rgb(239 246 241 / 78%));
+      }
+
+      header::after {
+        position: absolute;
+        right: -7rem;
+        bottom: -9rem;
+        width: 23rem;
+        height: 23rem;
+        border: 1px solid rgb(36 84 61 / 14%);
+        transform: rotate(32deg);
+        content: "";
+      }
+
+      .hero {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 1.5rem;
+        padding-block: 2.75rem;
+      }
+
+      .eyebrow {
+        margin: 0 0 .65rem;
+        color: var(--vert);
+        font-size: .69rem;
+        font-weight: 780;
+        letter-spacing: .15em;
+        text-transform: uppercase;
+      }
+
+      h1, h2, .titre-apercu {
+        font-family: var(--font-display);
+        font-weight: 500;
+        letter-spacing: -.025em;
+      }
+
+      h1 {
+        max-width: 11ch;
+        margin: 0;
+        font-size: clamp(2.25rem, 9vw, 4.6rem);
+        line-height: .96;
+      }
+
+      .introduction {
+        max-width: 58ch;
+        margin: 1rem 0 0;
+        color: var(--encre-douce);
+        font-size: clamp(.94rem, 1.7vw, 1.08rem);
+      }
+
+      .signature {
+        align-self: end;
+        padding: 1rem 1.05rem;
+        border: 1px solid var(--ligne-forte);
+        border-radius: var(--rayon);
+        background: var(--verre);
+        box-shadow: var(--ombre);
+        backdrop-filter: blur(16px) saturate(1.03);
+      }
+
+      .signature strong, .signature span { display: block; }
+      .signature strong { font-family: var(--font-display); font-size: 1.16rem; font-weight: 500; }
+      .signature span { margin-top: .3rem; color: var(--encre-douce); font-size: .76rem; }
+
+      .sommaire {
+        position: sticky;
+        z-index: 5;
+        top: 0;
+        border-bottom: 1px solid var(--ligne);
+        background: rgb(251 252 250 / 84%);
+        backdrop-filter: blur(18px);
+      }
+
+      .sommaire .conteneur {
+        display: flex;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .sommaire .conteneur::-webkit-scrollbar { display: none; }
+      .sommaire a {
+        flex: 0 0 auto;
+        padding: .9rem 1rem .8rem 0;
+        color: var(--encre-douce);
+        font-size: .7rem;
+        font-weight: 740;
+        letter-spacing: .08em;
+        text-decoration: none;
+        text-transform: uppercase;
+      }
+      .sommaire a + a { padding-left: 1rem; border-left: 1px solid var(--ligne); }
+      .sommaire a:hover { color: var(--vert); }
+
+      main { padding-block: 1rem 4rem; }
+      section { padding-block: 2rem; border-bottom: 1px solid var(--ligne); }
+      section:last-child { border-bottom: 0; }
+
+      .entete-section { display: grid; gap: .5rem; margin-bottom: 1.2rem; }
+      .numero {
+        color: var(--vert);
+        font-family: var(--font-mono);
+        font-size: .67rem;
+        font-weight: 740;
+        letter-spacing: .08em;
+      }
+      h2 { max-width: 22ch; margin: 0; font-size: clamp(1.55rem, 4.6vw, 2.4rem); line-height: 1.04; }
+      .entete-section p { max-width: 64ch; margin: 0; color: var(--encre-douce); }
+      h3 { margin: 0 0 .55rem; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; }
+      p { max-width: 72ch; }
+
+      .grille { display: grid; gap: .75rem; }
+      .carte {
+        min-height: 8.5rem;
+        padding: 1rem;
+        border: 1px solid var(--ligne);
+        border-radius: var(--rayon);
+        background: var(--verre);
+        backdrop-filter: blur(12px);
+      }
+      .carte p { margin: 0; color: var(--encre-douce); font-size: .89rem; }
+      .carte .indice { display: block; margin-bottom: 1.5rem; color: var(--granite); font-family: var(--font-mono); font-size: .64rem; }
+
+      .palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+      .nuance {
+        overflow: hidden;
+        border: 1px solid var(--ligne);
+        border-radius: var(--rayon);
+        background: var(--verre-fort);
+      }
+      .nuance b {
+        display: flex;
+        min-height: 5.8rem;
+        align-items: end;
+        padding: .65rem;
+        color: white;
+        font-size: .73rem;
+        letter-spacing: .04em;
+      }
+      .nuance span { display: block; padding: .58rem .65rem; font-family: var(--font-mono); font-size: .66rem; }
+      .encre { background: var(--encre); }
+      .vert { background: var(--vert); }
+      .brume { background: var(--brume); color: var(--encre) !important; }
+      .papier { background: var(--papier); color: var(--encre) !important; }
+      .torrent { background: var(--torrent); }
+      .chataigne { background: var(--chataigne); }
+      .lichen { background: var(--lichen); }
+      .alerte { background: var(--alerte); }
+
+      code {
+        padding: .12rem .3rem;
+        border: 1px solid var(--ligne);
+        border-radius: 1px;
+        background: rgb(255 255 255 / 64%);
+        font-family: var(--font-mono);
+        font-size: .84em;
+      }
+
+      .regles { display: grid; border-top: 1px solid var(--ligne); }
+      .regle {
+        display: grid;
+        grid-template-columns: 2.4rem minmax(0, 1fr);
+        gap: .75rem;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--ligne);
+      }
+      .regle > span { color: var(--vert); font-family: var(--font-mono); font-size: .72rem; }
+      .regle strong { display: block; font-size: .86rem; }
+      .regle p { margin: .2rem 0 0; color: var(--encre-douce); font-size: .82rem; }
+
+      .demonstrateur { display: grid; gap: 1rem; }
+      .presentation {
+        position: relative;
+        min-height: 20rem;
+        overflow: hidden;
+        padding: 1.5rem;
+        border: 1px solid var(--ligne-forte);
+        border-radius: var(--rayon);
+        background:
+          linear-gradient(120deg, rgb(255 255 255 / 90%), rgb(226 237 230 / 68%)),
+          var(--papier);
+        box-shadow: var(--ombre);
+      }
+      .presentation::after {
+        position: absolute;
+        right: -4rem;
+        bottom: -6rem;
+        width: 18rem;
+        height: 18rem;
+        border: 1px solid rgb(36 84 61 / 20%);
+        transform: rotate(28deg);
+        content: "";
+      }
+      .presentation__meta { color: var(--vert); font-size: .62rem; font-weight: 760; letter-spacing: .14em; text-transform: uppercase; }
+      .presentation .titre-apercu { max-width: 10ch; margin: 2rem 0 .8rem; font-size: clamp(2.1rem, 7vw, 3.6rem); line-height: .96; }
+      .presentation p { max-width: 34ch; color: var(--encre-douce); }
+      .presentation__source { position: absolute; bottom: 1.4rem; left: 1.5rem; font-size: .65rem; }
+
+      .mobile {
+        width: min(100%, 21rem);
+        margin-inline: auto;
+        overflow: hidden;
+        border: 1px solid var(--ligne-forte);
+        border-radius: var(--rayon);
+        background: linear-gradient(#f9fbf9, #e7eee9);
+        box-shadow: var(--ombre);
+      }
+      .mobile__status { display: flex; justify-content: space-between; padding: .65rem .85rem; font-size: .62rem; font-weight: 700; }
+      .mobile__head { padding: 1rem; border-block: 1px solid var(--ligne); background: rgb(255 255 255 / 62%); }
+      .mobile__head span { color: var(--vert); font-size: .59rem; font-weight: 760; letter-spacing: .12em; text-transform: uppercase; }
+      .mobile__head h3 { margin: .25rem 0 0; font-family: var(--font-display); font-size: 1.35rem; font-weight: 500; letter-spacing: -.02em; text-transform: none; }
+      .mobile__contenu { display: grid; gap: .55rem; padding: .8rem; }
+      .donnee { display: grid; grid-template-columns: 1fr auto; gap: .4rem; padding: .8rem; border: 1px solid var(--ligne); border-radius: 1px; background: rgb(255 255 255 / 68%); }
+      .donnee strong { font-size: .75rem; }
+      .donnee span { color: var(--vert); font-family: var(--font-mono); font-size: .76rem; font-weight: 750; }
+      .donnee small { grid-column: 1 / -1; color: var(--encre-douce); }
+      .mobile__nav { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ligne); background: rgb(255 255 255 / 88%); }
+      .mobile__nav span { padding: .85rem .3rem; color: var(--encre-douce); font-size: .6rem; font-weight: 700; text-align: center; }
+      .mobile__nav .actif { box-shadow: inset 0 -2px var(--vert); color: var(--vert); }
+
+      .composants { display: grid; gap: 1rem; }
+      .plateau {
+        padding: 1rem;
+        border: 1px solid var(--ligne);
+        border-radius: var(--rayon);
+        background: var(--verre);
+        backdrop-filter: blur(12px);
+      }
+      .exemples { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; }
+      button, .bouton {
+        display: inline-flex;
+        min-height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+        padding: .55rem .85rem;
+        border: 1px solid var(--vert);
+        border-radius: var(--rayon);
+        background: var(--vert);
+        color: white;
+        font-size: .78rem;
+        font-weight: 740;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      button:hover, .bouton:hover { background: var(--vert-profond); }
+      .secondaire { background: rgb(255 255 255 / 54%); color: var(--vert); }
+      .secondaire:hover { background: var(--vert-clair); }
+      .lien-action { border: 0; border-bottom: 1px solid currentColor; border-radius: 0; background: transparent; color: var(--vert); }
+      .lien-action:hover { background: transparent; color: var(--vert-profond); }
+      .alerte-badge { padding: .32rem .5rem; border: 1px solid rgb(169 67 50 / 24%); border-radius: 1px; background: rgb(169 67 50 / 10%); color: #803326; font-size: .7rem; font-weight: 760; }
+
+      .note {
+        margin-top: 1rem;
+        padding: .9rem 1rem;
+        border: 1px solid var(--ligne);
+        background: rgb(255 255 255 / 48%);
+        color: var(--encre-douce);
+        font-size: .82rem;
+      }
+
+      footer { border-top: 1px solid rgb(255 255 255 / 13%); background: var(--vert-profond); color: rgb(255 255 255 / 76%); }
+      footer .conteneur { display: grid; gap: .65rem; padding-block: 1.5rem; }
+      footer p { margin: 0; font-size: .78rem; }
+      footer strong { color: white; }
+
+      @media (min-width: 42rem) {
+        .conteneur { width: min(calc(100% - 3rem), 74rem); }
+        .hero { grid-template-columns: minmax(0, 1fr) 15rem; align-items: end; padding-block: 4.25rem; }
+        .entete-section { grid-template-columns: 1fr minmax(18rem, .9fr); align-items: end; }
+        .entete-section p { justify-self: end; }
+        .grille { grid-template-columns: repeat(3, 1fr); }
+        .palette { grid-template-columns: repeat(4, 1fr); }
+        .demonstrateur { grid-template-columns: minmax(0, 1.6fr) minmax(17rem, .65fr); align-items: center; }
+        .composants { grid-template-columns: 1fr 1fr; }
+        footer .conteneur { grid-template-columns: 1fr auto; align-items: center; }
+      }
+
+      @media (min-width: 64rem) {
+        section { padding-block: 3rem; }
+        .presentation { min-height: 25rem; padding: 2rem; }
+        .presentation__source { bottom: 1.8rem; left: 2rem; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="barre-officielle">
+      <div class="conteneur"><span>OpenDataVdA · Val-d’Aigoual</span><span>Référentiel 2026</span></div>
+    </div>
+
+    <header>
+      <div class="hero conteneur">
+        <div>
+          <p class="eyebrow">Référentiel visuel territorial</p>
+          <h1>Style VAL</h1>
+          <p class="introduction">Un langage visuel officiel, clair et précis pour présenter les données publiques de Val-d’Aigoual — de la projection grand format jusqu’à l’application de terrain.</p>
+        </div>
+        <aside class="signature" aria-label="Principes directeurs">
+          <strong>Clarté · Autorité · Terrain</strong>
+          <span>Des interfaces utiles, identifiables et sobres, pensées mobile first.</span>
+        </aside>
+      </div>
+    </header>
+
+    <nav class="sommaire" aria-label="Sommaire du référentiel">
+      <div class="conteneur">
+        <a href="#direction">Direction</a><a href="#palette">Palette</a><a href="#supports">Supports</a><a href="#composants">Composants</a><a href="#accessibilite">Accessibilité</a>
+      </div>
+    </nav>
+
+    <main class="conteneur">
+      <section id="direction">
+        <div class="entete-section">
+          <div><span class="numero">01 / DIRECTION</span><h2>Une présence publique contemporaine</h2></div>
+          <p>Le style doit inspirer confiance sans paraître distant. La donnée, sa source et son actualité structurent l’écran avant tout effet graphique.</p>
+        </div>
+        <div class="grille">
+          <article class="carte"><span class="indice">PRINCIPE 01</span><h3>Institutionnel</h3><p>Composition rigoureuse, alignements francs, vert territorial profond et typographie éditoriale pour les titres.</p></article>
+          <article class="carte"><span class="indice">PRINCIPE 02</span><h3>Lumineux</h3><p>Fonds brume très clairs, panneaux blancs translucides et ombres peu contrastées. La transparence sert la profondeur.</p></article>
+          <article class="carte"><span class="indice">PRINCIPE 03</span><h3>Opérationnel</h3><p>Contrôles tactiles d’au moins 44 px, information essentielle visible immédiatement et navigation basse sur mobile.</p></article>
+        </div>
+      </section>
+
+      <section id="palette">
+        <div class="entete-section">
+          <div><span class="numero">02 / PALETTE</span><h2>Des teintes naturelles, mieux hiérarchisées</h2></div>
+          <p>Le vert devient la couleur institutionnelle principale. Les teintes territoriales restent présentes comme accents de données, jamais comme décoration dominante.</p>
+        </div>
+        <div class="palette">
+          <div class="nuance"><b class="encre">Encre</b><span>#14251D · texte</span></div>
+          <div class="nuance"><b class="vert">Vert officiel</b><span>#24543D · action</span></div>
+          <div class="nuance"><b class="brume">Brume</b><span>#EEF3EF · fond</span></div>
+          <div class="nuance"><b class="papier">Papier</b><span>#FBFCFA · surface</span></div>
+          <div class="nuance"><b class="torrent">Torrent</b><span>#3D6F7D · donnée</span></div>
+          <div class="nuance"><b class="chataigne">Châtaigne</b><span>#795039 · territoire</span></div>
+          <div class="nuance"><b class="lichen">Lichen</b><span>#718260 · contexte</span></div>
+          <div class="nuance"><b class="alerte">Alerte</b><span>#A94332 · vigilance</span></div>
+        </div>
+        <p class="note">Transparence recommandée : <code>72 %</code> pour un panneau sur fond calme, <code>88 %</code> lorsqu’il porte du texte dense. Toujours conserver une bordure visible.</p>
+      </section>
+
+      <section id="supports">
+        <div class="entete-section">
+          <div><span class="numero">03 / SUPPORTS</span><h2>Un système, deux échelles</h2></div>
+          <p>Les présentations privilégient une idée forte par écran. Les applications mobiles privilégient la tâche, l’état courant et les données utilisables sur le terrain.</p>
+        </div>
+        <div class="demonstrateur">
+          <article class="presentation" aria-label="Exemple de diapositive">
+            <span class="presentation__meta">Val-d’Aigoual · Données territoriales</span>
+            <div class="titre-apercu">Comprendre le territoire.</div>
+            <p>Des données publiques lisibles pour anticiper, décider et agir collectivement.</p>
+            <span class="presentation__source">Source · OpenDataVdA · mise à jour 12.08.2026</span>
+          </article>
+          <article class="mobile" aria-label="Exemple d’application mobile">
+            <div class="mobile__status"><span>9:41</span><span>● ● ●</span></div>
+            <div class="mobile__head"><span>Situation locale</span><h3>Valleraugue</h3></div>
+            <div class="mobile__contenu">
+              <div class="donnee"><strong>Température</strong><span>21,4 °C</span><small>Station · actualisé à 09:35</small></div>
+              <div class="donnee"><strong>Vigilance</strong><span>Verte</span><small>Aucun phénomène dangereux prévu</small></div>
+              <div class="donnee"><strong>Risque incendie</strong><span>Faible</span><small>Rayon d’observation · 10 km</small></div>
+            </div>
+            <nav class="mobile__nav" aria-label="Exemple de navigation mobile"><span class="actif">Situation</span><span>Carte</span><span>Services</span></nav>
+          </article>
+        </div>
+      </section>
+
+      <section id="composants">
+        <div class="entete-section">
+          <div><span class="numero">04 / COMPOSANTS</span><h2>Angles nets, interactions explicites</h2></div>
+          <p>Le rayon standard est limité à <code>2 px</code>. Les formes rondes sont réservées aux indicateurs ponctuels, aux interrupteurs et aux données qui l’exigent.</p>
+        </div>
+        <div class="composants">
+          <div class="plateau">
+            <h3>Actions</h3>
+            <div class="exemples"><button type="button">Consulter les données</button><a class="bouton secondaire" href="#accessibilite">En savoir plus</a><button class="lien-action" type="button">Télécharger ↗</button></div>
+          </div>
+          <div class="plateau">
+            <h3>États</h3>
+            <div class="exemples"><span class="alerte-badge">Vigilance orange</span><code>Mis à jour · 09:35</code></div>
+          </div>
+        </div>
+        <div class="regles">
+          <div class="regle"><span>01</span><div><strong>Rayons minimaux</strong><p>0 à 2 px pour les cartes, panneaux et boutons. Aucun grand panneau en forme de pilule.</p></div></div>
+          <div class="regle"><span>02</span><div><strong>Ombres fonctionnelles</strong><p>Une seule ombre diffuse pour les éléments flottants. Les surfaces dans le flux utilisent surtout la bordure.</p></div></div>
+          <div class="regle"><span>03</span><div><strong>Typographie mesurée</strong><p>Serif pour les titres de niveau 1 et 2 ; sans-serif pour l’action, la lecture et les données.</p></div></div>
+        </div>
+      </section>
+
+      <section id="accessibilite">
+        <div class="entete-section">
+          <div><span class="numero">05 / ACCESSIBILITÉ</span><h2>La lisibilité fait partie du style</h2></div>
+          <p>Le système respecte le clavier, les petits écrans et la réduction des mouvements. La transparence ne doit jamais réduire le contraste du contenu.</p>
+        </div>
+        <div class="grille">
+          <article class="carte"><span class="indice">CLAVIER</span><h3>Focus visible</h3><p>Anneau vert de 2 px, décalé du composant. L’ordre de navigation suit l’ordre visuel.</p></article>
+          <article class="carte"><span class="indice">TACTILE</span><h3>Cibles de 44 px</h3><p>Les actions principales et les éléments de navigation restent faciles à utiliser d’une seule main.</p></article>
+          <article class="carte"><span class="indice">DONNÉES</span><h3>Source explicite</h3><p>Chaque valeur importante indique sa provenance, son périmètre et sa date d’actualisation.</p></article>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="conteneur"><p><strong>Style VAL</strong> · Référentiel visuel OpenDataVdA</p><p>Clarté publique · ancrage territorial · usage mobile</p></div>
+    </footer>
+  </body>
+</html>

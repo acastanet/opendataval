@@ -636,7 +636,7 @@
       gap: 3px;
       margin: 14px 16px 0 46px;
       padding: 10px 12px;
-      border-left: 3px solid var(--sphere);
+      border: 1px solid rgba(23, 35, 29, 0.12);
       background: rgba(185, 74, 30, 0.055);
       color: #5f6862;
       font-size: 0.64rem;
@@ -675,7 +675,7 @@
     }
 
     [data-live-row^="vigilance-"][data-vigilance-rank]:not([data-vigilance-rank="0"]) {
-      border-left: 3px solid var(--sphere);
+      border-color: rgba(185, 74, 30, 0.28);
     }
 
     .data-layer__text { min-width: 0; }
@@ -1232,4 +1232,306 @@
         font-size: clamp(1.35rem, 6.5vw, 1.8rem);
         white-space: normal;
       }
+    }
+
+    /* Direction institutionnelle claire — présentation et mobile first. */
+    :root {
+      --ink: #14251d;
+      --muted: #52645b;
+      --paper: #fbfcfa;
+      --green: #24543d;
+      --line: rgba(20, 37, 29, 0.16);
+      --glass: rgba(255, 255, 255, 0.72);
+      --glass-strong: rgba(255, 255, 255, 0.88);
+      --radius: 2px;
+      --menu-width: 344px;
+      --menu-dock-size: 38px;
+    }
+
+    html,
+    body,
+    .app,
+    .scene,
+    .scene-window,
+    .scene-frame {
+      background: #eef3ef;
+    }
+
+    button:focus-visible,
+    a:focus-visible,
+    select:focus-visible,
+    input:focus-visible {
+      outline-color: #24543d;
+      outline-offset: 2px;
+    }
+
+    .scene-title {
+      top: 20px;
+      left: 24px;
+      max-width: min(540px, calc(100vw - var(--menu-width) - 92px));
+      padding: 11px 14px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(110deg, var(--glass-strong), rgba(247, 250, 248, 0.72));
+      box-shadow: 0 10px 28px rgba(20, 37, 29, 0.09);
+      -webkit-backdrop-filter: blur(16px) saturate(1.06);
+      backdrop-filter: blur(16px) saturate(1.06);
+    }
+
+    .scene-title span {
+      color: #24543d;
+      font-size: 0.62rem;
+      font-weight: 760;
+      letter-spacing: 0.12em;
+    }
+
+    .scene-title h1 {
+      margin-top: 4px;
+      font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      font-size: clamp(1.4rem, 2vw, 2.2rem);
+      font-weight: 500;
+      letter-spacing: -0.025em;
+      line-height: 1;
+    }
+
+    .menu-dock {
+      gap: 0;
+      padding: 2px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--glass);
+      box-shadow: 0 6px 20px rgba(20, 37, 29, 0.08);
+      -webkit-backdrop-filter: blur(16px) saturate(1.04);
+      backdrop-filter: blur(16px) saturate(1.04);
+    }
+
+    .menu-dock__button {
+      width: var(--menu-dock-size);
+      height: var(--menu-dock-size);
+      border-right: 1px solid rgba(19, 37, 29, 0.11);
+      border-radius: 1px;
+      color: #365b49;
+      transition: background 140ms ease, color 140ms ease;
+    }
+
+    .menu-dock__button:last-child { border-right: 0; }
+
+    .menu-dock__button:hover,
+    .menu-dock__button[aria-expanded="true"] {
+      background: rgba(36, 84, 61, 0.1);
+      color: #173e2b;
+      transform: none;
+    }
+
+    .menu-dock__button[aria-expanded="true"] {
+      box-shadow: inset 0 -2px #24543d;
+    }
+
+    .menu-panel.rail,
+    .menu-panel.tools-panel {
+      top: calc(var(--drawer-gap) + var(--menu-dock-size) + 12px);
+      border: 1px solid rgba(20, 37, 29, 0.18);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, var(--glass-strong), rgba(246, 249, 247, 0.76));
+      box-shadow: 0 14px 38px rgba(20, 37, 29, 0.09);
+      -webkit-backdrop-filter: blur(20px) saturate(1.04);
+      backdrop-filter: blur(20px) saturate(1.04);
+    }
+
+    .menu-panel .sphere-stack,
+    .tools-panel .view-tools,
+    .tools-panel .mode-dock,
+    .tools-panel .scene-meta span,
+    .setting-toggle,
+    .lidar-class-list label,
+    .setting-range,
+    .setting-select select,
+    .setting-choice__options,
+    .setting-choice__options span,
+    .settings-action,
+    .status,
+    .datum[data-level] {
+      border-radius: var(--radius);
+    }
+
+    .tools-head {
+      padding: 16px 18px 14px;
+      background: rgba(255, 255, 255, 0.28);
+    }
+
+    .tools-head h2 {
+      font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      font-size: 1.2rem;
+      letter-spacing: -0.02em;
+    }
+
+    .tools-head__eyebrow,
+    .tool-section h3,
+    .settings-group > h3,
+    .setting-choice legend,
+    .lidar-classes legend {
+      color: #52665c;
+      letter-spacing: 0.1em;
+    }
+
+    .tool-section,
+    .settings-group {
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .tools-foot { padding: 14px 18px 16px; }
+
+    .settings-fields,
+    .lidar-class-list { gap: 6px; }
+
+    .view-button,
+    .mode-button {
+      border-radius: 2px;
+    }
+
+    .view-button:hover,
+    .view-button[aria-pressed="true"],
+    .settings-action {
+      background: #24543d;
+    }
+
+    .sphere {
+      border-color: rgba(20, 37, 29, 0.18);
+      border-radius: 2px;
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(12px) saturate(1.02);
+      backdrop-filter: blur(12px) saturate(1.02);
+    }
+
+    .sphere[data-active="true"],
+    .sphere[data-open="true"] {
+      border-color: rgba(20, 37, 29, 0.34);
+      background: var(--glass-strong);
+    }
+
+    .sphere-index,
+    .data-layer {
+      border-radius: 1px;
+    }
+
+    .data-layer,
+    .setting-toggle,
+    .lidar-class-list label,
+    .setting-range {
+      border-color: rgba(20, 37, 29, 0.13);
+      background: rgba(255, 255, 255, 0.48);
+    }
+
+    .sphere-notice {
+      border-color: var(--line);
+      border-radius: 1px;
+      background: rgba(169, 67, 50, 0.07);
+    }
+
+    [data-live-row^="vigilance-"][data-vigilance-rank]:not([data-vigilance-rank="0"]) {
+      border-color: rgba(169, 67, 50, 0.28);
+    }
+
+    .settings-action--secondary {
+      border-color: rgba(36, 84, 61, 0.28);
+      background: rgba(255, 255, 255, 0.52);
+      color: #24543d;
+    }
+
+    .switch {
+      border-radius: 10px;
+      background: rgba(19, 37, 29, 0.2);
+    }
+
+    .switch[aria-pressed="true"] { background: #24543d; }
+
+    .full-viewer,
+    .profile-feedback,
+    .setting-range output {
+      color: #24543d;
+    }
+
+    @media (max-width: 900px) {
+      :root {
+        --drawer-gap: 10px;
+        --menu-width: auto;
+        --menu-offset: 10px;
+      }
+
+      .scene-title {
+        top: 10px;
+        left: 10px;
+        max-width: calc(100vw - 20px);
+        padding: 9px 11px 10px;
+      }
+
+      .scene-title span {
+        font-size: 0.56rem;
+        letter-spacing: 0.11em;
+      }
+
+      .scene-title h1 {
+        max-width: calc(100vw - 54px);
+        margin-top: 3px;
+        font-size: clamp(1.12rem, 5vw, 1.45rem);
+      }
+
+      .menu-dock {
+        top: auto;
+        right: 50%;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        transform: translateX(50%);
+        padding: 3px;
+        background: var(--glass-strong);
+      }
+
+      .menu-dock__button {
+        width: 44px;
+        height: 44px;
+      }
+
+      .menu-panel.rail,
+      .menu-panel.tools-panel {
+        top: 74px;
+        right: 10px;
+        bottom: calc(62px + env(safe-area-inset-bottom));
+        left: 10px;
+        width: auto;
+        height: auto;
+      }
+
+      .sphere {
+        right: 10px;
+        left: 10px;
+      }
+
+      .sphere-head {
+        min-height: 64px;
+        padding: 0 12px;
+      }
+
+      .setting-toggle,
+      .lidar-class-list label,
+      .setting-range,
+      .setting-select select,
+      .settings-action,
+      .setting-choice__options span {
+        min-height: 44px;
+      }
+
+      .tools-head,
+      .settings-group,
+      .tool-section,
+      .tools-foot {
+        padding-right: 14px;
+        padding-left: 14px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .scene-title h1 { font-size: 1.14rem; }
+      .sphere-summary { max-width: 46vw; }
+      .sphere-name { font-size: 0.73rem; }
+      .profile-actions { grid-template-columns: 1fr; }
     }

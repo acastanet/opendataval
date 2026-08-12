@@ -1,20 +1,21 @@
+@import "../../../packages/shared/styles/design-system.css";
+
 :root {
-  color: #17191d;
-  background: #e7e9ed;
-  font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  font-family: var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --blue: #0047ab;
-  --blue-dark: #073b82;
-  --ink: #17191d;
-  --muted: #646a73;
-  --paper: #f7f6f1;
-  --white: #fff;
-  --line: rgba(23, 25, 29, 0.16);
-  --red: #d92d20;
+  --blue: var(--brand-primary);
+  --blue-dark: var(--brand-primary-hover);
+  --ink: var(--fg);
+  --paper: var(--surface-muted);
+  --white: var(--surface);
+  --line: color-mix(in srgb, var(--fg) 16%, transparent);
+  --red: var(--brand-danger);
   --yellow: #f5c518;
   --orange: #ef7d00;
-  --green: #27824c;
+  --green: var(--brand-success);
 }
 
 * {
@@ -22,7 +23,7 @@
 }
 
 html {
-  background: #e7e9ed;
+  background: var(--bg);
   scroll-behavior: smooth;
 }
 

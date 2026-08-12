@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.1",
+  "product": "climate-sheet-static",
+  "analyses": [
+    {
+      "id": "overview",
+      "method": {
+        "id": "climate-overview",
+        "version": "1.0.0"
+      },
+      "asset": "climate-overview-v1-neutral.svg",
+      "asset_type": "svg"
+    },
+    {
+      "id": "fingerprint",
+      "method": {
+        "id": "climate-fingerprint",
+        "version": "4.0.0"
+      },
+      "asset": "climate-fingerprint-v4-neutral.svg",
+      "asset_type": "svg"
+    },
+    {
+      "id": "seasons",
+      "method": {
+        "id": "thermal-seasons",
+        "version": "4.0.0"
+      },
+      "asset": "thermal-seasons-v4.json",
+      "asset_type": "climate-result"
+    },
+    {
+      "id": "water",
+      "method": {
+        "id": "water-through-year",
+        "version": "1.0.0"
+      },
+      "asset": "water-through-year-v1-neutral.svg",
+      "asset_type": "svg"
+    }
+  ]
+}

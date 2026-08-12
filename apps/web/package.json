@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "build:climate": "python3 ../climate-sheet-service/scripts/build_static_sheet.py --keep-existing-commentary",
-    "build": "pnpm run build:climate && astro build",
+    "build": "pnpm run build:climate && pnpm --workspace-root styles:sync && astro build",
     "preview": "astro preview"
   },
   "dependencies": {

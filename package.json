@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "styles:sync": "node scripts/sync-design-system.mjs",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
     "dev:gateway": "pnpm --filter gateway-service dev",
@@ -20,7 +21,7 @@
     "dev:meteo-v2": "pnpm --filter meteo-web dev",
     "dev:meteo-v2:mock": "pnpm --filter meteo-web dev:mock",
     "worker:once": "pnpm --filter worker run once",
-    "build:web": "pnpm --filter web build",
+    "build:web": "pnpm styles:sync && pnpm --filter web build",
     "build:meteo-v2": "pnpm --filter meteo-web build",
     "test:gateway": "pnpm --filter gateway-service test",
     "test:geography": "pnpm --filter geography-service test",
