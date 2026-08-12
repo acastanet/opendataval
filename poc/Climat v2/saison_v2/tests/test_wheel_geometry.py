@@ -191,13 +191,14 @@ class RenderSmokeTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             render_wheel_svg(self.document, self.config, state="1900-1909")
 
-    def test_combined_label_merges_dates_and_shift_on_one_curved_text(self) -> None:
+    def test_combined_labels_follow_their_arc_without_multicolour_tspans(self) -> None:
         svg = render_wheel_svg(self.document, self.config, state=self.document["late_period"])
         decades = self.document["decades"]
         shifts = geometry.shift_spans(decades[self.document["early_period"]], decades[self.document["late_period"]], top_doy=288.0)
-        # Une seule étiquette par frontière : un <textPath> avec 3 <tspan> (date, décalage, date).
-        # + 4 noms de saison + 2 lignes de delta de durée (été, hiver), aussi en texte courbe.
-        self.assertEqual(svg.count("<textPath"), len(shifts) + 4 + 2)
+        # Trois textPath simples par frontière (date, décalage, date), sans tspan
+        # multicolore : la composition reste courbe et CairoSVG ne décale plus les dates.
+        self.assertEqual(svg.count("<textPath"), len(shifts) * 3 + 4 + 2)
+        self.assertNotIn("<tspan", svg)
         for shift in shifts:
             early_text = geometry.format_date(shift.early_doy, self.config.date_rounding)
             late_text = geometry.format_date(shift.late_doy, self.config.date_rounding)

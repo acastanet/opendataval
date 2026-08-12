@@ -77,6 +77,13 @@ set COPERNICUS_CDS_KEY=personal-access-token
 uvicorn service.main:app --host 0.0.0.0 --port 8000
 ```
 
+Pour le test local depuis ce dépôt, le plus simple est de double-cliquer sur
+`start-service-local.bat` (ou de l'exécuter depuis ce dossier). Il reprend
+automatiquement `COPERNICUS_CDS_KEY` et `COPERNICUS_CDS_URL` depuis le `.env`
+à la racine du dépôt, sans copier ni afficher la clé. Ouvrir ensuite
+`http://127.0.0.1:8001` ; ne pas utiliser `localhost:8000`, qui peut désigner
+un ancien conteneur Docker.
+
 `SEASONS_MAX_CONCURRENT` vaut `1` par défaut afin de protéger la mémoire et le
 quota CDS. Pour une exposition publique, conserver cette limite et placer le
 conteneur derrière un reverse proxy avec HTTPS et limitation de débit.

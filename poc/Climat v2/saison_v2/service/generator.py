@@ -5,8 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+import shutil
+import subprocess
 import sys
 import threading
+import tempfile
 from base64 import b64encode
 from dataclasses import dataclass
 from functools import lru_cache
@@ -29,11 +33,17 @@ from seasons_wheel.render import build_document, render_wheel_svg  # noqa: E402
 from .collector import CollectedAsset, collect_temperature, validate_coordinates
 from .validation import TechnicalValidationError, validate_result, validate_temperature_series
 
-GENERATOR_VERSION = "thermal-seasons-v4-wheel-service-6"
+GENERATOR_VERSION = "thermal-seasons-v4-wheel-service-8"
 FONT_DIRECTORY = Path(__file__).resolve().parent / "assets" / "fonts"
 EMBEDDED_FONTS = (
     ("Dancing Script", "400 700", FONT_DIRECTORY / "DancingScript[wght].ttf"),
     ("Inter", "100 900", FONT_DIRECTORY / "Inter[opsz,wght].ttf"),
+)
+BROWSER_CANDIDATES = (
+    Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"),
+    Path(r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"),
+    Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe"),
+    Path(r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"),
 )
 
 
@@ -149,13 +159,83 @@ def _render_svg(result: dict[str, Any], config_path: Path, title: str | None = N
     return _embed_font(render_wheel_svg(document, config, state=None))
 
 
+def _png_dimensions(svg: str) -> tuple[int, int]:
+    """Lit les dimensions de la racine SVG pour la capture navigateur de secours."""
+
+    match = re.search(r'\bviewBox="0 0 ([0-9.]+) ([0-9.]+)"', svg)
+    if match is None:
+        raise RuntimeError("Le SVG ne contient pas de viewBox exploitable pour l'export PNG.")
+    return round(float(match.group(1))), round(float(match.group(2)))
+
+
+def _headless_browser() -> Path | None:
+    """Retourne Edge/Chrome pour le repli Windows quand Cairo manque."""
+
+    for candidate in BROWSER_CANDIDATES:
+        if candidate.is_file():
+            return candidate
+    for name in ("msedge", "chrome", "google-chrome", "chromium", "chromium-browser"):
+        found = shutil.which(name)
+        if found:
+            return Path(found)
+    return None
+
+
+def _render_png_with_browser(svg: str, target: Path) -> None:
+    """Capture le SVG avec Edge/Chrome lorsque CairoSVG est indisponible en local.
+
+    Ce chemin est surtout destiné à Windows. L'image Docker conserve CairoSVG et
+    ses dépendances natives ; les deux rendent le même SVG autoportant et les
+    polices encodées directement dans celui-ci.
+    """
+
+    browser = _headless_browser()
+    if browser is None:
+        raise RuntimeError(
+            "L'export PNG requiert CairoSVG avec Cairo, ou un navigateur Edge/Chrome pour le repli local."
+        )
+    width, height = _png_dimensions(svg)
+    # Chrome déduit le format de capture de l'extension : garder impérativement
+    # ``.png`` en suffixe, même pour le fichier atomique temporaire.
+    temporary = target.with_name(f"{target.stem}.part{target.suffix}")
+    html = (
+        "<!doctype html><html><head><meta charset=\"utf-8\" />"
+        "<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>"
+        f"</head><body>{svg}</body></html>"
+    )
+    with tempfile.TemporaryDirectory(prefix="seasons-wheel-png-") as directory:
+        html_path = Path(directory) / "wheel.html"
+        html_path.write_text(html, encoding="utf-8")
+        result = subprocess.run(
+            [
+                str(browser),
+                "--headless=new",
+                "--disable-gpu",
+                "--force-color-profile=srgb",
+                "--virtual-time-budget=500",
+                f"--screenshot={temporary}",
+                f"--window-size={width},{height}",
+                html_path.resolve().as_uri(),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    if result.returncode != 0 or not temporary.is_file():
+        raise RuntimeError(f"Échec de l'export PNG via {browser.name} : {result.stderr.strip()}")
+    temporary.replace(target)
+
+
 def _render_png(svg: str, target: Path) -> None:
+    """Produit le PNG avec CairoSVG, ou Edge/Chrome en repli sur Windows."""
+
     try:
         import cairosvg
-    except ImportError as exc:
-        raise RuntimeError("Le moteur PNG CairoSVG n’est pas installé.") from exc
-    temporary = target.with_suffix(target.suffix + ".part")
-    cairosvg.svg2png(bytestring=svg.encode("utf-8"), write_to=str(temporary))
+        temporary = target.with_name(f"{target.stem}.part{target.suffix}")
+        cairosvg.svg2png(bytestring=svg.encode("utf-8"), write_to=str(temporary))
+    except (ImportError, OSError):
+        _render_png_with_browser(svg, target)
+        return
     temporary.replace(target)
 
 

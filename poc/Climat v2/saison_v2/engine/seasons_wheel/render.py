@@ -386,32 +386,35 @@ def _combined_boundary_labels(
     shifts: list[geometry.ShiftSpan],
     id_prefix: str,
 ) -> list[str]:
-    """Une seule étiquette courbe par frontière, posée sur le cercle des flèches :
-    « 13 sept. +9,3 j 22 sept. » — date ancienne, décalage, date récente, dans un seul
-    <text> (plusieurs <tspan> colorés) centré sur l'angle médian de la flèche."""
+    """Pose les dates et le décalage à l'extérieur du cercle des flèches.
+
+    Chaque morceau suit le même arc invisible, dans son propre ``textPath``. On
+    obtient l'écriture courbe attendue sans le bug de CairoSVG sur les ``tspan``
+    multicolores d'un unique textPath (dates séparées ou hors du cartouche).
+    """
 
     paths: list[str] = []
     badges: list[str] = []
     elements: list[str] = []
     radius = config.arrow_arc_radius + config.combined_label_offset
+    path_length = math.radians(2.0 * config.combined_label_half_span_deg) * radius
     for index, shift in enumerate(shifts):
         mid_angle = shift.early_angle + geometry.normalize_delta(shift.late_angle - shift.early_angle) / 2.0
         path_id = f"{id_prefix}-label-path-{index}"
         paths.append(_curved_label_path(cx, cy, radius, mid_angle, config.combined_label_half_span_deg, path_id))
-
         early_text = geometry.format_date(shift.early_doy, config.date_rounding)
         late_text = geometry.format_date(shift.late_doy, config.date_rounding)
-        shift_text = f" {_format_days(shift.shift_days)} " if config.show_shift_values else " "
+        shift_text = _format_days(shift.shift_days) if config.show_shift_values else ""
+        factor = config.combined_label_badge_char_width_factor
+        early_width = _estimate_text_width(early_text, config.date_size, 0.0, factor)
+        shift_width = _estimate_text_width(
+            shift_text, config.shift_size, _em_value(config.shift_value_letter_spacing), factor
+        )
+        late_width = _estimate_text_width(late_text, config.date_size, 0.0, factor)
+        gap = max(config.date_size * 0.25, config.combined_label_badge_horizontal_padding)
+        text_width = early_width + late_width + (shift_width + 2.0 * gap if shift_text else gap)
 
         if config.combined_label_badge_enabled:
-            factor = config.combined_label_badge_char_width_factor
-            # Le cartouche englobe toute l'étiquette (dates + décalage), pas seulement le
-            # nombre de jours : largeur = somme des trois segments, chacun à sa propre taille.
-            text_width = (
-                _estimate_text_width(early_text, config.date_size, 0.0, factor)
-                + _estimate_text_width(shift_text, config.shift_size, _em_value(config.shift_value_letter_spacing), factor)
-                + _estimate_text_width(late_text, config.date_size, 0.0, factor)
-            )
             badge_half_span_deg = math.degrees(
                 (text_width + 2.0 * config.combined_label_badge_horizontal_padding) / (2.0 * radius)
             )
@@ -423,26 +426,30 @@ def _combined_boundary_labels(
                 )
             )
 
-        spans = [
-            f'<tspan font-size="{_n(config.date_size)}" font-weight="700" '
-            f'fill="{config.date_color_early}">{early_text}</tspan>'
+        start = -text_width / 2.0
+        early_offset = path_length / 2.0 + start + early_width / 2.0
+        pieces = [
+            f'<text text-anchor="middle" dominant-baseline="central" font-family="{config.font_family}" '
+            f'font-size="{_n(config.date_size)}" font-weight="700" fill="{config.date_color_early}">'
+            f'<textPath href="#{path_id}" startOffset="{_n(early_offset)}">{early_text}</textPath></text>'
         ]
-        if config.show_shift_values:
-            spans.append(
-                f'<tspan font-size="{_n(config.shift_size)}" font-weight="800" '
-                f'letter-spacing="{config.shift_value_letter_spacing}" '
-                f'fill="{config.arrow_color}"> {_format_days(shift.shift_days)} </tspan>'
+        if shift_text:
+            shift_offset = path_length / 2.0 + start + early_width + gap + shift_width / 2.0
+            pieces.append(
+                f'<text text-anchor="middle" dominant-baseline="central" font-family="{config.font_family}" '
+                f'font-size="{_n(config.shift_size)}" font-weight="800" '
+                f'letter-spacing="{config.shift_value_letter_spacing}" fill="{config.arrow_color}">'
+                f'<textPath href="#{path_id}" startOffset="{_n(shift_offset)}">{shift_text}</textPath></text>'
             )
+            late_offset = path_length / 2.0 + start + early_width + 2.0 * gap + shift_width + late_width / 2.0
         else:
-            spans.append('<tspan> </tspan>')
-        spans.append(
-            f'<tspan font-size="{_n(config.date_size)}" font-weight="700" '
-            f'fill="{config.date_color_late}">{late_text}</tspan>'
+            late_offset = path_length / 2.0 + start + early_width + gap + late_width / 2.0
+        pieces.append(
+            f'<text text-anchor="middle" dominant-baseline="central" font-family="{config.font_family}" '
+            f'font-size="{_n(config.date_size)}" font-weight="700" fill="{config.date_color_late}">'
+            f'<textPath href="#{path_id}" startOffset="{_n(late_offset)}">{late_text}</textPath></text>'
         )
-        elements.append(
-            f'<text text-anchor="middle" dominant-baseline="central" font-family="{config.font_family}">'
-            f'<textPath href="#{path_id}" startOffset="50%">{"".join(spans)}</textPath></text>'
-        )
+        elements.extend(pieces)
     return paths + badges + elements
 
 

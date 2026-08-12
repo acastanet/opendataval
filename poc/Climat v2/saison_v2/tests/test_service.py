@@ -13,7 +13,7 @@ import pandas as pd
 from fastapi.testclient import TestClient
 
 from service.collector import CoordinatesError, nearest_grid_point, validate_coordinates
-from service.generator import ROOT, WheelBundle, _render_svg
+from service.generator import ROOT, WheelBundle, _png_dimensions, _render_svg
 from service.main import app
 from service.validation import TechnicalValidationError, validate_result, validate_temperature_series
 
@@ -46,6 +46,9 @@ class TechnicalValidationTest(unittest.TestCase):
 
 
 class ServiceRenderTest(unittest.TestCase):
+    def test_png_fallback_reads_svg_canvas_dimensions(self) -> None:
+        self.assertEqual(_png_dimensions('<svg viewBox="0 0 972 1078"></svg>'), (972, 1078))
+
     def test_service_svg_is_static_and_self_contained(self) -> None:
         result = json.loads(
             (ROOT / "output" / "thermal-seasons-v4-replay.json").read_text(encoding="utf-8")
