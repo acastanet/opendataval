@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 972 1078" width="972" height="1078" role="img" aria-label="Roue des saisons thermiques, comparaison 1996–2005 et 2016–2025">
+<defs><radialGradient id="wheel-anim-season-summer" gradientUnits="userSpaceOnUse" cx="486.00" cy="461.00" r="298.40"><stop offset="0.0965" stop-color="#c1392b" /><stop offset="1" stop-color="#fbe4d5" /></radialGradient><radialGradient id="wheel-anim-season-winter" gradientUnits="userSpaceOnUse" cx="486.00" cy="461.00" r="298.40"><stop offset="0.0965" stop-color="#2f6f95" /><stop offset="1" stop-color="#e2f0f7" /></radialGradient><pattern id="wheel-anim-hatch-summer" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#c1392b" fill-opacity="0.12" /><line x1="0" y1="0" x2="0" y2="6" stroke="#c1392b" stroke-width="2.4" /></pattern><pattern id="wheel-anim-hatch-winter" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#2f6f95" fill-opacity="0.12" /><line x1="0" y1="0" x2="0" y2="6" stroke="#2f6f95" stroke-width="2.4" /></pattern></defs>
+<rect x="0" y="0" width="972" height="1078" fill="#f8f7f3" />
+<circle cx="486.00" cy="461.00" r="28.80" fill="#f8f7f3" stroke="#c9ccc4" />
+<circle class="season-arc" cx="486.00" cy="461.00" r="96.20" fill="none" stroke="url(#wheel-anim-season-winter)" stroke-width="134.80" stroke-dasharray="152.204 452.239" stroke-dashoffset="-548.287" transform="rotate(-90 486.00 461.00)" />
+<circle class="season-arc" cx="486.00" cy="461.00" r="96.20" fill="none" stroke="url(#wheel-anim-season-summer)" stroke-width="134.80" stroke-dasharray="163.514 440.928" stroke-dashoffset="-258.056" transform="rotate(-90 486.00 461.00)" />
+<circle class="season-arc" cx="486.00" cy="461.00" r="231.00" fill="none" stroke="url(#wheel-anim-season-winter)" stroke-width="134.80" stroke-dasharray="234.811 1216.605" stroke-dashoffset="-1374.033" transform="rotate(-90 486.00 461.00)" />
+<circle class="season-arc" cx="486.00" cy="461.00" r="231.00" fill="none" stroke="url(#wheel-anim-season-summer)" stroke-width="134.80" stroke-dasharray="454.273 997.143" stroke-dashoffset="-594.921" transform="rotate(-90 486.00 461.00)" />
+<circle cx="486.00" cy="461.00" r="28.80" fill="none" stroke="#c9ccc4" stroke-width="1.80" stroke-dasharray="3 3" />
+<circle cx="486.00" cy="461.00" r="163.60" fill="none" stroke="#c9ccc4" stroke-width="1.80" stroke-dasharray="3 3" />
+<circle cx="486.00" cy="461.00" r="298.40" fill="none" stroke="#c9ccc4" stroke-width="1.80" stroke-dasharray="3 3" />
+<path id="wheel-anim-season-name-path-winter" d="M 408.44 223.33 A 250.00 250.00 0 0 1 639.66 263.80" fill="none" stroke="none" />
+<path id="wheel-anim-season-delta-path-winter" d="M 419.61 257.56 A 214.00 214.00 0 0 1 617.54 292.20" fill="none" stroke="none" />
+<path id="wheel-anim-season-name-path-spring" d="M 713.13 356.55 A 250.00 250.00 0 0 1 699.61 590.90" fill="none" stroke="none" />
+<path id="wheel-anim-season-name-path-summer" d="M 503.88 710.36 A 250.00 250.00 0 0 1 289.27 615.27" fill="none" stroke="none" />
+<path id="wheel-anim-season-delta-path-summer" d="M 501.31 674.45 A 214.00 214.00 0 0 1 317.60 593.05" fill="none" stroke="none" />
+<path id="wheel-anim-season-name-path-autumn" d="M 236.24 450.00 A 250.00 250.00 0 0 1 355.45 247.79" fill="none" stroke="none" />
+<text text-anchor="middle" dominant-baseline="central" font-family="'Dancing Script', 'Segoe Script', cursive" font-size="39.90" font-weight="700" letter-spacing="normal" fill="#1b211f"><textPath href="#wheel-anim-season-name-path-winter" startOffset="50%">Hiver</textPath></text>
+<text text-anchor="middle" dominant-baseline="central" font-family="'Dancing Script', 'Segoe Script', cursive" font-size="28.00" font-weight="700" fill="#1b211f"><textPath href="#wheel-anim-season-delta-path-winter" startOffset="50%">−32,9 j</textPath></text>
+<text text-anchor="middle" dominant-baseline="central" font-family="'Dancing Script', 'Segoe Script', cursive" font-size="39.90" font-weight="700" letter-spacing="normal" fill="#1b211f"><textPath href="#wheel-anim-season-name-path-spring" startOffset="50%">Printemps</textPath></text>
+<text text-anchor="middle" dominant-baseline="central" font-family="'Dancing Script', 'Segoe Script', cursive" font-size="39.90" font-weight="700" letter-spacing="normal" fill="#1b211f"><textPath href="#wheel-anim-season-name-path-summer" startOffset="50%">Été</textPath></text>
+<text text-anchor="middle" dominant-baseline="central" font-family="'Dancing Script', 'Segoe Script', cursive" font-size="28.00" font-weight="700" fill="#1b211f"><textPath href="#wheel-anim-season-delta-path-summer" startOffset="50%">+15,5 j</textPath></text>
+<text text-anchor="middle" dominant-baseline="central" font-family="'Dancing Script', 'Segoe Script', cursive" font-size="39.90" font-weight="700" letter-spacing="normal" fill="#1b211f"><textPath href="#wheel-anim-season-name-path-autumn" startOffset="50%">Automne</textPath></text>
+<line x1="510.21" y1="445.40" x2="747.60" y2="292.45" stroke="#2f6f95" stroke-width="2.40" stroke-opacity="0.50" stroke-dasharray="4 3" />
+<line x1="504.14" y1="438.63" x2="682.05" y2="219.32" stroke="#2f6f95" stroke-width="2.40" stroke-opacity="1.00" stroke-dasharray="4 3" />
+<line x1="498.76" y1="486.82" x2="623.91" y2="739.98" stroke="#c1392b" stroke-width="2.40" stroke-opacity="0.50" stroke-dasharray="4 3" />
+<line x1="501.45" y1="485.31" x2="652.93" y2="723.64" stroke="#c1392b" stroke-width="2.40" stroke-opacity="1.00" stroke-dasharray="4 3" />
+<line x1="458.76" y1="470.34" x2="191.61" y2="561.89" stroke="#c1392b" stroke-width="2.40" stroke-opacity="0.50" stroke-dasharray="4 3" />
+<line x1="457.62" y1="465.88" x2="179.31" y2="513.78" stroke="#c1392b" stroke-width="2.40" stroke-opacity="1.00" stroke-dasharray="4 3" />
+<line x1="470.13" y1="436.97" x2="314.48" y2="201.33" stroke="#2f6f95" stroke-width="2.40" stroke-opacity="0.50" stroke-dasharray="4 3" />
+<line x1="476.53" y1="433.80" x2="383.69" y2="167.10" stroke="#2f6f95" stroke-width="2.40" stroke-opacity="1.00" stroke-dasharray="4 3" />
+<circle cx="486.00" cy="461.00" r="328.00" fill="none" stroke="#5e6661" stroke-width="1.60" />
+<circle cx="486.00" cy="461.00" r="298.40" fill="none" stroke="#5e6661" stroke-width="1.60" />
+<line x1="486.00" y1="133.00" x2="486.00" y2="115.00" stroke="#1b211f" stroke-width="2.88" />
+<line x1="514.20" y1="134.21" x2="514.54" y2="130.23" stroke="#5e6661" stroke-width="1.76" />
+<line x1="542.18" y1="137.85" x2="542.87" y2="133.91" stroke="#5e6661" stroke-width="1.76" />
+<line x1="569.76" y1="143.87" x2="570.78" y2="140.01" stroke="#5e6661" stroke-width="1.76" />
+<line x1="596.71" y1="152.25" x2="598.06" y2="148.48" stroke="#5e6661" stroke-width="1.76" />
+<line x1="622.84" y1="162.91" x2="624.51" y2="159.27" stroke="#5e6661" stroke-width="1.76" />
+<line x1="647.96" y1="175.77" x2="649.93" y2="172.30" stroke="#5e6661" stroke-width="1.76" />
+<text x="565.98" y="158.18" text-anchor="middle" dominant-baseline="middle" transform="rotate(14.79 565.98 158.18)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">J</text>
+<line x1="652.84" y1="178.60" x2="662.00" y2="163.11" stroke="#1b211f" stroke-width="2.88" />
+<line x1="676.50" y1="193.99" x2="678.83" y2="190.74" stroke="#5e6661" stroke-width="1.76" />
+<line x1="698.75" y1="211.36" x2="701.35" y2="208.31" stroke="#5e6661" stroke-width="1.76" />
+<line x1="719.42" y1="230.57" x2="722.27" y2="227.76" stroke="#5e6661" stroke-width="1.76" />
+<line x1="738.37" y1="251.49" x2="741.45" y2="248.94" stroke="#5e6661" stroke-width="1.76" />
+<line x1="755.44" y1="273.96" x2="758.73" y2="271.68" stroke="#5e6661" stroke-width="1.76" />
+<text x="703.14" y="235.29" text-anchor="middle" dominant-baseline="middle" transform="rotate(43.89 703.14 235.29)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">F</text>
+<line x1="764.74" y1="288.12" x2="780.04" y2="278.63" stroke="#1b211f" stroke-width="2.88" />
+<line x1="778.57" y1="312.72" x2="782.14" y2="310.91" stroke="#5e6661" stroke-width="1.76" />
+<line x1="790.23" y1="338.42" x2="793.94" y2="336.93" stroke="#5e6661" stroke-width="1.76" />
+<line x1="799.65" y1="365.03" x2="803.47" y2="363.86" stroke="#5e6661" stroke-width="1.76" />
+<line x1="806.73" y1="392.34" x2="810.65" y2="391.51" stroke="#5e6661" stroke-width="1.76" />
+<line x1="811.45" y1="420.17" x2="815.42" y2="419.67" stroke="#5e6661" stroke-width="1.76" />
+<line x1="813.75" y1="448.30" x2="817.75" y2="448.14" stroke="#5e6661" stroke-width="1.76" />
+<text x="785.49" y="369.36" text-anchor="middle" dominant-baseline="middle" transform="rotate(72.99 785.49 369.36)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">M</text>
+<line x1="813.92" y1="453.94" x2="831.92" y2="453.56" stroke="#1b211f" stroke-width="2.88" />
+<line x1="813.32" y1="482.16" x2="817.31" y2="482.42" stroke="#5e6661" stroke-width="1.76" />
+<line x1="810.29" y1="510.22" x2="814.24" y2="510.82" stroke="#5e6661" stroke-width="1.76" />
+<line x1="804.85" y1="537.91" x2="808.74" y2="538.85" stroke="#5e6661" stroke-width="1.76" />
+<line x1="797.06" y1="565.04" x2="800.86" y2="566.31" stroke="#5e6661" stroke-width="1.76" />
+<line x1="786.97" y1="591.39" x2="790.64" y2="592.98" stroke="#5e6661" stroke-width="1.76" />
+<text x="791.09" y="531.82" text-anchor="middle" dominant-baseline="middle" transform="rotate(103.07 791.09 531.82)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">A</text>
+<line x1="774.64" y1="616.78" x2="790.48" y2="625.33" stroke="#1b211f" stroke-width="2.88" />
+<line x1="760.18" y1="641.02" x2="763.53" y2="643.22" stroke="#5e6661" stroke-width="1.76" />
+<line x1="743.69" y1="663.92" x2="746.84" y2="666.40" stroke="#5e6661" stroke-width="1.76" />
+<line x1="725.29" y1="685.33" x2="728.21" y2="688.06" stroke="#5e6661" stroke-width="1.76" />
+<line x1="705.12" y1="705.07" x2="707.80" y2="708.04" stroke="#5e6661" stroke-width="1.76" />
+<line x1="683.33" y1="723.00" x2="685.74" y2="726.19" stroke="#5e6661" stroke-width="1.76" />
+<line x1="660.08" y1="738.99" x2="662.20" y2="742.38" stroke="#5e6661" stroke-width="1.76" />
+<text x="714.50" y="675.20" text-anchor="middle" dominant-baseline="middle" transform="rotate(133.15 714.50 675.20)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">M</text>
+<line x1="655.27" y1="741.95" x2="664.56" y2="757.37" stroke="#1b211f" stroke-width="2.88" />
+<line x1="630.49" y1="755.46" x2="632.25" y2="759.05" stroke="#5e6661" stroke-width="1.76" />
+<line x1="604.64" y1="766.79" x2="606.09" y2="770.52" stroke="#5e6661" stroke-width="1.76" />
+<line x1="577.92" y1="775.86" x2="579.04" y2="779.70" stroke="#5e6661" stroke-width="1.76" />
+<line x1="550.51" y1="782.59" x2="551.30" y2="786.52" stroke="#5e6661" stroke-width="1.76" />
+<line x1="522.62" y1="786.95" x2="523.07" y2="790.92" stroke="#5e6661" stroke-width="1.76" />
+<text x="576.35" y="760.88" text-anchor="middle" dominant-baseline="middle" transform="rotate(163.23 576.35 760.88)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">J</text>
+<line x1="494.47" y1="788.89" x2="494.93" y2="806.88" stroke="#1b211f" stroke-width="2.88" />
+<line x1="466.25" y1="788.40" x2="466.01" y2="792.40" stroke="#5e6661" stroke-width="1.76" />
+<line x1="438.18" y1="785.50" x2="437.59" y2="789.45" stroke="#5e6661" stroke-width="1.76" />
+<line x1="410.46" y1="780.18" x2="409.54" y2="784.08" stroke="#5e6661" stroke-width="1.76" />
+<line x1="383.30" y1="772.51" x2="382.05" y2="776.31" stroke="#5e6661" stroke-width="1.76" />
+<line x1="356.90" y1="762.53" x2="355.33" y2="766.20" stroke="#5e6661" stroke-width="1.76" />
+<line x1="331.46" y1="750.31" x2="329.58" y2="753.84" stroke="#5e6661" stroke-width="1.76" />
+<text x="413.87" y="765.78" text-anchor="middle" dominant-baseline="middle" transform="rotate(193.32 413.87 765.78)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">J</text>
+<line x1="326.50" y1="747.61" x2="317.75" y2="763.34" stroke="#1b211f" stroke-width="2.88" />
+<line x1="302.45" y1="732.84" x2="300.22" y2="736.15" stroke="#5e6661" stroke-width="1.76" />
+<line x1="279.77" y1="716.05" x2="277.25" y2="719.16" stroke="#5e6661" stroke-width="1.76" />
+<line x1="258.60" y1="697.38" x2="255.83" y2="700.26" stroke="#5e6661" stroke-width="1.76" />
+<line x1="239.13" y1="676.96" x2="236.11" y2="679.59" stroke="#5e6661" stroke-width="1.76" />
+<line x1="221.47" y1="654.93" x2="218.25" y2="657.30" stroke="#5e6661" stroke-width="1.76" />
+<line x1="205.78" y1="631.48" x2="202.37" y2="633.55" stroke="#5e6661" stroke-width="1.76" />
+<text x="268.86" y="686.71" text-anchor="middle" dominant-baseline="middle" transform="rotate(223.89 268.86 686.71)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">A</text>
+<line x1="202.89" y1="626.63" x2="187.35" y2="635.72" stroke="#1b211f" stroke-width="2.88" />
+<line x1="189.70" y1="601.68" x2="186.09" y2="603.39" stroke="#5e6661" stroke-width="1.76" />
+<line x1="178.70" y1="575.68" x2="174.96" y2="577.08" stroke="#5e6661" stroke-width="1.76" />
+<line x1="169.98" y1="548.84" x2="166.13" y2="549.91" stroke="#5e6661" stroke-width="1.76" />
+<line x1="163.60" y1="521.35" x2="159.67" y2="522.09" stroke="#5e6661" stroke-width="1.76" />
+<line x1="159.61" y1="493.41" x2="155.63" y2="493.81" stroke="#5e6661" stroke-width="1.76" />
+<text x="184.97" y="547.47" text-anchor="middle" dominant-baseline="middle" transform="rotate(253.97 184.97 547.47)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">S</text>
+<line x1="158.03" y1="465.23" x2="140.03" y2="465.47" stroke="#1b211f" stroke-width="2.88" />
+<line x1="158.88" y1="437.02" x2="154.89" y2="436.73" stroke="#5e6661" stroke-width="1.76" />
+<line x1="162.15" y1="408.99" x2="158.20" y2="408.36" stroke="#5e6661" stroke-width="1.76" />
+<line x1="167.82" y1="381.35" x2="163.94" y2="380.37" stroke="#5e6661" stroke-width="1.76" />
+<line x1="175.84" y1="354.29" x2="172.06" y2="352.99" stroke="#5e6661" stroke-width="1.76" />
+<line x1="186.17" y1="328.02" x2="182.51" y2="326.40" stroke="#5e6661" stroke-width="1.76" />
+<line x1="198.71" y1="302.74" x2="195.20" y2="300.81" stroke="#5e6661" stroke-width="1.76" />
+<text x="182.18" y="384.94" text-anchor="middle" dominant-baseline="middle" transform="rotate(284.05 182.18 384.94)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">O</text>
+<line x1="201.47" y1="297.82" x2="185.86" y2="288.86" stroke="#1b211f" stroke-width="2.88" />
+<line x1="216.56" y1="273.96" x2="213.27" y2="271.68" stroke="#5e6661" stroke-width="1.76" />
+<line x1="233.63" y1="251.49" x2="230.55" y2="248.94" stroke="#5e6661" stroke-width="1.76" />
+<line x1="252.58" y1="230.57" x2="249.73" y2="227.76" stroke="#5e6661" stroke-width="1.76" />
+<line x1="273.25" y1="211.36" x2="270.65" y2="208.31" stroke="#5e6661" stroke-width="1.76" />
+<line x1="295.50" y1="193.99" x2="293.17" y2="190.74" stroke="#5e6661" stroke-width="1.76" />
+<text x="261.22" y="242.89" text-anchor="middle" dominant-baseline="middle" transform="rotate(314.14 261.22 242.89)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">N</text>
+<line x1="319.16" y1="178.60" x2="310.00" y2="163.11" stroke="#1b211f" stroke-width="2.88" />
+<line x1="344.05" y1="165.31" x2="342.32" y2="161.70" stroke="#5e6661" stroke-width="1.76" />
+<line x1="369.99" y1="154.20" x2="368.58" y2="150.46" stroke="#5e6661" stroke-width="1.76" />
+<line x1="396.80" y1="145.36" x2="395.71" y2="141.51" stroke="#5e6661" stroke-width="1.76" />
+<line x1="424.26" y1="138.86" x2="423.51" y2="134.93" stroke="#5e6661" stroke-width="1.76" />
+<line x1="452.18" y1="134.75" x2="451.77" y2="130.77" stroke="#5e6661" stroke-width="1.76" />
+<line x1="480.35" y1="133.05" x2="480.29" y2="129.05" stroke="#5e6661" stroke-width="1.76" />
+<text x="400.82" y="159.60" text-anchor="middle" dominant-baseline="middle" transform="rotate(344.22 400.82 159.60)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15.00" font-weight="800" fill="#1b211f">D</text>
+<circle cx="486.00" cy="461.00" r="360.00" fill="none" stroke="#c9ccc4" stroke-width="1.00" />
+<path d="M 788.62 266.01 A 360.00 360.00 0 0 0 712.79 181.42" fill="none" stroke="#b63835" stroke-width="3.50" stroke-linecap="round" />
+<polygon points="712.79,181.42 727.09,186.64 720.85,194.33" fill="#b63835" />
+<path d="M 645.53 783.72 A 360.00 360.00 0 0 0 679.11 764.83" fill="none" stroke="#b63835" stroke-width="3.50" stroke-linecap="round" />
+<polygon points="679.11,764.83 669.61,776.73 664.30,768.37" fill="#b63835" />
+<path d="M 145.44 577.71 A 360.00 360.00 0 0 1 131.22 522.05" fill="none" stroke="#b63835" stroke-width="3.50" stroke-linecap="round" />
+<polygon points="131.22,522.05 138.54,535.41 128.78,537.09" fill="#b63835" />
+<path d="M 287.59 160.61 A 360.00 360.00 0 0 1 367.65 121.01" fill="none" stroke="#b63835" stroke-width="3.50" stroke-linecap="round" />
+<polygon points="367.65,121.01 355.67,130.42 352.42,121.07" fill="#b63835" />
+<path id="wheel-anim-label-path-0" d="M 676.93 103.83 A 405.00 405.00 0 0 1 861.84 310.11" fill="none" stroke="none" />
+<path id="wheel-anim-label-path-1" d="M 793.38 724.71 A 405.00 405.00 0 0 1 551.95 860.59" fill="none" stroke="none" />
+<path id="wheel-anim-label-path-2" d="M 151.59 689.47 A 405.00 405.00 0 0 1 82.97 421.06" fill="none" stroke="none" />
+<path id="wheel-anim-label-path-3" d="M 193.10 181.29 A 405.00 405.00 0 0 1 441.42 58.46" fill="none" stroke="none" />
+<path d="M 661.45 64.04 A 434.01 434.01 0 0 1 899.71 329.83 L 844.41 347.37 A 375.99 375.99 0 0 0 638.00 117.10 Z" fill="#efeee9" stroke="#5e6661" stroke-width="1.20" />
+<path d="M 812.88 746.50 A 434.01 434.01 0 0 1 560.46 888.57 L 550.51 831.42 A 375.99 375.99 0 0 0 769.18 708.34 Z" fill="#efeee9" stroke="#5e6661" stroke-width="1.20" />
+<path d="M 138.96 721.62 A 434.01 434.01 0 0 1 56.46 398.92 L 113.87 407.21 A 375.99 375.99 0 0 0 185.35 686.79 Z" fill="#efeee9" stroke="#5e6661" stroke-width="1.20" />
+<path d="M 158.12 176.64 A 434.01 434.01 0 0 1 458.95 27.84 L 462.57 85.74 A 375.99 375.99 0 0 0 201.95 214.65 Z" fill="#efeee9" stroke="#5e6661" stroke-width="1.20" />
+<text text-anchor="middle" dominant-baseline="central" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"><textPath href="#wheel-anim-label-path-0" startOffset="50%"><tspan font-size="18.72" font-weight="700" fill="#9fb2e0">28 févr.</tspan><tspan font-size="35.70" font-weight="800" letter-spacing="0.1em" fill="#b63835"> −18,4 </tspan><tspan font-size="18.72" font-weight="700" fill="#002fa7">10 févr.</tspan></textPath></text>
+<text text-anchor="middle" dominant-baseline="central" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"><textPath href="#wheel-anim-label-path-1" startOffset="50%"><tspan font-size="18.72" font-weight="700" fill="#9fb2e0">6 juin</tspan><tspan font-size="35.70" font-weight="800" letter-spacing="0.1em" fill="#b63835"> −6,2 </tspan><tspan font-size="18.72" font-weight="700" fill="#002fa7">31 mai</tspan></textPath></text>
+<text text-anchor="middle" dominant-baseline="central" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"><textPath href="#wheel-anim-label-path-2" startOffset="50%"><tspan font-size="18.72" font-weight="700" fill="#9fb2e0">13 sept.</tspan><tspan font-size="35.70" font-weight="800" letter-spacing="0.1em" fill="#b63835"> +9,3 </tspan><tspan font-size="18.72" font-weight="700" fill="#002fa7">22 sept.</tspan></textPath></text>
+<text text-anchor="middle" dominant-baseline="central" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"><textPath href="#wheel-anim-label-path-3" startOffset="50%"><tspan font-size="18.72" font-weight="700" fill="#9fb2e0">28 nov.</tspan><tspan font-size="35.70" font-weight="800" letter-spacing="0.1em" fill="#b63835"> +14,5 </tspan><tspan font-size="18.72" font-weight="700" fill="#002fa7">13 déc.</tspan></textPath></text>
+<text x="16.00" y="943.92" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="21.60" font-weight="800" fill="#1b211f">Val d'Aigoual</text>
+<text x="16.00" y="972.00" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.00" font-weight="700" fill="#1b211f">GPS 44,0647° N · 3,6829° E</text>
+<text x="16.00" y="990.00" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.00" font-weight="700" fill="#1b211f">Grille ERA5-Land : 44,1° N · 3,7° E</text>
+<text x="16.00" y="1008.00" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.00" font-weight="500" fill="#5e6661">Comparaison 1996–2005 → 2016–2025 · saisons thermiques</text>
+<text x="16.00" y="1026.00" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="10.32" font-weight="500" fill="#5e6661">T25 4,896 °C · T75 16,380 °C · référence 1991–2020 · Copernicus · ERA5-Land</text>
+<text x="16.00" y="1044.00" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="10.32" font-weight="500" fill="#5e6661">Graphisme : alex@ndrecasta.net · d'après https://doi.org/10.1029/2020GL091753</text>
+</svg>

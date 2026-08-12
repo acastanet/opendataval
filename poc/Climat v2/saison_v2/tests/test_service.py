@@ -107,17 +107,46 @@ class ApiTest(unittest.TestCase):
         self.assertIn('id="coordinates"', response.text)
         self.assertIn('id="wheel-title"', response.text)
         self.assertIn('id="locate"', response.text)
-        self.assertIn('/vignettes/cadran-1.png', response.text)
+        self.assertIn('id="aide-gps-texte"', response.text)
+        self.assertIn('clic droit sur le lieu', response.text)
+        self.assertIn('id="result-details"', response.text)
+        self.assertIn('id="result-table-body"', response.text)
+        self.assertIn('id="copy-link"', response.text)
+        self.assertEqual(response.text.count('class="volet-methode"'), 2)
+        self.assertIn('./vignettes/cadran-1.png', response.text)
+        self.assertIn('./vignettes/seasons-wheel-no-markers.svg', response.text)
+        self.assertIn('./vignettes/season-threshold-curve.svg', response.text)
+        self.assertIn('class="barre-officielle"', response.text)
+        self.assertIn('class="sommaire"', response.text)
 
     def test_reference_thumbnail_is_served(self) -> None:
         response = self.client.get("/vignettes/cadran-1.png")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["content-type"], "image/png")
 
+    def test_explanatory_assets_are_served(self) -> None:
+        for path in ("season-threshold-curve.svg", "seasons-wheel-no-markers.svg"):
+            with self.subTest(path=path):
+                response = self.client.get(f"/vignettes/{path}")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.headers["content-type"], "image/svg+xml")
+                self.assertIn(b"<svg", response.content)
+
     def test_stylesheet_hides_placeholder_after_generation(self) -> None:
         response = self.client.get("/app.css")
         self.assertEqual(response.status_code, 200)
         self.assertIn(".placeholder[hidden] { display: none; }", response.text)
+        self.assertIn(".telechargements[hidden] { display: none; }", response.text)
+        self.assertIn("--vert: #24543d;", response.text)
+        self.assertIn("--rayon: 2px;", response.text)
+
+    def test_frontend_uses_json_result_and_shareable_url(self) -> None:
+        response = self.client.get("/app.js")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('parameters.set("format", "json")', response.text)
+        self.assertIn("renderResult(payload, title)", response.text)
+        self.assertIn('history.replaceState(null, "", currentShareUrl)', response.text)
+        self.assertIn("resultDetails.focus", response.text)
 
     def test_svg_endpoint(self) -> None:
         with patch("service.main.generate_wheel", return_value=self.bundle) as generate:

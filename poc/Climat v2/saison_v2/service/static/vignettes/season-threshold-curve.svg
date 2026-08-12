@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 430" width="960" height="430" role="img" aria-label="Schéma théorique : une courbe de température annuelle franchit les seuils T25 et T75, ce qui marque le début des quatre saisons thermiques.">
+<rect x="0" y="0" width="960" height="430" fill="#f8f7f3" />
+
+<text x="480" y="20" text-anchor="middle" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="11" font-weight="800" letter-spacing="0.12em" fill="#5e6661">SCHÉMA THÉORIQUE — PRINCIPE DU CALCUL DES SAISONS</text>
+
+<rect x="90" y="40" width="840" height="90" fill="#fbe4d5" opacity="0.55" />
+<rect x="90" y="250" width="840" height="90" fill="#e2f0f7" opacity="0.6" />
+
+<line x1="90" y1="130" x2="930" y2="130" stroke="#c1392b" stroke-width="1.8" stroke-dasharray="5 4" opacity="0.85" />
+<line x1="90" y1="250" x2="930" y2="250" stroke="#2f6f95" stroke-width="1.8" stroke-dasharray="5 4" opacity="0.85" />
+<text x="82" y="134" text-anchor="end" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="800" fill="#c1392b">T75</text>
+<text x="82" y="254" text-anchor="end" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="800" fill="#2f6f95">T25</text>
+
+<text x="100" y="58" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="9.5" font-weight="800" letter-spacing="0.1em" fill="#5e6661">ZONE CHAUDE</text>
+<text x="100" y="193" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="9.5" font-weight="800" letter-spacing="0.1em" fill="#5e6661">ZONE INTERMÉDIAIRE</text>
+<text x="100" y="328" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="9.5" font-weight="800" letter-spacing="0.1em" fill="#5e6661">ZONE FROIDE</text>
+
+<line x1="90" y1="340" x2="930" y2="340" stroke="#c9ccc4" stroke-width="1.2" />
+<line x1="90" y1="340" x2="90" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="160" y1="340" x2="160" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="230" y1="340" x2="230" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="300" y1="340" x2="300" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="370" y1="340" x2="370" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="440" y1="340" x2="440" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="510" y1="340" x2="510" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="580" y1="340" x2="580" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="650" y1="340" x2="650" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="720" y1="340" x2="720" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="790" y1="340" x2="790" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="860" y1="340" x2="860" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<line x1="930" y1="340" x2="930" y2="346" stroke="#c9ccc4" stroke-width="1" />
+<g font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="800" fill="#1b211f" text-anchor="middle">
+<text x="125" y="360">J</text><text x="195" y="360">F</text><text x="265" y="360">M</text><text x="335" y="360">A</text>
+<text x="405" y="360">M</text><text x="475" y="360">J</text><text x="545" y="360">J</text><text x="615" y="360">A</text>
+<text x="685" y="360">S</text><text x="755" y="360">O</text><text x="825" y="360">N</text><text x="895" y="360">D</text>
+</g>
+
+<line x1="278" y1="250" x2="278" y2="340" stroke="#002fa7" stroke-width="1.4" stroke-dasharray="3 3" opacity="0.5" />
+<line x1="388" y1="130" x2="388" y2="340" stroke="#002fa7" stroke-width="1.4" stroke-dasharray="3 3" opacity="0.5" />
+<line x1="699" y1="130" x2="699" y2="340" stroke="#002fa7" stroke-width="1.4" stroke-dasharray="3 3" opacity="0.5" />
+<line x1="809" y1="250" x2="809" y2="340" stroke="#002fa7" stroke-width="1.4" stroke-dasharray="3 3" opacity="0.5" />
+
+<path d="M 90.00 335.67 C 91.94 336.09 97.78 337.56 101.67 338.23 C 105.56 338.89 109.44 339.37 113.33 339.66 C 117.22 339.95 121.11 340.06 125.00 339.97 C 128.89 339.88 132.78 339.60 136.67 339.14 C 140.56 338.68 144.44 338.02 148.33 337.18 C 152.22 336.34 156.11 335.32 160.00 334.11 C 163.89 332.90 167.78 331.51 171.67 329.95 C 175.56 328.38 179.44 326.64 183.33 324.72 C 187.22 322.81 191.11 320.73 195.00 318.48 C 198.89 316.24 202.78 313.83 206.67 311.27 C 210.56 308.71 214.44 305.99 218.33 303.14 C 222.22 300.28 226.11 297.27 230.00 294.15 C 233.89 291.02 237.78 287.75 241.67 284.37 C 245.56 280.99 249.44 277.48 253.33 273.88 C 257.22 270.28 261.11 266.55 265.00 262.75 C 268.89 258.95 272.78 255.05 276.67 251.08 C 280.56 247.11 284.44 243.05 288.33 238.94 C 292.22 234.83 296.11 230.64 300.00 226.43 C 303.89 222.21 307.78 217.93 311.67 213.64 C 315.56 209.35 319.44 205.01 323.33 200.68 C 327.22 196.34 331.11 191.98 335.00 187.63 C 338.89 183.29 342.78 178.93 346.67 174.61 C 350.56 170.28 354.44 165.96 358.33 161.70 C 362.22 157.43 366.11 153.18 370.00 149.00 C 373.89 144.82 377.78 140.67 381.67 136.61 C 385.56 132.55 389.44 128.54 393.33 124.63 C 397.22 120.72 401.11 116.88 405.00 113.14 C 408.89 109.41 412.78 105.76 416.67 102.24 C 420.56 98.71 424.44 95.29 428.33 92.00 C 432.22 88.71 436.11 85.53 440.00 82.50 C 443.89 79.47 447.78 76.56 451.67 73.81 C 455.56 71.06 459.44 68.45 463.33 66.01 C 467.22 63.56 471.11 61.26 475.00 59.14 C 478.89 57.01 482.78 55.05 486.67 53.26 C 490.56 51.47 494.44 49.85 498.33 48.42 C 502.22 46.98 506.11 45.72 510.00 44.65 C 513.89 43.57 517.78 42.68 521.67 41.98 C 525.56 41.27 529.44 40.76 533.33 40.43 C 537.22 40.10 541.11 39.96 545.00 40.01 C 548.89 40.06 552.78 40.30 556.67 40.73 C 560.56 41.15 564.44 41.77 568.33 42.57 C 572.22 43.38 576.11 44.37 580.00 45.54 C 583.89 46.71 587.78 48.06 591.67 49.59 C 595.56 51.12 599.44 52.84 603.33 54.71 C 607.22 56.59 611.11 58.65 615.00 60.86 C 618.89 63.07 622.78 65.45 626.67 67.98 C 630.56 70.50 634.44 73.20 638.33 76.02 C 642.22 78.85 646.11 81.83 650.00 84.93 C 653.89 88.03 657.78 91.28 661.67 94.63 C 665.56 97.98 669.44 101.47 673.33 105.05 C 677.22 108.64 681.11 112.34 685.00 116.12 C 688.89 119.90 692.78 123.79 696.67 127.75 C 700.56 131.70 704.44 135.75 708.33 139.84 C 712.22 143.94 716.11 148.11 720.00 152.32 C 723.89 156.53 727.78 160.80 731.67 165.08 C 735.56 169.37 739.44 173.70 743.33 178.03 C 747.22 182.37 751.11 186.73 755.00 191.08 C 758.89 195.42 762.78 199.78 766.67 204.11 C 770.56 208.44 774.44 212.76 778.33 217.04 C 782.22 221.31 786.11 225.57 790.00 229.76 C 793.89 233.95 797.78 238.10 801.67 242.18 C 805.56 246.25 809.44 250.28 813.33 254.20 C 817.22 258.13 821.11 261.99 825.00 265.74 C 828.89 269.50 832.78 273.16 836.67 276.71 C 840.56 280.26 844.44 283.71 848.33 287.02 C 852.22 290.34 856.11 293.54 860.00 296.60 C 863.89 299.65 867.78 302.59 871.67 305.37 C 875.56 308.14 879.44 310.79 883.33 313.26 C 887.22 315.74 891.11 318.07 895.00 320.23 C 898.89 322.38 902.78 324.38 906.67 326.20 C 910.56 328.02 914.44 329.68 918.33 331.15 C 922.22 332.62 928.06 334.38 930.00 335.03" fill="none" stroke="#1b211f" stroke-width="3" stroke-linecap="round" />
+
+<polygon points="278,236 272,246 284,246" fill="#2f6f95" />
+<polygon points="388,116 382,126 394,126" fill="#c1392b" />
+<polygon points="699,144 693,134 705,134" fill="#c1392b" />
+<polygon points="809,264 803,254 815,254" fill="#2f6f95" />
+
+<circle cx="278" cy="250" r="4.5" fill="#002fa7" stroke="#f8f7f3" stroke-width="1.5" />
+<circle cx="388" cy="130" r="4.5" fill="#002fa7" stroke="#f8f7f3" stroke-width="1.5" />
+<circle cx="699" cy="130" r="4.5" fill="#002fa7" stroke="#f8f7f3" stroke-width="1.5" />
+<circle cx="809" cy="250" r="4.5" fill="#002fa7" stroke="#f8f7f3" stroke-width="1.5" />
+
+<g font-family="'Dancing Script', 'Segoe Script', cursive" font-weight="700" fill="#1b211f" text-anchor="middle" style="paint-order: stroke; stroke: #f8f7f3; stroke-width: 2.5px; stroke-linejoin: round;">
+<text x="184" y="300" font-size="27">Hiver</text>
+<text x="333" y="174" font-size="27">Printemps</text>
+<text x="544" y="80" font-size="30">Été</text>
+<text x="754" y="174" font-size="27">Automne</text>
+<text x="870" y="300" font-size="27">Hiver</text>
+</g>
+
+<text x="480" y="388" text-anchor="middle" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="11.5" font-weight="700" fill="#1b211f">↑ T25 → printemps&#160;&#160;&#160;&#160;↑ T75 → été&#160;&#160;&#160;&#160;↓ T75 → automne&#160;&#160;&#160;&#160;↓ T25 → hiver</text>
+<text x="930" y="410" text-anchor="end" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-style="italic" font-size="10" fill="#5e6661">Schéma pédagogique — courbe théorique, ne représente pas des données mesurées.</text>
+</svg>

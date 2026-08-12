@@ -3,71 +3,305 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Générez le cadran des saisons thermiques d’un point GPS." />
-    <title>Cadran des saisons thermiques</title>
-    <link rel="stylesheet" href="/app.css" />
+    <meta name="description" content="Générez le cadran des saisons thermiques d’un point GPS et découvrez comment le changement climatique redessine l’année." />
+    <meta name="theme-color" content="#eef3ef" />
+    <title>Les saisons thermiques — OpenDataVdA</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='2' fill='%2324543d'/%3E%3Cpath d='M8 16h16M16 8v16' stroke='white' stroke-width='3' stroke-linecap='square'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./app.css" />
   </head>
   <body>
-    <main>
-      <section class="intro" aria-labelledby="title">
-        <p class="eyebrow">Climat local · ERA5-Land</p>
-        <div class="brand-logo" role="img" aria-label="Logo du cadran des saisons thermiques, composé de trois carrés">
-          <img src="/vignettes/cadran-1.png" alt="" />
-          <img src="/vignettes/cadran-2.png" alt="" />
-          <img src="/vignettes/cadran-3.png" alt="" />
-        </div>
-        <h1 id="title">Les saisons<br />se déplacent</h1>
-        <p class="lead">
-          Entrez un point GPS pour comparer les saisons thermiques de 1996–2005
-          à celles de 2016–2025.
-        </p>
+    <a class="skip-link" href="#service">Aller au générateur</a>
 
-        <form id="coordinates-form">
-          <div class="fields">
-            <label>
-              Point GPS — latitude, longitude
-              <input id="coordinates" name="coordinates" type="text"
-                value="44.20485692495915, 3.5139766462697613"
-                placeholder="44.20485692495915, 3.5139766462697613"
-                required autocomplete="off" spellcheck="false" />
-            </label>
-            <label>
-              Titre du cadran <span aria-hidden="true">(facultatif)</span>
-              <input id="wheel-title" name="title" type="text"
-                placeholder="Ex. : Mont Aigoual"
-                maxlength="80" autocomplete="off" />
-            </label>
-          </div>
-          <button id="locate" class="locate" type="button">Me localiser</button>
-          <button type="submit">Générer le cadran</button>
-        </form>
+    <div class="barre-officielle">
+      <div class="conteneur">
+        <span>OpenDataVdA · Val-d’Aigoual</span>
+        <span>Climat local · ERA5-Land</span>
+      </div>
+    </div>
 
-        <p id="status" class="status" role="status" aria-live="polite">
-          La première génération d’une maille peut prendre quelques minutes.
-        </p>
-
-        <nav class="downloads" aria-label="Téléchargements" hidden>
-          <a id="download-svg" href="#">Télécharger le SVG</a>
-          <a id="download-png" href="#">Télécharger le PNG</a>
-        </nav>
-
-        <details>
-          <summary>À propos de la méthode</summary>
-          <p>
-            Le cadran décrit des saisons thermiques locales calculées sur la réanalyse
-            maillée ERA5-Land. Il ne représente ni des saisons météorologiques fixes,
-            ni une mesure effectuée sur la parcelle.
+    <header class="en-tete-page">
+      <div class="hero conteneur">
+        <div>
+          <p class="eyebrow">Service territorial · méthode V4</p>
+          <h1 id="title">Les saisons se déplacent</h1>
+          <p class="introduction">
+            Générez le calendrier thermique d’un point GPS et observez comment
+            la place du chaud et du froid évolue entre 1996–2005 et 2016–2025.
           </p>
+        </div>
+        <aside class="signature" aria-label="Présentation du service">
+          <strong>Un cadran propre au lieu</strong>
+          <span>Température de l’air à 2 m · référence 1991–2020 · Copernicus ERA5-Land.</span>
+        </aside>
+      </div>
+    </header>
+
+    <nav class="sommaire" aria-label="Sommaire de la page">
+      <div class="conteneur">
+        <a href="#service">Générer</a>
+        <a href="#comprendre">Comprendre</a>
+        <a href="#cadran">Lire le cadran</a>
+        <a href="#methode">Méthode</a>
+      </div>
+    </nav>
+
+    <main class="conteneur">
+      <section id="service" aria-labelledby="generator-title">
+        <div class="entete-section">
+          <div>
+            <span class="numero">01 / SERVICE</span>
+            <h2 id="generator-title">Générer votre cadran</h2>
+          </div>
+          <p>
+            Indiquez un point GPS. Le service collecte la maille ERA5-Land
+            correspondante, calcule les quatre frontières et prépare les exports.
+          </p>
+        </div>
+
+        <div class="demonstrateur-service">
+          <article class="panneau generateur">
+            <header class="panneau-entete">
+              <div>
+                <p class="eyebrow">Votre territoire</p>
+                <h3>Paramètres du cadran</h3>
+              </div>
+              <span class="etat-service"><i aria-hidden="true"></i>Service disponible</span>
+            </header>
+
+            <form id="coordinates-form">
+              <div class="champs">
+                <label class="champ-gps" for="coordinates">
+                  <span class="etiquette-gps">
+                    <span>Point GPS</span>
+                    <button class="aide-gps" type="button" aria-label="Comment copier un point GPS depuis Google Maps" aria-describedby="aide-gps-texte" aria-expanded="false">i</button>
+                    <span id="aide-gps-texte" class="infobulle" role="tooltip">
+                      Dans Google Maps, faites un clic droit sur le lieu puis cliquez sur les coordonnées affichées pour les copier. Collez ensuite la paire ici.
+                    </span>
+                  </span>
+                  <input id="coordinates" name="coordinates" type="text"
+                    value="44.20485692495915, 3.5139766462697613"
+                    placeholder="latitude, longitude"
+                    inputmode="decimal" required autocomplete="off" spellcheck="false"
+                    aria-describedby="aide-gps-texte coordinates-error" />
+                  <span id="coordinates-error" class="erreur-champ" aria-live="polite"></span>
+                </label>
+                <label for="wheel-title">
+                  <span>Titre du cadran <small>facultatif</small></span>
+                  <input id="wheel-title" name="title" type="text"
+                    placeholder="Ex. : Mont Aigoual"
+                    maxlength="80" autocomplete="off" />
+                </label>
+              </div>
+              <div class="actions-formulaire">
+                <button id="locate" class="bouton secondaire" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.7" /><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg>
+                  Me localiser
+                </button>
+                <button class="bouton" type="submit">
+                  <span>Générer le cadran</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M14 7l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </button>
+              </div>
+            </form>
+
+            <p id="status" class="statut" role="status" aria-live="polite" tabindex="-1">
+              La première génération d’une maille peut prendre quelques minutes.
+            </p>
+
+            <nav class="telechargements" aria-label="Téléchargements" hidden>
+              <span>Votre cadran est prêt</span>
+              <a id="download-svg" href="#">SVG ↗</a>
+              <a id="download-png" href="#">PNG ↗</a>
+              <button id="copy-link" class="lien-action" type="button">Copier le lien</button>
+            </nav>
+          </article>
+
+          <section class="apercu" aria-labelledby="preview-title">
+            <header class="apercu-entete">
+              <div>
+                <span>RÉSULTAT</span>
+                <h3 id="preview-title">Votre année thermique</h3>
+              </div>
+              <small>SVG · PNG</small>
+            </header>
+            <div class="apercu-canevas">
+              <div id="placeholder" class="placeholder">
+                <div class="placeholder-mosaic" aria-hidden="true">
+                  <img src="./vignettes/cadran-1.png" alt="" />
+                  <img src="./vignettes/cadran-2.png" alt="" />
+                  <img src="./vignettes/cadran-3.png" alt="" />
+                </div>
+                <p><strong>Le résultat apparaîtra ici.</strong><br />Renseignez les coordonnées pour lancer le calcul.</p>
+              </div>
+              <img id="wheel" alt="Cadran des saisons thermiques du point GPS demandé" hidden />
+            </div>
+            <footer class="apercu-meta">
+              <span>Référence · 1991–2020</span>
+              <span>Source · Copernicus ERA5-Land</span>
+            </footer>
+          </section>
+        </div>
+
+        <p class="note">
+          Le cadran décrit une réanalyse climatique maillée. Il ne représente ni
+          des saisons météorologiques fixes, ni une mesure effectuée sur la parcelle.
+        </p>
+
+        <article id="result-details" class="resultat-detail" aria-labelledby="result-title" tabindex="-1" hidden>
+          <header class="resultat-entete">
+            <div>
+              <p class="eyebrow">Résultat local</p>
+              <h3 id="result-title">Ce qui change pour ce point</h3>
+            </div>
+            <span id="quality-badge" class="badge-qualite">—</span>
+          </header>
+
+          <p id="result-summary" class="resume-resultat"></p>
+
+          <dl class="contexte-resultat">
+            <div><dt>Point demandé</dt><dd id="requested-point">—</dd></div>
+            <div><dt>Maille représentée</dt><dd id="grid-point">—</dd></div>
+            <div><dt>Résolution</dt><dd id="grid-resolution">—</dd></div>
+            <div><dt>Distance au centre</dt><dd id="grid-distance">—</dd></div>
+          </dl>
+
+          <div class="tableau-defilant" tabindex="0" role="region" aria-label="Tableau comparatif des saisons thermiques">
+            <table>
+              <caption id="result-table-caption">Comparaison des frontières saisonnières</caption>
+              <thead><tr><th scope="col">Indicateur</th><th id="early-period" scope="col">1996–2005</th><th id="late-period" scope="col">2016–2025</th><th scope="col">Évolution</th></tr></thead>
+              <tbody id="result-table-body"></tbody>
+            </table>
+          </div>
+
+          <p id="quality-note" class="note-qualite"></p>
+        </article>
+      </section>
+
+      <section id="comprendre" aria-labelledby="why-title">
+        <div class="entete-section">
+          <div>
+            <span class="numero">02 / COMPRENDRE</span>
+            <h2 id="why-title">Le réchauffement redessine aussi l’année</h2>
+          </div>
+          <p>
+            Les saisons thermiques décrivent le moment où un lieu passe durablement
+            d’un régime froid à un régime intermédiaire, puis chaud — et inversement.
+          </p>
+        </div>
+
+        <div class="principes">
+          <article class="carte">
+            <span class="indice">REPÈRE FIXE</span>
+            <h3>Les mêmes seuils</h3>
+            <p>T25 et T75 sont calculés une fois sur la référence 1991–2020 puis conservés pour les deux décennies.</p>
+          </article>
+          <article class="carte">
+            <span class="indice">MESURE LOCALE</span>
+            <h3>Des dates propres au lieu</h3>
+            <p>Chaque franchissement de seuil marque le début d’une saison thermique locale.</p>
+          </article>
+          <article class="carte">
+            <span class="indice">COMPARAISON</span>
+            <h3>Des frontières qui bougent</h3>
+            <p>L’écart entre les dates indique une avance, un retard ou un changement de durée.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="cadran" aria-labelledby="wheel-section-title">
+        <div class="entete-section">
+          <div>
+            <span class="numero">03 / LIRE LE CADRAN</span>
+            <h2 id="wheel-section-title">Deux calendriers sur une même année</h2>
+          </div>
+          <p id="cadran-context">
+            L’exemple initial du Val-d’Aigoual superpose 1996–2005 et 2016–2025.
+            La largeur des secteurs traduit leur durée ; les flèches indiquent
+            le déplacement des frontières. Il est remplacé par votre résultat après le calcul.
+          </p>
+        </div>
+
+        <figure class="figure-donnee figure-cadran">
+          <img id="explanation-wheel" src="./vignettes/seasons-wheel-no-markers.svg" width="972" height="1078" loading="lazy"
+            alt="Cadran des saisons thermiques du Val-d’Aigoual comparant 1996–2005 et 2016–2025." />
+          <figcaption id="wheel-caption">
+            <strong>Exemple · Val-d’Aigoual.</strong>
+            Le printemps et l’été commencent plus tôt ; l’automne et l’hiver plus tard.
+            L’été thermique gagne 15,5 jours, tandis que l’hiver en perd 32,9.
+          </figcaption>
+        </figure>
+
+        <div id="shift-cards" class="deplacements" aria-label="Principaux déplacements observés dans l’exemple du Val-d’Aigoual">
+          <article data-metric="spring_start_shift_days"><span>PRINTEMPS</span><strong>−18,4 j</strong><small>Début plus tôt</small></article>
+          <article data-metric="summer_start_shift_days"><span>ÉTÉ</span><strong>−6,2 j</strong><small>Début plus tôt</small></article>
+          <article data-metric="autumn_start_shift_days"><span>AUTOMNE</span><strong>+9,3 j</strong><small>Début plus tard</small></article>
+          <article data-metric="winter_start_shift_days"><span>HIVER</span><strong>+14,4 j</strong><small>Début plus tard</small></article>
+          <article class="donnee-cle" data-metric="summer_length_change_days"><span>DURÉE DE L’ÉTÉ</span><strong>+15,5 j</strong><small>Plus longue</small></article>
+        </div>
+      </section>
+
+      <section id="methode" aria-labelledby="method-title">
+        <div class="entete-section">
+          <div>
+            <span class="numero">04 / MÉTHODE</span>
+            <h2 id="method-title">Deux seuils, quatre franchissements</h2>
+          </div>
+          <p>
+            Le cycle moyen des températures quotidiennes est lissé. Les passages
+            au-dessus et au-dessous de T25 et T75 définissent les quatre saisons.
+          </p>
+        </div>
+
+        <details class="volet-methode">
+          <summary>Voir comment les seuils définissent les saisons</summary>
+          <div class="contenu-methode">
+            <figure class="figure-donnee figure-courbe">
+              <img src="./vignettes/season-threshold-curve.svg" width="960" height="430" loading="lazy"
+                alt="Courbe théorique de température franchissant les seuils T25 et T75 qui définissent les quatre saisons thermiques." />
+              <figcaption>Schéma pédagogique : la courbe théorique explique le principe du calcul ; elle ne représente pas des données mesurées.</figcaption>
+            </figure>
+
+            <div class="seuils">
+              <article class="seuil seuil-froid">
+                <span>SEUIL FROID</span>
+                <strong>T25 <em id="t25-value"></em></strong>
+                <p>25 % des jours de la période de référence sont plus froids que ce niveau.</p>
+              </article>
+              <article class="seuil seuil-chaud">
+                <span>SEUIL CHAUD</span>
+                <strong>T75 <em id="t75-value"></em></strong>
+                <p>25 % des jours de la période de référence sont plus chauds que ce niveau.</p>
+              </article>
+            </div>
+
+            <div class="franchissements">
+              <article class="franchissement printemps"><span>↑ T25</span><div><strong>Printemps</strong><p>Seuil froid franchi vers le haut.</p></div></article>
+              <article class="franchissement ete"><span>↑ T75</span><div><strong>Été</strong><p>Seuil chaud franchi vers le haut.</p></div></article>
+              <article class="franchissement automne"><span>↓ T75</span><div><strong>Automne</strong><p>Seuil chaud franchi vers le bas.</p></div></article>
+              <article class="franchissement hiver"><span>↓ T25</span><div><strong>Hiver</strong><p>Seuil froid franchi vers le bas.</p></div></article>
+            </div>
+          </div>
+        </details>
+
+        <details class="volet-methode">
+          <summary>Voir les contrôles et les limites d’interprétation</summary>
+          <div class="contenu-methode">
+            <div class="notes-methode">
+              <p><strong>Méthode V4.</strong> Climatologies quotidiennes · seuils fixes · lissage harmonique à deux composantes · comparaison descriptive de deux décennies.</p>
+              <p><strong>Bootstrap.</strong> <span id="bootstrap-value">1 000 réplications</span>. Il décrit la robustesse au choix des années ; il ne constitue pas un test de significativité.</p>
+            </div>
+          </div>
         </details>
       </section>
-
-      <section class="visual" aria-label="Aperçu du cadran">
-        <div id="placeholder" class="placeholder">
-          <span>Votre cadran apparaîtra ici</span>
-        </div>
-        <img id="wheel" alt="Cadran des saisons thermiques du point GPS demandé" hidden />
-      </section>
     </main>
-    <script src="/app.js" defer></script>
+
+    <footer class="pied-page">
+      <div class="conteneur">
+        <p><strong>OpenDataVdA</strong> · Saisons thermiques locales</p>
+        <p>Source · Copernicus ERA5-Land · température de l’air à 2 m</p>
+      </div>
+    </footer>
+
+    <script src="./app.js" defer></script>
   </body>
 </html>
