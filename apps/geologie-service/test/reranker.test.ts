@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { GeologieConfig } from "../src/config.js";
-import { classementDeterministe, createReranker, extraireJson, validerSortieLlm } from "../src/services/reranker.js";
+import { classementDeterministe, classementParDistance, createReranker, extraireJson, validerSortieLlm } from "../src/services/reranker.js";
 import type { Candidat, OuvrageBss } from "../src/types.js";
 
 function candidat(overrides: Partial<Candidat> = {}): Candidat {
@@ -107,6 +107,17 @@ test("classement déterministe : top 10 dans l'ordre de la shortlist, sans justi
   assert.equal(classement.entrees.length, 10);
   assert.equal(classement.entrees[0]?.bss_id, "ID-0");
   assert.equal(classement.entrees[0]?.reason, null);
+});
+
+test("classement par distance : aucune troncature, ordre géographique conservé", () => {
+  const candidats = Array.from({ length: 12 }, (_, i) => candidat({ bss_id: `ID-${i}`, distance_rank: i, base_score: i }));
+  const classement = classementParDistance(candidats);
+  assert.equal(classement.methode, "distance");
+  assert.equal(classement.entrees.length, 12);
+  assert.equal(classement.entrees[0]?.bss_id, "ID-0");
+  assert.equal(classement.entrees[0]?.rank, 1);
+  assert.equal(classement.entrees[11]?.rank, 12);
+  assert.ok(classement.entrees.every((entree) => entree.reason === null));
 });
 
 test("sans clé API, le reranker part directement en fallback sans appel réseau", async () => {

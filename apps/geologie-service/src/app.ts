@@ -35,6 +35,7 @@ interface EntreeValidee {
   lon: number;
   rayonM: number;
   debug: boolean;
+  trier: boolean;
 }
 
 function parseInput(query: Record<string, unknown>): EntreeValidee | null {
@@ -43,6 +44,7 @@ function parseInput(query: Record<string, unknown>): EntreeValidee | null {
   const rayonBrut = query.rayon;
   const rayonM = rayonBrut === undefined ? 5000 : typeof rayonBrut === "string" ? Number(rayonBrut) : Number.NaN;
   const debug = query.debug === "true";
+  const trier = query.trier === undefined ? true : query.trier === "true" || query.trier === "1";
 
   if (
     !Number.isFinite(lat) || lat < -90 || lat > 90 ||
@@ -52,7 +54,7 @@ function parseInput(query: Record<string, unknown>): EntreeValidee | null {
     return null;
   }
 
-  return { lat, lon, rayonM, debug };
+  return { lat, lon, rayonM, debug, trier };
 }
 
 export function buildApp(options: BuildAppOptions): FastifyInstance {

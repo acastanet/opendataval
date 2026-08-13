@@ -20,6 +20,7 @@ Tous sont facultatifs, et **tous ont toujours un effet** — la seule dépendanc
 | Paramètre | Valeurs | Défaut | Effet |
 |---|---|---|---|
 | `fond` | `plan`, `photo`, `satellite`, `nu` | `plan` | rend visible l’une des trois couches raster de fond, ou aucune |
+| `fondOpaque` | booléen | `true` | visibilité du fond uni posé sous toutes les couches (voir ci-dessous) |
 | `geologie` | booléen (`1`/`true`) | `false` | visibilité de la couche BRGM, superposée à 100 % d’opacité |
 | `teintes` | booléen | `false` | visibilité des teintes hypsométriques (`color-relief`) |
 | `ombrage` | `aucun`, `doux`, `naturel`, `sculpte`, `multi` | `naturel` | préréglage complet de la couche `hillshade` |
@@ -58,6 +59,7 @@ n’a pas pu être chargé », là où un simple agrandissement aurait suffi.
 Couches, dans leur ordre d’empilement :
 
 ```text
+fond-uni
 basemap-plan
 basemap-photo
 basemap-satellite
@@ -65,6 +67,14 @@ geologie-layer
 relief-color
 relief-hillshade
 ```
+
+`fond-uni` est une couche `background` posée sous tout le reste, visible par défaut
+(`fondOpaque=true`). Sans elle, un fond `nu` (ou tout gabarit de tuile manquant) laisse voir la
+transparence du canevas, ce qui se traduit en 3D par des bords de dalles de relief qui semblent
+plonger à la verticale au-delà de `RELIEF_BOUNDS`. Elle réutilise la teinte de brume de
+`CIEL_TERRAIN` (`fog-color`) pour rester cohérente avec le ciel posé quand `terrain=true`. La
+masquer (`fondOpaque=0`) redonne un canevas strictement transparent, par exemple pour composer la
+carte sur un autre fond côté client.
 
 ## Préréglages d’ombrage
 

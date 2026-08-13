@@ -139,6 +139,24 @@ export function classementDeterministe(shortlist: Candidat[]): ResultatClassemen
   };
 }
 
+/**
+ * Aucune notion de pertinence : tous les candidats du cercle sont restitués, dans l'ordre
+ * de distance déjà calculé (`distance_rank`), sans shortlist ni reranking. Pour les usages
+ * de simple repérage où rien ne doit être écarté au profit d'une pertinence supposée —
+ * voir `trier=false` dans `recherche-bss.ts`.
+ */
+export function classementParDistance(candidats: Candidat[]): ResultatClassement {
+  return {
+    methode: "distance",
+    entrees: candidats.map((candidat) => ({
+      bss_id: candidat.bss_id,
+      rank: candidat.distance_rank + 1,
+      score: Math.round(candidat.base_score),
+      reason: null,
+    })),
+  };
+}
+
 interface ReponseChatCompletions {
   choices?: { message?: { content?: string } }[];
 }

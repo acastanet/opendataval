@@ -3,7 +3,7 @@ import type { GatewayConfig } from "./config.js";
 import type { FetchLike } from "./legacy-proxy.js";
 
 function valid(query: Record<string, unknown>): boolean {
-  for (const name of ["lat", "lon", "rayon", "debug"]) {
+  for (const name of ["lat", "lon", "rayon", "debug", "trier"]) {
     const value = query[name];
     if (value !== undefined && (typeof value !== "string" || value.length > 40)) return false;
   }
@@ -45,7 +45,7 @@ export function registerGeologieProxy(
       }
       const baseUrl = config.geologieServiceUrl ?? "http://geologie-service:3000";
       const upstream = new URL(`${baseUrl}/internal/v1/geologie/bss/proches`);
-      for (const name of ["lat", "lon", "rayon", "debug"]) {
+      for (const name of ["lat", "lon", "rayon", "debug", "trier"]) {
         const value = request.query[name];
         if (typeof value === "string") upstream.searchParams.set(name, value);
       }

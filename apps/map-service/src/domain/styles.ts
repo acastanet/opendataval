@@ -33,6 +33,12 @@ export const ANCIENS_STYLES = ["plan", "territoire", "relief", "hypsometrique"] 
 export interface OptionsStyle {
   prefixe?: string;
   fond: FondCartographique | "nu";
+  /**
+   * Fond uni sous les couches raster. Sans lui, un fond "nu" (ou tout gabarit de tuile
+   * manquant) laisse voir la transparence du canevas, ce qui se traduit en 3D par des
+   * bords de dalles de relief qui semblent plonger à la verticale au-delà de RELIEF_BOUNDS.
+   */
+  fondOpaque: boolean;
   geologie: boolean;
   teintes: boolean;
   ombrage: PrereglageOmbrage;
@@ -60,6 +66,7 @@ export function lireOptionsStyle(query: Record<string, unknown>): OptionsStyle {
   return {
     prefixe,
     fond: fond as OptionsStyle["fond"],
+    fondOpaque: bool(query.fondOpaque, true),
     geologie: bool(query.geologie, false),
     teintes: bool(query.teintes, false),
     ombrage,
@@ -109,6 +116,13 @@ export function construireStyle(options: OptionsStyle): Record<string, unknown> 
   const sources: Record<string, unknown> = {};
   const layers: Record<string, unknown>[] = [];
   const ombrage = reglageOmbrage(options.ombrage);
+
+  layers.push({
+    id: id("fond-uni", prefixe),
+    type: "background",
+    layout: visibilite(options.fondOpaque),
+    paint: { "background-color": CIEL_TERRAIN["fog-color"] },
+  });
 
   for (const fond of FONDS_CARTOGRAPHIQUES) {
     sources[id(IDS_CARTOGRAPHIQUES.sources[fond.id], prefixe)] = sourceFond(fond);

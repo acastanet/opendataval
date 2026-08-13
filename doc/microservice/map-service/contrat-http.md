@@ -9,8 +9,9 @@ GET /api/v2/map/styles/carte.json
 ```
 
 Un seul style est servi. Paramètres facultatifs : `fond` (`plan`, `photo`, `satellite`, `nu`),
-`geologie`, `teintes`, `ombrage` (`aucun`, `doux`, `naturel`, `sculpte`, `multi`), `altitude`
-(`standard`, `hd`), `terrain`, `exageration` (0,5 à 3) et `prefixe`. Voir [`styles.md`](styles.md).
+`fondOpaque` (booléen, défaut `true`), `geologie`, `teintes`, `ombrage` (`aucun`, `doux`, `naturel`,
+`sculpte`, `multi`), `altitude` (`standard`, `hd`), `terrain`, `exageration` (0,5 à 3) et `prefixe`.
+Voir [`styles.md`](styles.md).
 
 Les styles nommés `plan`, `territoire`, `relief` et `hypsometrique` ont fusionné dans `carte` :
 ils renvoient un `404 STYLE_INCONNU` indiquant la route de remplacement.

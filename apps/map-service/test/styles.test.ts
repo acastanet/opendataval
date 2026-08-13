@@ -21,6 +21,7 @@ test("construit un style unique valide", () => {
 test("fige les identifiants canoniques et leur ordre", () => {
   const ids = (construireStyle(options).layers as Couche[]).map((layer) => layer.id);
   assert.deepEqual(ids, [
+    "fond-uni",
     "basemap-plan",
     "basemap-photo",
     "basemap-satellite",
@@ -30,10 +31,22 @@ test("fige les identifiants canoniques et leur ordre", () => {
   ]);
 });
 
+test("le fond uni est une option visible par défaut, basculable comme les autres couches", () => {
+  // Sans lui, un fond "nu" laisse voir la transparence du canevas : en 3D, les bords du
+  // relief au-delà de RELIEF_BOUNDS semblent alors plonger à la verticale.
+  const parDefaut = couche(construireStyle(lireOptionsStyle({ fond: "nu" })), "fond-uni");
+  assert.equal(parDefaut.type, "background");
+  assert.equal(parDefaut.layout?.visibility, "visible");
+  assert.ok(parDefaut.paint?.["background-color"]);
+
+  const masque = couche(construireStyle(lireOptionsStyle({ fondOpaque: "0" })), "fond-uni");
+  assert.equal(masque.layout?.visibility, "none");
+});
+
 test("garde toutes les couches présentes et ne pilote que leur visibilité", () => {
-  const minimal = construireStyle(lireOptionsStyle({ fond: "nu", ombrage: "aucun" }));
+  const minimal = construireStyle(lireOptionsStyle({ fond: "nu", ombrage: "aucun", fondOpaque: "0" }));
   const ids = (minimal.layers as Couche[]).map((layer) => layer.id);
-  assert.equal(ids.length, 6);
+  assert.equal(ids.length, 7);
   assert.ok((minimal.layers as Couche[]).every((layer) => layer.layout?.visibility === "none"));
 
   const complet = construireStyle(lireOptionsStyle({ fond: "photo", geologie: "1", teintes: "1" }));

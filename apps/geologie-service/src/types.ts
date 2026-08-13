@@ -45,7 +45,7 @@ export interface Candidat extends OuvrageBss {
   protege?: string[];
 }
 
-export type RankingMethod = "llm_reranked" | "deterministic";
+export type RankingMethod = "llm_reranked" | "deterministic" | "distance";
 
 export interface EntreeClassement {
   bss_id: string;

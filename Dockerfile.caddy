@@ -16,6 +16,7 @@ RUN --mount=type=cache,id=opendataval-pnpm-v11,target=/pnpm/store,sharing=locked
     pnpm install --filter web... --filter meteo-web... --frozen-lockfile --prefer-offline
 
 COPY packages/shared packages/shared
+COPY scripts scripts
 COPY apps/web apps/web
 COPY apps/meteo-web apps/meteo-web
 COPY doc/architecture/conception-v2 doc/architecture/conception-v2

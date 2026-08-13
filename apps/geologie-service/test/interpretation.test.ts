@@ -179,6 +179,49 @@ test("les erreurs de parsing (log/documents) sont absorbées avec avertissement,
   assert.ok(resultat.avertissements.some((a) => a.includes('Section "documents numérisés" non reconnue')));
 });
 
+test("aucun log ni scan analysable : le LLM n'est pas appelé, avertissement explicite sur une éventuelle fiche PDF", async () => {
+  const htmlVide = '<div id="content_document"><span>0 document(s)</span></div>' +
+    '<div id="content_log"><h3 class="nbPasses">Nombre de niveaux :</h3><span>0</span></div>';
+  let appele = false;
+  const deps = {
+    infoterre: infoterreClient({ recupererFiche: async () => htmlVide }),
+    syntheseur: syntheseur(async () => { appele = true; return "ne devrait jamais être renvoyé"; }),
+    config: config(),
+    log: LOG_STUB,
+  };
+  const resultat = await interpreterFiche("09372X0004/AURIOL", deps);
+  assert.equal(appele, false, "le LLM ne doit pas être appelé sans log ni image à lui transmettre");
+  assert.equal(resultat.methode_synthese, "structure_seule");
+  assert.equal(resultat.synthese, syntheseStructureSeule([]));
+  assert.ok(resultat.avertissements.some((a) => a.includes("peut-être un rapport au format PDF")));
+});
+
+test("documents présents mais aucune coupe géologique : avertissement dédié, sans appel LLM", async () => {
+  const htmlDocumentsSansCoupe = `<div id="content_document" class="bloc_content">
+<span>1 document(s)</span>
+<table>
+<tr><th>Vignette</th><th>Nom</th><th>Type</th><th>Poids</th></tr>
+<tr><td><div class="list"><div class="vignette"><a href="scan?name=RAPPORT.PDF&path=/x"><img src="v.jpg"></a></div></div></td>
+<td><a href="scan?name=RAPPORT.PDF&path=/x">RAPPORT.PDF</a></td>
+<td><ul><li>RAPPORT DE FIN DE SONDAGE</li></ul></td>
+<td>500 Ko</td></tr>
+</table>
+</div>
+<div id="content_log"><h3 class="nbPasses">Nombre de niveaux :</h3><span>0</span></div>`;
+  let appele = false;
+  const deps = {
+    infoterre: infoterreClient({ recupererFiche: async () => htmlDocumentsSansCoupe }),
+    syntheseur: syntheseur(async () => { appele = true; return null; }),
+    config: config(),
+    log: LOG_STUB,
+  };
+  const resultat = await interpreterFiche("09372X0004/AURIOL", deps);
+  assert.equal(appele, false);
+  assert.equal(resultat.methode_synthese, "structure_seule");
+  assert.equal(resultat.documents.length, 1);
+  assert.ok(resultat.avertissements.some((a) => a.includes("1 document(s) disponible(s)")));
+});
+
 test("syntheseStructureSeule résume le log sans rien inventer", () => {
   const texte = syntheseStructureSeule([
     { profondeur_min_m: 0, profondeur_max_m: 2.5, lithologie: "ALLUVIONS", stratigraphie: "QUATERNAIRE" },

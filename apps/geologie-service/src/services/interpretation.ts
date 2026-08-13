@@ -104,22 +104,38 @@ export async function interpreterFiche(
     }
   }
 
-  const resultatLlm = await deps.syntheseur.synthetiser({
-    reference,
-    log,
-    images: images.map(({ nom, types, pngBase64 }) => ({ nom, types, pngBase64 })),
-  });
-
   let synthese: string;
   let methode: MethodeSynthese;
-  if (resultatLlm) {
-    synthese = resultatLlm;
-    methode = images.length > 0 ? "llm_vision" : "llm_texte";
-  } else {
+  if (log.length === 0 && images.length === 0) {
+    // Rien à transmettre au LLM : l'appeler produirait un texte poli mais vide de sens
+    // ("aucune donnée disponible"), facturé pour rien et faussement étiqueté llm_texte —
+    // alors que la fiche n'a simplement rien livré d'exploitable à nos deux extractions.
     synthese = syntheseStructureSeule(log);
     methode = "structure_seule";
-    if (deps.config.llmApiKey) {
-      avertissements.push("La synthèse par IA n'a pas pu être obtenue ; repli sur le log structuré seul.");
+    if (documents.length === 0) {
+      avertissements.push(
+        "Aucun contenu structuré n'a été trouvé sur cette fiche (ni log, ni document numérisé) : elle contient peut-être un rapport au format PDF, non pris en charge automatiquement — consultez la fiche InfoTerre directement.",
+      );
+    } else {
+      avertissements.push(
+        `${documents.length} document(s) disponible(s) sur la fiche, mais aucun n'est une coupe géologique analysable automatiquement — consultez la fiche InfoTerre directement.`,
+      );
+    }
+  } else {
+    const resultatLlm = await deps.syntheseur.synthetiser({
+      reference,
+      log,
+      images: images.map(({ nom, types, pngBase64 }) => ({ nom, types, pngBase64 })),
+    });
+    if (resultatLlm) {
+      synthese = resultatLlm;
+      methode = images.length > 0 ? "llm_vision" : "llm_texte";
+    } else {
+      synthese = syntheseStructureSeule(log);
+      methode = "structure_seule";
+      if (deps.config.llmApiKey) {
+        avertissements.push("La synthèse par IA n'a pas pu être obtenue ; repli sur le log structuré seul.");
+      }
     }
   }
 

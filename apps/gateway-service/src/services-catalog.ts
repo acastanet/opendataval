@@ -432,6 +432,18 @@ export const SERVICES: ServiceDescriptor[] = [
         optional: true,
         hint: "5000 m par défaut, plafonné à 5000 m.",
       },
+      {
+        name: "trier",
+        label: "Trier par pertinence",
+        type: "select",
+        example: "true",
+        optional: true,
+        options: [
+          { value: "true", label: "true — shortlist + reranking (10 résultats)" },
+          { value: "false", label: "false — tous les ouvrages du cercle, triés par distance" },
+        ],
+        hint: "true par défaut. À désactiver quand aucun besoin précis ne justifie d’écarter des ouvrages : tout devient pertinent.",
+      },
     ],
   },
   {

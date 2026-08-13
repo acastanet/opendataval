@@ -43,6 +43,7 @@ Paramètres :
 | `lon` | obligatoire, entre -180 et 180 |
 | `rayon` | facultatif, `5000` par défaut, entre 1 et 5000 m — au-delà, 400 explicite |
 | `debug` | facultatif, `true` pour exposer les scores intermédiaires (ignoré si `GEOLOGIE_DEBUG_ENABLED=false`) |
+| `trier` | facultatif, `true` par défaut. `false` désactive shortlist et reranking : tous les candidats du cercle sont renvoyés, triés par distance (`selection.ranking_method` vaut alors `"distance"`) — pour un usage de repérage où rien ne doit être écarté au profit d’une pertinence supposée |
 
 Exemple local :
 
@@ -78,6 +79,12 @@ validation lat/lon/rayon
 **Aucun pré-filtrage par distance** n’intervient avant le scoring : tous les ouvrages du
 cercle sont considérés, car certains carottages déterminants se trouvent près de la
 limite des 5 km (cf. cas de référence ci-dessous).
+
+Avec `trier=false`, le pipeline s’arrête après le scoring déterministe : ni shortlist
+diversifiée, ni reranking. Tous les candidats du cercle sont renvoyés, dans l’ordre de
+`distance_rank`, avec `selection.ranking_method = "distance"` — pour un consommateur qui
+n’a pas de besoin précis à faire trancher par le LLM, et pour qui rien dans le cercle
+n’est moins pertinent qu’autre chose.
 
 ### Score géologique (`geological_value_score`, 0–100)
 
@@ -138,6 +145,16 @@ Cascade de repli, exposée dans `methode_synthese` :
    trop volumineux), mais le LLM répond à partir du seul log structuré.
 3. **`structure_seule`** — repli 100 % déterministe, sans LLM, toujours disponible :
    un résumé du log est généré directement à partir des données structurées.
+
+**Aucun log ni scan analysable ⇒ le LLM n'est jamais appelé.** Certaines fiches anciennes
+ne livrent ni tableau de log ni document numérisé exploitable (parfois parce que le
+contenu réel n'existe que sous forme d'un rapport PDF, hors du périmètre de l'extraction
+HTML) : l'interroger produirait un texte poli mais vide de sens (« aucune donnée
+disponible »), facturé pour rien et étiqueté `llm_texte` comme s'il s'agissait d'une
+vraie synthèse. Le service part alors directement en `structure_seule`, avec un
+avertissement qui distingue les deux cas : aucun document du tout (suggestion d'ouvrir la
+fiche InfoTerre, qui peut contenir un PDF non traité), ou des documents présents mais
+aucun typé coupe géologique.
 
 Le passage d'une étape à l'autre ne lève jamais d'exception : seule l'indisponibilité de
 la fiche InfoTerre elle-même (site injoignable, timeout) fait échouer la requête (502/504),

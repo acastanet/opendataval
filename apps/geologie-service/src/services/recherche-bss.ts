@@ -8,13 +8,20 @@ import { construireReponse, type ReponseBss } from "../domain/reponse.js";
 import { baseScore, geologicalValueScore, proximityScore } from "../domain/scoring.js";
 import type { Candidat, OuvrageBss } from "../types.js";
 import { cleCacheBrgm, type CacheMemoire } from "./cache.js";
-import type { Reranker } from "./reranker.js";
+import { classementParDistance, type Reranker } from "./reranker.js";
 
 export interface EntreeRecherche {
   lat: number;
   lon: number;
   rayonM: number;
   debug: boolean;
+  /**
+   * `true` (défaut) : shortlist diversifiée puis reranking (LLM ou repli déterministe),
+   * plafonné à 10 résultats. `false` : tous les candidats du cercle, triés par distance
+   * uniquement, sans shortlist ni reranking — pour un usage de repérage où rien ne doit
+   * être écarté au profit d'une pertinence supposée.
+   */
+  trier: boolean;
 }
 
 interface ReponseBrgmNormalisee {
@@ -79,10 +86,10 @@ export async function rechercherOuvragesProches(
     };
   });
 
-  const shortlist = construireShortlist(candidats);
+  const shortlist = entree.trier ? construireShortlist(candidats) : candidats;
 
   const debutLlm = Date.now();
-  const classement = await deps.reranker.classer(shortlist);
+  const classement = entree.trier ? await deps.reranker.classer(shortlist) : classementParDistance(shortlist);
   const llmDureeMs = Date.now() - debutLlm;
 
   deps.log.info(

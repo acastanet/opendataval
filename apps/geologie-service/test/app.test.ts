@@ -199,6 +199,38 @@ test("x-request-id est relayé dans la réponse", async (t) => {
   assert.equal(response.headers["x-request-id"], "geologie-test");
 });
 
+test("trier=false renvoie tous les candidats du cercle, triés par distance", async (t) => {
+  const app = buildApp({ config, clients: clients(), logger: false });
+  t.after(() => app.close());
+  const response = await app.inject({ method: "GET", url: `/api/v2/geologie/bss/proches?lat=${LAT}&lon=${LON}&trier=false` });
+  assert.equal(response.statusCode, 200);
+  const body = response.json();
+  assert.equal(body.selection.ranking_method, "distance");
+  assert.equal(body.selection.candidates_in_radius, 44);
+  // Aucune shortlist ni troncature : chaque candidat du cercle a un résultat.
+  assert.equal(body.results.length, 44);
+  assert.equal(body.selection.shortlist_count, 44);
+  for (let i = 0; i < body.results.length; i++) {
+    assert.equal(body.results[i].distance_rank, i);
+    assert.equal(body.results[i].rank, i + 1);
+  }
+  // VA-2A, en tête du classement de pertinence par ailleurs, reste ici à son rang géographique.
+  const va2a = body.results.find((r: { bss_id: string }) => r.bss_id === "BSS002DKEC");
+  assert.ok(va2a);
+  assert.ok(va2a.distance_rank >= 30, `distance_rank = ${va2a.distance_rank}`);
+  assert.equal(va2a.rank, va2a.distance_rank + 1);
+});
+
+test("trier=true (implicite) reste le comportement par défaut, inchangé", async (t) => {
+  const app = buildApp({ config, clients: clients(), logger: false });
+  t.after(() => app.close());
+  const [avecTrier, sansParametre] = await Promise.all([
+    app.inject({ method: "GET", url: `/api/v2/geologie/bss/proches?lat=${LAT}&lon=${LON}&trier=true` }),
+    app.inject({ method: "GET", url: `/api/v2/geologie/bss/proches?lat=${LAT}&lon=${LON}` }),
+  ]);
+  assert.deepEqual(avecTrier.json(), sansParametre.json());
+});
+
 test("la route interne répond aussi sur /internal/v1/geologie/bss/proches", async (t) => {
   const app = buildApp({ config, clients: clients(), logger: false });
   t.after(() => app.close());

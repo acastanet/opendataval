@@ -27,6 +27,8 @@ export const IGN_WMTS = (layer: string, format: string): string => {
 export interface OptionsCarte {
   prefixe?: string;
   fond?: "plan" | "photo" | "satellite" | "nu";
+  /** Fond uni sous les couches raster, visible par défaut ; voir doc/microservice/map-service/styles.md. */
+  fondOpaque?: boolean;
   geologie?: boolean;
   /** Teintes hypsométriques (couche `relief-color`). */
   teintes?: boolean;
@@ -42,6 +44,7 @@ export function urlCarte(options: OptionsCarte = {}): string {
   const params = new URLSearchParams();
   if (options.prefixe) params.set("prefixe", options.prefixe);
   if (options.fond) params.set("fond", options.fond);
+  if (options.fondOpaque !== undefined) params.set("fondOpaque", options.fondOpaque ? "1" : "0");
   if (options.geologie !== undefined) params.set("geologie", options.geologie ? "1" : "0");
   if (options.teintes !== undefined) params.set("teintes", options.teintes ? "1" : "0");
   if (options.ombrage) params.set("ombrage", options.ombrage);
