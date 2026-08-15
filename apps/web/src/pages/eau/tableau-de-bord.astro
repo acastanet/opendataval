@@ -2,20 +2,14 @@
 // Tableau de bord expert « Les données de l'eau à Val-d'Aigoual » servi à
 // /eau/tableau-de-bord/. Les blocs historiques (hydrométrie et piézométrie)
 // restent pilotés par app.js ; qualite.js ajoute ONDE, ADES et baignade.
-import BoutonAccueil from "../../components/BoutonAccueil.astro";
+import Layout from "../../layouts/Layout.astro";
 ---
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Données de l'eau — Val-d'Aigoual</title>
-  <link rel="stylesheet" href="/eau/style.css" />
-  <link rel="stylesheet" href="/eau/qualite.css" />
-  <link rel="stylesheet" href="/eau/design-system.css" />
-</head>
-<body>
-  <BoutonAccueil />
+<Layout title="Données de l'eau — Val-d'Aigoual" description="Quantité, crues, étiages, nappes et qualité de l’eau à Val-d’Aigoual.">
+  <Fragment slot="head">
+    <link rel="stylesheet" href="/eau/style.css" />
+    <link rel="stylesheet" href="/eau/qualite.css" />
+    <link rel="stylesheet" href="/eau/design-system.css" />
+  </Fragment>
   <main class="page">
     <header class="entete">
       <a class="retour-didactique" href="/eau/">← Comprendre l'eau à Val-d'Aigoual</a>
@@ -188,5 +182,4 @@ import BoutonAccueil from "../../components/BoutonAccueil.astro";
   <script is:inline src="/eau/eau-commun.js"></script>
   <script is:inline src="/eau/app.js"></script>
   <script is:inline src="/eau/qualite.js"></script>
-</body>
-</html>
+</Layout>

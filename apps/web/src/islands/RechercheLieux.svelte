@@ -175,18 +175,18 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    background: var(--panel-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--surface-elevee);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
     padding: 0 0.6rem;
-    box-shadow: var(--shadow, 0 2px 10px rgba(0, 0, 0, 0.15));
+    box-shadow: var(--ombre-courte, 0 2px 10px rgba(0, 0, 0, 0.15));
   }
 
   .icone-loupe {
     width: 1rem;
     height: 1rem;
     flex-shrink: 0;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .champ input {
@@ -196,7 +196,7 @@
     background: transparent;
     padding: 0.5rem 0;
     font-family: var(--font-body);
-    color: var(--fg);
+    color: var(--texte-principal);
   }
 
   .champ input:focus {
@@ -204,15 +204,15 @@
   }
 
   .champ:has(input:focus) {
-    border-color: var(--accent);
+    border-color: var(--couleur-action);
   }
 
   .spinner {
     width: 0.8rem;
     height: 0.8rem;
     flex-shrink: 0;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
+    border: 2px solid var(--bordure);
+    border-top-color: var(--couleur-action);
     border-radius: 50%;
     animation: tourner 0.7s linear infinite;
   }
@@ -231,12 +231,12 @@
     margin: 0;
     padding: 0.3rem;
     list-style: none;
-    background: var(--panel-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--surface-elevee);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
     max-height: 18rem;
     overflow-y: auto;
-    box-shadow: var(--shadow, 0 4px 14px rgba(0, 0, 0, 0.18));
+    box-shadow: var(--ombre-courte, 0 4px 14px rgba(0, 0, 0, 0.18));
   }
 
   .entete-groupe {
@@ -244,7 +244,7 @@
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .resultats button {
@@ -255,10 +255,10 @@
     text-align: left;
     padding: 0.4rem 0.5rem;
     border: none;
-    border-radius: calc(var(--radius) - 1px);
+    border-radius: calc(var(--rayon) - 1px);
     background: transparent;
     cursor: pointer;
-    color: var(--fg);
+    color: var(--texte-principal);
     font-family: var(--font-body);
   }
 
@@ -273,13 +273,13 @@
 
   .sous-label {
     font-size: 0.72rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .vide {
     padding: 0.6rem 0.5rem;
     font-size: 0.8rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   @media (max-width: 720px) {

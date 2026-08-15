@@ -1,4 +1,5 @@
-import { ALTIMETRIE_IGN } from "@opendata-vda/shared/carto";
+import { ALTIMETRIE_IGN, REGIONS_RELIEF, type RegionRelief } from "@opendata-vda/shared/carto";
+import type { CheminsRegionRelief } from "./services/relief-pmtiles.js";
 
 export interface MapConfig {
   host: string;
@@ -16,8 +17,8 @@ export interface MapConfig {
   brgmUpstreamUrl: string;
   upstreamTimeoutMs: number;
   tileCacheMaxBytes: number;
-  reliefGlobalPath: string;
-  reliefHdPath: string;
+  /** Une entrée par région de `REGIONS_RELIEF`, chemins d'archives PMTiles résolus. */
+  reliefRegions: CheminsRegionRelief[];
   assetsRoot: string;
 }
 
@@ -26,6 +27,24 @@ function entierPositif(value: string | undefined, fallback: number, nom: string)
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${nom} doit être un entier strictement positif.`);
   return parsed;
+}
+
+/**
+ * Résout les chemins d'archives d'une région depuis l'environnement : `MAP_RELIEF_<ID>_*_PATH`
+ * en priorité, avec un repli sur `MAP_RELIEF_GLOBAL_PATH`/`MAP_RELIEF_HD_PATH` pour `aigoual`
+ * seule — ce sont les variables historiques, déjà déployées, qui doivent continuer à
+ * fonctionner sans changement de configuration.
+ */
+function cheminsRegion(env: NodeJS.ProcessEnv, region: RegionRelief): CheminsRegionRelief {
+  const prefixe = `MAP_RELIEF_${region.id.toUpperCase().replace(/-/g, "_")}`;
+  const legacyGlobal = region.id === "aigoual" ? env.MAP_RELIEF_GLOBAL_PATH : undefined;
+  const legacyHd = region.id === "aigoual" ? env.MAP_RELIEF_HD_PATH : undefined;
+  return {
+    id: region.id,
+    bounds: region.bounds,
+    globalPath: env[`${prefixe}_GLOBAL_PATH`] ?? legacyGlobal ?? `/srv/relief/${region.id}.pmtiles`,
+    hdPath: env[`${prefixe}_HD_PATH`] ?? legacyHd ?? `/srv/relief/${region.id}-hd.pmtiles`,
+  };
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): MapConfig {
@@ -41,8 +60,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): MapConfig {
     // connexion lente : l'IGN répondait, trop tard, et la carte se couvrait de trous.
     upstreamTimeoutMs: entierPositif(env.MAP_UPSTREAM_TIMEOUT_MS, 20_000, "MAP_UPSTREAM_TIMEOUT_MS"),
     tileCacheMaxBytes: entierPositif(env.MAP_TILE_CACHE_MAX_BYTES, 256 * 1024 * 1024, "MAP_TILE_CACHE_MAX_BYTES"),
-    reliefGlobalPath: env.MAP_RELIEF_GLOBAL_PATH ?? "/srv/relief/aigoual.pmtiles",
-    reliefHdPath: env.MAP_RELIEF_HD_PATH ?? "/srv/relief/aigoual-hd.pmtiles",
+    reliefRegions: REGIONS_RELIEF.map((region) => cheminsRegion(env, region)),
     assetsRoot: env.MAP_ASSETS_ROOT ?? new URL("../assets", import.meta.url).pathname,
   };
 }

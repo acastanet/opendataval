@@ -96,12 +96,12 @@
   .unite {
     font-family: var(--font-body);
     font-size: 0.8rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .etat {
     font-size: 0.85rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     padding: 1.5rem 0;
     text-align: center;
   }

@@ -1,24 +1,20 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import SiteHeader from "../components/SiteHeader.astro";
-import SiteFooter from "../components/SiteFooter.astro";
 import MeteoPoint from "../islands/MeteoPoint.svelte";
 ---
 
-<Layout
+<Layout chrome="minimal"
   title="Météo locale précise — Val-d’Aigoual"
   description="Prévision météo localisée à une adresse, un lieu-dit ou une position GPS dans Val-d’Aigoual."
 >
-  <SiteHeader sectionActive="meteo" />
   <main class="page-meteo-shell">
     <MeteoPoint client:only="svelte" />
   </main>
-  <SiteFooter />
 </Layout>
 
 <style>
   :global(body) {
-    background: #fcfcfa;
+    background: var(--surface-plate);
   }
 
   .page-meteo-shell {

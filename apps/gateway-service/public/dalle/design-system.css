@@ -1,68 +1,27 @@
-/* Socle visuel OpenDataVdA — source de vérité pour les applications web. */
+/* Socle visuel VAL — source de vérité des applications web. */
+@font-face { font-family: "Source Serif 4"; src: local("Source Serif 4"), local("SourceSerif4-Regular"), url("/fonts/SourceSerif4-Variable.woff2") format("woff2-variations"); font-weight: 400 600; font-style: normal; font-display: optional; }
+@font-face { font-family: "Inter"; src: local("Inter"), local("Inter-Regular"), url("/fonts/Inter-Variable.woff2") format("woff2-variations"); font-weight: 400 700; font-style: normal; font-display: optional; }
+
 :root {
   color-scheme: light;
-  --color-ardoise: #2b3238;
-  --color-brume: #ededea;
-  --color-chataigne: #6b4226;
-  --color-lichen: #7a8b5e;
-  --color-torrent: #3e6e82;
-  --color-granite: #9a9b93;
-  --color-alerte: #b5533c;
-
-  --bg: var(--color-brume);
-  --fg: var(--color-ardoise);
-  --text: var(--fg);
-  --accent: var(--color-chataigne);
-  --border: var(--color-granite);
-  --surface: #ffffff;
-  --surface-muted: #f4f6f5;
-  --panel-bg: rgba(237, 237, 234, 0.94);
-  --muted: #4f5d66;
-  --navy: #17384b;
-  --navy-hover: #0e2938;
-  --line-strong: #9aa8b0;
-  --shadow: 0 2px 12px rgba(43, 50, 56, 0.14);
-
-  --brand-primary: var(--navy);
-  --brand-primary-hover: var(--navy-hover);
-  --brand-danger: var(--color-alerte);
-  --brand-success: #27824c;
-  --brand-warning: #c17c13;
-  --focus-ring: #2472a4;
-
-  --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
-  --radius: 4px;
-  --radius-lg: 8px;
-  --control-height: 2.75rem;
+  --encre: #14251d; --encre-douce: #52645b; --encre-tertiaire: #616f67;
+  --vert: #24543d; --vert-profond: #173e2b; --vert-clair: #dce9e1;
+  --brume: #eef3ef; --papier: #fbfcfa; --blanc: #ffffff;
+  --torrent: #3d6f7d; --chataigne: #795039; --lichen: #718260; --granite: #89958e; --alerte: #a94332;
+  --atmosphere: #2d9cdb; --atmosphere-texte: #1c73a5; --hydrosphere: #00b8a9; --hydrosphere-texte: #007a70; --biosphere: #7cb342; --biosphere-texte: #53772c; --anthroposphere: #7e57c2; --anthroposphere-texte: #7e57c2; --risques: #f4513b; --risques-texte: #d4240c; --lithosphere: #d28b28; --lithosphere-texte: #95621c; --technique: #546573; --technique-texte: #546573;
+  --torrent-texte: var(--torrent); --chataigne-texte: var(--chataigne); --lichen-texte: #5f6e51;
+  --vigilance-vert: #31aa46; --vigilance-vert-texte: #237b33; --vigilance-jaune: #f5d800; --vigilance-jaune-texte: #7a6c00; --vigilance-orange: #ff8c00; --vigilance-orange-texte: #a25900; --vigilance-rouge: #e1001a; --vigilance-rouge-texte: #cc0018;
+  --couleur-action: var(--vert); --couleur-action-active: var(--vert-profond); --couleur-action-douce: var(--vert-clair);
+  --surface-fond: var(--brume); --surface-plate: var(--papier); --surface-elevee: rgb(255 255 255 / 88%); --surface-sombre: var(--vert-profond);
+  --texte-principal: var(--encre); --texte-secondaire: var(--encre-douce); --texte-tertiaire: var(--encre-tertiaire); --texte-sur-sombre: rgb(255 255 255 / 88%); --texte-sur-sombre-doux: rgb(255 255 255 / 70%);
+  --bordure: rgb(20 37 29 / 16%); --bordure-forte: rgb(20 37 29 / 31%); --decor: var(--granite);
+  --focus: var(--vert); --focus-sur-sombre: var(--vert-clair); --ombre: 0 14px 38px rgb(20 37 29 / 9%); --ombre-courte: 0 8px 24px rgb(20 37 29 / 6%);
+  --esp-3xs: .25rem; --esp-2xs: .375rem; --esp-xs: .5rem; --esp-s: .625rem; --esp-m: .75rem; --esp-l: 1rem; --esp-xl: 1.5rem; --esp-2xl: 2.5rem;
+  --txt-micro: .6875rem; --txt-xs: .75rem; --txt-s: .8125rem; --txt-m: .875rem; --txt-l: 1rem; --txt-xl: 1.125rem; --txt-2xl: 1.375rem;
+  --poids-normal: 400; --poids-appui: 600; --poids-fort: 700; --ls-titre: -.03em; --ls-label: .08em; --rayon: 2px; --rayon-fin: 1px; --duree-courte: 180ms; --courbe: cubic-bezier(.2, .82, .24, 1);
+  --font-display: "Source Serif 4", Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, ui-serif, serif; --font-body: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  --cible: 2.5rem; --largeur-page: 60rem; --largeur-lecture: 64ch; --largeur-intro: 54ch;
 }
 
-:root[data-theme="dark"],
-html.dark {
-  color-scheme: dark;
-  --bg: var(--color-ardoise);
-  --fg: var(--color-brume);
-  --text: var(--fg);
-  --accent: #a9714f;
-  --border: #4a525a;
-  --surface: #364047;
-  --surface-muted: #2f383e;
-  --panel-bg: rgba(43, 50, 56, 0.94);
-  --muted: #d1d8dc;
-  --line-strong: #7f8d95;
-  --shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
-}
-
-*:focus-visible {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 3px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
-    transition-duration: 0.001ms !important;
-  }
-}
+*:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; scroll-behavior: auto !important; transition-duration: .001ms !important; } }

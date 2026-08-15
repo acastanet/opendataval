@@ -352,11 +352,11 @@
     justify-content: center;
     width: 2.2rem;
     height: 2.2rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--panel-bg);
-    color: var(--fg);
-    box-shadow: var(--shadow);
+    border-radius: var(--rayon);
+    border: 1px solid var(--bordure);
+    background: var(--surface-elevee);
+    color: var(--texte-principal);
+    box-shadow: var(--ombre-courte);
     cursor: pointer;
   }
 
@@ -366,7 +366,7 @@
   }
 
   .bouton-theme:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--couleur-action);
     outline-offset: 2px;
   }
 
@@ -381,13 +381,13 @@
     bottom: 1rem;
     width: 17rem;
     z-index: 4;
-    background: var(--panel-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--surface-elevee);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
     padding: 0.9rem;
     overflow-y: auto;
     backdrop-filter: blur(2px);
-    box-shadow: var(--shadow);
+    box-shadow: var(--ombre-courte);
   }
 
   .panneau h2 {
@@ -405,15 +405,15 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     margin-bottom: 0.35rem;
   }
 
   .groupe-fonds {
     display: flex;
     flex-wrap: wrap;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
     overflow: hidden;
   }
 
@@ -421,10 +421,10 @@
     flex: 1 1 33%;
     padding: 0.45rem 0.3rem;
     border: none;
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--bordure);
+    border-bottom: 1px solid var(--bordure);
     background: transparent;
-    color: var(--fg);
+    color: var(--texte-principal);
     font-family: var(--font-body);
     font-size: 0.72rem;
     cursor: pointer;
@@ -432,8 +432,8 @@
   }
 
   .groupe-fonds button.actif {
-    background: var(--fg);
-    color: var(--bg);
+    background: var(--texte-principal);
+    color: var(--surface-fond);
   }
 
   .groupe-fonds button:not(.actif):hover {
@@ -441,7 +441,7 @@
   }
 
   .groupe-fonds button:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--couleur-action);
     outline-offset: -2px;
   }
 
@@ -455,18 +455,18 @@
     justify-content: space-between;
     align-items: baseline;
     margin-bottom: 0.25rem;
-    color: var(--fg);
+    color: var(--texte-principal);
   }
 
   .controle .valeur {
     font-family: var(--font-mono);
     font-size: 0.72rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .controle input[type="range"] {
     width: 100%;
-    accent-color: var(--accent);
+    accent-color: var(--couleur-action);
   }
 
   .legende {
@@ -482,8 +482,8 @@
   .barre {
     width: 1.1rem;
     flex-shrink: 0;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
+    border-radius: var(--rayon);
+    border: 1px solid var(--bordure);
   }
 
   .graduations {
@@ -495,13 +495,13 @@
     justify-content: space-between;
     font-family: var(--font-mono);
     font-size: 0.68rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .note-panneau {
     margin-top: 1rem;
     font-size: 0.72rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     line-height: 1.45;
   }
 
@@ -518,13 +518,13 @@
       left: 1rem;
       bottom: 1rem;
       z-index: 5;
-      border: 1px solid var(--border);
-      background: var(--panel-bg);
-      color: var(--fg);
-      border-radius: var(--radius);
+      border: 1px solid var(--bordure);
+      background: var(--surface-elevee);
+      color: var(--texte-principal);
+      border-radius: var(--rayon);
       padding: 0.5rem 0.9rem;
       font-size: 0.85rem;
-      box-shadow: var(--shadow);
+      box-shadow: var(--ombre-courte);
     }
 
     .bouton-panneau svg {
@@ -540,7 +540,7 @@
       bottom: 0;
       width: 100%;
       max-height: 55vh;
-      border-radius: var(--radius) var(--radius) 0 0;
+      border-radius: var(--rayon) var(--rayon) 0 0;
       transform: translateY(100%);
       transition: transform 200ms ease;
     }

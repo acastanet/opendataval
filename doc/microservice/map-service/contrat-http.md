@@ -30,11 +30,15 @@ Les tuiles de relief sont des WebP sans perte encodés en terrarium, servis en `
 `/api/v2/map/relief/{z}/{x}/{y}.png` reste accepté pour les clients déjà déployés et renvoie les
 mêmes octets.
 
+Le relief est servi par région (voir [`README.md`](README.md#régions-de-relief)) et ne couvre pas
+tout le territoire : une tuile qu’aucune archive montée ne porte renvoie `404 TUILE_RELIEF_ABSENTE`.
+Le `503 RELIEF_INDISPONIBLE` est réservé au cas où **aucune** région n’a ses archives.
+
 `relief-hd` couvre la même pyramide, du zoom 0 au zoom 16. Jusqu’au zoom 15 elle sert les archives
 PMTiles, à l’identique de `relief` ; au zoom 16 elle produit la tuile à la demande depuis le RGE
 ALTI 1 m de la Géoplateforme — requête WMS en BIL 32 bits **en EPSG:2154**, reprojection bilinéaire
 vers la grille mercator, ré-encodage terrarium, PNG. Au-delà du zoom 16 : `400 TUILE_INVALIDE` ;
-amont indisponible : `502 TUILE_AMONT_INDISPONIBLE` (`retryable`) ; archives non montées sous le
+amont indisponible : `502 TUILE_AMONT_INDISPONIBLE` (`retryable`) ; aucune archive montée sous le
 zoom 16 : `503 RELIEF_INDISPONIBLE`.
 
 Ni le système de la requête, ni la couche interrogée, ni le plafond de zoom ne sont des détails

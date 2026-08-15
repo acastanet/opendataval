@@ -38,7 +38,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
   const app = Fastify({ logger: options.logger ?? true, requestIdHeader: "x-request-id", trustProxy: true });
   const cache = new CacheTuiles(config.tileCacheMaxBytes);
-  const relief = new ReliefPmtiles(config.reliefGlobalPath, config.reliefHdPath);
+  const relief = new ReliefPmtiles(config.reliefRegions);
   const actifs = new ActifsStatiques(config.assetsRoot);
   const metriques = new MetriquesMap();
 
@@ -47,10 +47,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return payload;
   });
   app.addHook("onReady", async () => {
-    await Promise.all([
-      relief.initialiser(config.reliefGlobalPath, config.reliefHdPath),
-      actifs.initialiser(),
-    ]);
+    await Promise.all([relief.initialiser(), actifs.initialiser()]);
   });
   app.addHook("onClose", async () => relief.close());
 
@@ -58,7 +55,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/ready", async () => {
     const dependencies = { relief: relief.status(), vendor: actifs.vendorStatus(), glyphes: actifs.glyphStatus() };
     const status = Object.values(dependencies).every((value) => value === "disponible") ? "ready" : "degraded";
-    return { status, service: "map-service", version: config.version, dependencies };
+    // Le détail par région ne pèse pas sur `status` : une région déclarée dont l'archive
+    // reste à générer est un chantier connu, pas une panne du service.
+    return { status, service: "map-service", version: config.version, dependencies, regionsRelief: relief.detailRegions() };
   });
 
   app.get<{ Params: Params; Querystring: Query }>("/api/v2/map/styles/:style.json", async (request, reply) => {

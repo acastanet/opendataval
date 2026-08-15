@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#eef3ef">
+  <title>Composants — VAL</title>
+  <link rel="icon" href="./favicon.svg">
+  <link rel="preload" href="/fonts/SourceSerif4-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="preload" href="/fonts/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="../../packages/shared/styles/design-system.css">
+  <link rel="stylesheet" href="./design.css">
+</head>
+<body>
+  <div class="prototype-note"><div class="coque"><span>OpenDataVdA · Atelier HTML/CSS</span><span>Inventaire visuel partagé</span></div></div>
+  <header class="entete">
+    <div class="coque entete__interieur"><a class="marque" href="./accueil.html"><img src="./favicon.svg" alt=""><span><strong>VAL</strong><span>Bibliothèque visuelle</span></span></a></div>
+    <div class="coque hero hero__grille"><div><p class="surtitre">Référence de travail</p><h1>Composants communs.</h1><p class="introduction">Comparer ici les états avant de reporter une règle validée dans Astro.</p></div><aside class="hero__repere"><strong>Style VAL v2.1</strong><span>Rôles, surfaces et états documentés.</span><span class="fraicheur fraicheur--jour">Socle synchronisé</span></aside></div>
+  </header>
+  <nav class="navigation" aria-label="Prototypes"><div class="coque"><a href="./accueil.html">Accueil</a><a href="./meteo.html">Météo</a><a href="./carte.html">Carte</a><a href="./composants.html" aria-current="page">Composants</a><a href="./style_VAL.html">Référentiel</a></div></nav>
+  <main><div class="coque inventaire">
+    <section class="specimen"><div class="specimen__titre"><span>01 / COULEURS</span><h2>Palette de rôles</h2></div><div class="grille palette"><div class="teinte teinte--action">Action</div><div class="teinte teinte--fond">Fond</div><div class="teinte teinte--plate">Surface</div><div class="teinte teinte--atmosphere">Atmosphère</div><div class="teinte teinte--risques">Risques</div></div></section>
+    <section class="specimen"><div class="specimen__titre"><span>02 / ACTIONS</span><h2>Boutons et liens</h2></div><div class="boutons"><button class="bouton" type="button">Action principale</button><button class="bouton bouton--secondaire" type="button">Action secondaire</button><button class="bouton" type="button" disabled>Indisponible</button><a href="#typographie">Lien textuel</a></div></section>
+    <section class="specimen" id="typographie"><div class="specimen__titre"><span>03 / TYPOGRAPHIE</span><h2>Hiérarchie typographique</h2></div><p class="surtitre">Libellé de classement</p><h2>Un titre de section clairement éditorial</h2><p class="introduction">Une introduction donne le contexte sans concurrencer le titre. Le texte secondaire reste lisible sur toutes les surfaces claires.</p></section>
+    <section class="specimen"><div class="specimen__titre"><span>04 / CARTES</span><h2>Contenus regroupés</h2></div><div class="grille"><article class="carte filet-biosphere"><span class="carte__indice">BIOSPHÈRE</span><h3>Carte éditoriale</h3><p>Une bordure fine, un angle net et une ombre courte.</p></article><article class="carte filet-risques"><span class="carte__indice">RISQUES</span><h3>État territorial</h3><p>La couleur classe le contenu sans porter le texte.</p></article><article class="carte"><span class="carte__indice">TECHNIQUE</span><h3>Carte neutre</h3><p>Pour les fonctions qui ne relèvent pas d’une sphère.</p></article></div></section>
+    <section class="specimen"><div class="specimen__titre"><span>05 / FORMULAIRE</span><h2>Champs et sélection</h2></div><div class="grille"><div class="champ"><label for="nom">Nom du lieu</label><input id="nom" type="text" placeholder="Val-d’Aigoual"></div><div class="champ"><label for="categorie">Catégorie</label><select id="categorie"><option>Territoire</option><option>Météo</option></select></div><div class="champ"><label for="note">Commentaire</label><textarea id="note" rows="2" placeholder="Observation…"></textarea></div></div></section>
+    <section class="specimen"><div class="specimen__titre"><span>06 / ÉTATS</span><h2>Vigilance et fraîcheur</h2></div><div class="badges"><span class="vigilance vigilance--vert">Vert</span><span class="vigilance vigilance--jaune">Jaune</span><span class="vigilance vigilance--orange">Orange</span><span class="vigilance vigilance--rouge">Rouge</span></div><div class="badges espacement-haut"><span class="fraicheur fraicheur--jour">À jour · 14 h 10</span><span class="fraicheur fraicheur--vieillissante">Vieillissante · hier</span><span class="fraicheur fraicheur--indisponible">Indisponible</span></div><div class="alerte espacement-haut"><strong>Donnée temporairement indisponible</strong><div class="secondaire">Le dernier état connu reste affiché avec son horodatage.</div></div></section>
+    <section class="specimen"><div class="specimen__titre"><span>07 / TABLEAU</span><h2>Données structurées</h2></div><div class="debordement-x"><table class="tableau"><thead><tr><th>Commune</th><th>Altitude</th><th>Dernière mise à jour</th></tr></thead><tbody><tr><td>Val-d’Aigoual</td><td>400–1 567 m</td><td><span class="fraicheur fraicheur--jour">13 août 2026</span></td></tr><tr><td>Dourbies</td><td>621 m</td><td><span class="fraicheur fraicheur--jour">13 août 2026</span></td></tr></tbody></table></div></section>
+  </div></main>
+  <footer class="pied"><div class="coque pied__interieur"><span>Chaque valeur visuelle passe par un jeton VAL</span><a href="../../packages/shared/styles/design-system.css">Source de vérité CSS</a></div></footer>
+</body>
+</html>

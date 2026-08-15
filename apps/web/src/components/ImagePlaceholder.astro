@@ -1,0 +1,24 @@
+<figure class="image-placeholder" aria-label="Emplacement réservé pour la future image principale">
+  <div class="image-placeholder__cadre">
+    <svg viewBox="0 0 120 80" aria-hidden="true">
+      <path d="M9 66 37 37l17 17 13-13 44 25" />
+      <circle cx="85" cy="24" r="7" />
+    </svg>
+    <span>Image à venir</span>
+  </div>
+  <figcaption>
+    <strong>Le territoire, à hauteur de lieu</strong>
+    <span>Emplacement prévu pour une photographie ou une vue documentée.</span>
+  </figcaption>
+</figure>
+
+<style>
+  .image-placeholder { min-width: 0; margin: 0; }
+  .image-placeholder__cadre { position: relative; display: grid; min-height: 12rem; place-items: center; overflow: hidden; border: 1px solid var(--bordure-forte); border-radius: var(--rayon); background: var(--surface-elevee); box-shadow: var(--ombre-courte); }
+  .image-placeholder__cadre::before { position: absolute; inset: var(--esp-m); border: 1px dashed var(--bordure-forte); border-radius: calc(var(--rayon) / 2); content: ""; }
+  svg { width: min(52%, 9rem); fill: none; stroke: var(--texte-tertiaire); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.2; opacity: .58; }
+  .image-placeholder__cadre span { position: absolute; right: var(--esp-m); bottom: var(--esp-m); padding: var(--esp-3xs) var(--esp-2xs); border: 1px solid var(--bordure); border-radius: 999px; background: var(--surface-plate); color: var(--texte-secondaire); font-family: var(--font-mono); font-size: var(--txt-micro); letter-spacing: var(--ls-label); text-transform: uppercase; }
+  figcaption { display: grid; gap: var(--esp-3xs); padding: var(--esp-s) var(--esp-2xs) 0; }
+  figcaption strong { font-family: var(--font-display); font-size: var(--txt-l); font-weight: var(--poids-normal); }
+  figcaption span { color: var(--texte-secondaire); font-size: var(--txt-xs); }
+</style>

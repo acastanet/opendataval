@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "design:preview": "node scripts/serve-design-prototypes.mjs",
     "styles:sync": "node scripts/sync-design-system.mjs",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",

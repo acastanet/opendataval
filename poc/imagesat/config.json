@@ -1,0 +1,5 @@
+{
+  "wms_base_url": "https://view.eumetsat.int/geoserver/wms",
+  "layer": "mtg_fd:rgb_truecolour",
+  "crs": "EPSG:4326"
+}

@@ -334,7 +334,7 @@
   .cell-front {
     background: var(--paper-white);
     border: 1px solid rgba(24, 48, 42, 0.08);
-    box-shadow: var(--shadow-paper-flat);
+    box-shadow: var(--ombre-courte-paper-flat);
   }
 
   .cell-icone {
@@ -361,14 +361,14 @@
     font-size: 1.45rem;
     font-weight: 700;
     line-height: 1;
-    color: var(--text-color, #fff);
+    color: var(--texte-principal-color, #fff);
   }
 
   .cell-nom {
     font-size: 0.55rem;
     font-weight: 600;
     line-height: 1.2;
-    color: var(--text-color, #fff);
+    color: var(--texte-principal-color, #fff);
     opacity: 0.85;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -408,8 +408,8 @@
     flex-direction: column;
     gap: 0.25rem;
     max-width: 320px;
-    background: var(--surface, #fff);
-    color: var(--text, #18302a);
+    background: var(--surface-plate, #fff);
+    color: var(--texte-principal, #18302a);
     border: 1px solid var(--paper-black);
     padding: 0.55rem 0.8rem;
     font-size: 0.8rem;
@@ -435,13 +435,13 @@
     font-size: 0.78rem;
     font-weight: 400;
     line-height: 1.45;
-    color: var(--muted, #566);
+    color: var(--texte-secondaire, #566);
   }
 
   .tooltip-url {
     font-family: var(--font-mono, monospace);
     font-size: 0.68rem;
-    color: var(--accent, #087f5b);
+    color: var(--couleur-action, #087f5b);
     word-break: break-all;
   }
 
@@ -546,7 +546,7 @@
     margin: 0 0 4px;
     font-size: 0.9rem;
     line-height: 1.5;
-    color: var(--muted, #566);
+    color: var(--texte-secondaire, #566);
   }
 
   .mobile-btn {

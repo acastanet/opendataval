@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="titre-favicon">
+  <title id="titre-favicon">OpenDataVdA — Val-d’Aigoual</title>
+  <!-- Boite : marge 3, cadre 58x58, rayon 3 (angles nets, aligne sur le rayon standard).
+       Filet granite #89958e = 3,11:1 sur blanc, donc reellement visible en onglet.
+       NB : ne jamais ecrire deux tirets consecutifs dans un commentaire XML. -->
+  <rect x="3" y="3" width="58" height="58" rx="3" fill="#f7faf7" stroke="#89958e" stroke-width="2" />
+  <!-- Montagnes : base commune a y = 50. Traces rectilignes, lisibles jusqu'a 16 px. -->
+  <path d="M9 50 L23 26 L37 50 Z" fill="#46899e" />
+  <path d="M22 50 L40 15 L56 50 Z" fill="#173e2b" />
+</svg>

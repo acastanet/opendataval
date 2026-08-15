@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eef3ef">
+  <title>Prototype accueil — VAL</title>
+  <link rel="icon" href="./favicon.svg">
+  <link rel="preload" href="/fonts/SourceSerif4-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="preload" href="/fonts/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="../../packages/shared/styles/design-system.css">
+  <link rel="stylesheet" href="./design.css">
+</head>
+<body>
+  <div class="prototype-note"><div class="coque"><span>OpenDataVdA · Atelier HTML/CSS</span><span>Aligné sur Style VAL v2.1</span></div></div>
+  <header class="entete">
+    <div class="coque entete__interieur"><a class="marque" href="./accueil.html"><img src="./favicon.svg" alt=""><span><strong>VAL</strong><span>OpenData · Val-d’Aigoual</span></span></a></div>
+    <div class="coque hero hero__grille">
+      <div><p class="surtitre">Le territoire par ses données</p><h1>Comprendre ici, décider ensemble.</h1><p class="introduction">Un portail public pour explorer les paysages, les services et les évolutions de Val-d’Aigoual avec des données lisibles et documentées.</p></div>
+      <aside class="hero__repere"><strong>15 communes</strong><span>reliées par un même socle de données.</span><span class="fraicheur fraicheur--jour">Référentiel à jour</span></aside>
+    </div>
+  </header>
+  <nav class="navigation" aria-label="Prototypes"><div class="coque"><a href="./accueil.html" aria-current="page">Accueil</a><a href="./meteo.html">Météo</a><a href="./carte.html">Carte</a><a href="./composants.html">Composants</a><a href="./style_VAL.html">Référentiel</a></div></nav>
+  <main>
+    <section class="section"><div class="coque"><div class="section__entete"><h2>Explorer le territoire</h2><p>Des entrées éditoriales stables conduisent vers les données, leurs sources et les outils interactifs.</p></div><div class="grille">
+      <article class="carte filet-atmosphere"><span class="carte__indice">01 · Atmosphère</span><h3>Météo et climat</h3><p>Observations, prévisions locales, normales et vigilance.</p></article>
+      <article class="carte filet-biosphere"><span class="carte__indice">02 · Biosphère</span><h3>Environnement</h3><p>Eau, biodiversité, espaces protégés et qualité des milieux.</p></article>
+      <article class="carte filet-lithosphere"><span class="carte__indice">03 · Lithosphère</span><h3>Relief et géologie</h3><p>Altitudes, sous-sol, forages et lecture du paysage.</p></article>
+    </div></div></section>
+    <section class="section section--plate"><div class="coque section__entete"><div><p class="surtitre">Accès direct</p><h2>Passer de la donnée à l’usage</h2></div><div class="boutons"><a class="bouton" href="./carte.html">Ouvrir la carte</a><a class="bouton bouton--secondaire" href="./composants.html">Voir les composants</a></div></div></section>
+  </main>
+  <footer class="pied"><div class="coque pied__interieur"><span>Prototype sans données réelles</span><a href="../../apps/web/src/pages/index.astro">Cible Astro : index.astro</a></div></footer>
+</body>
+</html>

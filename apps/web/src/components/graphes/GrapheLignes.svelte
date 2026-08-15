@@ -86,30 +86,30 @@
     display: block;
   }
   .grille {
-    stroke: var(--border);
+    stroke: var(--texte-tertiaire);
     stroke-width: 0.5;
     opacity: 0.4;
   }
   .label-y {
     font-size: 9px;
-    fill: var(--border);
+    fill: var(--texte-tertiaire);
     text-anchor: end;
     dominant-baseline: middle;
     font-family: var(--font-body);
   }
   .label-x {
     font-size: 9px;
-    fill: var(--border);
+    fill: var(--texte-tertiaire);
     text-anchor: middle;
     font-family: var(--font-body);
   }
   .ligne-zero {
-    stroke: var(--border);
+    stroke: var(--texte-tertiaire);
     stroke-width: 1;
     stroke-dasharray: 2 2;
   }
   .ligne-reference {
-    stroke: var(--color-alerte);
+    stroke: var(--alerte);
     stroke-width: 1;
     stroke-dasharray: 4 3;
     opacity: 0.75;
@@ -122,7 +122,7 @@
     margin: 0.4rem 0 0;
     padding: 0;
     font-size: 0.78rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
   .legende li {
     display: flex;

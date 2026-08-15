@@ -71,7 +71,7 @@ relief-hillshade
 `fond-uni` est une couche `background` posée sous tout le reste, visible par défaut
 (`fondOpaque=true`). Sans elle, un fond `nu` (ou tout gabarit de tuile manquant) laisse voir la
 transparence du canevas, ce qui se traduit en 3D par des bords de dalles de relief qui semblent
-plonger à la verticale au-delà de `RELIEF_BOUNDS`. Elle réutilise la teinte de brume de
+plonger à la verticale au-delà de `RELIEF_BOUNDS_GLOBAL`. Elle réutilise la teinte de brume de
 `CIEL_TERRAIN` (`fog-color`) pour rester cohérente avec le ciel posé quand `terrain=true`. La
 masquer (`fondOpaque=0`) redonne un canevas strictement transparent, par exemple pour composer la
 carte sur un autre fond côté client.
@@ -130,6 +130,13 @@ clients déjà déployés, mais **les tuiles sont des WebP sans perte** (VP8L) e
 désormais leur type réel. L’encodage est terrarium, en tuiles de 512 px, jusqu’à `RELIEF_MAXZOOM`
 (15), soit environ 1,7 m/px. Au-delà, MapLibre se contente d’agrandir : les terrasses de culture
 cévenoles, que le modèle résout bien, s’épaississent au lieu de se préciser.
+
+Ces archives ne couvrent pas la France entière : chacune est bornée à une région déclarée dans
+`REGIONS_RELIEF` (`packages/shared/src/carto.ts`), avec sa propre paire de fichiers. Une tuile
+qu’aucune archive montée ne sert n’a simplement pas de relief standard (404) ; le style reste
+néanmoins valide, seule la couche `relief-color`/`relief-hillshade` y reste plate. Voir
+[`README.md`](README.md#régions-de-relief) pour la liste des régions et la procédure de génération
+d’une nouvelle archive.
 
 En **`hd`**, les deux sources d’altitude basculent sur `/api/v2/map/relief-hd/{z}/{x}/{y}.png`
 (`maxzoom` 16). Jusqu’à `RELIEF_MAXZOOM` (15), cette route sert les mêmes archives PMTiles : elles

@@ -7,7 +7,7 @@ import {
   PALETTE_HYPSOMETRIQUE,
   PREREGLAGES_OMBRAGE,
   RELIEF_ATTRIBUTION,
-  RELIEF_BOUNDS,
+  RELIEF_BOUNDS_GLOBAL,
   RELIEF_MAXZOOM,
   RELIEF_TILESIZE,
   TERRAIN_TILESIZE,
@@ -36,7 +36,7 @@ export interface OptionsStyle {
   /**
    * Fond uni sous les couches raster. Sans lui, un fond "nu" (ou tout gabarit de tuile
    * manquant) laisse voir la transparence du canevas, ce qui se traduit en 3D par des
-   * bords de dalles de relief qui semblent plonger à la verticale au-delà de RELIEF_BOUNDS.
+   * bords de dalles de relief qui semblent plonger à la verticale au-delà de RELIEF_BOUNDS_GLOBAL.
    */
   fondOpaque: boolean;
   geologie: boolean;
@@ -163,7 +163,7 @@ export function construireStyle(options: OptionsStyle): Record<string, unknown> 
     tileSize: tailleTuile,
     minzoom: 0,
     maxzoom: hd ? ALTIMETRIE_IGN.zoomMax : RELIEF_MAXZOOM,
-    bounds: RELIEF_BOUNDS,
+    bounds: RELIEF_BOUNDS_GLOBAL,
     attribution: hd ? ALTIMETRIE_IGN.attribution : RELIEF_ATTRIBUTION,
   });
   sources[id(IDS_CARTOGRAPHIQUES.sources.relief, prefixe)] = sourceRelief(RELIEF_TILESIZE);

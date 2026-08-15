@@ -1,14 +1,12 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import BoutonAccueil from "../../components/BoutonAccueil.astro";
 import MeteoEssentiel from "../../islands/MeteoEssentiel.svelte";
 ---
 
-<Layout
+<Layout chrome="minimal"
   title="Météo essentielle — Val-d’Aigoual"
   description="Météo locale essentielle : position GPS, situation actuelle, risque à venir et prévisions utiles."
 >
-  <BoutonAccueil />
   <main class="page-meteo-essentiel">
     <MeteoEssentiel client:only="svelte" />
   </main>
@@ -16,7 +14,7 @@ import MeteoEssentiel from "../../islands/MeteoEssentiel.svelte";
 
 <style>
   :global(body) {
-    background: #fcfcfa;
+    background: var(--surface-plate);
   }
 
   :global(#racine) {
@@ -25,7 +23,7 @@ import MeteoEssentiel from "../../islands/MeteoEssentiel.svelte";
 
   .page-meteo-essentiel {
     min-height: 100%;
-    background: #fcfcfa;
+    background: var(--surface-plate);
   }
 
 </style>

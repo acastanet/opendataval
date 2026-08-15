@@ -1,0 +1,91 @@
+---
+// Carte d'un usage du portail, en deux rangs : `majeure` pour les deux entrées
+// principales, `courante` pour les six autres.
+//
+// La couleur ne décore pas, elle nomme la famille de données ; le libellé de
+// famille est écrit en toutes lettres pour ne jamais reposer sur la seule
+// couleur (référentiel VAL, classement §2).
+import type { LandingLink } from "../lib/landing";
+
+interface Props {
+  numero: string;
+  sphere: "anthroposphere" | "lithosphere" | "atmosphere" | "hydrosphere" | "risques";
+  sphereNom: string;
+  titre: string;
+  description: string;
+  liens: readonly LandingLink[];
+  rang?: "majeure" | "courante";
+}
+const { numero, sphere, sphereNom, titre, description, liens, rang = "courante" } = Astro.props;
+const lienUnique = liens.length === 1 ? liens[0] : undefined;
+---
+<article class:list={["carte", `carte--${sphere}`, rang === "majeure" && "carte--majeure"]}>
+  <p class="carte__sphere"><span>{numero}</span>{sphereNom}</p>
+  <div class="carte__contenu">
+    <h3>{titre}</h3>
+    <p>{description}</p>
+  </div>
+  {/* Le titre reste dans le nom accessible du lien : « Ouvrir » seul serait
+      indiscernable d'une carte à l'autre pour un lecteur d'écran. */}
+  {lienUnique ? (
+    <a class="carte__lien carte__lien--etendu" href={lienUnique.href}>
+      Ouvrir<span class="sr-only"> {titre}</span> <span aria-hidden="true">↗</span>
+    </a>
+  ) : (
+    <ul class="carte__liens">
+      {liens.map((lien) => (
+        <li><a class="carte__lien" href={lien.href}>{lien.name} <span aria-hidden="true">↗</span></a></li>
+      ))}
+    </ul>
+  )}
+</article>
+
+<style>
+  .carte {
+    --accent: var(--couleur-action);
+    --accent-texte: var(--couleur-action);
+    position: relative;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-height: 13rem;
+    padding: var(--esp-m);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
+    background: var(--surface-elevee);
+    box-shadow: var(--ombre-courte);
+    transition: border-color var(--duree-courte) var(--courbe), box-shadow var(--duree-courte) var(--courbe), transform var(--duree-courte) var(--courbe);
+  }
+  .carte::before { position: absolute; inset: 0 0 auto; height: 2px; background: var(--accent); content: ""; }
+  .carte:hover { border-color: color-mix(in srgb, var(--accent) 42%, var(--bordure)); box-shadow: var(--ombre); transform: translateY(-2px); }
+  .carte--majeure { min-height: 16rem; padding: var(--esp-l); }
+
+  .carte--anthroposphere { --accent: var(--anthroposphere); --accent-texte: var(--anthroposphere-texte); }
+  .carte--lithosphere { --accent: var(--lithosphere); --accent-texte: var(--lithosphere-texte); }
+  .carte--atmosphere { --accent: var(--atmosphere); --accent-texte: var(--atmosphere-texte); }
+  .carte--hydrosphere { --accent: var(--hydrosphere); --accent-texte: var(--hydrosphere-texte); }
+  .carte--risques { --accent: var(--risques); --accent-texte: var(--risques-texte); }
+
+  .carte__sphere { display: flex; gap: var(--esp-2xs); margin: 0; color: var(--accent-texte); font-family: var(--font-mono); font-size: var(--txt-micro); font-weight: var(--poids-fort); letter-spacing: var(--ls-label); text-transform: uppercase; }
+  .carte__sphere span { color: var(--texte-tertiaire); }
+
+  /* Alignement en haut : les titres des cartes d'une même rangée se lisent sur
+     une seule ligne d'horizon, quel que soit le nombre de liens en pied. */
+  .carte__contenu { align-self: start; padding-block: var(--esp-m); }
+  .carte__contenu h3 { margin: 0 0 var(--esp-2xs); font-family: var(--font-display); font-size: var(--txt-xl); font-weight: var(--poids-normal); letter-spacing: var(--ls-titre); }
+  .carte--majeure .carte__contenu h3 { font-size: var(--txt-2xl); }
+  .carte__contenu p { max-width: 42ch; margin: 0; color: var(--texte-secondaire); font-size: var(--txt-xs); line-height: 1.5; }
+
+  .carte__liens { display: grid; margin: 0; padding: 0; border-top: 1px solid var(--bordure); list-style: none; }
+  .carte__liens li + li { border-top: 1px solid var(--bordure); }
+  .carte__lien { display: flex; min-height: var(--cible); align-items: center; gap: var(--esp-3xs); color: var(--couleur-action); font-size: var(--txt-micro); font-weight: var(--poids-fort); line-height: 1.35; text-decoration: none; }
+  .carte__lien:hover { text-decoration: underline; text-underline-offset: var(--esp-3xs); }
+
+  /* Une seule destination : toute la carte devient la cible, sans dupliquer le lien. */
+  .carte__lien--etendu { border-top: 1px solid var(--bordure); }
+  .carte__lien--etendu::after { position: absolute; inset: 0; content: ""; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .carte { transition: none; }
+    .carte:hover { transform: none; }
+  }
+</style>

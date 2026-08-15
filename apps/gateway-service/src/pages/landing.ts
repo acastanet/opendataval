@@ -70,7 +70,7 @@ export function renderLanding(config: GatewayConfig): string {
 <section class="card">
   <h2>Application de terrain</h2>
   <p class="role">Carte, position et suspicions satellitaires de feu à proximité, dans une interface mobile.</p>
-  <div class="card-actions"><a class="btn" href="/valfeu/">Ouvrir valfeu &rarr;</a></div>
+  <div class="card-actions"><a class="btn" href="/valfeu/">Ouvrir LAV.feu &rarr;</a></div>
 </section>
 <section class="card">
   <h2>Périmètre OLD</h2>

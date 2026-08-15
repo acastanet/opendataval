@@ -1,6 +1,5 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import BoutonAccueil from "../../components/BoutonAccueil.astro";
 import MeteoInformations from "../../islands/MeteoInformations.svelte";
 ---
 
@@ -8,10 +7,9 @@ import MeteoInformations from "../../islands/MeteoInformations.svelte";
   title="Comprendre la météo — Val-d’Aigoual"
   description="Informations d’usage, limites et sources de la météo essentielle."
 >
-  <BoutonAccueil />
   <MeteoInformations client:only="svelte" />
 </Layout>
 
 <style>
-  :global(body) { background: #fcfcfa; }
+  :global(body) { background: var(--surface-plate); }
 </style>

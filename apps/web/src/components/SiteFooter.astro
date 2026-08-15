@@ -1,54 +1,91 @@
 ---
 import { TERRITOIRE, SECTIONS } from "@opendata-vda/shared";
 const annee = new Date().getFullYear();
+const sections = SECTIONS.filter((section) => section.slug !== "sources");
 ---
 <footer class="pied-site">
+  <slot name="final" />
   <div class="conteneur pied-interieur">
+    <a class="marque-pied" href="/" aria-label="LAV — accueil">
+      <img src="/favicon.svg" width="32" height="32" alt="" />
+      <span><strong>LAV</strong><small>Localiser · Agréger · Valoriser</small></span>
+    </a>
     <nav class="plan-site" aria-label="Plan du site">
-      <a href="/carte">Carte</a>
-      <a href="/relief">Relief 3D</a>
-      {SECTIONS.map((s) => <a href={`/${s.slug}`}>{s.titre}</a>)}
+      <a href="/carte/">Carte</a>
+      <a href="/relief/">Relief 3D</a>
+      {sections.map((s) => <a href={`/${s.slug}/`}>{s.titre}</a>)}
     </nav>
-    <p>{TERRITOIRE.epci.nom} — données publiées sous licences ouvertes (Etalab, ODbL selon la source).</p>
-    <p class="mentions">© {annee} · <a href="/carte">Explorer la carte</a></p>
+    <div class="mentions">
+      <p>{TERRITOIRE.epci.nom} — données publiées sous licences ouvertes selon la source.</p>
+      <p>© {annee} · <a href="/admin/">Administration</a></p>
+    </div>
   </div>
 </footer>
 
 <style>
+  /* Le pied et le bloc final de la page partagent un seul aplat sombre : deux
+     surfaces identiques collées l'une à l'autre ne se lisaient que comme une
+     longue zone morte en fin de page. */
   .pied-site {
-    border-top: 1px solid var(--border);
-    margin-top: 3rem;
+    position: relative;
+    overflow: hidden;
+    border-top: 1px solid rgb(255 255 255 / 13%);
+    background: var(--surface-sombre);
+    color: var(--texte-sur-sombre-doux);
+  }
+
+  .pied-site::after {
+    position: absolute;
+    top: -11rem;
+    right: -5rem;
+    width: 26rem;
+    height: 26rem;
+    border: 1px solid rgb(255 255 255 / 10%);
+    border-radius: 50%;
+    content: "";
   }
 
   .pied-interieur {
-    padding-top: 1.4rem;
-    padding-bottom: 2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.9rem;
-    font-size: 0.75rem;
-    color: var(--border);
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: var(--esp-l);
+    padding-top: var(--esp-xl);
+    padding-bottom: var(--esp-xl);
+    font-size: var(--txt-micro);
   }
+
+  .marque-pied { display: flex; align-items: center; gap: var(--esp-s); color: var(--texte-sur-sombre); text-decoration: none; }
+  .marque-pied img { width: 2rem; height: 2rem; }
+  .marque-pied strong, .marque-pied small { display: block; }
+  .marque-pied strong { font-family: var(--font-display); font-size: var(--txt-xl); font-weight: var(--poids-normal); line-height: 1; }
+  .marque-pied small { margin-top: var(--esp-3xs); color: var(--texte-sur-sombre-doux); font-family: var(--font-mono); font-size: .58rem; letter-spacing: var(--ls-label); text-transform: uppercase; }
 
   .plan-site {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem 1.1rem;
-    padding-bottom: 0.9rem;
-    border-bottom: 1px solid var(--border);
+    gap: var(--esp-xs) var(--esp-l);
+    padding-block: var(--esp-m);
+    border-block: 1px solid rgb(255 255 255 / 13%);
   }
 
   .plan-site a {
-    color: var(--border);
+    display: inline-flex;
+    min-height: var(--cible);
+    align-items: center;
+    color: var(--texte-sur-sombre-doux);
     text-decoration: none;
   }
 
   .plan-site a:hover,
   .plan-site a:focus-visible {
-    color: var(--fg);
+    color: var(--texte-sur-sombre);
   }
 
-  .mentions a {
-    color: var(--border);
-  }
+  .mentions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--esp-s) var(--esp-l); }
+  .mentions p { margin: 0; }
+  .mentions a { color: var(--texte-sur-sombre); }
+
+  /* Sur fond sombre, --focus tombe à 1,37:1 : invisible. */
+  .pied-site a:focus-visible { outline-color: var(--focus-sur-sombre); }
 </style>

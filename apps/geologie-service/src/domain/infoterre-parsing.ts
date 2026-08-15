@@ -56,16 +56,20 @@ export function extraireDocuments(html: string, urlFiche: string): DocumentInfot
   throw new ErreurExtractionInfoterre('Section "documents numérisés" présente mais non reconnue');
 }
 
-/** Priorise les documents de type coupe géologique, l'interprétée passant avant le chantier. */
-export function documentsCoupe(documents: DocumentInfoterre[]): DocumentInfoterre[] {
+/**
+ * Classe tous les documents par intérêt géologique probable, sans en écarter aucun : une coupe
+ * interprétée passe avant un chantier, une coupe générique avant un rapport, un rapport avant le
+ * reste. Contrairement à l'ancien `documentsCoupe` (retiré), rien n'est filtré — un rapport PDF
+ * non typé "COUPE" reste éligible à la sélection, seulement moins prioritaire.
+ */
+export function classerDocuments(documents: DocumentInfoterre[]): DocumentInfoterre[] {
   const rang = (doc: DocumentInfoterre): number => {
     if (doc.types.some((t) => t.toUpperCase().includes("INTERPRETEE"))) return 0;
-    if (doc.types.some((t) => t.toUpperCase().includes("CHANTIER"))) return 1;
-    return 2;
+    if (doc.types.some((t) => t.toUpperCase().includes("COUPE"))) return 1;
+    if (doc.types.some((t) => t.toUpperCase().includes("RAPPORT"))) return 2;
+    return 3;
   };
-  return documents
-    .filter((doc) => doc.types.some((t) => t.toUpperCase().includes("COUPE")))
-    .sort((a, b) => rang(a) - rang(b));
+  return [...documents].sort((a, b) => rang(a) - rang(b));
 }
 
 const RE_LIGNE_LOG =

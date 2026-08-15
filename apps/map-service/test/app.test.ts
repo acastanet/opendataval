@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ALTIMETRIE_IGN } from "@opendata-vda/shared/carto";
+import { ALTIMETRIE_IGN, REGIONS_RELIEF } from "@opendata-vda/shared/carto";
 import { buildApp } from "../src/app.js";
 import type { MapConfig } from "../src/config.js";
 import { empriseLambert } from "../src/domain/lambert93.js";
@@ -18,8 +18,12 @@ const config: MapConfig = {
   brgmUpstreamUrl: "https://brgm.test/wms",
   upstreamTimeoutMs: 1000,
   tileCacheMaxBytes: 1024 * 1024,
-  reliefGlobalPath: "/tmp/absent-global.pmtiles",
-  reliefHdPath: "/tmp/absent-hd.pmtiles",
+  reliefRegions: REGIONS_RELIEF.map((region) => ({
+    id: region.id,
+    bounds: region.bounds,
+    globalPath: `/tmp/absent-${region.id}-global.pmtiles`,
+    hdPath: `/tmp/absent-${region.id}-hd.pmtiles`,
+  })),
   assetsRoot: "/tmp/absent-map-assets",
 };
 
@@ -72,7 +76,9 @@ test("refuse un ombrage hors préréglages", async () => {
 
 test("signale l’absence des archives de relief sur les deux extensions", async () => {
   const app = buildApp({ config, fetchImpl, logger: false });
-  for (const url of ["/api/v2/map/relief/12/2090/1493.webp", "/api/v2/map/relief/12/2090/1493.png"]) {
+  // Tuile centrée dans la région aigoual (3.65°E, 44.12°N) : la région est trouvée, mais ses
+  // archives ne sont pas montées, d'où le 503 plutôt qu'un 404 « hors couverture ».
+  for (const url of ["/api/v2/map/relief/12/2089/1487.webp", "/api/v2/map/relief/12/2089/1487.png"]) {
     const response = await app.inject({ method: "GET", url });
     assert.equal(response.statusCode, 503);
     assert.equal(response.json().error.code, "RELIEF_INDISPONIBLE");
@@ -137,11 +143,11 @@ test("convertit et met en cache une tuile d’altitude haute définition", async
 test("sert les archives locales sous le seuil du relief haute définition", async () => {
   // La pyramide doit rester complète : MapLibre charge les tuiles parentes en se déplaçant,
   // jusqu'à 0/0/0. Ici les archives sont absentes, d'où le 503 — mais l'appel les vise bien,
-  // sans solliciter l'IGN.
+  // sans solliciter l'IGN. Tuile centrée dans la région aigoual (3.87°E, 44.34°N).
   let appels = 0;
   const espion: typeof fetch = async (...args) => { appels++; return fetchImpl(...args); };
   const app = buildApp({ config, fetchImpl: espion, logger: false });
-  const response = await app.inject({ method: "GET", url: "/api/v2/map/relief-hd/9/250/180.png" });
+  const response = await app.inject({ method: "GET", url: "/api/v2/map/relief-hd/9/261/185.png" });
   assert.equal(response.statusCode, 503);
   assert.equal(response.json().error.code, "RELIEF_INDISPONIBLE");
   assert.equal(appels, 0, "aucun appel amont sous le seuil");

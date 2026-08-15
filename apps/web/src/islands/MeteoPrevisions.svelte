@@ -79,7 +79,7 @@
   $: seriesTemperature = [
     {
       nom: "Température",
-      couleur: "var(--color-alerte)",
+      couleur: "var(--alerte)",
       points: heures.map((h) => ({ x: new Date(h.t).getTime(), y: h.temperature ?? null })),
     },
   ];
@@ -126,7 +126,7 @@
         <h3>Précipitations horaires (48 h)</h3>
         <GrapheBarres
           barres={barresPrecipitation}
-          couleur="var(--color-torrent)"
+          couleur="var(--torrent)"
           formatX={(v) => new Date(v).toLocaleTimeString("fr-FR", { hour: "2-digit" })}
           formatY={(v) => `${v} mm`}
           hauteur={140}
@@ -145,11 +145,11 @@
     margin-top: 1rem;
   }
   .etat {
-    color: var(--border);
+    color: var(--texte-tertiaire);
     font-size: 0.9rem;
   }
   .avertissement {
-    color: var(--color-alerte);
+    color: var(--alerte);
     font-size: 0.82rem;
     margin: 0 0 0.8rem;
   }
@@ -161,8 +161,8 @@
   }
   .jour {
     padding: 0.6rem 0.7rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
   }
   .jour-date {
     margin: 0 0 0.3rem;
@@ -172,7 +172,7 @@
   .jour-code {
     margin: 0 0 0.4rem;
     font-size: 0.76rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
   .jour-temp {
     margin: 0;
@@ -181,7 +181,7 @@
   .jour-detail {
     margin: 0.15rem 0 0;
     font-size: 0.72rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
   .graphes {
     display: grid;
@@ -196,6 +196,6 @@
   }
   .attribution {
     font-size: 0.72rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 </style>

@@ -1,7 +1,7 @@
 ---
 import fs from "node:fs";
 import path from "node:path";
-import BoutonAccueil from "../../components/BoutonAccueil.astro";
+import Layout from "../../layouts/Layout.astro";
 
 type ClimateCommentary = {
   summary: string;
@@ -61,16 +61,7 @@ const nav = [
   ["04", "eau", "L’eau", "cycle hydroclimatique"],
 ];
 ---
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Fiche climat OpenDataVal : climat habituel et évolution récente d’un lieu." />
-  <title>Fiche climat — OpenDataVal</title>
-</head>
-<body>
-  <BoutonAccueil />
+<Layout title="Fiche climat — LAV" description="Climat habituel et évolution récente d’un lieu.">
   <main class="sheet">
     <header class="hero">
       <div>
@@ -136,5 +127,4 @@ const nav = [
 <style>
 :root{color-scheme:light;--bg:#d0cfcc;--paper:#f8f7f3;--ink:#171816;--muted:#666963;--line:#c9c8c2;--winter:#92adc0;--spring:#9dbb75;--summer:#e2ad54;--autumn:#c87951}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.sheet{width:min(1180px,calc(100% - 40px));margin:34px auto;background:var(--paper);box-shadow:0 18px 55px #1f221e1f}.hero{padding:52px 58px 34px;display:grid;grid-template-columns:1.4fr .6fr;gap:36px;border-bottom:1px solid var(--line)}.kicker{margin:0 0 11px;color:var(--muted);font-size:.7rem;font-weight:800;letter-spacing:.13em}h1{margin:0;font-size:clamp(3rem,7vw,5.4rem);line-height:.9;letter-spacing:-.055em}.lede{max-width:720px;margin:22px 0 0;font-size:1.15rem;line-height:1.45}.meta{align-self:end;padding-left:18px;border-left:2px solid var(--ink);font-size:.84rem;line-height:1.65}.meta b{display:block}.nav{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}.nav a{padding:17px 19px;border-right:1px solid var(--line);color:inherit;text-decoration:none}.nav a:last-child{border-right:0}.nav small,.nav b,.nav span{display:block}.nav small,.nav span{color:var(--muted)}.nav small{margin-bottom:7px;font-size:.65rem;font-weight:800}.nav b{font-size:.9rem}.nav span{margin-top:4px;font-size:.72rem}.brief{padding:30px 58px 36px;background:#ecebe6;border-bottom:1px solid var(--line)}.brief-grid{display:grid;grid-template-columns:1.3fr repeat(3,1fr);gap:11px}.brief-grid>div,.brief-main{margin:0;min-height:125px;padding:19px;border:1px solid var(--line);background:var(--paper)}.brief-main{font-size:1.17rem;font-weight:720;line-height:1.36}.brief-grid div b{display:block;font-size:2.1rem;letter-spacing:-.04em}.brief-grid div span{display:block;margin-top:7px;color:var(--muted);font-size:.76rem;line-height:1.4}.commentary{margin:28px 58px 0;padding:24px 26px;border:1px solid var(--line);background:white}.commentary h2{margin:0;font-size:2rem}.summary{font-weight:650;line-height:1.5}.commentary li{margin:6px 0;font-size:.88rem;line-height:1.45}.caveats{margin-top:16px;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:.74rem}.analysis{scroll-margin-top:18px;padding:50px 58px 58px;border-bottom:1px solid var(--line)}.analysis>header{display:grid;grid-template-columns:66px 1fr;gap:15px;margin-bottom:25px}.analysis>header>span{color:#8c8f88;font-size:3.1rem;font-weight:300;line-height:.9}.analysis h2{margin:0;font-size:clamp(2rem,4vw,3rem);line-height:1;letter-spacing:-.045em}.analysis header div>p:last-child{margin:8px 0 0;color:var(--muted);font-size:.9rem}.analysis figure{margin:0;overflow:hidden;border:1px solid var(--line);background:#c9c8c5;box-shadow:0 9px 24px #24313a14}.analysis figure img{display:block;width:100%;height:auto}.micro{color:var(--muted);font-size:.7rem;line-height:1.5}.signals{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:17px}.signals article{min-height:112px;padding:15px;border:1px solid var(--line);background:white}.signals b,.signals span,.signals small{display:block}.signals b{font-size:1.72rem;letter-spacing:-.04em}.signals span{margin-top:6px;font-size:.74rem;font-weight:700}.signals small{margin-top:9px;color:var(--muted);font-size:.63rem;line-height:1.35}.season-box{padding:25px;border:1px solid var(--line);background:white}.timeline-row{display:grid;grid-template-columns:110px 1fr;gap:13px;align-items:center;margin:15px 0}.timeline-row>b{font-size:.75rem}.timeline{display:flex;height:50px;overflow:hidden;border:1px solid #b7b8b3}.timeline span{display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:.65rem;font-weight:800;white-space:nowrap}.winter{background:var(--winter)}.spring{background:var(--spring)}.summer{background:var(--summer)}.autumn{background:var(--autumn)}.months{display:grid;grid-template-columns:110px repeat(12,1fr);margin-top:5px;color:var(--muted);font-size:.56rem;text-align:center;text-transform:uppercase}.method{display:grid;grid-template-columns:.6fr .6fr 1.4fr 1fr;margin-top:24px;border:1px solid var(--line)}.method div{padding:12px;border-right:1px solid var(--line)}.method div:last-child{border-right:0}.method b,.method span{display:block}.method b{font-size:.64rem;text-transform:uppercase;letter-spacing:.05em}.method span{margin-top:4px;color:var(--muted);font-size:.69rem;line-height:1.35}footer{display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:27px 58px 36px;color:var(--muted);font-size:.7rem;line-height:1.55}footer p{margin:0}footer b{color:var(--ink)}@media(max-width:900px){.hero{grid-template-columns:1fr}.meta{border-left:0;border-top:2px solid var(--ink);padding:14px 0 0}.nav{grid-template-columns:1fr 1fr}.brief-grid{grid-template-columns:1fr 1fr}.signals{grid-template-columns:1fr 1fr}.method{grid-template-columns:1fr 1fr}}@media(max-width:620px){.sheet{width:100%;margin:0}.hero,.brief,.analysis{padding-left:22px;padding-right:22px}.commentary{margin-left:22px;margin-right:22px}.nav,.brief-grid,.signals,.method,footer{grid-template-columns:1fr}.nav a{border-right:0;border-bottom:1px solid var(--line)}.analysis>header{grid-template-columns:44px 1fr}.analysis>header>span{font-size:2.5rem}.timeline-row{grid-template-columns:1fr;gap:6px}.months{display:none}.method div{border-right:0;border-bottom:1px solid var(--line)}footer{padding-left:22px;padding-right:22px}}
 </style>
-</body>
-</html>
+</Layout>

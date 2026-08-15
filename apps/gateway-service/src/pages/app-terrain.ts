@@ -1,10 +1,13 @@
+import { readFileSync } from "node:fs";
 import type { GatewayConfig } from "../config.js";
 import { MAIRIE_VAL_D_AIGOUAL } from "../services-catalog.js";
 import { escapeHtml } from "./layout.js";
 
+const SOCLE_CSS = readFileSync(new URL("../../public/valfeu/design-system.css", import.meta.url), "utf8");
+
 export const APP_MANIFEST = {
-  name: "valfeu — Veille incendie",
-  short_name: "valfeu",
+  name: "LAV.feu — Veille incendie",
+  short_name: "LAV.feu",
   start_url: "/valfeu/",
   scope: "/valfeu/",
   display: "standalone",
@@ -21,193 +24,118 @@ export const APP_MANIFEST = {
   ],
 } as const;
 
+// Géométrie reprise du favicon officiel (apps/web/public/favicon.svg) : cadre arrondi,
+// deux montagnes. La flamme est posée sur la montagne avant, en --risques.
 export const APP_ICONE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
-<title id="title">valfeu</title>
-<rect width="512" height="512" rx="108" fill="#17362f"/>
-<path d="M70 405 174 235l74 92 61-80 133 158H70Z" fill="#e8e1d4"/>
-<path d="M271 82c-16 63-91 91-91 174 0 55 40 100 93 100s96-43 96-98c0-46-25-88-71-126 5 42-14 63-35 75 8-41-1-80 8-125Z" fill="#e95b32"/>
-<path d="M275 224c-5 25-36 40-36 72 0 22 16 40 37 40 22 0 39-17 39-39 0-19-10-34-28-50 1 17-5 26-13 31 3-18-1-35 1-54Z" fill="#ffd166"/>
+<title id="title">LAV.feu</title>
+<path d="M104 16h304c48.6 0 88 39.4 88 88v304c0 48.6-39.4 88-88 88H104c-48.6 0-88-39.4-88-88V104C16 55.4 55.4 16 104 16Z" fill="#fbfcfa" stroke="#89958e" stroke-width="10"/>
+<path d="M96 372 258 154l88 118 66-72 104 172H96Z" fill="#173e2b"/>
+<path d="M330 372c-8-42 22-70 40-104 4 32 22 46 40 60-4 26 4 44 14 44 8 0 14-8 14-20 0-38-32-64-56-100-6 46-46 68-46 112 0 22 12 38 28 38 20 0 34-16 34-36 0-16-8-28-18-38 2 12-2 22-8 26 2-10-2-20 2-30" fill="#f4513b"/>
 </svg>`;
 
 const STYLES = `
+${SOCLE_CSS}
 :root {
-  color-scheme: light dark;
-  --bg: #f4f1eb; --surface: #fffdf9; --surface-alpha: rgba(255,253,249,.96);
-  --surface-soft: #f1ede4; --border: #d9d3c7; --text: #17211e; --muted: #66716c;
-  --forest: #17362f; --forest-soft: #dce8e1; --accent: #dc4c2a; --accent-strong: #b9371b;
-  --ok-bg: #e3f0e7; --ok-fg: #247348; --ko-bg: #fae7e2; --ko-fg: #a93221;
-  --warn-bg: #fff1cf; --warn-fg: #745615; --alert-bg: #fee9df; --alert-fg: #9c351f;
-  --shadow: 0 14px 42px rgba(23,33,30,.18); --dock-height: 146px;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #101714; --surface: #17211e; --surface-alpha: rgba(23,33,30,.96);
-    --surface-soft: #202c28; --border: #34443e; --text: #f3f0e9; --muted: #a9b4af;
-    --forest: #e4eee8; --forest-soft: #263d35; --accent: #f27a55; --accent-strong: #ff9878;
-    --ok-bg: #183528; --ok-fg: #73d49e; --ko-bg: #421f1b; --ko-fg: #ff9c89;
-    --warn-bg: #3a3019; --warn-fg: #f0c866; --alert-bg: #44251c; --alert-fg: #ff9b7d;
-  }
-  #map canvas { filter: brightness(.76) saturate(.78) contrast(1.06); }
+  color-scheme: light;
+  --ok-bg: color-mix(in srgb, var(--vigilance-vert) 14%, var(--surface-plate)); --ok-fg: var(--vigilance-vert-texte);
+  --ko-bg: color-mix(in srgb, var(--vigilance-rouge) 14%, var(--surface-plate)); --ko-fg: var(--vigilance-rouge-texte);
+  --warn-bg: color-mix(in srgb, var(--vigilance-jaune) 22%, var(--surface-plate)); --warn-fg: var(--vigilance-jaune-texte);
+  --alert-bg: color-mix(in srgb, var(--vigilance-orange) 16%, var(--surface-plate)); --alert-fg: var(--vigilance-orange-texte);
+  --hauteur-feuille: 300px;
+  --largeur-rail: 25.5rem;
+  --hauteur-bandeau: 4.5rem;
 }
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; overflow: hidden; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+body { margin: 0; background: var(--surface-fond); color: var(--texte-principal); font: var(--txt-m)/1.5 var(--font-body); }
 button, a { font: inherit; }
-button:focus-visible, a:focus-visible { outline: 3px solid #f3a185; outline-offset: 3px; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 #map, .map-fallback { position: fixed; inset: 0; width: 100%; height: 100dvh; }
-.map-fallback { display: grid; place-items: center; padding: 7rem 2rem calc(var(--dock-height) + 2rem + env(safe-area-inset-bottom)); background: var(--bg); color: var(--muted); text-align: center; }
+.map-fallback { display: grid; place-items: center; padding: calc(var(--hauteur-bandeau) + var(--esp-2xl)) var(--esp-xl) calc(var(--hauteur-feuille) + var(--esp-2xl) + env(safe-area-inset-bottom)); background: var(--surface-fond); color: var(--texte-secondaire); text-align: center; }
 .map-fallback p { margin: 0 0 .2rem; }
-.hud { position: fixed; z-index: 4; top: 0; left: 0; right: 0; padding: calc(.75rem + env(safe-area-inset-top)) .75rem .5rem; pointer-events: none; }
-.hud-card { max-width: 38rem; margin: auto; padding: .75rem; border: 1px solid color-mix(in srgb,var(--border) 80%,transparent); border-radius: 1rem; background: var(--surface-alpha); box-shadow: 0 8px 30px rgba(23,33,30,.14); backdrop-filter: blur(16px) saturate(1.2); }
-.hud-main { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: .7rem; }
-.brand-mark { width: 2.35rem; height: 2.35rem; display: grid; place-items: center; border-radius: .75rem; background: var(--forest); color: var(--surface); font-size: 1.15rem; font-weight: 900; }
-.eyebrow { display: block; margin-bottom: .06rem; color: var(--accent-strong); font-size: .67rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
-.hud-copy { min-width: 0; }
-.hud strong { display: block; overflow: hidden; color: var(--forest); font-size: .98rem; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-.source-status { display: flex; align-items: center; min-width: 0; margin-top: .28rem; color: var(--muted); font-size: .75rem; }
-.source-status span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.source-dot { flex: 0 0 auto; display: inline-block; width: .52rem; height: .52rem; margin-right: .38rem; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 3px color-mix(in srgb,var(--muted) 14%,transparent); }
-.source-dot[data-state="available"] { background: var(--ok-fg); }
-.source-dot[data-state="partial"] { background: var(--warn-fg); }
-.source-dot[data-state="unavailable"] { background: var(--ko-fg); }
-.emergency { min-width: 48px; min-height: 48px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; border-radius: .75rem; background: var(--ko-bg); color: var(--ko-fg); font-size: 1rem; font-weight: 900; line-height: 1; text-decoration: none; pointer-events: auto; }
-.emergency small { margin-top: .2rem; font-size: .59rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.safety-note { margin: .65rem 0 0; padding-top: .55rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .7rem; line-height: 1.35; }
-.safety-note a { color: var(--ko-fg); font-weight: 800; pointer-events: auto; }
-.map-legend { position: fixed; z-index: 3; top: calc(8.8rem + env(safe-area-inset-top)); right: .75rem; display: flex; gap: .45rem; padding: .4rem .55rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-alpha); box-shadow: 0 5px 18px rgba(23,33,30,.1); color: var(--muted); font-size: .67rem; font-weight: 700; backdrop-filter: blur(12px); }
-.legend-item { display: inline-flex; align-items: center; gap: .25rem; }
-.legend-dot { width: .48rem; height: .48rem; border-radius: 50%; background: #d1242f; }
-.legend-dot.orange { background: #f0883e; }
-.legend-dot.yellow { background: #e3b341; }
-.sheet { position: fixed; z-index: 5; left: .5rem; right: .5rem; bottom: calc(var(--dock-height) + .65rem + env(safe-area-inset-bottom)); max-height: min(68dvh,42rem); display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 1.2rem; background: var(--surface-alpha); box-shadow: var(--shadow); backdrop-filter: blur(16px) saturate(1.2); transform: translateY(calc(100% - 68px)); transition: transform .25s cubic-bezier(.2,.75,.25,1); }
-.sheet[data-state="hidden"] { transform: translateY(100%); }
-.sheet[data-state="expanded"] { transform: translateY(0); }
-.sheet-head { display: grid; grid-template-columns: 1fr auto; align-items: center; min-height: 67px; padding: .55rem .65rem .55rem 1rem; }
-.sheet-heading { min-width: 0; }
-.sheet-kicker { display: block; color: var(--accent-strong); font-size: .65rem; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
-.sheet-title { display: block; overflow: hidden; margin-top: .05rem; font-size: 1.05rem; font-weight: 820; text-overflow: ellipsis; white-space: nowrap; }
-.sheet-handle { width: 48px; min-height: 48px; display: grid; place-items: center; border: 0; border-radius: .8rem; background: var(--surface-soft); color: var(--forest); cursor: pointer; }
-.sheet-handle::before { content: ""; width: .65rem; height: .65rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px,-2px); transition: transform .2s ease; }
-.sheet[data-state="expanded"] .sheet-handle::before { transform: rotate(225deg) translate(-2px,-2px); }
-.sheet-body { overflow-y: auto; padding: .1rem 1rem 1.1rem; border-top: 1px solid var(--border); overscroll-behavior: contain; scrollbar-color: var(--border) transparent; }
-.sheet p { margin: .45rem 0; }
-.notice { padding: .8rem .85rem; margin: .7rem 0; border-left: 4px solid currentColor; border-radius: .7rem; background: var(--warn-bg); color: var(--warn-fg); }
+
+.bandeau { position: fixed; z-index: 7; top: 0; left: 0; right: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-s); padding: calc(var(--esp-s) + env(safe-area-inset-top)) var(--esp-s) 0; pointer-events: none; }
+.bandeau > * { pointer-events: auto; }
+.marque { display: flex; align-items: center; gap: .55rem; padding: var(--esp-2xs) var(--esp-s); border: 1px solid var(--bordure-forte); border-radius: var(--rayon); background: var(--surface-plate); box-shadow: var(--ombre-courte); text-decoration: none; color: inherit; }
+.marque img { display: block; width: 2.1rem; height: 2.1rem; }
+.marque strong { display: block; font-family: var(--font-display); font-size: var(--txt-l); font-weight: var(--poids-normal); letter-spacing: var(--ls-titre); color: var(--couleur-action); line-height: 1.15; }
+.marque__suffixe { color: var(--risques-texte); }
+.marque small { display: block; margin-top: .05rem; font-family: var(--font-mono); font-size: .58rem; font-weight: var(--poids-appui); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--texte-secondaire); }
+.urgence { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: 0 var(--esp-m); border: 1px solid var(--ko-fg); border-radius: 999px; background: var(--surface-plate); text-decoration: none; box-shadow: var(--ombre-courte); }
+.urgence strong { font-size: var(--txt-l); font-weight: var(--poids-fort); color: var(--ko-fg); line-height: 1; }
+.urgence small { font-size: var(--txt-micro); font-weight: var(--poids-appui); letter-spacing: .04em; text-transform: uppercase; color: var(--texte-secondaire); }
+.urgence:hover { background: var(--ko-bg); }
+
+.legende { position: fixed; z-index: 3; right: var(--esp-s); bottom: calc(var(--hauteur-feuille) + var(--esp-s) + env(safe-area-inset-bottom)); display: flex; gap: var(--esp-xs); padding: var(--esp-2xs) var(--esp-s); border: 1px solid var(--bordure-forte); border-radius: var(--rayon); background: var(--surface-plate); box-shadow: var(--ombre-courte); color: var(--texte-secondaire); font-size: var(--txt-micro); font-weight: var(--poids-fort); transition: bottom .25s var(--courbe); }
+.legende__item { display: inline-flex; align-items: center; gap: var(--esp-3xs); }
+.legende__forme { width: .6rem; height: .6rem; border-radius: 50%; }
+.legende__item--recent .legende__forme { background: var(--vigilance-rouge); box-shadow: 0 0 0 3px color-mix(in srgb, var(--vigilance-rouge) 32%, transparent); }
+.legende__item--intermediaire .legende__forme { background: var(--vigilance-orange); border: 1.5px solid var(--surface-plate); box-shadow: 0 0 0 1px var(--vigilance-orange); }
+.legende__item--ancien .legende__forme { background: transparent; border: 2px solid var(--vigilance-jaune-texte); }
+
+.panneau { position: fixed; z-index: 5; left: var(--esp-xs); right: var(--esp-xs); bottom: 0; max-height: 64dvh; display: flex; flex-direction: column; border: 1px solid var(--bordure-forte); border-radius: var(--rayon) var(--rayon) 0 0; background: var(--surface-plate); box-shadow: var(--ombre); overflow: hidden; }
+.panneau__corps { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: var(--bordure) transparent; }
+.bloc { padding: var(--esp-m) var(--esp-l); border-top: 1px solid var(--bordure); }
+.bloc:first-child { border-top: 0; }
+.bloc__titre { margin: 0 0 var(--esp-2xs); color: var(--texte-secondaire); font-size: var(--txt-micro); font-weight: var(--poids-fort); letter-spacing: var(--ls-label); text-transform: uppercase; }
+.bloc__principal { margin: 0; font-family: var(--font-display); font-size: var(--txt-l); font-weight: var(--poids-normal); }
+.bloc__secondaire { margin: .1rem 0 0; color: var(--texte-secondaire); font-size: var(--txt-s); }
+.boutons-point { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-xs); margin-top: var(--esp-s); }
+.bouton-secondaire { min-height: 44px; padding: var(--esp-xs); border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface-fond); color: var(--texte-principal); font-size: var(--txt-s); font-weight: var(--poids-appui); cursor: pointer; }
+.bouton-secondaire:hover { border-color: var(--couleur-action); color: var(--couleur-action); }
+.panneau__pied { flex: 0 0 auto; padding: var(--esp-s) var(--esp-l) calc(var(--esp-s) + env(safe-area-inset-bottom)); border-top: 1px solid var(--bordure); }
+.fraicheur { display: flex; align-items: center; margin: 0; color: var(--texte-secondaire); font-size: var(--txt-xs); }
+.fraicheur__point { flex: 0 0 auto; display: inline-block; width: .52rem; height: .52rem; margin-right: var(--esp-2xs); border-radius: 50%; background: var(--texte-tertiaire); box-shadow: 0 0 0 3px color-mix(in srgb, var(--texte-tertiaire) 14%, transparent); }
+.fraicheur__point[data-state="available"] { background: var(--ok-fg); }
+.fraicheur__point[data-state="partial"] { background: var(--warn-fg); }
+.fraicheur__point[data-state="unavailable"] { background: var(--ko-fg); }
+.note-securite { margin: var(--esp-2xs) 0 0; color: var(--texte-secondaire); font-size: var(--txt-xs); line-height: 1.35; }
+.note-securite a { color: var(--ko-fg); font-weight: var(--poids-fort); }
+
+.segments { display: grid; padding: var(--esp-3xs); border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--couleur-action-douce); }
+.segments--rayon { grid-template-columns: repeat(3, 1fr); }
+.segments--fenetre { grid-template-columns: repeat(2, 1fr); margin-top: var(--esp-xs); }
+.segments button { min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: var(--rayon-fin); background: transparent; color: var(--texte-secondaire); font-size: var(--txt-xs); font-weight: var(--poids-fort); cursor: pointer; }
+.segments button[aria-pressed="true"] { background: var(--surface-plate); color: var(--couleur-action); box-shadow: var(--ombre-courte); }
+.action-primaire { width: 100%; min-height: 48px; margin-top: var(--esp-s); padding: var(--esp-xs) var(--esp-l); border: 0; border-radius: var(--rayon); background: var(--couleur-action-active); color: var(--texte-sur-sombre); font-size: var(--txt-m); font-weight: var(--poids-fort); cursor: pointer; box-shadow: var(--ombre-courte); }
+.action-primaire:hover { background: var(--couleur-action); }
+.action-primaire[aria-busy="true"] { opacity: .6; }
+
+.notice { padding: var(--esp-m); margin: var(--esp-s) 0; border-left: 4px solid currentColor; border-radius: var(--rayon); background: var(--warn-bg); color: var(--warn-fg); }
 .notice.error { background: var(--ko-bg); color: var(--ko-fg); }
-.warning-list { margin: .55rem 0; padding-left: 1.2rem; }
-.request-id { color: var(--muted); font-size: .75rem; overflow-wrap: anywhere; }
-.retry { min-height: 48px; margin-top: .55rem; padding: .65rem 1rem; border: 0; border-radius: .7rem; background: var(--forest); color: var(--surface); font-weight: 800; cursor: pointer; }
-.result-list { display: grid; gap: .55rem; list-style: none; margin: .7rem 0; padding: 0; }
-.result-list button { width: 100%; min-height: 64px; padding: .7rem .8rem; border: 1px solid var(--border); border-radius: .8rem; background: var(--surface); color: var(--text); text-align: left; box-shadow: 0 3px 12px rgba(23,33,30,.05); cursor: pointer; }
-.result-list button:hover { border-color: var(--accent); transform: translateY(-1px); }
-.result-list strong, .result-list span { display: block; }
-.result-list strong { color: var(--forest); font-size: .92rem; }
-.result-list span { margin-top: .18rem; color: var(--muted); font-size: .78rem; }
-.nearest { padding: .85rem; border: 1px solid color-mix(in srgb,var(--accent) 30%,var(--border)); border-radius: .8rem; background: var(--alert-bg); color: var(--alert-fg); }
-.day { margin: 1rem 0 .35rem; color: var(--forest); font-size: .82rem; letter-spacing: .02em; text-transform: capitalize; }
-.details { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; padding: .8rem; border: 1px solid var(--border); border-radius: .8rem; background: var(--surface); }
-.details p { margin: 0; padding: .5rem; border-radius: .5rem; background: var(--surface-soft); }
-.details p:first-child { grid-column: 1/-1; background: var(--alert-bg); color: var(--alert-fg); }
-.actions { position: fixed; z-index: 6; left: .5rem; right: .5rem; bottom: calc(.5rem + env(safe-area-inset-bottom)); height: var(--dock-height); display: grid; grid-template-rows: 58px 1fr; gap: .5rem; padding: .55rem; border: 1px solid var(--border); border-radius: 1.2rem; background: var(--surface-alpha); box-shadow: 0 12px 40px rgba(23,33,30,.2); backdrop-filter: blur(18px) saturate(1.2); }
-.fire-search { display: grid; grid-template-columns: minmax(112px,.9fr) 1.4fr; gap: .5rem; }
-.action { min-width: 0; }
-.action-main { width: 100%; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: .4rem; padding: .45rem .35rem; border: 1px solid transparent; border-radius: .8rem; background: transparent; color: var(--forest); font-size: .78rem; font-weight: 780; cursor: pointer; }
-.action-main[aria-busy="true"] { opacity: .55; }
-.action-main:hover { background: var(--surface-soft); }
-.action-main .icon { font-size: 1.05rem; line-height: 1; }
-.fire-primary { border-color: var(--accent); background: var(--accent); color: #fff; font-size: .9rem; box-shadow: 0 5px 15px rgba(185,55,27,.25); }
-.fire-primary:hover { background: var(--accent-strong); }
-.segments { display: grid; grid-template-columns: 1fr 1fr; padding: .22rem; border: 1px solid var(--border); border-radius: .8rem; background: var(--surface-soft); }
-.segments button { min-width: 48px; min-height: 48px; padding: 0; border: 0; border-radius: .62rem; background: transparent; color: var(--muted); font-size: .76rem; font-weight: 800; cursor: pointer; }
-.segments button[aria-pressed="true"] { background: var(--surface); color: var(--forest); box-shadow: 0 2px 8px rgba(23,33,30,.12); }
-.secondary-actions { display: grid; grid-template-columns: repeat(3,1fr); gap: .25rem; border-top: 1px solid var(--border); padding-top: .35rem; }
-.maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { bottom: calc(var(--dock-height) + 1rem + env(safe-area-inset-bottom)); }
-@media (min-width: 700px) {
-  :root { --dock-height: 140px; }
-  .hud { left: 1rem; right: auto; width: 27rem; padding-left: 0; }
-  .map-legend { top: calc(1rem + env(safe-area-inset-top)); }
-  .sheet { left: 1rem; right: auto; width: 27rem; }
-  .actions { left: 50%; right: auto; width: min(35rem,calc(100% - 2rem)); transform: translateX(-50%); }
-}
-@media (min-width: 700px) and (max-width: 899px) and (orientation: portrait) {
-  :root { --dock-height: 130px; }
-  .hud { left: .75rem; width: 25rem; padding-top: calc(.65rem + env(safe-area-inset-top)); }
-  .hud-card { padding: .65rem; }
-  .safety-note { margin-top: .48rem; padding-top: .42rem; font-size: .65rem; }
-  .map-legend { top: calc(.75rem + env(safe-area-inset-top)); right: .75rem; }
-  .sheet {
-    left: .75rem;
-    width: 25rem;
-    bottom: calc(var(--dock-height) + .7rem + env(safe-area-inset-bottom));
-    max-height: 58dvh;
-  }
-  .sheet-head { min-height: 62px; }
-  .sheet-body { padding-bottom: .85rem; }
-  .result-list button { min-height: 58px; padding: .6rem .7rem; }
-  .actions {
-    width: min(34rem,calc(100% - 1.5rem));
-    height: var(--dock-height);
-    grid-template-rows: 54px 1fr;
-    padding: .45rem;
-  }
-  .action-main { min-height: 46px; }
-  .segments button { min-height: 46px; }
-  .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { bottom: calc(var(--dock-height) + .9rem + env(safe-area-inset-bottom)); }
+.warning-list { margin: var(--esp-s) 0; padding-left: 1.2rem; }
+.request-id { color: var(--texte-secondaire); font-size: var(--txt-xs); overflow-wrap: anywhere; }
+.retry { min-height: 44px; margin-top: var(--esp-s); padding: var(--esp-xs) var(--esp-l); border: 0; border-radius: var(--rayon); background: var(--couleur-action-active); color: var(--texte-sur-sombre); font-weight: var(--poids-fort); cursor: pointer; }
+.etat-vide { margin: var(--esp-s) 0 0; color: var(--texte-secondaire); }
+.synthese { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--esp-2xs); margin: var(--esp-s) 0; padding: var(--esp-s); border-radius: var(--rayon); background: var(--surface-fond); }
+.synthese strong { color: var(--couleur-action); font-size: var(--txt-m); }
+.synthese span { color: var(--texte-secondaire); font-size: var(--txt-s); }
+.liste-resultats { display: grid; gap: var(--esp-s); list-style: none; margin: var(--esp-s) 0 0; padding: 0; }
+.liste-resultats button { width: 100%; min-height: 60px; padding: var(--esp-s) var(--esp-m); border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface-plate); color: var(--texte-principal); text-align: left; cursor: pointer; }
+.liste-resultats button:hover { border-color: var(--risques); }
+.liste-resultats strong, .liste-resultats span { display: block; }
+.liste-resultats strong { color: var(--couleur-action); font-size: var(--txt-m); }
+.liste-resultats span { margin-top: .18rem; color: var(--texte-secondaire); font-size: var(--txt-xs); }
+.jour { margin: var(--esp-l) 0 var(--esp-2xs); color: var(--couleur-action); font-size: var(--txt-s); letter-spacing: .02em; text-transform: capitalize; }
+.details { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-xs); padding: var(--esp-m); border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface-fond); }
+.details p { margin: 0; padding: var(--esp-xs); border-radius: var(--rayon-fin); background: var(--surface-plate); }
+.details p:first-child { grid-column: 1 / -1; background: var(--alert-bg); color: var(--alert-fg); }
+
+.maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { bottom: calc(var(--hauteur-feuille) + var(--esp-l) + env(safe-area-inset-bottom)); transition: bottom .25s var(--courbe); }
+
+@media (min-width: 900px) {
+  .map-fallback { padding: calc(var(--hauteur-bandeau) + var(--esp-2xl)) calc(var(--largeur-rail) + var(--esp-2xl)) var(--esp-2xl) var(--esp-xl); }
+  .bandeau { left: auto; right: var(--esp-l); width: var(--largeur-rail); padding: var(--esp-l) 0 0; }
+  .legende { top: var(--esp-l); left: var(--esp-l); right: auto; bottom: auto; }
+  .panneau { left: auto; right: var(--esp-l); bottom: var(--esp-l); top: calc(var(--hauteur-bandeau) + var(--esp-l) + var(--esp-s)); width: var(--largeur-rail); max-height: none; border-radius: var(--rayon); }
+  .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { bottom: var(--esp-l) !important; left: var(--esp-l) !important; right: auto !important; }
 }
 @media (max-width: 480px) {
-  :root { --dock-height: 128px; }
-  .hud { padding: calc(.4rem + env(safe-area-inset-top)) .45rem .25rem; }
-  .hud-card { padding: .52rem .58rem; border-radius: .9rem; }
-  .hud-main { gap: .5rem; }
-  .brand-mark { width: 2rem; height: 2rem; border-radius: .62rem; font-size: 1rem; }
-  .eyebrow { font-size: .58rem; letter-spacing: .1em; }
-  .hud strong { font-size: .9rem; }
-  .source-status { margin-top: .18rem; font-size: .68rem; }
-  .emergency { min-width: 44px; min-height: 44px; border-radius: .65rem; font-size: .9rem; }
-  .emergency small { font-size: .5rem; }
-  .safety-note { margin-top: .42rem; padding-top: .38rem; font-size: .61rem; line-height: 1.25; }
-  .map-legend { top: calc(6.75rem + env(safe-area-inset-top)); right: .45rem; gap: .35rem; padding: .32rem .48rem; font-size: .6rem; }
-  .sheet {
-    left: .4rem; right: .4rem;
-    bottom: calc(var(--dock-height) + .45rem + env(safe-area-inset-bottom));
-    max-height: 48dvh;
-    border-radius: 1rem;
-    transform: translateY(calc(100% - 59px));
-  }
-  .sheet-head { min-height: 58px; padding: .4rem .5rem .4rem .8rem; }
-  .sheet-kicker { font-size: .57rem; }
-  .sheet-title { font-size: .95rem; }
-  .sheet-handle { width: 44px; min-height: 44px; border-radius: .7rem; }
-  .sheet-body { padding: .05rem .8rem .8rem; font-size: .88rem; }
-  .warning-list { margin: .45rem 0; padding-left: 1.05rem; font-size: .8rem; line-height: 1.4; }
-  .notice { padding: .65rem .7rem; margin: .5rem 0; }
-  .nearest { padding: .7rem; }
-  .result-list { gap: .4rem; margin: .5rem 0; }
-  .result-list button { min-height: 58px; padding: .58rem .65rem; }
-  .details { gap: .4rem; padding: .6rem; font-size: .8rem; }
-  .actions {
-    left: .4rem; right: .4rem;
-    bottom: calc(.35rem + env(safe-area-inset-bottom));
-    height: var(--dock-height);
-    grid-template-rows: 52px 1fr;
-    gap: .3rem;
-    padding: .42rem;
-    border-radius: 1rem;
-  }
-  .fire-search { grid-template-columns: 9rem minmax(0,1fr); gap: .38rem; }
-  .segments { padding: .17rem; border-radius: .7rem; }
-  .segments button { min-height: 44px; border-radius: .55rem; font-size: .7rem; }
-  .action-main { min-height: 44px; padding: .25rem .2rem; border-radius: .65rem; font-size: .69rem; }
-  .fire-primary { font-size: .78rem; }
-  .secondary-actions { padding-top: .22rem; }
-  .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { bottom: calc(var(--dock-height) + .75rem + env(safe-area-inset-bottom)); }
-}
-@media (max-width: 370px) {
-  :root { --dock-height: 124px; }
-  .actions { left: .3rem; right: .3rem; bottom: calc(.3rem + env(safe-area-inset-bottom)); padding: .45rem; }
-  .action-main { font-size: .7rem; }
-  .safety-note { display: none; }
-  .map-legend { top: calc(4.8rem + env(safe-area-inset-top)); }
-  .fire-search { grid-template-columns: 8.2rem minmax(0,1fr); }
+  .bandeau { padding: calc(var(--esp-xs) + env(safe-area-inset-top)) var(--esp-xs) 0; }
+  .marque strong { font-size: var(--txt-m); }
+  .urgence { min-height: 40px; padding: 0 var(--esp-s); }
+  .urgence strong { font-size: var(--txt-m); }
+  .bloc { padding: var(--esp-s); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
@@ -218,15 +146,15 @@ const CLIENT_SCRIPT = `
 (function () {
   "use strict";
   var origin = window.__terrainOrigin;
-  var state = { point: { lat: origin.lat, lon: origin.lon, label: origin.libelle }, radius: 5, lastFire: null, lastMode: null, map: null, mapReady: false, loadingVendor: false };
+  var state = { point: { lat: origin.lat, lon: origin.lon, label: origin.libelle }, rayon: 5, fenetre: 1, lastFire: null, map: null, mapReady: false, loadingVendor: false };
   var reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var sheet = document.getElementById("sheet");
-  var sheetTitle = document.getElementById("sheet-title");
-  var sheetBody = document.getElementById("sheet-body");
-  var hudPoint = document.getElementById("hud-point");
+  var panneau = document.getElementById("panneau");
+  var pointLibelle = document.getElementById("point-libelle");
+  var pointAdresse = document.getElementById("point-adresse");
+  var resultats = document.getElementById("resultats");
+  var boutonRecherche = document.getElementById("rechercher");
   var sourceDot = document.getElementById("source-dot");
   var sourceText = document.getElementById("source-text");
-  var fireButton = document.getElementById("fire-action");
 
   function esc(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) {
@@ -259,15 +187,22 @@ const CLIENT_SCRIPT = `
     };
     return labels[value] || value || "Source inconnue";
   }
-  function setSheet(title, html, expanded) {
-    sheetTitle.textContent = title;
-    sheetBody.innerHTML = html;
-    sheet.setAttribute("data-state", expanded === false ? "collapsed" : "expanded");
-    document.getElementById("sheet-handle").setAttribute("aria-expanded", expanded === false ? "false" : "true");
+  function libelleFenetre() { return state.fenetre === 7 ? "7 jours" : "24 h"; }
+  function majBoutonRecherche() {
+    boutonRecherche.textContent = "Rechercher · " + state.rayon + " km · " + libelleFenetre();
+  }
+  function majHauteurFeuille() {
+    if (typeof panneau.getBoundingClientRect !== "function") return;
+    var hauteur = panneau.getBoundingClientRect().height;
+    if (hauteur > 0) document.documentElement.style.setProperty("--hauteur-feuille", Math.round(hauteur) + "px");
+  }
+  function afficherResultats(html) {
+    resultats.innerHTML = html;
+    window.requestAnimationFrame ? window.requestAnimationFrame(majHauteurFeuille) : majHauteurFeuille();
   }
   function setPoint(point) {
     state.point = point;
-    hudPoint.textContent = point.label || (number(point.lat, 5) + ", " + number(point.lon, 5));
+    pointLibelle.textContent = point.label || (number(point.lat, 5) + ", " + number(point.lon, 5));
     updateActivePoint();
   }
   function setSourceState(value, label) {
@@ -329,11 +264,11 @@ const CLIENT_SCRIPT = `
     sourceData("detections", featureCollection([]));
     sourceData("search-radius", featureCollection([]));
   }
-  function detections(payload, mode) {
+  function detections(payload) {
     return payload && payload.history && Array.isArray(payload.history.suspicions) ? payload.history.suspicions : [];
   }
-  function paintFire(payload, mode, radius) {
-    var items = detections(payload, mode);
+  function peindreFeux(payload, radius) {
+    var items = detections(payload);
     var now = Date.now();
     sourceData("search-radius", featureCollection([circleFeature(state.point, radius)]));
     sourceData("detections", featureCollection(items.map(function (item) {
@@ -344,9 +279,9 @@ const CLIENT_SCRIPT = `
     })));
     if (!state.mapReady) return;
     var coordinates = [[state.point.lon, state.point.lat]].concat(items.map(function (item) { return [item.longitude, item.latitude]; }));
-    if (coordinates.length === 1) return fly(state.point, radius === 5 ? 13 : 10);
+    if (coordinates.length === 1) return fly(state.point, radius <= 5 ? 13 : radius <= 20 ? 11 : 10);
     var bounds = coordinates.reduce(function (box, coordinate) { return box.extend(coordinate); }, new window.maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
-    state.map.fitBounds(bounds, { padding: { top: 110, bottom: 230, left: 45, right: 45 }, maxZoom: 14, duration: reducedMotion ? 0 : 700 });
+    state.map.fitBounds(bounds, { padding: { top: 90, bottom: 220, left: 45, right: 45 }, maxZoom: 14, duration: reducedMotion ? 0 : 700 });
   }
   function fireWarnings(payload) {
     var sources = Array.isArray(payload.sources) ? payload.sources : [];
@@ -359,7 +294,8 @@ const CLIENT_SCRIPT = `
     return html;
   }
   function detail(item) {
-    setSheet("Détail de la suspicion satellitaire",
+    afficherResultats(
+      '<h2 class="bloc__titre">Détail de la suspicion satellitaire</h2>' +
       '<div class="details"><p><strong>Suspicion satellitaire non confirmée</strong></p>' +
       "<p>Distance : " + number(item.distance_km, 2) + " km</p>" +
       "<p>Observation : " + esc(dateTime(item.observed_at)) + "</p>" +
@@ -367,64 +303,63 @@ const CLIENT_SCRIPT = `
       "<p>Instrument : " + esc(item.instrument || "non renseigné") + "</p>" +
       "<p>Confiance : " + esc(item.confidence && item.confidence.normalized || "inconnue") + "</p>" +
       "<p>Puissance radiative : " + (typeof item.frp_mw === "number" ? number(item.frp_mw, 1) + " MW" : "non renseignée") + "</p></div>" +
-      fireWarnings(state.lastFire || {}), true);
+      fireWarnings(state.lastFire || {}));
   }
-  function fireList(payload, mode) {
-    var items = detections(payload, mode).slice().sort(function (a, b) { return a.distance_km - b.distance_km; });
+  function syntheseTexte(items) {
+    var plusProche = items.slice().sort(function (a, b) { return a.distance_km - b.distance_km; })[0];
+    return '<div class="synthese"><strong>' + items.length + (items.length > 1 ? " suspicions" : " suspicion") +
+      '</strong><span>la plus proche à ' + number(plusProche.distance_km, 2) + " km · " + esc(dateTime(plusProche.observed_at)) + '</span></div>';
+  }
+  function fireList(payload) {
+    var items = detections(payload).slice().sort(function (a, b) { return a.distance_km - b.distance_km; });
     var intro = fireWarnings(payload);
     if (!items.length) {
-      return intro + '<p>Aucune suspicion satellitaire remontée dans cette fenêtre. Ce résultat ne constitue pas une garantie d’absence de feu.</p>';
+      return intro + '<p class="etat-vide">Aucune suspicion satellitaire remontée dans ce rayon sur cette fenêtre. Ce résultat ne constitue pas une garantie d’absence de feu.</p>';
     }
     var byId = {};
     items.forEach(function (item) { byId[item.id] = item; });
     window.__terrainDetections = byId;
-    if (mode !== "history") {
-      var nearest = items[0];
-      return intro + '<div class="nearest"><strong>La plus proche : ' + number(nearest.distance_km, 2) +
-        ' km</strong><br>Suspicion satellitaire observée ' + esc(dateTime(nearest.observed_at)) + '</div>' +
-        '<ul class="result-list">' + items.map(function (item) {
-          return '<li><button type="button" data-detection="' + esc(item.id) + '"><strong>' +
-            number(item.distance_km, 2) + ' km · suspicion satellitaire</strong><span>' +
-            esc(dateTime(item.observed_at)) + " · " + esc(sourceLabel(item.source)) + "</span></button></li>";
-        }).join("") + "</ul>";
+    var synthese = syntheseTexte(items);
+    function carte(item) {
+      return '<li><button type="button" data-detection="' + esc(item.id) + '"><strong>' +
+        number(item.distance_km, 2) + ' km · suspicion satellitaire</strong><span>' +
+        esc(dateTime(item.observed_at)) + " · " + esc(sourceLabel(item.source)) + "</span></button></li>";
+    }
+    if (state.fenetre !== 7) {
+      return intro + synthese + '<ul class="liste-resultats">' + items.map(carte).join("") + "</ul>";
     }
     var groups = {};
     items.forEach(function (item) {
       var key = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date(item.observed_at));
       (groups[key] = groups[key] || []).push(item);
     });
-    return intro + Object.keys(groups).sort().reverse().map(function (key) {
+    return intro + synthese + Object.keys(groups).sort().reverse().map(function (key) {
       var group = groups[key];
-      return '<h3 class="day">' + esc(dayLabel(group[0].observed_at)) + " — " + group.length +
-        (group.length > 1 ? " suspicions" : " suspicion") + '</h3><ul class="result-list">' +
-        group.map(function (item) {
-          return '<li><button type="button" data-detection="' + esc(item.id) + '"><strong>' +
-            number(item.distance_km, 2) + ' km · suspicion satellitaire</strong><span>' +
-            esc(dateTime(item.observed_at)) + " · " + esc(sourceLabel(item.source)) + "</span></button></li>";
-        }).join("") + "</ul>";
+      return '<h3 class="jour">' + esc(dayLabel(group[0].observed_at)) + " — " + group.length +
+        (group.length > 1 ? " suspicions" : " suspicion") + '</h3><ul class="liste-resultats">' +
+        group.map(carte).join("") + "</ul>";
     }).join("");
   }
-  async function loadFire(mode) {
-    var radius = mode === "history" ? 50 : state.radius;
-    var days = mode === "history" ? 7 : 1;
-    state.lastMode = mode;
-    fireButton.setAttribute("aria-busy", "true");
+  async function chargerFeux() {
+    var radius = state.rayon;
+    var days = state.fenetre;
+    boutonRecherche.setAttribute("aria-busy", "true");
     setSourceState("partial", "Sources satellite : chargement…");
-    setSheet(mode === "history" ? "Historique 7 jours" : "Feux — " + radius + " km", "<p>Interrogation des sources satellite…</p>", true);
+    afficherResultats('<h2 class="bloc__titre">Résultats — ' + radius + " km · " + libelleFenetre() + '</h2><p>Interrogation des sources satellite…</p>');
     try {
       var params = new URLSearchParams({ lat: String(state.point.lat), lon: String(state.point.lon), radius_km: String(radius), history_days: String(days) });
       var payload = await json("/api/v2/fire/nearby?" + params);
-      state.lastFire = payload; state.lastMode = mode;
+      state.lastFire = payload;
       var sourceProblem = payload.data_status !== "available" || (payload.sources || []).some(function (source) { return source.state !== "available"; });
       setSourceState(sourceProblem ? "partial" : "available", sourceProblem ? "Sources satellite : incomplètes" : "Sources satellite : disponibles");
-      paintFire(payload, mode, radius);
-      setSheet(mode === "history" ? "Historique 7 jours — 50 km" : "Feux — " + radius + " km", fireList(payload, mode), true);
+      peindreFeux(payload, radius);
+      afficherResultats('<h2 class="bloc__titre">Résultats — ' + radius + " km · " + libelleFenetre() + '</h2>' + fireList(payload));
     } catch (error) {
       setSourceState("unavailable", "Sources satellite : indisponibles");
       var failure = requestError(error.payload, "Le service de détection est temporairement indisponible.");
-      setSheet("Données feu indisponibles", failure + '<button class="retry" id="retry-fire" type="button">Réessayer</button>', true);
+      afficherResultats('<h2 class="bloc__titre">Données feu indisponibles</h2>' + failure + '<button class="retry" id="retry-fire" type="button">Réessayer</button>');
     } finally {
-      fireButton.removeAttribute("aria-busy");
+      boutonRecherche.removeAttribute("aria-busy");
     }
   }
   function renderGeography(payload) {
@@ -445,15 +380,16 @@ const CLIENT_SCRIPT = `
     }
     return html;
   }
-  async function locate() {
+  async function localiser() {
     if (!navigator.geolocation) {
-      setSheet("Position indisponible", '<div class="notice error">La géolocalisation n’est pas prise en charge. Le point actif reste la mairie.</div>', true);
+      afficherResultats('<h2 class="bloc__titre">Position indisponible</h2><div class="notice error">La géolocalisation n’est pas prise en charge. Le point actif reste la mairie.</div>');
       return;
     }
-    setSheet("Ma position", "<p>Recherche de votre position…</p>", true);
+    afficherResultats('<h2 class="bloc__titre">Ma position</h2><p>Recherche de votre position…</p>');
     navigator.geolocation.getCurrentPosition(async function (position) {
       var point = { lat: position.coords.latitude, lon: position.coords.longitude, label: "Ma position" };
       setPoint(point); updateActivePoint(position.coords.accuracy); fly(point, 15);
+      pointAdresse.textContent = number(point.lat, 6) + ", " + number(point.lon, 6);
       var raw = "<p>Coordonnées : " + number(point.lat, 6) + ", " + number(point.lon, 6) + "</p>";
       try {
         var params = new URLSearchParams({
@@ -462,27 +398,29 @@ const CLIENT_SCRIPT = `
           positionSource: "browser-geolocation"
         });
         var payload = await json("/api/v2/geography/resolve?" + params);
-        setSheet("Ma position", renderGeography(payload) + raw, true);
+        afficherResultats('<h2 class="bloc__titre">Ma position</h2>' + renderGeography(payload) + raw);
       } catch (error) {
-        setSheet("Ma position", raw + '<div class="notice">Adresse indisponible ; les coordonnées restent utilisables.</div>' +
-          requestError(error.payload, "Le service géographique est temporairement indisponible."), true);
+        afficherResultats('<h2 class="bloc__titre">Ma position</h2>' + raw + '<div class="notice">Adresse indisponible ; les coordonnées restent utilisables.</div>' +
+          requestError(error.payload, "Le service géographique est temporairement indisponible."));
       }
     }, function (error) {
       var messages = { 1: "Autorisation refusée.", 2: "Position indisponible.", 3: "Délai de géolocalisation dépassé." };
-      setSheet("Position indisponible", '<div class="notice error">' + esc(messages[error.code] || "La géolocalisation a échoué.") +
-        " Le point actif reste " + esc(state.point.label || "inchangé") + ".</div>", true);
+      afficherResultats('<h2 class="bloc__titre">Position indisponible</h2><div class="notice error">' + esc(messages[error.code] || "La géolocalisation a échoué.") +
+        " Le point actif reste " + esc(state.point.label || "inchangé") + ".</div>");
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
   }
-  function resetOrigin() {
+  function reinitialiserOrigine() {
     setPoint({ lat: origin.lat, lon: origin.lon, label: origin.libelle });
+    pointAdresse.textContent = origin.adresse;
     clearFire(); fly(state.point, 12);
-    setSheet(origin.libelle, "<p><strong>" + esc(origin.adresse) + "</strong></p><p>Point d’origine de l’application de terrain.</p>", false);
+    afficherResultats("<p><strong>" + esc(origin.adresse) + "</strong></p><p>Point d’origine de l’application de terrain.</p>");
   }
-  function chooseMapPoint(lngLat) {
+  function choisirPointCarte(lngLat) {
     setPoint({ lat: lngLat.lat, lon: lngLat.lng, label: "Point choisi sur la carte" });
+    pointAdresse.textContent = number(state.point.lat, 6) + ", " + number(state.point.lon, 6);
     clearFire(); fly(state.point, state.map.getZoom());
-    setSheet("Point choisi", "<p>Coordonnées : " + number(state.point.lat, 6) + ", " + number(state.point.lon, 6) +
-      "</p><p>Les prochaines requêtes utiliseront ce point.</p>", true);
+    afficherResultats("<p>Coordonnées : " + number(state.point.lat, 6) + ", " + number(state.point.lon, 6) +
+      "</p><p>Les prochaines requêtes utiliseront ce point.</p>");
   }
   function addLongPressGesture() {
     var container = state.map.getCanvasContainer();
@@ -505,7 +443,7 @@ const CLIENT_SCRIPT = `
         fired = true;
         var rect = container.getBoundingClientRect();
         var lngLat = state.map.unproject([start.x - rect.left, start.y - rect.top]);
-        chooseMapPoint(lngLat);
+        choisirPointCarte(lngLat);
         cancel();
       }, 650);
     }, { passive: true });
@@ -525,18 +463,23 @@ const CLIENT_SCRIPT = `
   }
   function addMapLayers() {
     state.map.addSource("search-radius", { type: "geojson", data: featureCollection([]) });
-    state.map.addLayer({ id: "search-radius-fill", type: "fill", source: "search-radius", paint: { "fill-color": "#f0883e", "fill-opacity": .12 } });
-    state.map.addLayer({ id: "search-radius-line", type: "line", source: "search-radius", paint: { "line-color": "#f0883e", "line-width": 2, "line-dasharray": [2, 2] } });
+    // Couleurs alignées sur les jetons Style VAL (MapLibre n'accepte pas var()) :
+    // #ff8c00 = --vigilance-orange, #e1001a = --vigilance-rouge, #f5d800 = --vigilance-jaune,
+    // #3d6f7d = --torrent. Les trois âges se distinguent aussi par forme (cf. .legende__item--*).
+    state.map.addLayer({ id: "search-radius-fill", type: "fill", source: "search-radius", paint: { "fill-color": "#ff8c00", "fill-opacity": .12 } });
+    state.map.addLayer({ id: "search-radius-line", type: "line", source: "search-radius", paint: { "line-color": "#ff8c00", "line-width": 2, "line-dasharray": [2, 2] } });
     state.map.addSource("accuracy", { type: "geojson", data: featureCollection([]) });
-    state.map.addLayer({ id: "accuracy-fill", type: "fill", source: "accuracy", paint: { "fill-color": "#1f6feb", "fill-opacity": .13 } });
+    state.map.addLayer({ id: "accuracy-fill", type: "fill", source: "accuracy", paint: { "fill-color": "#3d6f7d", "fill-opacity": .13 } });
     state.map.addSource("active-point", { type: "geojson", data: featureCollection([]) });
-    state.map.addLayer({ id: "active-point", type: "circle", source: "active-point", paint: { "circle-radius": 8, "circle-color": "#1f6feb", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
+    state.map.addLayer({ id: "active-point", type: "circle", source: "active-point", paint: { "circle-radius": 8, "circle-color": "#3d6f7d", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
     state.map.addSource("detections", { type: "geojson", data: featureCollection([]) });
     state.map.addLayer({ id: "detections", type: "circle", source: "detections", paint: {
-      "circle-color": ["case", ["<", ["get", "ageHours"], 3], "#d1242f", ["<", ["get", "ageHours"], 24], "#f0883e", "#e3b341"],
+      "circle-color": ["case", ["<", ["get", "ageHours"], 3], "#e1001a", ["<", ["get", "ageHours"], 24], "#ff8c00", "#f5d800"],
       "circle-radius": ["interpolate", ["linear"], ["get", "frp"], 0, 6, 100, 13],
-      "circle-opacity": .85, "circle-stroke-color": "#fff", "circle-stroke-width": 1.5
-    } });
+      "circle-opacity": ["case", ["<", ["get", "ageHours"], 24], .85, .55],
+      "circle-stroke-color": ["case", ["<", ["get", "ageHours"], 3], "#e1001a", "#fff"],
+      "circle-stroke-width": ["case", ["<", ["get", "ageHours"], 3], 5, ["<", ["get", "ageHours"], 24], 1.5, 2
+    ] } });
     updateActivePoint();
     state.map.on("click", "detections", function (event) {
       var id = event.features && event.features[0] && event.features[0].properties.id;
@@ -546,7 +489,7 @@ const CLIENT_SCRIPT = `
     state.map.on("mouseenter", "detections", function () { state.map.getCanvas().style.cursor = "pointer"; });
     state.map.on("mouseleave", "detections", function () { state.map.getCanvas().style.cursor = ""; });
     state.map.on("contextmenu", function (event) {
-      chooseMapPoint(event.lngLat);
+      choisirPointCarte(event.lngLat);
     });
     addLongPressGesture();
   }
@@ -592,7 +535,6 @@ const CLIENT_SCRIPT = `
     clearMapFallback();
     try {
       state.map = new window.maplibregl.Map({ container: "map", style: "/api/v2/map/styles/carte.json?fond=plan&ombrage=aucun", center: [origin.lon, origin.lat], zoom: 12, attributionControl: true });
-      state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
       state.map.on("load", function () { state.mapReady = true; addMapLayers(); });
       state.map.on("error", function () {
         if (!state.mapReady) setSourceState("partial", "Fond de carte indisponible · données accessibles");
@@ -604,35 +546,41 @@ const CLIENT_SCRIPT = `
       setSourceState("unavailable", "Carte indisponible · données accessibles");
     }
   }
-  document.getElementById("sheet-handle").addEventListener("click", function () {
-    var current = sheet.getAttribute("data-state");
-    var next = current === "expanded" ? "collapsed" : "expanded";
-    sheet.setAttribute("data-state", next);
-    document.getElementById("sheet-handle").setAttribute("aria-expanded", next === "expanded" ? "true" : "false");
-  });
-  document.getElementById("origin-action").addEventListener("click", resetOrigin);
-  document.getElementById("locate-action").addEventListener("click", locate);
-  fireButton.addEventListener("click", function () { loadFire("nearby"); });
-  document.getElementById("history-action").addEventListener("click", function () { loadFire("history"); });
-  document.querySelectorAll("[data-radius]").forEach(function (button) {
+  document.getElementById("origine").addEventListener("click", reinitialiserOrigine);
+  document.getElementById("localiser").addEventListener("click", localiser);
+  boutonRecherche.addEventListener("click", chargerFeux);
+  document.querySelectorAll("[data-rayon]").forEach(function (button) {
     button.addEventListener("click", function () {
-      state.radius = Number(button.getAttribute("data-radius"));
-      document.querySelectorAll("[data-radius]").forEach(function (candidate) {
+      state.rayon = Number(button.getAttribute("data-rayon"));
+      document.querySelectorAll("[data-rayon]").forEach(function (candidate) {
         candidate.setAttribute("aria-pressed", candidate === button ? "true" : "false");
       });
+      majBoutonRecherche();
     });
   });
-  sheetBody.addEventListener("click", function (event) {
+  document.querySelectorAll("[data-fenetre]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      state.fenetre = Number(button.getAttribute("data-fenetre"));
+      document.querySelectorAll("[data-fenetre]").forEach(function (candidate) {
+        candidate.setAttribute("aria-pressed", candidate === button ? "true" : "false");
+      });
+      majBoutonRecherche();
+    });
+  });
+  resultats.addEventListener("click", function (event) {
     var target = event.target.closest && event.target.closest("[data-detection]");
     if (target) {
       var item = window.__terrainDetections && window.__terrainDetections[target.getAttribute("data-detection")];
       if (item) detail(item);
     }
-    if (event.target.id === "retry-fire" && state.lastMode) loadFire(state.lastMode);
+    if (event.target.id === "retry-fire") chargerFeux();
   });
   document.getElementById("map").addEventListener("click", function (event) {
     if (event.target && event.target.id === "retry-map") retryMap();
   });
+  window.addEventListener("resize", majHauteurFeuille);
+  majBoutonRecherche();
+  majHauteurFeuille();
   // maplibre-gl.js est chargé en "defer" : ce script inline s'exécute avant lui, il faut
   // donc attendre "load" pour disposer de window.maplibregl (même approche que la démo carte).
   if (document.readyState === "complete") initMap();
@@ -642,69 +590,72 @@ const CLIENT_SCRIPT = `
 
 export function renderAppTerrain(config: GatewayConfig): string {
   const origin = JSON.stringify(MAIRIE_VAL_D_AIGOUAL).replace(/</g, "\\u003c");
-  const title = escapeHtml(`valfeu — Veille incendie ${config.version}`);
+  const title = escapeHtml(`LAV.feu — Veille incendie ${config.version}`);
   return `<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#17362f">
-<meta name="description" content="valfeu : veille des suspicions satellitaires de feu autour de Val-d’Aigoual.">
+<meta name="description" content="LAV.feu : veille des suspicions satellitaires de feu autour de Val-d’Aigoual.">
 <title>${title}</title>
 <link rel="manifest" href="/valfeu/manifest.webmanifest">
-<link rel="icon" href="/valfeu/icone.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/SourceSerif4-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/api/v2/map/vendor/maplibre-gl.css" data-maplibre>
 <script defer src="/api/v2/map/vendor/maplibre-gl.js"></script>
 <style>${STYLES}</style>
 </head>
 <body>
 <div id="map" aria-label="Carte de terrain centrée sur la mairie de Val-d’Aigoual"></div>
-<header class="hud">
-  <div class="hud-card">
-    <div class="hud-main">
-      <div class="brand-mark" aria-hidden="true">f·v</div>
-      <div class="hud-copy">
-        <span class="eyebrow">valfeu · point actif</span>
-        <strong id="hud-point">${escapeHtml(MAIRIE_VAL_D_AIGOUAL.libelle)}</strong>
-        <span class="source-status"><span class="source-dot" id="source-dot"></span><span id="source-text">Sources en attente</span></span>
-      </div>
-      <a class="emergency" href="tel:112" aria-label="Appeler les secours au 112">112<small>Urgence</small></a>
-    </div>
-    <p class="safety-note">Les points sont des suspicions satellite, pas des incendies confirmés. Feu observé : <a href="tel:18">appelez le 18</a>.</p>
-  </div>
-</header>
-<aside class="map-legend" aria-label="Légende des suspicions">
-  <span class="legend-item"><span class="legend-dot"></span>&lt; 3 h</span>
-  <span class="legend-item"><span class="legend-dot orange"></span>&lt; 24 h</span>
-  <span class="legend-item"><span class="legend-dot yellow"></span>+ 24 h</span>
+<div class="bandeau">
+  <a class="marque" href="/" aria-label="LAV.feu — retour au portail">
+    <img src="/favicon.svg" width="34" height="34" alt="">
+    <span><strong>LAV<span class="marque__suffixe">.feu</span></strong><small>Veille incendie</small></span>
+  </a>
+  <a class="urgence" href="tel:112" aria-label="Appeler les secours au 112"><strong>112</strong><small>Urgence</small></a>
+</div>
+<aside class="legende" aria-label="Légende des suspicions">
+  <span class="legende__item legende__item--recent"><span class="legende__forme" aria-hidden="true"></span>&lt; 3 h</span>
+  <span class="legende__item legende__item--intermediaire"><span class="legende__forme" aria-hidden="true"></span>&lt; 24 h</span>
+  <span class="legende__item legende__item--ancien"><span class="legende__forme" aria-hidden="true"></span>+ 24 h</span>
 </aside>
-<section class="sheet" id="sheet" data-state="collapsed" aria-labelledby="sheet-title">
-  <div class="sheet-head">
-    <div class="sheet-heading">
-      <span class="sheet-kicker">Informations terrain</span>
-      <strong class="sheet-title" id="sheet-title">${escapeHtml(MAIRIE_VAL_D_AIGOUAL.libelle)}</strong>
-    </div>
-    <button class="sheet-handle" id="sheet-handle" type="button" aria-label="Afficher ou réduire les résultats" aria-expanded="false"></button>
+<section class="panneau" id="panneau">
+  <div class="panneau__corps" id="corps">
+    <section class="bloc" id="bloc-recherche">
+      <h2 class="bloc__titre">Rayon et fenêtre</h2>
+      <div class="segments segments--rayon" role="group" aria-label="Rayon de recherche">
+        <button type="button" data-rayon="5" aria-pressed="true">5 km</button>
+        <button type="button" data-rayon="20" aria-pressed="false">20 km</button>
+        <button type="button" data-rayon="50" aria-pressed="false">50 km</button>
+      </div>
+      <div class="segments segments--fenetre" role="group" aria-label="Fenêtre temporelle">
+        <button type="button" data-fenetre="1" aria-pressed="true">24 h</button>
+        <button type="button" data-fenetre="7" aria-pressed="false">7 jours</button>
+      </div>
+      <button class="action-primaire" id="rechercher" type="button">Rechercher · 5 km · 24 h</button>
+    </section>
+    <section class="bloc" id="bloc-point">
+      <h2 class="bloc__titre">Point actif</h2>
+      <p class="bloc__principal" id="point-libelle">${escapeHtml(MAIRIE_VAL_D_AIGOUAL.libelle)}</p>
+      <p class="bloc__secondaire" id="point-adresse">${escapeHtml(MAIRIE_VAL_D_AIGOUAL.adresse)}</p>
+      <div class="boutons-point">
+        <button class="bouton-secondaire" id="origine" type="button">⌂ Mairie</button>
+        <button class="bouton-secondaire" id="localiser" type="button">◎ Ma position</button>
+      </div>
+    </section>
+    <section class="bloc bloc--resultats" id="bloc-resultats">
+      <div id="resultats">
+        <p class="bloc__secondaire">Recherchez les suspicions à proximité ou faites un appui long sur la carte pour choisir un autre point.</p>
+      </div>
+    </section>
   </div>
-  <div class="sheet-body" id="sheet-body">
-    <p><strong>${escapeHtml(MAIRIE_VAL_D_AIGOUAL.adresse)}</strong></p>
-    <p>Recherchez les suspicions à proximité ou faites un appui long sur la carte pour choisir un autre point.</p>
-  </div>
+  <footer class="panneau__pied">
+    <p class="fraicheur"><span class="fraicheur__point" id="source-dot"></span><span id="source-text">Sources en attente</span></p>
+    <p class="note-securite">Les points sont des suspicions satellite, pas des incendies confirmés. Feu observé : <a href="tel:18">appelez le 18</a>.</p>
+  </footer>
 </section>
-<nav class="actions" aria-label="Actions de terrain">
-  <div class="fire-search">
-    <div class="segments" role="group" aria-label="Rayon de recherche des feux">
-      <button type="button" data-radius="5" aria-pressed="true">5 km</button>
-      <button type="button" data-radius="50" aria-pressed="false">50 km</button>
-    </div>
-    <button class="action-main fire-primary" id="fire-action" type="button"><span class="icon" aria-hidden="true">◉</span>Rechercher les feux</button>
-  </div>
-  <div class="secondary-actions">
-    <div class="action"><button class="action-main" id="origin-action" type="button"><span class="icon" aria-hidden="true">⌂</span>Mairie</button></div>
-    <div class="action"><button class="action-main" id="locate-action" type="button"><span class="icon" aria-hidden="true">◎</span>Ma position</button></div>
-    <div class="action"><button class="action-main" id="history-action" type="button"><span class="icon" aria-hidden="true">↶</span>Historique 7 j</button></div>
-  </div>
-</nav>
 <script>window.__terrainOrigin=${origin};</script>
 <script>${CLIENT_SCRIPT}</script>
 </body>

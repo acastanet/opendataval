@@ -1,108 +1,290 @@
 ---
-import { TERRITOIRE, SECTIONS } from "@opendata-vda/shared";
-import BoutonAccueil from "./BoutonAccueil.astro";
+// Barre permanente contextuelle.
+//
+// Règle : elle ne montre des ancres que sur la page qui les contient. Sur
+// l'accueil elle sert de sommaire (révélé une fois le hero franchi) ; partout
+// ailleurs elle situe la page par un fil d'Ariane. Dans les deux cas, un seul
+// et même accès aux applications, ouvert par un panneau pleine largeur.
+import { ANCRES_ACCUEIL, GROUPES_NAVIGATION, estPageCourante, titrePageCourante } from "../lib/navigation";
 
 interface Props {
-  sectionActive?: string;
+  variante?: "accueil" | "page";
+  pathname: string;
 }
-const { sectionActive } = Astro.props;
-const themes = SECTIONS.filter((s) => s.slug !== "sources");
+const { variante = "page", pathname } = Astro.props;
+const titreCourant = variante === "page" ? titrePageCourante(pathname) : undefined;
 ---
-<header class="entete-site">
+<a class="evitement" href="#contenu">Aller au contenu</a>
+
+<header
+  class="entete-site"
+  data-entete
+  data-variante={variante}
+  data-etat={variante === "accueil" ? "repos" : "defile"}
+>
   <div class="conteneur entete-interieur">
-    <BoutonAccueil variante="inline" />
-    <a class="marque" href="/">
-      <span class="nom">{TERRITOIRE.commune.nom}</span>
-      <span class="soustitre">Données ouvertes</span>
+    <a class="marque" href="/" aria-label="LAV — accueil">
+      <img src="/favicon.svg" width="40" height="40" alt="" />
+      <span>
+        <strong>LAV</strong>
+        <small>Localiser · Agréger · Valoriser</small>
+      </span>
     </a>
-    <nav aria-label="Navigation principale">
-      <a href="/">Accueil</a>
-      <a href="/carte">Carte</a>
-      <a href="/relief">Relief 3D</a>
-      <details class="menu-themes">
-        <summary>Thèmes</summary>
-        <ul>
-          {themes.map((s) => (
-            <li>
-              <a href={`/${s.slug}`} aria-current={s.slug === sectionActive ? "page" : undefined}>
-                {s.titre}
-              </a>
-            </li>
+
+    {variante === "accueil" ? (
+      <nav class="sommaire" aria-label="Sections de la page">
+        {ANCRES_ACCUEIL.map((ancre) => (
+          <a href={`#${ancre.id}`} data-ancre={ancre.id}>
+            <span aria-hidden="true">{ancre.numero}</span>{ancre.titre}
+          </a>
+        ))}
+      </nav>
+    ) : (
+      <nav class="fil" aria-label="Fil d’Ariane">
+        <ol>
+          <li><a href="/">Accueil</a></li>
+          {titreCourant && <li aria-current="page">{titreCourant}</li>}
+        </ol>
+      </nav>
+    )}
+
+    <details class="panneau" data-panneau>
+      <summary aria-label="Ouvrir le sommaire du portail">Applications</summary>
+      <div class="panneau__contenu">
+        <div class="conteneur panneau__grille">
+          {GROUPES_NAVIGATION.map((groupe) => (
+            <nav aria-label={groupe.titre}>
+              <p class="panneau__titre">{groupe.titre}</p>
+              <ul>
+                {groupe.liens.map((lien) => (
+                  <li>
+                    <a
+                      href={lien.href}
+                      aria-current={estPageCourante(lien.href, pathname) ? "page" : undefined}
+                    >{lien.name}</a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
           ))}
-        </ul>
-      </details>
-      <a href="/sources" aria-current={sectionActive === "sources" ? "page" : undefined}>Sources</a>
-    </nav>
+        </div>
+      </div>
+    </details>
   </div>
 </header>
 
 <script>
-  const menu = document.querySelector<HTMLDetailsElement>(".menu-themes");
-  if (menu) {
-    document.addEventListener("click", (e) => {
-      if (menu.open && !menu.contains(e.target as Node)) menu.open = false;
+  const entete = document.querySelector<HTMLElement>("[data-entete]");
+  const panneau = document.querySelector<HTMLDetailsElement>("[data-panneau]");
+
+  if (panneau) {
+    const fermer = () => {
+      if (panneau.open) panneau.open = false;
+    };
+    document.addEventListener("click", (evenement) => {
+      if (panneau.open && !panneau.contains(evenement.target as Node)) fermer();
     });
-    menu.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") menu.open = false;
+    document.addEventListener("keydown", (evenement) => {
+      if (evenement.key !== "Escape" || !panneau.open) return;
+      fermer();
+      // Le focus doit revenir sur la commande qui a ouvert le panneau, sinon il
+      // repart au début du document et l'utilisateur clavier perd sa place.
+      panneau.querySelector("summary")?.focus();
     });
+  }
+
+  // Solidification de la barre : une sentinelle posée en fin de hero, pas un
+  // écouteur de défilement (un seul appel du navigateur, aucun travail par image).
+  const sentinelle = document.querySelector("[data-sentinelle-entete]");
+  if (entete && sentinelle) {
+    new IntersectionObserver(([entree]) => {
+      if (entree) entete.dataset.etat = entree.isIntersecting ? "repos" : "defile";
+    }).observe(sentinelle);
+  }
+
+  // Suivi de la section lue, pour que le sommaire dise où l'on se trouve.
+  const ancres = Array.from(document.querySelectorAll<HTMLAnchorElement>("[data-ancre]"));
+  if (ancres.length > 0) {
+    const sections = ancres
+      .map((ancre) => document.getElementById(ancre.dataset.ancre ?? ""))
+      .filter((section): section is HTMLElement => section !== null);
+
+    const observateur = new IntersectionObserver(
+      (entrees) => {
+        for (const entree of entrees) {
+          if (!entree.isIntersecting) continue;
+          for (const ancre of ancres) {
+            const active = ancre.dataset.ancre === entree.target.id;
+            if (active) ancre.setAttribute("aria-current", "true");
+            else ancre.removeAttribute("aria-current");
+          }
+        }
+      },
+      { rootMargin: "-45% 0px -50% 0px" },
+    );
+    sections.forEach((section) => observateur.observe(section));
   }
 </script>
 
 <style>
-  .entete-site { border-bottom: 1px solid var(--border); }
+  .evitement {
+    position: absolute;
+    z-index: 200;
+    top: var(--esp-xs);
+    left: var(--esp-xs);
+    display: inline-flex;
+    min-height: var(--cible);
+    align-items: center;
+    padding-inline: var(--esp-m);
+    border: 1px solid var(--couleur-action);
+    border-radius: var(--rayon);
+    background: var(--surface-plate);
+    color: var(--couleur-action);
+    font-size: var(--txt-xs);
+    font-weight: var(--poids-fort);
+    text-decoration: none;
+    transform: translateY(-200%);
+  }
+  .evitement:focus-visible { transform: none; }
+
+  .entete-site {
+    position: sticky;
+    z-index: 100;
+    top: 0;
+    border-bottom: 1px solid var(--bordure);
+    background: color-mix(in srgb, var(--surface-plate) 92%, transparent);
+    backdrop-filter: blur(18px);
+    transition: background var(--duree-courte) var(--courbe), border-color var(--duree-courte) var(--courbe);
+  }
+
+  /* Sur l'accueil, la barre se fond dans le haut du hero — même aplat, pas de
+     filet, pas de flou : le titre porte seul le haut de page. Elle ne se
+     matérialise qu'une fois le hero franchi. */
+  .entete-site[data-variante="accueil"][data-etat="repos"] {
+    border-bottom-color: transparent;
+    background: var(--surface-plate);
+    backdrop-filter: none;
+  }
 
   .entete-interieur {
     display: flex;
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-    align-items: baseline;
+    min-height: 3.5rem;
+    align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
+    gap: var(--esp-l);
   }
 
-  .marque { display: flex; align-items: baseline; gap: 0.6rem; color: var(--fg); text-decoration: none; }
-  .nom { font-family: var(--font-display); font-size: 1.1rem; letter-spacing: 0.01em; }
-  .soustitre { color: var(--border); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .marque { display: flex; flex: 0 0 auto; align-items: center; gap: var(--esp-s); color: var(--texte-principal); text-decoration: none; }
+  .marque img { display: block; width: 2rem; height: 2rem; }
+  .marque strong, .marque small { display: block; }
+  .marque strong { font-family: var(--font-display); font-size: var(--txt-xl); font-weight: var(--poids-normal); line-height: 1; letter-spacing: var(--ls-titre); }
+  .marque small { margin-top: var(--esp-3xs); color: var(--texte-secondaire); font-family: var(--font-mono); font-size: .58rem; font-weight: var(--poids-fort); letter-spacing: var(--ls-label); text-transform: uppercase; }
 
-  nav { display: flex; align-items: baseline; gap: 1.4rem; font-size: 0.85rem; }
-  nav > a { padding-bottom: 0.2rem; border-bottom: 1px solid transparent; color: var(--fg); text-decoration: none; }
-  nav > a:hover,
-  nav > a:focus-visible,
-  nav > a[aria-current="page"] { border-bottom-color: var(--accent); }
+  /* ---- Sommaire de l'accueil : motif « sommaire » du référentiel. ---- */
+  .sommaire { display: flex; flex-wrap: wrap; column-gap: var(--esp-l); }
+  .sommaire a {
+    display: inline-flex;
+    min-height: var(--cible);
+    align-items: center;
+    gap: var(--esp-2xs);
+    color: var(--texte-secondaire);
+    font-size: var(--txt-micro);
+    font-weight: var(--poids-fort);
+    letter-spacing: var(--ls-label);
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .sommaire a span { color: var(--texte-tertiaire); font-family: var(--font-mono); }
+  .sommaire a:hover { color: var(--couleur-action); }
+  .sommaire a[aria-current="true"] { box-shadow: inset 0 -2px var(--couleur-action); color: var(--couleur-action); }
+  .sommaire a[aria-current="true"] span { color: var(--couleur-action); }
+  /* Au repos, le sommaire n'a rien à dire : la page n'a pas encore commencé. */
+  .entete-site[data-variante="accueil"][data-etat="repos"] .sommaire { visibility: hidden; }
 
-  .menu-themes { position: relative; }
-  .menu-themes summary { padding-bottom: 0.2rem; border-bottom: 1px solid transparent; color: var(--fg); cursor: pointer; list-style: none; }
-  .menu-themes summary::-webkit-details-marker { display: none; }
-  .menu-themes summary::after { content: "▾"; margin-left: 0.3rem; font-size: 0.7em; }
-  .menu-themes[open] summary,
-  .menu-themes summary:hover,
-  .menu-themes summary:focus-visible { border-bottom-color: var(--accent); }
+  /* ---- Fil d'Ariane des pages intérieures. ---- */
+  .fil ol { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2xs); margin: 0; padding: 0; list-style: none; }
+  .fil li { color: var(--texte-secondaire); font-size: var(--txt-xs); }
+  .fil li + li::before { margin-right: var(--esp-2xs); color: var(--texte-tertiaire); content: "›"; }
+  .fil li[aria-current="page"] { color: var(--texte-principal); font-weight: var(--poids-appui); }
+  .fil a { color: var(--texte-secondaire); text-decoration: none; }
+  .fil a:hover { color: var(--couleur-action); }
 
-  .menu-themes ul {
-    position: absolute;
-    top: calc(100% + 0.6rem);
-    left: 0;
-    z-index: 10;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(11rem, 1fr));
-    gap: 0.1rem 0.6rem;
-    margin: 0;
-    padding: 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--panel-bg);
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(2px);
+  /* ---- Panneau du portail. ---- */
+  .panneau { flex: 0 0 auto; }
+  .panneau summary {
+    display: inline-flex;
+    min-height: var(--cible);
+    align-items: center;
+    gap: var(--esp-2xs);
+    padding-inline: var(--esp-m);
+    border: 1px solid var(--bordure-forte);
+    border-radius: var(--rayon);
+    color: var(--texte-principal);
+    font-size: var(--txt-micro);
+    font-weight: var(--poids-fort);
+    letter-spacing: var(--ls-label);
+    text-transform: uppercase;
+    cursor: pointer;
     list-style: none;
   }
+  .panneau summary::-webkit-details-marker { display: none; }
+  .panneau summary::after { font-size: .7em; content: "▾"; }
+  .panneau[open] summary { border-color: var(--couleur-action); background: var(--couleur-action); color: white; }
+  .panneau[open] summary::after { content: "▴"; }
 
-  .menu-themes li a { display: block; padding: 0.4rem 0.5rem; border-radius: var(--radius); color: var(--fg); font-size: 0.82rem; text-decoration: none; white-space: nowrap; }
-  .menu-themes li a:hover,
-  .menu-themes li a:focus-visible { background: rgba(154, 155, 147, 0.18); }
-  .menu-themes li a[aria-current="page"] { color: var(--accent); }
+  .panneau__contenu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    border-block: 1px solid var(--bordure);
+    background: var(--surface-plate);
+    box-shadow: var(--ombre);
+  }
+  .panneau__grille {
+    display: grid;
+    gap: var(--esp-l) var(--esp-xl);
+    padding-block: var(--esp-l);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  }
+  .panneau__titre {
+    margin: 0 0 var(--esp-xs);
+    padding-bottom: var(--esp-3xs);
+    border-bottom: 1px solid var(--bordure);
+    color: var(--couleur-action);
+    font-family: var(--font-body);
+    font-size: var(--txt-micro);
+    font-weight: var(--poids-fort);
+    letter-spacing: var(--ls-label);
+    text-transform: uppercase;
+  }
+  .panneau__grille ul { margin: 0; padding: 0; list-style: none; }
+  .panneau__grille a {
+    display: flex;
+    min-height: var(--cible);
+    align-items: center;
+    color: var(--texte-principal);
+    font-size: var(--txt-s);
+    text-decoration: none;
+  }
+  .panneau__grille a:hover { color: var(--couleur-action); text-decoration: underline; text-underline-offset: var(--esp-3xs); }
+  .panneau__grille a[aria-current="page"] { box-shadow: inset 2px 0 var(--couleur-action); padding-left: var(--esp-xs); color: var(--couleur-action); font-weight: var(--poids-appui); }
 
-  @media (max-width: 640px) {
-    .menu-themes ul { right: 0; left: auto; grid-template-columns: 1fr; }
+  /* Le sommaire disparaît quand la ligne devient trop courte : la marque et
+     l'accès aux applications, eux, ne sont jamais escamotés. */
+  @media (max-width: 52rem) {
+    .sommaire { display: none; }
+    .fil li:first-child { display: none; }
+    .fil li + li::before { content: ""; margin: 0; }
+  }
+
+  @media (max-width: 30rem) {
+    .marque small { display: none; }
+    .panneau summary { padding-inline: var(--esp-s); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .entete-site { transition: none; }
   }
 </style>

@@ -33,7 +33,7 @@ test("fige les identifiants canoniques et leur ordre", () => {
 
 test("le fond uni est une option visible par défaut, basculable comme les autres couches", () => {
   // Sans lui, un fond "nu" laisse voir la transparence du canevas : en 3D, les bords du
-  // relief au-delà de RELIEF_BOUNDS semblent alors plonger à la verticale.
+  // relief au-delà de RELIEF_BOUNDS_GLOBAL semblent alors plonger à la verticale.
   const parDefaut = couche(construireStyle(lireOptionsStyle({ fond: "nu" })), "fond-uni");
   assert.equal(parDefaut.type, "background");
   assert.equal(parDefaut.layout?.visibility, "visible");

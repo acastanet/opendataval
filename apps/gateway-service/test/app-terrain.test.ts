@@ -35,14 +35,30 @@ test("GET /valfeu rend l'application mobile de terrain", async (t) => {
   assert.ok(response.body.includes('rel="manifest" href="/valfeu/manifest.webmanifest"'));
   assert.ok(response.body.includes("44.081192"));
   assert.ok(response.body.includes("3.641467"));
-  for (const label of ["Mairie", "Ma position", "Rechercher les feux", "Historique 7 j"]) {
+  for (const label of ["Mairie", "Ma position", "5 km", "20 km", "50 km", "24 h", "7 jours", "Rechercher"]) {
     assert.ok(response.body.includes(label), `l'application doit proposer ${label}`);
   }
   assert.ok(response.body.includes('href="tel:112"'));
+  assert.ok(response.body.includes('href="/" aria-label="LAV.feu — retour au portail"'));
   assert.ok(response.body.includes('addEventListener("pointerdown"'));
   assert.ok(response.body.includes("state.map.unproject"));
   assert.ok(response.body.includes('timeZone: "Europe/Paris", timeZoneName: "short"'));
   assert.doesNotMatch(response.body, /navigator\.vibrate/);
+});
+
+test("le rayon et la fenêtre temporelle sont deux réglages indépendants", async (t) => {
+  const app = buildApp({ config, logger: false, fetchImpl: failingFetch });
+  t.after(() => app.close());
+
+  const response = await app.inject({ method: "GET", url: "/valfeu" });
+
+  assert.match(response.body, /data-rayon="5"/);
+  assert.match(response.body, /data-rayon="20"/);
+  assert.match(response.body, /data-rayon="50"/);
+  assert.match(response.body, /data-fenetre="1"/);
+  assert.match(response.body, /data-fenetre="7"/);
+  assert.match(response.body, /radius_km:\s*String\(radius\)/);
+  assert.match(response.body, /history_days:\s*String\(days\)/);
 });
 
 test("GET /valfeu/ est un alias de l'application", async (t) => {
@@ -52,7 +68,7 @@ test("GET /valfeu/ est un alias de l'application", async (t) => {
   const response = await app.inject({ method: "GET", url: "/valfeu/" });
 
   assert.equal(response.statusCode, 200);
-  assert.ok(response.body.includes("valfeu — Veille incendie"));
+  assert.ok(response.body.includes("LAV.feu — Veille incendie"));
 });
 
 test("l'ancienne route de l'application redirige vers valfeu", async (t) => {

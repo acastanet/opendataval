@@ -1,21 +1,17 @@
 ---
 // Diaporama — on ne garde que la première diapo : carte 3D.
 import Carte3D from "../../islands/Carte3D.svelte";
-import BoutonAccueil from "../../components/BoutonAccueil.astro";
+import Layout from "../../layouts/Layout.astro";
 ---
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Le voyage de l'eau — de l'Aigoual à la Méditerranée</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/eau/comprendre.css" />
-  <link rel="stylesheet" href="/eau/style.css" />
-  <link rel="stylesheet" href="/eau/design-system.css" />
-  <style>
+<Layout chrome="minimal" title="Le voyage de l'eau — de l'Aigoual à la Méditerranée" description="Explorer en 3D le parcours de l’eau, de l’Aigoual à la Méditerranée.">
+  <Fragment slot="head">
+    <link rel="stylesheet" href="/eau/comprendre.css" />
+    <link rel="stylesheet" href="/eau/style.css" />
+    <link rel="stylesheet" href="/eau/design-system.css" />
+  </Fragment>
+  <style is:global>
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; overflow: hidden; }
+    html, body { margin: 0; min-height: 100%; }
 
     body {
       background: var(--bg);
@@ -39,9 +35,6 @@ import BoutonAccueil from "../../components/BoutonAccueil.astro";
       visibility: visible;
     }
   </style>
-</head>
-<body>
-  <BoutonAccueil />
   <div id="presentation">
     <!-- ==================== ÉCRAN 1 : CARTE 3D ==================== -->
     <section class="ecran ecran-carte actif" data-index="0">
@@ -60,5 +53,4 @@ import BoutonAccueil from "../../components/BoutonAccueil.astro";
       </div>
     </section>
   </div>
-</body>
-</html>
+</Layout>

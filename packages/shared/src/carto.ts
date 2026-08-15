@@ -27,7 +27,57 @@ export const FONDS_CARTOGRAPHIQUES: readonly DescripteurFond[] = [
 /** Le SCAN géologique est levé au 1/50 000 : au-delà, l'agrandissement n'apporte rien. */
 export const GEOLOGIE = { id: "geologie", libelle: "Carte géologique", couche: "SCAN_D_GEOL50", attribution: "© BRGM", zoomMax: 16 } as const;
 
-export const RELIEF_BOUNDS = [3.2, 43.8, 4.1, 44.4] as const;
+/** Degrés de latitude par kilomètre, à la précision suffisante pour délimiter une région de relief. */
+const KM_PAR_DEGRE_LATITUDE = 111.32;
+
+/**
+ * Bbox `[lonMin, latMin, lonMax, latMax]` carrée, centrée sur un point WGS84, dont chaque
+ * côté est à `rayonKm` du centre. Le pas en longitude se resserre avec la latitude
+ * (`cos(latitude)`) pour que le carré reste approximativement isométrique au sol : sans
+ * cette correction, une même distance en longitude couvrirait plus de terrain vers le nord.
+ *
+ * Réutilisée à la fois pour définir `REGIONS_RELIEF` et par le script de génération des
+ * archives PMTiles, pour que la zone documentée soit toujours celle réellement produite.
+ */
+export function bboxAutourPoint(lat: number, lon: number, rayonKm: number): readonly [number, number, number, number] {
+  const deltaLat = rayonKm / KM_PAR_DEGRE_LATITUDE;
+  const deltaLon = rayonKm / (KM_PAR_DEGRE_LATITUDE * Math.cos((lat * Math.PI) / 180));
+  return [lon - deltaLon, lat - deltaLat, lon + deltaLon, lat + deltaLat];
+}
+
+export interface RegionRelief {
+  id: string;
+  libelle: string;
+  /** `[lonMin, latMin, lonMax, latMax]` */
+  bounds: readonly [number, number, number, number];
+}
+
+/**
+ * Régions couvertes par des archives PMTiles de relief. Chaque région a ses deux archives
+ * propres (`<id>.pmtiles` et `<id>-hd.pmtiles`) ; `ReliefPmtiles` choisit l'archive à
+ * interroger selon la région dont `bounds` contient la tuile demandée.
+ */
+export const REGIONS_RELIEF: readonly RegionRelief[] = [
+  { id: "aigoual", libelle: "Cévennes / Mont Aigoual", bounds: [3.2, 43.8, 4.1, 44.4] },
+  { id: "alpes-marseille", libelle: "Alpes / Marseille (100 km)", bounds: bboxAutourPoint(43.2965, 5.3698, 100) },
+  { id: "perigueux", libelle: "Périgueux (100 km)", bounds: bboxAutourPoint(45.1848, 0.7211, 100) },
+] as const;
+
+/**
+ * Bbox englobante de toutes les régions de relief, utilisée comme `bounds` de la source
+ * MapLibre `raster-dem` : elle couvre aussi des zones sans archive (hors des régions
+ * individuelles), qui restent tolérées en 404 comme le reste de la couverture manquante.
+ */
+export const RELIEF_BOUNDS_GLOBAL: readonly [number, number, number, number] = REGIONS_RELIEF.reduce(
+  ([lonMin, latMin, lonMax, latMax], region) => [
+    Math.min(lonMin, region.bounds[0]),
+    Math.min(latMin, region.bounds[1]),
+    Math.max(lonMax, region.bounds[2]),
+    Math.max(latMax, region.bounds[3]),
+  ],
+  [Infinity, Infinity, -Infinity, -Infinity] as [number, number, number, number],
+);
+
 export const RELIEF_HD_MINZOOM = 13;
 export const RELIEF_MAXZOOM = 15;
 export const RELIEF_ATTRIBUTION = '© <a href="https://mapterhorn.com/attribution">Mapterhorn</a>';

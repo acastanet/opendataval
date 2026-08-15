@@ -6,7 +6,7 @@ import {
   IDS_CARTOGRAPHIQUES,
   PALETTE_HYPSOMETRIQUE as PALETTE_PARTAGEE,
   RELIEF_ATTRIBUTION,
-  RELIEF_BOUNDS,
+  RELIEF_BOUNDS_GLOBAL,
   RELIEF_MAXZOOM,
   RELIEF_TILESIZE,
   TERRAIN_TILESIZE,
@@ -414,7 +414,7 @@ function descripteurRelief(tailleTuile: number) {
     encoding: "terrarium" as const,
     tileSize: tailleTuile,
     maxzoom: RELIEF_MAXZOOM,
-    bounds: [...RELIEF_BOUNDS] as number[],
+    bounds: [...RELIEF_BOUNDS_GLOBAL] as number[],
     attribution: RELIEF_ATTRIBUTION,
   };
 }

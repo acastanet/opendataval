@@ -5,7 +5,10 @@ ENV npm_config_fetch_retries=5 \
     npm_config_fetch_retry_maxtimeout=120000 \
     npm_config_fetch_timeout=300000 \
     npm_config_store_dir=/pnpm/store
-RUN npm install -g pnpm@11.10.0
+# poppler-utils (pdftotext, pdftoppm) : extraction de texte et rendu de page pour les documents
+# PDF de la fiche InfoTerre, voir src/services/conversion-document.ts.
+RUN apk add --no-cache poppler-utils \
+ && npm install -g pnpm@11.10.0
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/package.json

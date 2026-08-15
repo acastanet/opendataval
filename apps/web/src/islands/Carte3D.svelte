@@ -303,7 +303,7 @@
   .carte {
     position: absolute;
     inset: 2rem;
-    border-radius: var(--radius, 4px);
+    border-radius: var(--rayon, 4px);
     overflow: hidden;
     box-shadow: 0 4px 20px rgba(0,0,0,0.35);
   }
@@ -311,7 +311,7 @@
   .chargement-overlay {
     position: absolute;
     inset: 2rem;
-    border-radius: var(--radius, 4px);
+    border-radius: var(--rayon, 4px);
     overflow: hidden;
     background: linear-gradient(180deg, #0b1d2e 0%, #1a3a5c 100%);
     display: flex;
@@ -487,9 +487,9 @@
   }
 
   .popup {
-    background: var(--bg);
-    color: var(--fg);
-    border-radius: var(--radius, 4px);
+    background: var(--surface-fond);
+    color: var(--texte-principal);
+    border-radius: var(--rayon, 4px);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
     width: 100%;
     max-width: 520px;
@@ -504,7 +504,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--bordure);
   }
 
   .popup-header h3 {
@@ -516,7 +516,7 @@
   .popup-close {
     background: none;
     border: none;
-    color: var(--fg);
+    color: var(--texte-principal);
     font-size: 1.5rem;
     cursor: pointer;
     line-height: 1;
@@ -551,18 +551,18 @@
     align-items: flex-start;
     gap: 0.2rem;
     padding: 0.8rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius, 4px);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon, 4px);
     background: var(--encadre-bg);
-    color: var(--fg);
+    color: var(--texte-principal);
     cursor: pointer;
     text-align: left;
     transition: background 150ms, border-color 150ms;
   }
 
   .popup-option:hover {
-    background: var(--border);
-    border-color: var(--fg);
+    background: var(--bordure);
+    border-color: var(--texte-principal);
   }
 
   .option-label {
@@ -601,14 +601,14 @@
   .popup-image {
     width: 100%;
     height: auto;
-    border-radius: var(--radius, 4px);
-    border: 1px solid var(--border);
+    border-radius: var(--rayon, 4px);
+    border: 1px solid var(--bordure);
   }
 
   .image-hint {
     display: block;
     margin-top: 0.35rem;
-    color: var(--fg);
+    color: var(--texte-principal);
     font-size: 0.78rem;
     opacity: 0.75;
     text-align: center;
@@ -617,16 +617,16 @@
   .popup-back {
     align-self: flex-start;
     padding: 0.4rem 0.8rem;
-    border: 1px solid var(--border);
+    border: 1px solid var(--bordure);
     border-radius: 999px;
     background: var(--encadre-bg);
-    color: var(--fg);
+    color: var(--texte-principal);
     cursor: pointer;
     font-size: 0.82rem;
   }
 
   .popup-back:hover {
-    background: var(--border);
+    background: var(--bordure);
   }
 
   .fullscreen-overlay {

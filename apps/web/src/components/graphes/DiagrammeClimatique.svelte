@@ -72,21 +72,21 @@
         y={echelleRR(d.rr)}
         width={largeurBarre}
         height={echelleRR(0) - echelleRR(d.rr)}
-        fill="var(--color-torrent)"
+        fill="var(--torrent)"
         opacity="0.55"
       />
     {/if}
     <text x={echelleXCat(i)} y={hauteur - 8} class="label-x">{NOMS_MOIS[d.mois - 1]}</text>
   {/each}
   {#if bandeTnTx}
-    <path d={bandeTnTx} fill="var(--color-alerte)" opacity="0.15" />
+    <path d={bandeTnTx} fill="var(--alerte)" opacity="0.15" />
   {/if}
-  <path d={cheminTm} fill="none" stroke="var(--color-alerte)" stroke-width="2" />
+  <path d={cheminTm} fill="none" stroke="var(--alerte)" stroke-width="2" />
 </svg>
 
 <p class="legende">
-  <span><span class="puce" style="background:var(--color-alerte)"></span>Température moyenne (bande = mini/maxi)</span>
-  <span><span class="puce" style="background:var(--color-torrent)"></span>Précipitations (mm, axe droit)</span>
+  <span><span class="puce" style="background:var(--alerte)"></span>Température moyenne (bande = mini/maxi)</span>
+  <span><span class="puce" style="background:var(--torrent)"></span>Précipitations (mm, axe droit)</span>
 </p>
 
 <style>
@@ -96,13 +96,13 @@
     display: block;
   }
   .grille {
-    stroke: var(--border);
+    stroke: var(--texte-tertiaire);
     stroke-width: 0.5;
     opacity: 0.4;
   }
   .label-y {
     font-size: 9px;
-    fill: var(--border);
+    fill: var(--texte-tertiaire);
     dominant-baseline: middle;
     font-family: var(--font-body);
   }
@@ -114,7 +114,7 @@
   }
   .label-x {
     font-size: 10px;
-    fill: var(--border);
+    fill: var(--texte-tertiaire);
     text-anchor: middle;
     font-family: var(--font-body);
   }
@@ -124,7 +124,7 @@
     gap: 0.3rem 1.2rem;
     margin: 0.4rem 0 0;
     font-size: 0.78rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
   .legende span {
     display: inline-flex;

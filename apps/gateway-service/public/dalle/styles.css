@@ -1,5 +1,3 @@
-@import "./design-system.css";
-
 /* Thème clair volontaire : le visualiseur est un instrument de contrôle géométrique, un
    fond sombre masquerait les défauts de contact entre le terrain et les bâtiments. */
 :root {

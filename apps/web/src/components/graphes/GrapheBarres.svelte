@@ -54,20 +54,20 @@
     display: block;
   }
   .grille {
-    stroke: var(--border);
+    stroke: var(--texte-tertiaire);
     stroke-width: 0.5;
     opacity: 0.4;
   }
   .label-y {
     font-size: 9px;
-    fill: var(--border);
+    fill: var(--texte-tertiaire);
     text-anchor: end;
     dominant-baseline: middle;
     font-family: var(--font-body);
   }
   .label-x {
     font-size: 9px;
-    fill: var(--border);
+    fill: var(--texte-tertiaire);
     text-anchor: middle;
     font-family: var(--font-body);
   }

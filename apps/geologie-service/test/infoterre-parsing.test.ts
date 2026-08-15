@@ -3,10 +3,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
-  documentsCoupe,
+  classerDocuments,
   ErreurExtractionInfoterre,
   extraireDocuments,
   extraireLog,
+  type DocumentInfoterre,
 } from "../src/domain/infoterre-parsing.js";
 
 /**
@@ -40,16 +41,27 @@ test("extrait les 2 documents de la fiche VA-2A, tous deux coupe de chantier", (
   assert.ok(documents.every((d) => d.types.includes("COUPE GEOLOGIQUE DE CHANTIER")));
 });
 
-test("documentsCoupe priorise la coupe interprétée avant la coupe de chantier", () => {
+test("classerDocuments place la coupe interprétée en tête, sans écarter les autres documents", () => {
   const documents = extraireDocuments(HTML_MONNA, URL_MONNA);
-  const coupes = documentsCoupe(documents);
-  assert.equal(coupes.length, 1, "seul M541404.TIF est une coupe, les 2 autres sont des récapitulatifs");
-  assert.equal(coupes[0]?.nom, "M541404.TIF");
+  const classes = classerDocuments(documents);
+  assert.equal(classes.length, 3, "les 2 récapitulatifs restent éligibles, seulement moins prioritaires");
+  assert.equal(classes[0]?.nom, "M541404.TIF");
 });
 
-test("documentsCoupe ne retient que les documents de type coupe géologique", () => {
-  const coupes = documentsCoupe(extraireDocuments(HTML_VA2A, URL_VA2A));
-  assert.equal(coupes.length, 2);
+test("classerDocuments conserve l'ordre d'origine entre documents de même rang", () => {
+  const classes = classerDocuments(extraireDocuments(HTML_VA2A, URL_VA2A));
+  assert.equal(classes.length, 2);
+  assert.ok(classes.every((d) => d.types.includes("COUPE GEOLOGIQUE DE CHANTIER")));
+});
+
+test("classerDocuments priorise coupe > rapport > document non typé", () => {
+  const documents: DocumentInfoterre[] = [
+    { nom: "divers.pdf", types: ["AUTRE"], url_scan: "http://x/divers.pdf" },
+    { nom: "rapport.pdf", types: ["RAPPORT DE FIN DE SONDAGE"], url_scan: "http://x/rapport.pdf" },
+    { nom: "coupe.tif", types: ["COUPE GEOLOGIQUE DE CHANTIER"], url_scan: "http://x/coupe.tif" },
+  ];
+  const classes = classerDocuments(documents);
+  assert.deepEqual(classes.map((d) => d.nom), ["coupe.tif", "rapport.pdf", "divers.pdf"]);
 });
 
 test("extrait les 3 niveaux du log géologique de MONNA malgré les <td> non refermés", () => {

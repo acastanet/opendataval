@@ -61,7 +61,7 @@
   const COULEUR_SITUATION = {
     tres_bas: "#b5533c",
     bas: "#c99a3e",
-    modere: "var(--border)",
+    modere: "var(--bordure)",
     haut: "#5c7a44",
     tres_haut: "#3e6e82",
   };
@@ -618,7 +618,7 @@
       {/if}
       {#if popup.serie && popup.serie.length > 1}
         <svg viewBox="0 0 240 60" class="graphe" role="img" aria-label="Évolution du niveau de la nappe">
-          <path d={serieVersChemin(popup.serie, 240, 60)} fill="none" stroke="var(--color-torrent)" stroke-width="1.5" />
+          <path d={serieVersChemin(popup.serie, 240, 60)} fill="none" stroke="var(--torrent)" stroke-width="1.5" />
         </svg>
         {#if popup.stats}
           <p class="legende-graphe">
@@ -694,11 +694,11 @@
     justify-content: center;
     width: 2.2rem;
     height: 2.2rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--panel-bg);
-    color: var(--fg);
-    box-shadow: var(--shadow);
+    border-radius: var(--rayon);
+    border: 1px solid var(--bordure);
+    background: var(--surface-elevee);
+    color: var(--texte-principal);
+    box-shadow: var(--ombre-courte);
     cursor: pointer;
   }
 
@@ -708,7 +708,7 @@
   }
 
   .bouton-theme:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--couleur-action);
     outline-offset: 2px;
   }
 
@@ -723,13 +723,13 @@
     bottom: 1rem;
     width: 17rem;
     z-index: 4;
-    background: var(--panel-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--surface-elevee);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
     padding: 0.9rem;
     overflow-y: auto;
     backdrop-filter: blur(2px);
-    box-shadow: var(--shadow);
+    box-shadow: var(--ombre-courte);
   }
 
   .panneau h2 {
@@ -744,8 +744,8 @@
 
   .groupe-fonds {
     display: flex;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
     overflow: hidden;
     margin-bottom: 0.9rem;
   }
@@ -754,9 +754,9 @@
     flex: 1;
     padding: 0.45rem 0.3rem;
     border: none;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid var(--bordure);
     background: transparent;
-    color: var(--fg);
+    color: var(--texte-principal);
     font-family: var(--font-body);
     font-size: 0.72rem;
     cursor: pointer;
@@ -768,8 +768,8 @@
   }
 
   .groupe-fonds button.actif {
-    background: var(--fg);
-    color: var(--bg);
+    background: var(--texte-principal);
+    color: var(--surface-fond);
   }
 
   .groupe-fonds button:not(.actif):hover {
@@ -777,7 +777,7 @@
   }
 
   .groupe-fonds button:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--couleur-action);
     outline-offset: -2px;
   }
 
@@ -806,7 +806,7 @@
     padding: 0;
     border: none;
     background: transparent;
-    color: var(--fg);
+    color: var(--texte-principal);
     font-family: var(--font-body);
     font-size: 0.9rem;
     text-align: left;
@@ -814,7 +814,7 @@
   }
 
   .entete-groupe:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--couleur-action);
     outline-offset: 2px;
   }
 
@@ -826,7 +826,7 @@
     width: 0.7rem;
     height: 0.7rem;
     flex-shrink: 0;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     transition: transform 150ms ease;
   }
 
@@ -858,7 +858,7 @@
   .badge {
     font-family: var(--font-mono);
     font-size: 0.66rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     background: rgba(154, 155, 147, 0.18);
     border-radius: 999px;
     padding: 0.1rem 0.45rem;
@@ -870,7 +870,7 @@
     width: 2rem;
     height: 1.15rem;
     padding: 0;
-    border: 1px solid var(--border);
+    border: 1px solid var(--bordure);
     border-radius: 999px;
     background: transparent;
     cursor: pointer;
@@ -884,22 +884,22 @@
     width: 0.95rem;
     height: 0.95rem;
     border-radius: 50%;
-    background: var(--border);
+    background: var(--bordure);
     transition: transform 150ms ease, background 150ms ease;
   }
 
   .interrupteur.actif {
-    background: var(--accent);
-    border-color: var(--accent);
+    background: var(--couleur-action);
+    border-color: var(--couleur-action);
   }
 
   .interrupteur.actif .poucet {
-    background: var(--panel-bg);
+    background: var(--surface-elevee);
     transform: translateX(0.85rem);
   }
 
   .interrupteur:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--couleur-action);
     outline-offset: 2px;
   }
 
@@ -922,7 +922,7 @@
     gap: 0.5rem;
     margin: 0.35rem 0 0 2.5rem;
     font-size: 0.7rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .controle-relief {
@@ -931,13 +931,13 @@
 
   .controle-opacite input[type="range"] {
     flex: 1;
-    accent-color: var(--accent);
+    accent-color: var(--couleur-action);
   }
 
   .note-panneau {
     margin-top: 0.9rem;
     font-size: 0.72rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     line-height: 1.4;
   }
 
@@ -948,12 +948,12 @@
     z-index: 6;
     width: 17rem;
     max-width: calc(100vw - 2rem);
-    background: var(--panel-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: var(--surface-elevee);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
     padding: 0.9rem;
     font-size: 0.85rem;
-    box-shadow: var(--shadow);
+    box-shadow: var(--ombre-courte);
   }
 
   .fiche h3 {
@@ -970,7 +970,7 @@
     border: none;
     background: transparent;
     cursor: pointer;
-    color: var(--fg);
+    color: var(--texte-principal);
   }
 
   .fermer svg {
@@ -979,7 +979,7 @@
   }
 
   .fermer:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--couleur-action);
     outline-offset: 2px;
   }
 
@@ -993,7 +993,7 @@
   }
 
   .fiche dt {
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .fiche dd {
@@ -1003,7 +1003,7 @@
   .stats-chronique {
     margin-top: 0.6rem;
     padding-top: 0.6rem;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--bordure);
     font-size: 0.78rem;
     line-height: 1.5;
   }
@@ -1013,7 +1013,7 @@
   }
 
   .detail {
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .situation {
@@ -1030,7 +1030,7 @@
   }
 
   .minmax {
-    color: var(--border);
+    color: var(--texte-tertiaire);
     font-size: 0.72rem;
   }
 
@@ -1043,7 +1043,7 @@
   .legende-graphe {
     font-family: var(--font-mono);
     font-size: 0.65rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     margin: 0.2rem 0 0;
   }
 
@@ -1055,7 +1055,7 @@
 
   .chargement {
     font-size: 0.75rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   @media (max-width: 720px) {
@@ -1071,13 +1071,13 @@
       left: 1rem;
       bottom: 1rem;
       z-index: 5;
-      border: 1px solid var(--border);
-      background: var(--panel-bg);
-      color: var(--fg);
-      border-radius: var(--radius);
+      border: 1px solid var(--bordure);
+      background: var(--surface-elevee);
+      color: var(--texte-principal);
+      border-radius: var(--rayon);
       padding: 0.5rem 0.9rem;
       font-size: 0.85rem;
-      box-shadow: var(--shadow);
+      box-shadow: var(--ombre-courte);
     }
 
     .bouton-panneau svg {
@@ -1093,7 +1093,7 @@
       bottom: 0;
       width: 100%;
       max-height: 45vh;
-      border-radius: var(--radius) var(--radius) 0 0;
+      border-radius: var(--rayon) var(--rayon) 0 0;
       border-bottom: none;
       transform: translateY(calc(100% - 2.5rem));
       transition: transform 200ms ease;
@@ -1110,7 +1110,7 @@
       padding: 0;
       border: none;
       border-radius: 999px;
-      background: var(--border);
+      background: var(--bordure);
       margin: 0 auto 0.6rem;
       cursor: pointer;
     }

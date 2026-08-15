@@ -2,8 +2,10 @@ import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { ErreurInfoterre, type InfoterreClient } from "../clients/infoterre.js";
 import type { GeologieConfig } from "../config.js";
 import { referenceValide } from "../domain/reference-bss.js";
+import type { Convertisseur } from "../services/conversion-document.js";
 import { interpreterFiche } from "../services/interpretation.js";
 import type { Syntheseur } from "../services/llm-interpretation.js";
+import type { SelecteurDocument } from "../services/selecteur-document.js";
 
 function erreur(code: string, message: string, retryable: boolean, requestId: string) {
   return { error: { code, message, retryable }, requestId };
@@ -11,6 +13,8 @@ function erreur(code: string, message: string, retryable: boolean, requestId: st
 
 export interface DependancesSyntheseRoute {
   infoterre: InfoterreClient;
+  selecteur: SelecteurDocument;
+  convertisseur: Convertisseur;
   syntheseur: Syntheseur;
   config: GeologieConfig;
 }
@@ -40,6 +44,8 @@ export function registerSyntheseRoutes(app: FastifyInstance, deps: DependancesSy
     try {
       return await interpreterFiche(reference, {
         infoterre: deps.infoterre,
+        selecteur: deps.selecteur,
+        convertisseur: deps.convertisseur,
         syntheseur: deps.syntheseur,
         config: deps.config,
         log: request.log,

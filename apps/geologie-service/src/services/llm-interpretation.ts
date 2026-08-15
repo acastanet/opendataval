@@ -1,16 +1,18 @@
 import type { GeologieConfig } from "../config.js";
+import type { DocumentConverti } from "./conversion-document.js";
 import type { NiveauLog } from "../domain/infoterre-parsing.js";
 
-export interface ImagePourSynthese {
+export interface DocumentPourSynthese {
   nom: string;
   types: string[];
-  pngBase64: string;
+  contenu: DocumentConverti;
 }
 
 export interface RequeteSynthese {
   reference: string;
   log: NiveauLog[];
-  images: ImagePourSynthese[];
+  /** Le document unique retenu par l'étape de sélection, s'il a pu être téléchargé et converti. */
+  document?: DocumentPourSynthese;
 }
 
 export interface Syntheseur {
@@ -21,15 +23,16 @@ export interface Syntheseur {
 const PROMPT_SYSTEME = `Tu es un assistant d'interprétation géologique pour des ouvrages du sous-sol référencés au BRGM (Banque du Sous-Sol).
 
 Tu reçois le log géologique structuré d'un ouvrage (profondeur, lithologie, stratigraphie par niveau),
-et éventuellement un ou plusieurs scans de coupe géologique en image.
+et éventuellement un document complémentaire : soit un scan de coupe géologique en image, soit le
+texte extrait d'un document PDF (rapport, log).
 
 Rédige une synthèse concise (1 à 3 phrases) en français décrivant la nature du sous-sol observé.
 
-Tu dois utiliser exclusivement les données fournies (log et images).
+Tu dois utiliser exclusivement les données fournies (log, image ou texte de document).
 
 Ne déduis et n'invente aucune donnée absente des informations fournies.
 
-Si aucune image n'est fournie, base-toi uniquement sur le log géologique.
+Si aucun document complémentaire n'est fourni, base-toi uniquement sur le log géologique.
 
 Réponds uniquement avec le texte de la synthèse, sans balisage ni commentaire autour.`;
 
@@ -41,19 +44,21 @@ interface ReponseChatCompletions {
 }
 
 function construireMessages(requete: RequeteSynthese): { role: string; content: unknown }[] {
-  const donnees = JSON.stringify({ reference: requete.reference, log: requete.log });
+  const contenuDocument = requete.document?.contenu;
+  const documentTexte = contenuDocument?.type === "texte" ? contenuDocument.texte : undefined;
+  const donnees = JSON.stringify({ reference: requete.reference, log: requete.log, document_texte: documentTexte });
 
-  if (requete.images.length === 0) {
+  if (contenuDocument?.type !== "image") {
     return [
       { role: "system", content: PROMPT_SYSTEME },
       { role: "user", content: donnees },
     ];
   }
 
-  const parts: unknown[] = [{ type: "text", text: donnees }];
-  for (const image of requete.images) {
-    parts.push({ type: "image_url", image_url: { url: `data:image/png;base64,${image.pngBase64}` } });
-  }
+  const parts: unknown[] = [
+    { type: "text", text: donnees },
+    { type: "image_url", image_url: { url: `data:image/png;base64,${contenuDocument.pngBase64}` } },
+  ];
   return [
     { role: "system", content: PROMPT_SYSTEME },
     { role: "user", content: parts },

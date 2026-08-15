@@ -180,7 +180,6 @@ services:
       GEOLOGIE_INFOTERRE_TIMEOUT_MS: ${GEOLOGIE_INFOTERRE_TIMEOUT_MS:-15000}
       GEOLOGIE_INFOTERRE_MAX_SCAN_BYTES: ${GEOLOGIE_INFOTERRE_MAX_SCAN_BYTES:-5000000}
       GEOLOGIE_INFOTERRE_IMAGE_WIDTH_PX: ${GEOLOGIE_INFOTERRE_IMAGE_WIDTH_PX:-1400}
-      GEOLOGIE_INFOTERRE_MAX_IMAGES: ${GEOLOGIE_INFOTERRE_MAX_IMAGES:-2}
       GEOLOGIE_DEBUG_ENABLED: ${GEOLOGIE_DEBUG_ENABLED:-false}
       APP_VERSION: ${APP_VERSION:-dev}
     expose:
@@ -309,6 +308,13 @@ services:
       MAP_TILE_CACHE_MAX_BYTES: ${MAP_TILE_CACHE_MAX_BYTES:-268435456}
       MAP_RELIEF_GLOBAL_PATH: /srv/relief/aigoual.pmtiles
       MAP_RELIEF_HD_PATH: /srv/relief/aigoual-hd.pmtiles
+      # Alpes / Marseille et Périgueux (100 km) : archives à générer via
+      # apps/map-service/scripts/generer-region-relief.ts, absentes tant que ce n'est pas fait
+      # (le service reste "degraded" sur ces régions, sans effet sur l'Aigoual).
+      MAP_RELIEF_ALPES_MARSEILLE_GLOBAL_PATH: /srv/relief/alpes-marseille.pmtiles
+      MAP_RELIEF_ALPES_MARSEILLE_HD_PATH: /srv/relief/alpes-marseille-hd.pmtiles
+      MAP_RELIEF_PERIGUEUX_GLOBAL_PATH: /srv/relief/perigueux.pmtiles
+      MAP_RELIEF_PERIGUEUX_HD_PATH: /srv/relief/perigueux-hd.pmtiles
     volumes:
       - ./apps/web/public/relief:/srv/relief:ro
     expose:

@@ -204,6 +204,18 @@ onDestroy(() => {
 pmtiles create relief.pmtiles data.geojson
 ```
 
+Pour le relief, cette conversion se fait en deux étapes, la première scriptée dans le dépôt :
+
+1. `apps/map-service/scripts/generer-region-relief.ts` (`pnpm --filter map-service generer:relief -- --id <région> --sortie <dossier>`)
+   interroge le WMS altimétrique RGE ALTI de l'IGN, tuile par tuile, et écrit une arborescence
+   `z/x/y` de PNG terrarium sur la bbox de la région (voir `REGIONS_RELIEF` dans
+   `packages/shared/src/carto.ts`, et `doc/microservice/map-service/README.md` pour la liste des
+   régions déclarées). Cette étape est longue — plusieurs dizaines de milliers de requêtes pour une
+   emprise de 100 km de rayon — et reste une tâche d'exploitation séparée du développement courant.
+2. Conversion de chaque PNG en WebP sans perte (`cwebp -lossless`), puis empaquetage de
+   l'arborescence avec la CLI `pmtiles` (`pmtiles convert <dossier> <région>.pmtiles`), comme pour
+   `aigoual.pmtiles`. L'archive obtenue est déposée dans `apps/web/public/relief/`.
+
 **Avantages pour le relief** :
 - Stockage local dans le conteneur Docker
 - Pas de dépendance externe pour le relief

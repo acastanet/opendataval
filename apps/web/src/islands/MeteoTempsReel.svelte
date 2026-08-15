@@ -65,7 +65,7 @@
   $: seriesTemperature = [
     {
       nom: "Température",
-      couleur: "var(--color-alerte)",
+      couleur: "var(--alerte)",
       points: historique.map((h) => ({
         x: new Date(h.heure_utc).getTime(),
         y: h.t === null || h.t === undefined ? null : Number(h.t),
@@ -166,7 +166,7 @@
           <h3>Précipitations horaires (48 h)</h3>
           <GrapheBarres
             barres={barresPluie}
-            couleur="var(--color-torrent)"
+            couleur="var(--torrent)"
             formatX={(v) => new Date(v).toLocaleTimeString("fr-FR", { hour: "2-digit" })}
             formatY={(v) => `${v} mm`}
             hauteur={140}
@@ -184,7 +184,7 @@
   .selecteur-station {
     display: block;
     font-size: 0.78rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     margin-bottom: 0.8rem;
   }
   .selecteur-station select {
@@ -193,13 +193,13 @@
     font-family: var(--font-body);
     font-size: 0.9rem;
     padding: 0.3rem 0.5rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--bg);
+    border-radius: var(--rayon);
+    border: 1px solid var(--bordure);
+    background: var(--surface-fond);
     color: inherit;
   }
   .etat {
-    color: var(--border);
+    color: var(--texte-tertiaire);
     font-size: 0.9rem;
   }
   .tuiles {
@@ -210,7 +210,7 @@
   }
   .tuile {
     padding: 0 1.2rem;
-    border-left: 1px solid var(--border);
+    border-left: 1px solid var(--bordure);
   }
   .tuile:first-child {
     padding-left: 0;
@@ -221,7 +221,7 @@
     font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: 0.07em;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
   .tuile dd {
     margin: 0;
@@ -231,7 +231,7 @@
   .horodatage {
     margin: 0 0 1.2rem;
     font-size: 0.78rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
   .licence {
     font-style: italic;

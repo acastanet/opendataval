@@ -1,16 +1,16 @@
-# valfeu — application de terrain
+# LAV.feu — application de terrain
 
-> Application mobile-first servie sur `/valfeu/` : carte, position et suspicions satellitaires de feu autour d’un point actif.
-> Dernière mise à jour : 2026-07-27 · Dernière vérification : 2026-07-27
-> Code : `apps/gateway-service/src/pages/app-terrain.ts` · Routes : `apps/gateway-service/src/app.ts:163-175`
+> Application servie sur `/valfeu/` : carte, position et suspicions satellitaires de feu autour d’un point actif. Interface claire, responsive (panneau en bas sur mobile, à droite en desktop), sans thème sombre automatique.
+> Dernière mise à jour : 2026-08-15 · Dernière vérification : 2026-08-15
+> Code : `apps/gateway-service/src/pages/app-terrain.ts` · Routes : `apps/gateway-service/src/app.ts:204-220`
 
 ## Rôle
 
-valfeu répond à une question de terrain, sur téléphone, avec du réseau incertain : **y a-t-il une suspicion de feu près d’ici, et quand a-t-elle été observée ?**
+LAV.feu répond à une question de terrain, sur téléphone, avec du réseau incertain : **y a-t-il une suspicion de feu près d’ici, et quand a-t-elle été observée ?** L'URL et l'identifiant technique (`valfeu`) restent inchangés ; « LAV.feu » est la dénomination affichée, reprenant le logo officiel du portail LAV.
 
 Elle compose trois services v2 autour d’un point actif : Map pour le fond, Fire Detection pour les suspicions, Geography pour l’adresse du point. Elle ne contient aucune logique métier : tout est calculé en amont, la page ne fait que présenter.
 
-Toute détection affichée est une **suspicion satellitaire non confirmée** ; l’absence de point n’est jamais une garantie d’absence de feu. Ce cadrage est repris littéralement dans l’interface (HUD, listes, fiche de détail).
+Toute détection affichée est une **suspicion satellitaire non confirmée** ; l’absence de point n’est jamais une garantie d’absence de feu. Ce cadrage est repris littéralement dans l’interface (bandeau, listes, fiche de détail).
 
 ## Accès
 
@@ -24,12 +24,23 @@ Aucun service worker n’est enregistré : les données satellite doivent rester
 
 ## Écran
 
-Quatre zones superposées à une carte plein écran :
+Une seule surface d'interface, superposée à une carte plein écran — plus de zones flottantes
+indépendantes qui pouvaient se recouvrir :
 
-- **HUD (haut)** — identité `valfeu`, libellé du point actif, état lisible des sources et accès direct au **112** et au **18** ;
-- **Carte** — MapLibre, style `plan` servi par map-service ;
-- **Feuille de résultats (bas)** — deux états au clic sur la poignée : repliée ou dépliée, avec cartes tactiles pour chaque suspicion ;
-- **Console de recherche (bas)** — rayon 5/50 km et recherche feu mis en avant, puis Mairie · Ma position · Historique 7 j en actions secondaires. Cibles tactiles de 48 px minimum, marges `env(safe-area-inset-*)` respectées.
+- **Bandeau** — marque **LAV.feu** (logo officiel du portail, lien de retour vers `/`) en pilule
+  claire, et bouton **112** en pilule contourée rouge à côté ; pleine largeur en haut sur mobile,
+  aligné au-dessus du panneau à droite en desktop ;
+- **Carte** — MapLibre, style `plan` servi par map-service, sans contrôle de zoom superposé
+  (pincer/molette suffisent) ;
+- **Légende** — trois âges de suspicion, distingués par couleur **et par forme** (disque cerclé,
+  disque à filet blanc, disque évidé) ; bas-droite sur mobile (au-dessus du panneau), haut-gauche
+  en desktop (le côté droit étant occupé par le panneau) ;
+- **Panneau** (rail à **droite** en desktop ≥ 900 px, feuille en bas sur mobile) — rayon, fenêtre
+  et bouton « Rechercher » toujours en tête, toujours visibles sans interaction préalable ; puis
+  point actif, résultats, état des sources et note de sécurité, dans une seule zone défilante.
+  Pas de repli/dépli à gérer : le panneau s'ajuste à son contenu (jusqu'à 64 % de la hauteur
+  d'écran sur mobile, hauteur libre sur le rail desktop). Cibles tactiles de 44-48 px minimum,
+  marges `env(safe-area-inset-*)` respectées.
 
 ## Interactions
 
@@ -37,10 +48,13 @@ Quatre zones superposées à une carte plein écran :
 |---|---|
 | **Mairie** | Repositionne le point actif sur la mairie de Val-d’Aigoual, efface les détections |
 | **Ma position** | `navigator.geolocation` (haute précision, délai 10 s), affiche le cercle de précision, puis interroge `/api/v2/geography/resolve` pour l’adresse, la commune, le département et l’altitude |
-| **Feux** | `/api/v2/fire/nearby` sur 24 h, rayon 5 ou 50 km selon le segment sélectionné |
-| **Historique 7 j** | Même route, forcée à 50 km sur 7 jours, résultats regroupés par jour |
+| **Rayon** (5, 20 ou 50 km) et **Fenêtre** (24 h ou 7 jours) | Deux réglages indépendants ; le bouton « Rechercher » annonce la combinaison choisie (ex. « Rechercher · 20 km · 7 jours ») et interroge `/api/v2/fire/nearby` avec ce couple exact, sans substitution silencieuse |
 | **Appui long / clic droit sur la carte** | Choisit un point libre ; sur écran tactile, l’appui est reconnu après 650 ms et annulé si le doigt se déplace |
 | **Clic sur une détection** (carte ou liste) | Fiche de détail : distance, date d’observation, satellite, instrument, confiance, puissance radiative |
+
+Avant la version 2026-08-15, le rayon (5/50 km) et l'historique (« Historique 7 j », forcé à
+50 km) étaient deux actions séparées qui ne se combinaient pas librement ; ils forment désormais
+un seul couple de réglages orthogonaux.
 
 Après une recherche, la vue s’ajuste sur l’ensemble « point actif + détections » (`fitBounds`) ; sans détection, elle recentre simplement sur le point. Les animations sont supprimées si `prefers-reduced-motion` est actif.
 
@@ -55,7 +69,7 @@ décalage `UTC+1` ou `UTC+2` selon la date.
 | `search-radius` | Disque du rayon interrogé, orange, contour tireté |
 | `accuracy` | Cercle de précision de la géolocalisation, bleu |
 | `active-point` | Point actif, pastille bleue cerclée de blanc |
-| `detections` | Suspicions : **rouge** si observée il y a moins de 3 h, **orange** moins de 24 h, **jaune** au-delà ; rayon interpolé selon la puissance radiative (FRP) de 6 à 13 px |
+| `detections` | Suspicions : **rouge** (contour renforcé) si observée il y a moins de 3 h, **orange** (filet blanc) moins de 24 h, **jaune** (opacité réduite) au-delà ; rayon interpolé selon la puissance radiative (FRP) de 6 à 13 px. Les trois âges se distinguent par la couleur et par le contour, jamais par la seule couleur, en écho à la légende |
 
 ## Dépendances
 
@@ -83,8 +97,8 @@ En cas d’indisponibilité réelle de MapLibre, l’élément `#map` **est cons
 | Symptôme | Cause probable | Action |
 |---|---|---|
 | « Carte indisponible » avec bouton Réessayer | map-service arrêté, ou page ouverte sur le port du gateway au lieu de Caddy | `docker compose up -d map-service` ; utiliser `http://localhost:8080/…` |
-| Carte grise, HUD « Fond de carte indisponible » | Style ou tuiles en erreur, MapLibre chargé | Vérifier `/api/v2/map/styles/carte.json` et une tuile `…/tiles/plan/12/2076/1478.png` |
-| « Sources satellite : incomplètes » | `data_status` dégradé ou une source amont muette | Comportement nominal : le bandeau prévient que l’absence de point ne vaut pas absence de feu |
+| Carte grise, « Fond de carte indisponible » dans le pied du panneau | Style ou tuiles en erreur, MapLibre chargé | Vérifier `/api/v2/map/styles/carte.json` et une tuile `…/tiles/plan/12/2076/1478.png` |
+| « Sources satellite : incomplètes » | `data_status` dégradé ou une source amont muette | Comportement nominal : le panneau prévient que l’absence de point ne vaut pas absence de feu |
 | « Données feu indisponibles » | fire-detection-service injoignable ou en erreur | Le message reprend le code d’erreur et la référence de support (`requestId`) ; bouton Réessayer |
 | Bouton « Ma position » sans effet | Contexte non sécurisé ou autorisation refusée | La géolocalisation exige HTTPS ou `localhost` ; le message précise la cause (refus, indisponible, délai dépassé) |
 
@@ -100,7 +114,7 @@ curl.exe -sI http://localhost:8080/api/v2/map/vendor/maplibre-gl.js
 ## Tests
 
 ```powershell
-pnpm --filter gateway-service run test       # 43 tests, dont 8 pour valfeu
+pnpm --filter gateway-service run test       # dont 10 tests pour valfeu (app-terrain.test.ts)
 pnpm --filter gateway-service run typecheck
 ```
 
@@ -111,7 +125,7 @@ pnpm --filter gateway-service run typecheck
 - La liste des détections lit toujours `history.suspicions` de la réponse fire ; le mode « Feux » repose donc sur `history_days=1` plutôt que sur le bloc temps réel du contrat amont.
 - Le rayon de recherche est dessiné comme un polygone à 72 côtés calculé en degrés : suffisant à l’échelle communale, ce n’est pas une géodésique exacte.
 - Pas de mode hors ligne, pas de persistance du point actif entre deux visites.
-- La page d’accueil générale du portail conserve ses propres libellés ; l’application de terrain et son manifeste utilisent désormais l’identité **valfeu**.
+- L'identifiant technique et les URL restent `valfeu` (`/valfeu/`, `scope` du manifeste) ; **LAV.feu** est la dénomination affichée dans l'interface, le manifeste (`name`, `short_name`) et le portail.
 
 ## Documentation liée
 

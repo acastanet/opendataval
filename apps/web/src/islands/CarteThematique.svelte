@@ -134,11 +134,11 @@
   .carte-thematique { margin-top: 1rem; }
   .carte {
     width: 100%;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
+    border-radius: var(--rayon);
+    border: 1px solid var(--bordure);
     overflow: hidden;
   }
-  .compteur, .erreur { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--border); }
+  .compteur, .erreur { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--texte-tertiaire); }
   .erreur { color: var(--danger, #9f2f2f); }
   :global(.popup-carte-thematique) { font-family: var(--font-body); font-size: 0.82rem; line-height: 1.4; }
   :global(.popup-carte-thematique strong) { display: block; margin-bottom: 0.35rem; }

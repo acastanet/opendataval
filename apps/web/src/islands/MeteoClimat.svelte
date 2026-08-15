@@ -43,7 +43,7 @@
   $: seriesTm = [
     {
       nom: "Température moyenne annuelle",
-      couleur: "var(--color-alerte)",
+      couleur: "var(--alerte)",
       points: annees.map((a) => ({ x: a.annee, y: a.tm === null || a.tm === undefined ? null : Number(a.tm) })),
     },
   ];
@@ -78,7 +78,7 @@
     <h3>Cumul de précipitations annuel</h3>
     <GrapheBarres
       barres={barresRr}
-      couleur="var(--color-torrent)"
+      couleur="var(--torrent)"
       formatX={(v) => String(v)}
       formatY={(v) => `${v} mm`}
       hauteur={180}
@@ -135,7 +135,7 @@
     margin-top: 1rem;
   }
   .etat {
-    color: var(--border);
+    color: var(--texte-tertiaire);
     font-size: 0.9rem;
   }
   h3 {
@@ -154,14 +154,14 @@
   }
   .record {
     padding: 0.6rem 0.8rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
   }
   .record dt {
     font-size: 0.66rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     margin: 0 0 0.3rem;
   }
   .record dd {
@@ -173,7 +173,7 @@
     display: block;
     font-family: var(--font-body);
     font-size: 0.72rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     margin-top: 0.15rem;
   }
 </style>

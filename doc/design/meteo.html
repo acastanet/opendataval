@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#eef3ef">
+  <title>Prototype météo — VAL</title>
+  <link rel="icon" href="./favicon.svg">
+  <link rel="preload" href="/fonts/SourceSerif4-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="preload" href="/fonts/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="../../packages/shared/styles/design-system.css">
+  <link rel="stylesheet" href="./design.css">
+</head>
+<body>
+  <div class="prototype-note"><div class="coque"><span>OpenDataVdA · Atelier HTML/CSS</span><span>Données fictives · aucune API</span></div></div>
+  <header class="entete">
+    <div class="coque entete__interieur"><a class="marque" href="./accueil.html"><img src="./favicon.svg" alt=""><span><strong>VAL</strong><span>Météo locale</span></span></a></div>
+    <div class="coque hero hero__grille"><div><p class="surtitre">Mont Aigoual · Observation</p><h1>Le temps, au plus près du terrain.</h1><p class="introduction">Lecture rapide de la situation actuelle, puis accès aux détails et aux séries historiques.</p></div><aside class="hero__repere"><strong>12,4 °C</strong><span>Température observée</span><span class="fraicheur fraicheur--jour">Actualisé à 14 h 10</span></aside></div>
+  </header>
+  <nav class="navigation" aria-label="Prototypes"><div class="coque"><a href="./accueil.html">Accueil</a><a href="./meteo.html" aria-current="page">Météo</a><a href="./carte.html">Carte</a><a href="./composants.html">Composants</a><a href="./style_VAL.html">Référentiel</a></div></nav>
+  <main>
+    <section class="section"><div class="coque"><div class="section__entete"><h2>Situation actuelle</h2><p>Les indicateurs essentiels restent comparables, sourcés et lisibles sur mobile.</p></div><div class="grille mesures">
+      <div class="mesure"><span>Ressenti</span><strong>11 °C</strong><small class="fraicheur fraicheur--jour">14 h 10</small></div>
+      <div class="mesure"><span>Vent moyen</span><strong>24 km/h</strong><small class="fraicheur fraicheur--jour">14 h 10</small></div>
+      <div class="mesure"><span>Humidité</span><strong>78 %</strong><small class="fraicheur fraicheur--jour">14 h 10</small></div>
+      <div class="mesure"><span>Précipitations</span><strong>0,2 mm</strong><small class="fraicheur fraicheur--jour">14 h 10</small></div>
+    </div></div></section>
+    <section class="section section--plate"><div class="coque"><div class="avis"><span class="vigilance vigilance--jaune">Vigilance jaune</span><p>Vent soutenu sur les crêtes. Consultez les consignes avant tout déplacement en altitude.</p></div></div></section>
+    <section class="section"><div class="coque"><div class="section__entete"><h2>Prochaines heures</h2><p>Une structure éditoriale prête à accueillir les îlots Svelte actuels après validation.</p></div><div class="grille"><article class="carte filet-atmosphere"><span class="carte__indice">15 h · Météo-France</span><h3>12 °C · couvert</h3><p>Vent d’ouest, rafales à 48 km/h.</p></article><article class="carte filet-atmosphere"><span class="carte__indice">18 h · Météo-France</span><h3>10 °C · éclaircies</h3><p>Évolution lente, visibilité correcte.</p></article><article class="carte filet-atmosphere"><span class="carte__indice">21 h · Météo-France</span><h3>8 °C · peu nuageux</h3><p>Refroidissement marqué après le coucher du soleil.</p></article></div></div></section>
+  </main>
+  <footer class="pied"><div class="coque pied__interieur"><span>Données fictives pour validation visuelle</span><a href="../../apps/web/src/pages/meteo.astro">Cible Astro : meteo.astro</a></div></footer>
+</body>
+</html>

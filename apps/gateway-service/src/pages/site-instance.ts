@@ -93,7 +93,6 @@ function preparerGabarit(
   const identiteAccessible = `Identifiant ${manifeste.identity.tileId} · Centre ${manifeste.identity.center.lat.toFixed(6)}, ${manifeste.identity.center.lon.toFixed(6)}`;
 
   return VIEWER_TEMPLATE
-    .replace('<link rel="icon" href="./favicon.svg" type="image/svg+xml" />', "")
     .replace("<title>Maquette du village</title>", `<title>${escapeHtml(titre)} — OpenDataVal</title>`)
     .replace('./styles.css?v=20260802-calage-ortho', '/api/v2/sites/viewer/styles.css?v=20260808-p9')
     .replace('"three": "./vendor/three.module.js"', '"three": "/api/v2/sites/viewer/vendor/three.module.js"')

@@ -4,9 +4,9 @@
 
   // Trio à gradient d'altitude : sommet / crête intermédiaire / vallée, pour visualiser l'effet d'altitude.
   const TRIO_COMPARAISON = [
-    { id: "30339001", nom: "Mont Aigoual (1 567 m)", couleur: "var(--color-alerte)" },
-    { id: "30297001", nom: "Saint-Sauveur-Camprieu (1 107 m)", couleur: "var(--color-lichen)" },
-    { id: "000UB", nom: "Valleraugue (400 m)", couleur: "var(--color-torrent)" },
+    { id: "30339001", nom: "Mont Aigoual (1 567 m)", couleur: "var(--alerte)" },
+    { id: "30297001", nom: "Saint-Sauveur-Camprieu (1 107 m)", couleur: "var(--lichen)" },
+    { id: "000UB", nom: "Valleraugue (400 m)", couleur: "var(--torrent)" },
   ];
 
   let etat = "chargement"; // chargement | ok | vide | erreur
@@ -129,7 +129,7 @@
     margin-top: 1rem;
   }
   .etat {
-    color: var(--border);
+    color: var(--texte-tertiaire);
     font-size: 0.9rem;
   }
   .tableau-scroll {
@@ -145,7 +145,7 @@
   td {
     padding: 0.4rem 0.6rem;
     text-align: left;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--bordure);
     white-space: nowrap;
   }
   th {
@@ -154,7 +154,7 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
   .badge {
     display: inline-block;
@@ -163,17 +163,17 @@
     border-radius: 999px;
     font-size: 0.62rem;
     letter-spacing: 0.03em;
-    color: var(--border);
-    border: 1px solid var(--border);
+    color: var(--texte-tertiaire);
+    border: 1px solid var(--bordure);
   }
   .badge-infoclimat {
-    color: var(--color-torrent);
-    border-color: var(--color-torrent);
+    color: var(--torrent);
+    border-color: var(--torrent);
   }
   .note-licences {
     margin: 0.6rem 0 1.4rem;
     font-size: 0.74rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
   .bloc-graphe h3 {
     font-family: var(--font-display);

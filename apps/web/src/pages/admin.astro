@@ -1,0 +1,253 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { apiLinks, applicationLinks, themeLinks, type LandingLink } from "../lib/landing";
+
+interface LinkGroup {
+  id: string;
+  label: string;
+  title: string;
+  introduction: string;
+  links: LandingLink[];
+}
+
+const groups: LinkGroup[] = [
+  {
+    id: "applications",
+    label: "01",
+    title: "Applications",
+    introduction: "Les interfaces destinées au public ou à un usage de terrain.",
+    links: applicationLinks,
+  },
+  {
+    id: "themes",
+    label: "02",
+    title: "Thèmes du territoire",
+    introduction: "Les entrées éditoriales qui organisent les données par sujet.",
+    links: themeLinks,
+  },
+  {
+    id: "api",
+    label: "03",
+    title: "Services API v2",
+    introduction: "Le catalogue, la supervision et les démonstrations pratiques exposées par le gateway.",
+    links: apiLinks,
+  },
+];
+---
+
+<Layout
+  title="Administration — LAV"
+  description="Accès centralisé aux applications, thèmes et services techniques de LAV."
+>
+  <header class="admin-header">
+    <div class="container admin-header__inner">
+      <strong>Administration</strong>
+      <button id="logout" class="logout" type="button" hidden>Se déconnecter</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="login-panel" class="login-shell" aria-labelledby="login-title">
+      <div class="login-intro">
+        <p class="eyebrow">Espace administration</p>
+        <h1 id="login-title">Retrouver tous les accès du projet.</h1>
+        <p>Connectez-vous pour ouvrir la liste complète des applications, des pages thématiques et des services API.</p>
+      </div>
+      <form id="login-form" class="login-form">
+        <div class="field">
+          <label for="username">Identifiant</label>
+          <input id="username" name="username" type="text" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label for="password">Code</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+        </div>
+        <p id="login-error" class="login-error" role="alert" hidden>Identifiant ou code incorrect.</p>
+        <button class="primary-button" type="submit">Entrer dans l’administration</button>
+        <p class="login-note">Accès de confort pour ce projet personnel public — il ne protège pas de données sensibles.</p>
+      </form>
+    </section>
+
+    <section id="admin-content" class="admin-content" hidden aria-labelledby="admin-title">
+      <div class="container admin-hero">
+        <div>
+          <p class="eyebrow">Tableau de liens</p>
+          <h1 id="admin-title" tabindex="-1">Applications et services</h1>
+        </div>
+        <p>Un accès direct à chaque interface du site et aux outils disponibles sous <code>/api/v2</code>.</p>
+      </div>
+
+      <div class="toolbar-wrap">
+        <div class="container toolbar">
+          <label for="link-search">Filtrer les accès</label>
+          <input id="link-search" type="search" placeholder="Ex. météo, carte, géologie…" autocomplete="off" />
+          <p id="result-count" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <div class="container directory">
+        {groups.map((group) => (
+          <section class="directory-section" aria-labelledby={`group-${group.id}`} data-group>
+            <div class="directory-section__heading">
+              <span>{group.label}</span>
+              <div>
+                <h2 id={`group-${group.id}`}>{group.title}</h2>
+                <p>{group.introduction}</p>
+              </div>
+            </div>
+            <div class="link-list">
+              {group.links.map((link) => (
+                <article class="link-row" data-link data-search={`${link.name} ${link.description} ${link.href} ${link.route ?? ""}`.toLocaleLowerCase("fr")}>
+                  <div class="link-row__main">
+                    <h3>{link.name}</h3>
+                    <p>{link.description}</p>
+                  </div>
+                  <div class="link-row__route">
+                    <span>{link.route ? "Route" : "Adresse"}</span>
+                    <code>{link.route ?? link.href}</code>
+                  </div>
+                  <a href={link.href}>Ouvrir <span aria-hidden="true">↗</span></a>
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
+        <p id="empty-state" class="empty-state" hidden>Aucun accès ne correspond à cette recherche.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const sessionKey = "lav-admin-session";
+    const loginPanel = document.querySelector<HTMLElement>("#login-panel");
+    const adminContent = document.querySelector<HTMLElement>("#admin-content");
+    const logoutButton = document.querySelector<HTMLButtonElement>("#logout");
+    const loginForm = document.querySelector<HTMLFormElement>("#login-form");
+    const loginError = document.querySelector<HTMLElement>("#login-error");
+    const searchInput = document.querySelector<HTMLInputElement>("#link-search");
+    const resultCount = document.querySelector<HTMLElement>("#result-count");
+    const emptyState = document.querySelector<HTMLElement>("#empty-state");
+    const linkRows = Array.from(document.querySelectorAll<HTMLElement>("[data-link]"));
+    const groups = Array.from(document.querySelectorAll<HTMLElement>("[data-group]"));
+
+    function setAuthenticated(authenticated: boolean) {
+      if (loginPanel) loginPanel.hidden = authenticated;
+      if (adminContent) adminContent.hidden = !authenticated;
+      if (logoutButton) logoutButton.hidden = !authenticated;
+      if (authenticated) document.querySelector<HTMLElement>("#admin-title")?.focus();
+    }
+
+    if (sessionStorage.getItem(sessionKey) === "active") setAuthenticated(true);
+
+    loginForm?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const data = new FormData(loginForm);
+      const isValid = data.get("username") === "alex" && data.get("password") === "cevennes";
+      if (!isValid) {
+        if (loginError) loginError.hidden = false;
+        document.querySelector<HTMLInputElement>("#password")?.select();
+        return;
+      }
+      sessionStorage.setItem(sessionKey, "active");
+      if (loginError) loginError.hidden = true;
+      loginForm.reset();
+      setAuthenticated(true);
+    });
+
+    logoutButton?.addEventListener("click", () => {
+      sessionStorage.removeItem(sessionKey);
+      setAuthenticated(false);
+      document.querySelector<HTMLInputElement>("#username")?.focus();
+    });
+
+    function filterLinks() {
+      const query = searchInput?.value.trim().toLocaleLowerCase("fr") ?? "";
+      let visibleCount = 0;
+      for (const row of linkRows) {
+        const visible = (row.dataset.search ?? "").includes(query);
+        row.hidden = !visible;
+        if (visible) visibleCount += 1;
+      }
+      for (const group of groups) {
+        group.hidden = !group.querySelector("[data-link]:not([hidden])");
+      }
+      if (resultCount) resultCount.textContent = `${visibleCount} accès${visibleCount > 1 ? " disponibles" : " disponible"}`;
+      if (emptyState) emptyState.hidden = visibleCount !== 0;
+    }
+
+    searchInput?.addEventListener("input", filterLinks);
+    filterLinks();
+  </script>
+</Layout>
+
+<style>
+  :global(body) { background: var(--surface-fond); color: var(--texte-principal); font-family: var(--font-body); font-size: var(--txt-l); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  :global(#racine) { height: auto; min-height: 100%; }
+  :global([hidden]) { display: none !important; }
+  :global(a:focus-visible), :global(button:focus-visible), :global(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; }
+  .container { width: min(calc(100% - var(--esp-xl)), var(--largeur-page)); margin-inline: auto; }
+
+  .admin-header { border-bottom: 1px solid var(--bordure); background: var(--surface-plate); }
+  .admin-header__inner { display: flex; min-height: 3.5rem; align-items: center; justify-content: space-between; gap: var(--esp-l); }
+  .admin-header__inner > strong { color: var(--texte-secondaire); font-family: var(--font-mono); font-size: var(--txt-micro); letter-spacing: var(--ls-label); text-transform: uppercase; }
+  .logout { min-height: var(--cible); padding: var(--esp-2xs) var(--esp-m); border: 1px solid var(--bordure-forte); border-radius: var(--rayon); background: transparent; color: var(--couleur-action); font-size: var(--txt-xs); font-weight: var(--poids-fort); cursor: pointer; }
+  .logout:hover { background: var(--surface-fond); }
+
+  .login-shell { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(18rem, .85fr); gap: var(--esp-2xl); align-items: center; width: min(calc(100% - var(--esp-xl)), var(--largeur-page)); min-height: calc(100vh - 7.5rem); margin-inline: auto; padding-block: var(--esp-2xl); }
+  .eyebrow { margin: 0; color: var(--couleur-action); font-family: var(--font-mono); font-size: var(--txt-micro); font-weight: var(--poids-fort); letter-spacing: var(--ls-label); text-transform: uppercase; }
+  h1, h2 { font-family: var(--font-display); font-weight: var(--poids-normal); letter-spacing: var(--ls-titre); text-wrap: balance; }
+  h1 { margin: var(--esp-s) 0 0; font-size: clamp(2.25rem, 7vw, 4.35rem); line-height: .96; }
+  .login-intro > p:last-child { max-width: var(--largeur-intro); margin: var(--esp-l) 0 0; color: var(--texte-secondaire); }
+  .login-form { display: grid; gap: var(--esp-l); padding: var(--esp-xl); border: 1px solid var(--bordure-forte); border-radius: var(--rayon); background: var(--surface-elevee); box-shadow: var(--ombre); }
+  .field { display: grid; gap: var(--esp-2xs); }
+  .field label, .toolbar label { font-size: var(--txt-micro); font-weight: var(--poids-fort); letter-spacing: var(--ls-label); text-transform: uppercase; }
+  .field input, .toolbar input { width: 100%; min-height: var(--cible); border: 1px solid var(--bordure-forte); border-radius: var(--rayon); background: var(--blanc); color: var(--texte-principal); font: inherit; }
+  .field input { padding: var(--esp-2xs) var(--esp-m); }
+  .primary-button { min-height: var(--cible); border: 1px solid var(--couleur-action); border-radius: var(--rayon); background: var(--couleur-action); color: var(--blanc); font: inherit; font-size: var(--txt-xs); font-weight: var(--poids-fort); cursor: pointer; }
+  .primary-button:hover { background: var(--surface-sombre); }
+  .login-error { margin: 0; color: var(--alerte); font-size: var(--txt-xs); font-weight: var(--poids-fort); }
+  .login-note { margin: 0; color: var(--texte-secondaire); font-size: var(--txt-micro); line-height: 1.5; }
+
+  .admin-content { min-height: calc(100vh - 7.55rem); background: var(--surface-plate); }
+  .admin-hero { display: grid; grid-template-columns: 1fr minmax(17rem, .5fr); gap: var(--esp-xl); align-items: end; padding-block: var(--esp-2xl); }
+  .admin-hero h1 { outline: none; }
+  .admin-hero > p { max-width: 40ch; margin: 0; color: var(--texte-secondaire); line-height: 1.6; }
+  code { font-family: var(--font-mono); font-size: .82em; }
+  .toolbar-wrap { position: sticky; z-index: 5; top: 0; border-block: 1px solid var(--bordure); background: rgb(238 243 239 / 92%); backdrop-filter: blur(18px); }
+  .toolbar { display: grid; grid-template-columns: auto minmax(12rem, 25rem) 1fr; gap: var(--esp-l); align-items: center; min-height: 4.7rem; }
+  .toolbar input { padding: var(--esp-2xs) var(--esp-m); }
+  .toolbar p { justify-self: end; margin: 0; color: var(--texte-secondaire); font-family: var(--font-mono); font-size: .66rem; }
+  .directory { padding-block: 1rem 5rem; }
+  .directory-section { padding-block: clamp(2.5rem, 6vw, 4rem); border-bottom: 1px solid var(--bordure); }
+  .directory-section:last-of-type { border-bottom: 0; }
+  .directory-section__heading { display: grid; grid-template-columns: 3rem 1fr; gap: 1rem; margin-bottom: 1.6rem; }
+  .directory-section__heading > span { padding-top: .25rem; color: var(--couleur-action); font-family: var(--font-mono); font-size: .66rem; }
+  .directory-section h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.8rem); }
+  .directory-section__heading p { margin: .45rem 0 0; color: var(--texte-secondaire); font-size: .88rem; }
+  .link-list { border-top: 1px solid var(--bordure-forte); }
+  .link-row { display: grid; grid-template-columns: minmax(14rem, 1.25fr) minmax(13rem, .75fr) 5rem; gap: 1.25rem; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--bordure); }
+  .link-row h3 { margin: 0; font-family: var(--font-display); font-size: 1.13rem; font-weight: 500; }
+  .link-row__main p { max-width: 60ch; margin: .3rem 0 0; color: var(--texte-secondaire); font-size: .8rem; line-height: 1.48; }
+  .link-row__route { display: grid; gap: .3rem; min-width: 0; }
+  .link-row__route span { color: var(--texte-secondaire); font-size: .58rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+  .link-row__route code { overflow: hidden; color: var(--texte-secondaire); font-size: .67rem; text-overflow: ellipsis; white-space: nowrap; }
+  .link-row > a { justify-self: end; color: var(--couleur-action); font-size: .72rem; font-weight: 760; text-decoration: none; }
+  .link-row > a:hover { text-decoration: underline; text-underline-offset: .25rem; }
+  .empty-state { margin: 3rem 0; color: var(--texte-secondaire); text-align: center; }
+
+  @media (max-width: 760px) {
+    .login-shell, .admin-hero { grid-template-columns: 1fr; }
+    .login-shell { align-content: center; }
+    .toolbar { grid-template-columns: 1fr; gap: .45rem; padding-block: .8rem; }
+    .toolbar p { justify-self: start; }
+    .link-row { grid-template-columns: 1fr auto; gap: .65rem 1rem; }
+    .link-row__main { grid-column: 1 / -1; }
+    .link-row__route { grid-column: 1; }
+    .link-row > a { grid-column: 2; grid-row: 2; }
+  }
+
+  @media (max-width: 480px) {
+    .directory-section__heading { grid-template-columns: 1fr; gap: .4rem; }
+    .link-row__route code { white-space: normal; overflow-wrap: anywhere; }
+  }
+</style>

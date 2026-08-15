@@ -119,13 +119,13 @@
 
 <style>
   .carte-fleuve { margin: 1rem 0; }
-  .carte { width: 100%; border-radius: var(--radius, 4px); border: 1px solid var(--border, #6b7280); overflow: hidden; }
+  .carte { width: 100%; border-radius: var(--rayon, 4px); border: 1px solid var(--bordure, #6b7280); overflow: hidden; }
   .erreur { margin: 0.5rem 0 0; color: var(--danger, #9f2f2f); font-size: 0.78rem; }
-  .legende-carte { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--border, #6b7280); display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
+  .legende-carte { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--texte-tertiaire, #6b7280); display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
   .puce { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; }
   .puce.amont { background: #3e6e82; }
   .puce.aval { background: #b5533c; }
-  .fleche { color: var(--border, #6b7280); }
+  .fleche { color: var(--texte-tertiaire, #6b7280); }
   :global(.marqueur-station) { display: flex; align-items: center; gap: 0.3rem; cursor: pointer; white-space: nowrap; }
   :global(.marqueur-pastille) { display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; background: #3e6e82; color: #fff; font-size: 0.72rem; font-weight: 700; border: 1.5px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); flex-shrink: 0; }
   :global(.marqueur-station.non-suivie .marqueur-pastille) { background: #6b7280; }

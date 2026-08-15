@@ -46,7 +46,6 @@ export interface GeologieConfig {
   infoterreTimeoutMs: number;
   infoterreMaxScanBytes: number;
   infoterreImageWidthPx: number;
-  infoterreMaxImages: number;
 
   debugEnabled: boolean;
 }
@@ -93,7 +92,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): GeologieConfig
       1_400,
       "GEOLOGIE_INFOTERRE_IMAGE_WIDTH_PX",
     ),
-    infoterreMaxImages: positiveInteger(env.GEOLOGIE_INFOTERRE_MAX_IMAGES, 2, "GEOLOGIE_INFOTERRE_MAX_IMAGES"),
 
     debugEnabled: boolean(env.GEOLOGIE_DEBUG_ENABLED, false),
   };

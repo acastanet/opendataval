@@ -16,9 +16,9 @@ Il conserve aussi un pont temporaire en lecture seule vers le monolithe historiq
 |---|---|---|
 | `/api/v2` | Page d’accueil HTML : présente les microservices et l’état live | `GET` |
 | `/api/v2/demo/:service` | Page de démo interactive d’un microservice (formulaire → appel réel) | `GET` |
-| `/valfeu`, `/valfeu/` | Application mobile valfeu (carte, position, suspicions satellitaires) | `GET` |
-| `/valfeu/manifest.webmanifest` | Manifeste installable de l’application valfeu | `GET` |
-| `/valfeu/icone.svg` | Icône SVG de l’application valfeu | `GET` |
+| `/valfeu`, `/valfeu/` | Application mobile LAV.feu (carte, position, suspicions satellitaires) | `GET` |
+| `/valfeu/manifest.webmanifest` | Manifeste installable de l’application LAV.feu | `GET` |
+| `/valfeu/icone.svg` | Icône SVG de l’application LAV.feu | `GET` |
 | `/api/v2/status` | État agrégé léger de chaque service (alimente les pages) | `GET` |
 | `/api/v2/sites/:tileId` | Page publique d'une dalle, manifeste récupéré côté serveur | `GET` |
 | `/api/v2/sites/apercu` | Index des états fictifs de la page dalle | `GET` |
@@ -184,7 +184,7 @@ Le gateway sert aussi sa propre façade HTML, compatible avec le CSP appliqué p
 - `/api/v2` : accueil listant les microservices (rôle, route, badge d'état) avec un lien vers chaque démo ;
 - `/api/v2/sites/:tileId` : visualiseur Three.js mono-scène configuré par le manifeste embarqué. Son panneau suit les six sphères et son registre `public/dalle/modules/` accueille les modules des microservices ;
 - `/api/v2/sites/apercu` : sept états fictifs reproductibles pour le design, dont une scène réelle du POC, l'absence de scène/donnée, l'échec, la publication, le titre long et une valeur XSS ;
-- `/valfeu/` : **valfeu**, application de terrain mobile-first, indépendante de `apps/web`, qui compose Map, Geography et Fire Detection autour d’un point actif — voir [`../../application/feu-val/README.md`](../../application/feu-val/README.md) ;
+- `/valfeu/` : **LAV.feu**, application de terrain mobile-first, indépendante de `apps/web`, qui compose Map, Geography et Fire Detection autour d’un point actif — voir [`../../application/feu-val/README.md`](../../application/feu-val/README.md) ;
 - `/valfeu/manifest.webmanifest` et `/valfeu/icone.svg` : ressources PWA installables. Aucun service worker ni cache hors ligne n’est enregistré afin de conserver les données satellite fraîches. Sur iOS, l’ajout à l’écran d’accueil fonctionne, mais Safari n’utilise pas l’icône SVG sans `apple-touch-icon` PNG (hors périmètre) ;
 - `/api/v2/demo/:service` : démonstration interactive d’un service (formulaire pré-rempli sur Val-d’Aigoual → appel réel de la route publique → affichage du résultat). Le résultat s’affiche sous deux onglets : une **synthèse lisible** (« Résultat ») et le **JSON brut**. Pour les services géographiques (champs `lat`/`lon` : geography, weather, vigilance, fire), la page ajoute un bouton **« Me localiser »** (`navigator.geolocation`) et une **carte Leaflet** (marqueur, clic pour saisir les coordonnées, cercle du rayon et marqueurs des détections pour fire) ;
 - `/api/v2/demo/map` : cas particulier rendu par `renderMapDemo()`. La page s’affiche en pleine largeur (`main.wide`) et se lit en deux colonnes : la **carte MapLibre** occupe la scène de gauche (collante au défilement) et tous les réglages sont regroupés dans un **bandeau de droite** à onglets (Options / Style JSON / Légendes / Activité), afin d’observer l’effet de chaque option sans quitter la carte des yeux. Chaque réglage annonce ce qu’il change et le paramètre de requête correspondant (`fond=`, `geologie=true`, `relief=true&terrain=true`, `exageration=`) ; ceux qui sont **inopérants sur le style choisi** sont grisés avec leur explication (le style `plan` ignore le fond et la géologie ; `relief` et `hypsometrique` imposent le relief 3D ; l’exagération exige un terrain). L’URL affichée sous la carte n’émet que les paramètres réellement pris en compte, et reste un exemple d’appel exact ;

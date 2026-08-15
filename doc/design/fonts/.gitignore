@@ -1,0 +1,6 @@
+# Les binaires de police ne sont pas versionnés : ils se récupèrent en une
+# commande via fetch-fonts.mjs, et le référentiel reste correct sans eux.
+*.woff2
+*.woff
+*.otf
+*.ttf

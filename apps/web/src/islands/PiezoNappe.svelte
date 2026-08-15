@@ -12,7 +12,7 @@
   const COULEUR_SITUATION = {
     tres_bas: "#b5533c",
     bas: "#c99a3e",
-    modere: "var(--border)",
+    modere: "var(--bordure)",
     haut: "#5c7a44",
     tres_haut: "#3e6e82",
   };
@@ -183,7 +183,7 @@
   }
 
   .etat {
-    color: var(--border);
+    color: var(--texte-tertiaire);
     font-size: 0.9rem;
   }
 
@@ -199,10 +199,10 @@
     font-family: var(--font-body);
     font-size: 0.85rem;
     padding: 0.3rem 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--panel-bg);
-    color: var(--fg);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
+    background: var(--surface-elevee);
+    color: var(--texte-principal);
   }
 
   .en-tete-station {
@@ -214,13 +214,13 @@
   .detail {
     font-family: var(--font-body);
     font-size: 0.8rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .cartouche {
     padding: 0.8rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid var(--bordure);
+    border-radius: var(--rayon);
     font-size: 0.85rem;
     line-height: 1.6;
   }
@@ -243,15 +243,15 @@
   }
 
   .minmax {
-    color: var(--border);
+    color: var(--texte-tertiaire);
     font-size: 0.8rem;
   }
 
   .periode {
     margin-top: 0.5rem !important;
     padding-top: 0.5rem;
-    border-top: 1px solid var(--border);
-    color: var(--border);
+    border-top: 1px solid var(--bordure);
+    color: var(--texte-tertiaire);
     font-size: 0.75rem;
   }
 
@@ -264,7 +264,7 @@
   .unite {
     font-family: var(--font-body);
     font-size: 0.8rem;
-    color: var(--border);
+    color: var(--texte-tertiaire);
     font-weight: normal;
   }
 </style>

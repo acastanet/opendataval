@@ -1,0 +1,7 @@
+# Copiées depuis doc/design/fonts/ par scripts/sync-design-system.mjs
+# (lui-même appelé par `pnpm styles:sync`, avant `astro build`/`astro dev`).
+# Binaires non versionnés : voir doc/design/fonts/.gitignore.
+*.woff2
+*.woff
+*.otf
+*.ttf

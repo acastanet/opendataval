@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#eef3ef">
+  <title>Prototype carte — VAL</title>
+  <link rel="icon" href="./favicon.svg">
+  <link rel="preload" href="/fonts/SourceSerif4-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="preload" href="/fonts/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="../../packages/shared/styles/design-system.css">
+  <link rel="stylesheet" href="./design.css">
+</head>
+<body>
+  <div class="prototype-note"><div class="coque"><span>OpenDataVdA · Atelier HTML/CSS</span><span>Carte simulée · aucun fond distant</span></div></div>
+  <header class="entete">
+    <div class="coque entete__interieur"><a class="marque" href="./accueil.html"><img src="./favicon.svg" alt=""><span><strong>VAL</strong><span>Explorateur cartographique</span></span></a></div>
+    <div class="coque hero hero__grille"><div><p class="surtitre">Carte du territoire</p><h1>Composer une lecture.</h1><p class="introduction">Valider la hiérarchie du panneau, de la carte, des contrôles et de la légende sans charger MapLibre.</p></div><aside class="hero__repere"><strong>3 couches actives</strong><span>Risques, communes et points d’eau.</span><span class="fraicheur fraicheur--indisponible">Simulation locale</span></aside></div>
+  </header>
+  <nav class="navigation" aria-label="Prototypes"><div class="coque"><a href="./accueil.html">Accueil</a><a href="./meteo.html">Météo</a><a href="./carte.html" aria-current="page">Carte</a><a href="./composants.html">Composants</a><a href="./style_VAL.html">Référentiel</a></div></nav>
+  <main><section class="section"><div class="coque">
+    <div class="section__entete"><h2>Configurer l’affichage</h2><p>Les panneaux posés sur une carte sont opaques afin de préserver le contraste sur tout fond.</p></div>
+    <div class="atelier-carte">
+      <aside class="panneau-carte"><h2>Couches</h2><p class="secondaire">Choisissez un thème et affinez l’affichage.</p><div class="champ"><label for="theme">Thème</label><select id="theme"><option>Risques naturels</option><option>Environnement</option><option>Relief</option></select></div><div class="champ"><label for="lieu">Rechercher un lieu</label><input id="lieu" type="search" placeholder="Commune, adresse…"></div><div class="champ"><label><input type="checkbox" checked> Feux détectés</label><label><input type="checkbox" checked> Limites communales</label><label><input type="checkbox"> Points d’eau</label></div><div class="boutons espacement-haut-large"><button class="bouton" type="button">Appliquer</button><button class="bouton bouton--secondaire" type="button">Réinitialiser</button></div></aside>
+      <div class="fausse-carte" role="img" aria-label="Simulation graphique d’une carte du territoire"><div class="controle-carte" aria-label="Contrôles de carte"><button type="button" aria-label="Zoom avant">+</button><button type="button" aria-label="Zoom arrière">−</button><button type="button" aria-label="Me localiser">◎</button></div><div class="legende-carte"><span></span>Zone de vigilance</div></div>
+    </div>
+  </div></section></main>
+  <footer class="pied"><div class="coque pied__interieur"><span>Interaction simulée, MapLibre non chargé</span><a href="../../apps/web/src/islands/MapExplorer.svelte">Cible Svelte : MapExplorer</a></div></footer>
+</body>
+</html>

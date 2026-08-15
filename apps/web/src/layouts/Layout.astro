@@ -1,17 +1,30 @@
 ---
+import "../../../../packages/shared/styles/design-system.css";
+import "../styles/map-controls.css";
 import "../styles/global.css";
+import SiteHeader from "../components/SiteHeader.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import BoutonAccueil from "../components/BoutonAccueil.astro";
 
 interface Props {
   title: string;
   description?: string;
+  /**
+   * Niveau d'habillage du site.
+   * - `complet` : barre permanente et pied de page — pages éditoriales.
+   * - `minimal` : languette de retour à l'accueil seule — applications plein
+   *   écran, où une barre de 3,5 rem prendrait la place de la carte.
+   * - `aucun`   : vues embarquées.
+   */
+  chrome?: "complet" | "minimal" | "aucun";
 }
 const {
   title,
   description = "Portail open data de Val-d'Aigoual et de la Communauté de communes Causses Aigoual Cévennes – Terres Solidaires.",
+  chrome = "complet",
 } = Astro.props;
-
-const FAVICON =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23ededea'/%3E%3Cpath d='M4 25 L12 10 L17 17 L22 7 L29 25 Z' fill='%232b3238'/%3E%3C/svg%3E";
+const pathname = Astro.url.pathname;
+const varianteEntete = pathname === "/" || pathname === "" ? "accueil" : "page";
 ---
 
 <!doctype html>
@@ -21,11 +34,33 @@ const FAVICON =
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="icon" type="image/svg+xml" href={FAVICON} />
+    <meta name="theme-color" content="#eef3ef" />
+    <link rel="preload" href="/fonts/SourceSerif4-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="preload" href="/fonts/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    {/* Les polices sont auto-hébergées dans le socle de styles partagé :
+        fonts.gstatic.com transmettrait l'adresse IP des visiteurs à un tiers,
+        ce qui n'est pas tenable pour un service public territorial. */}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <slot name="head" />
   </head>
   <body>
     <div id="racine">
-      <slot />
+      {chrome === "complet" && (
+        <SiteHeader variante={varianteEntete} pathname={pathname} />
+      )}
+      {chrome === "minimal" && <BoutonAccueil />}
+
+      {chrome === "complet" ? (
+        <div id="contenu"><slot /></div>
+      ) : (
+        <slot />
+      )}
+
+      {chrome === "complet" && (
+        <SiteFooter>
+          <slot name="final" slot="final" />
+        </SiteFooter>
+      )}
     </div>
   </body>
 </html>

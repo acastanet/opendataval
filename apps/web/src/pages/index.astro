@@ -1,205 +1,296 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import LauncherGrid from "../islands/LauncherGrid.svelte";
-import { SECTIONS } from "@opendata-vda/shared/sections";
+import HeroVisual from "../components/HeroVisual.astro";
+import ImagePlaceholder from "../components/ImagePlaceholder.astro";
+import CarteUsage from "../components/CarteUsage.astro";
+import { findApplication } from "../lib/landing";
+import { ANCRES_ACCUEIL } from "../lib/navigation";
 
-// Les descriptifs reprennent la description déclarée par chaque page cible
-// (balise `description` du Layout) ou le champ `role` du catalogue de services
-// du gateway, afin de décrire le contenu réel et non le titre reformulé.
-const applicationsGrandPublic = [
-  { id: "incendies", label: "Fe", name: "Incendies — risque & consignes", description: "Recommandations officielles incendie pour les massifs gardois autour de l'Aigoual.", href: "/incendies/", icon: "fire", color: "#D96832" },
-  { id: "incendies-temps-reel", label: "Fe", name: "Incendies — temps réel & méthodologie", description: "Détections thermiques NASA FIRMS et périmètres de veille autour de l'Aigoual.", href: "/incendies/temps-reel/", icon: "fire-live", color: "#D96832" },
-  { id: "vigilance-feu", label: "Vi", name: "Vigilance incendie", description: "Couleur d'alerte du massif et carte des anomalies thermiques du département du Gard.", href: "/vigilance-feu/", icon: "vigilance", color: "#D96832" },
-  { id: "eau", label: "Ea", name: "Eau — rivière, crues & nappe", description: "Parcours didactique en carte 3D : le voyage de l'eau, de l'Aigoual à la Méditerranée.", href: "/eau/", icon: "water", color: "#168AAD" },
-  { id: "eau-tableau-de-bord", label: "Ea", name: "Eau — tableau de bord", description: "Quantité, crues, étiages, nappes, qualité physico-chimique et baignade.", href: "/eau/tableau-de-bord/", icon: "water-dashboard", color: "#168AAD" },
-  { id: "carte", label: "Ca", name: "Carte du territoire", description: "Carte interactive des données ouvertes : géologie, sous-sol, eau, nature, services publics.", href: "/carte/", icon: "map", color: "#087F5B" },
-  { id: "relief", label: "Re", name: "Relief 3D", description: "Teinte hypsométrique et ombrage calculés depuis le MNT Copernicus GLO-30 et le LiDAR HD IGN.", href: "/relief/", icon: "relief", color: "#087F5B" },
-  // iconColor : le jaune et le vert clair de la charte tombent sous 3:1 sur le
-  // recto blanc ; ces teintes assombries gardent la famille et restent lisibles.
-  { id: "valleraugue-3d", label: "3D", name: "Jumeau numérique 3D — POC Valleraugue", description: "Maquette LiDAR en quatre vues à caméra commune : sol nu, végétation, nuage source, superposé.", href: "/valleraugue-3d/", icon: "cube", color: "#F4C430", textColor: "#18302A", iconColor: "#A6780A" },
-  { id: "meteo", label: "Mé", name: "Météo", description: "Prévision localisée à une adresse, un lieu-dit ou une position GPS dans Val-d'Aigoual.", href: "/meteo/", icon: "meteo", color: "#168AAD" },
-  { id: "meteo-essentiel", label: "Mé", name: "Météo essentielle", description: "Position GPS, situation actuelle, risque à venir et prévisions utiles.", href: "/meteo/essentiel/", icon: "meteo-essentiel", color: "#168AAD" },
-  { id: "meteo-bilan-thermique", label: "Mé", name: "Météo — bilan thermique", description: "Stress thermique UTCI et nuits tropicales du dernier mois complet, via Copernicus ERA5-HEAT.", href: "/meteo/bilan-thermique/", icon: "thermique", color: "#168AAD" },
-  { id: "meteo-comparaison", label: "Mé", name: "Météo — comparaison", description: "Prévisions de J−1 confrontées à leur version actualisée à J, sans les confondre avec des observations.", href: "/meteo/comparaison/", icon: "comparaison", color: "#168AAD" },
-  { id: "meteo-informations", label: "Mé", name: "Météo — informations", description: "Informations d'usage, limites et sources de la météo essentielle.", href: "/meteo/informations/", icon: "infos", color: "#168AAD" },
-  { id: "meteo-v2", label: "M2", name: "Météo v2", description: "Interface v2 adossée au gateway : température et provenance exacte de la mesure affichée.", href: "/meteo-v2/", icon: "meteo-v2", color: "#55B938", iconColor: "#43912B" },
-  { id: "old", label: "OL", name: "OLD — Obligations légales de débroussaillement", description: "Zonage OLD et périmètre indicatif de débroussaillement depuis le bâtiment, le cadastre et le PLU.", href: "/old/", icon: "old", color: "#D96832" },
-  { id: "itineraire-poids-lourd", label: "PL", name: "Itinéraire poids lourd", description: "Itinéraire camion selon le gabarit connu dans OpenStreetMap, portions à vérifier signalées.", href: "/itineraire-poids-lourd/", icon: "truck", color: "#D96832" },
-  { id: "valfeu", label: "VF", name: "Application terrain (Valfeu)", description: "Application mobile de terrain : position, carte et suspicions satellitaires de feu à proximité.", href: "/valfeu", icon: "terrain", color: "#55B938", iconColor: "#43912B" },
-].map((cell) => ({ ...cell, category: "app" as const }));
-
-const themes = SECTIONS.map((section) => ({
-  id: `theme-${section.slug}`,
-  label: section.titre.slice(0, 2).toUpperCase(),
-  name: section.titre,
-  description: section.description,
-  href: `/${section.slug}/`,
-  icon: `theme-${section.slug}`,
-  color: section.couleur,
-  category: "theme" as const,
-}));
-
-const technique = [
-  { id: "api-v2", label: "V2", name: "Accueil des services v2", description: "Catalogue des microservices v2 : rôle, routes exposées et paramètres de chaque service.", href: "/api/v2", icon: "server" },
-  { id: "api-v2-status", label: "St", name: "État des services v2 (live)", description: "État de santé en direct de chaque microservice v2 et de ses dépendances.", href: "/api/v2/status", icon: "gauge" },
-  { id: "demo-gateway", label: "Ga", name: "Démo — Gateway", description: "Façade HTTP unique des API v2 : valide les paramètres, propage x-request-id, normalise les erreurs.", href: "/api/v2/demo/gateway", icon: "gateway" },
-  { id: "demo-map", label: "Ma", name: "Démo — Map", description: "Styles, tuiles, relief et légendes cartographiques, servis directement par Caddy.", href: "/api/v2/demo/map", icon: "map" },
-  { id: "demo-geography", label: "Ge", name: "Démo — Geography", description: "Résout des coordonnées lat/lon vers la commune et le département, avec altitude.", href: "/api/v2/demo/geography", icon: "globe" },
-  { id: "demo-weather", label: "We", name: "Démo — Weather", description: "Température ponctuelle pour une position, modèle MétéoFrance et contexte territorial.", href: "/api/v2/demo/weather", icon: "meteo-essentiel" },
-  { id: "demo-vigilance", label: "Vi", name: "Démo — Weather Vigilance", description: "Vigilance météorologique départementale officielle MétéoFrance, avec bulletins optionnels.", href: "/api/v2/demo/vigilance", icon: "vigilance" },
-  { id: "demo-fire", label: "Fi", name: "Démo — Fire Detection", description: "Suspicions satellitaires de feu à proximité (FIRMS + EUMETSAT), rayon et historique explicites.", href: "/api/v2/demo/fire", icon: "fire" },
-  { id: "demo-associations", label: "As", name: "Démo — Associations", description: "Liste consolidée, recherchable et cartographiable des associations d'une commune française.", href: "/api/v2/demo/associations", icon: "associations" },
-  { id: "demo-old", label: "OL", name: "Démo — OLD", description: "Applicabilité des obligations de débroussaillement et périmètre indicatif calculé.", href: "/api/v2/demo/old", icon: "old" },
-  { id: "demo-itineraire-poids-lourd", label: "PL", name: "Démo — Itinéraire poids lourd", description: "Itinéraire camion compatible avec les restrictions OSM, portions non vérifiées affichées.", href: "/api/v2/demo/itineraire-poids-lourd", icon: "truck" },
-  { id: "demo-legacy", label: "Lg", name: "Démo — Legacy", description: "Pont en lecture seule vers le monolithe historique /api/*, en GET et HEAD uniquement.", href: "/api/v2/demo/legacy", icon: "legacy" },
-].map((service) => ({ ...service, color: "#4f5d66", category: "tech" as const }));
-
-// Regroupement de la page d'accueil par grande sphère du territoire (cf. schéma
-// atmosphère / hydrosphère / biosphère / anthroposphère / risques / lithosphère).
-// Les services techniques (démos API, statut) restent hors sphères.
-const parId = new Map(
-  [...applicationsGrandPublic, ...themes, ...technique].map((cell) => [cell.id, cell]),
-);
-
-function cellsDe(ids: string[]) {
-  return ids.map((id) => {
-    const cell = parId.get(id);
-    if (!cell) throw new Error(`Cellule d'accueil inconnue : ${id}`);
-    return cell;
-  });
-}
-
-const spheres = [
+// Les huit usages du portail, rangés en deux entrées majeures puis six entrées
+// courantes. Cinq familles de données seulement : une couleur par famille, pas
+// une couleur par carte, sinon le classement ne se lit plus.
+const usages = [
   {
-    id: "atmosphere",
-    titre: "Atmosphère",
-    couleur: "#168AAD",
-    ids: ["meteo", "meteo-essentiel", "meteo-bilan-thermique", "meteo-comparaison", "meteo-informations", "meteo-v2", "theme-meteo"],
+    numero: "01",
+    sphere: "anthroposphere",
+    sphereNom: "Anthroposphère",
+    rang: "majeure",
+    titre: "Carte du territoire",
+    description: "Rassemble sur une même interface les données relatives à la géologie, au sous-sol, à l’eau, aux milieux naturels et aux services publics.",
+    liens: [findApplication("carte")],
   },
   {
-    id: "hydrosphere",
-    titre: "Hydrosphère",
-    couleur: "#0F7A99",
-    ids: ["eau", "eau-tableau-de-bord"],
+    numero: "02",
+    sphere: "lithosphere",
+    sphereNom: "Lithosphère",
+    rang: "majeure",
+    titre: "Relief 3D",
+    description: "Permet d’explorer le terrain, les bâtiments et la végétation à partir des données LiDAR et des modèles numériques de terrain.",
+    liens: [findApplication("relief"), findApplication("valleraugue-3d")],
   },
   {
-    id: "biosphere",
-    titre: "Biosphère",
-    couleur: "#7a8b5e",
-    ids: ["theme-environnement", "theme-tourisme"],
+    numero: "03",
+    sphere: "atmosphere",
+    sphereNom: "Atmosphère",
+    rang: "courante",
+    titre: "Météo et climat",
+    description: "Une information localisée sur la situation météorologique, les prévisions et les évolutions climatiques du lieu.",
+    liens: [findApplication("meteo-essentiel"), findApplication("meteo-bilan-thermique"), findApplication("climat")],
   },
   {
-    id: "anthroposphere",
-    titre: "Anthroposphère",
-    couleur: "#3e6e82",
-    ids: ["carte", "itineraire-poids-lourd", "theme-territoire", "theme-population", "theme-economie", "theme-finances", "theme-services", "theme-mobilite", "theme-democratie"],
+    numero: "04",
+    sphere: "hydrosphere",
+    sphereNom: "Hydrosphère",
+    rang: "courante",
+    titre: "Tableau de bord de l’eau",
+    description: "Suit les cours d’eau, les crues, les étiages, les nappes souterraines ainsi que la qualité de l’eau et des sites de baignade.",
+    liens: [findApplication("eau-tableau-de-bord")],
   },
   {
-    id: "risques",
-    titre: "Risques",
-    couleur: "#b5533c",
-    ids: ["incendies", "incendies-temps-reel", "vigilance-feu", "old", "valfeu", "theme-risques"],
+    numero: "05",
+    sphere: "risques",
+    sphereNom: "Risques",
+    rang: "courante",
+    titre: "Incendies",
+    description: "Met en relation les niveaux officiels de vigilance, les recommandations publiques et les détections thermiques satellitaires récentes.",
+    liens: [findApplication("incendies"), findApplication("vigilance-feu"), findApplication("incendies-temps-reel")],
   },
   {
-    id: "lithosphere",
-    titre: "Lithosphère",
-    couleur: "#6b4226",
-    ids: ["relief", "valleraugue-3d", "theme-geographie"],
+    numero: "06",
+    sphere: "risques",
+    sphereNom: "Risques",
+    rang: "courante",
+    titre: "LAV.feu",
+    description: "Conçue pour un usage mobile sur le terrain, localise l’utilisateur et recherche les suspicions satellitaires de feu observées à proximité.",
+    liens: [findApplication("valfeu")],
   },
   {
-    id: "outils",
-    titre: "Outils techniques & API",
-    couleur: "#4f5d66",
-    ids: [...technique.map((cell) => cell.id), "theme-sources"],
+    numero: "07",
+    sphere: "risques",
+    sphereNom: "Risques",
+    rang: "courante",
+    titre: "Obligations de débroussaillement",
+    description: "Aide à préparer le périmètre indicatif à débroussailler en croisant bâtiment, cadastre, zonage réglementaire et données cartographiques.",
+    liens: [findApplication("old")],
+  },
+  {
+    numero: "08",
+    sphere: "anthroposphere",
+    sphereNom: "Anthroposphère",
+    rang: "courante",
+    titre: "Itinéraire poids lourd",
+    description: "Propose un parcours adapté au gabarit connu du véhicule et signale les portions que les données ouvertes ne permettent pas de vérifier complètement.",
+    liens: [findApplication("itineraire-poids-lourd")],
+  },
+  {
+    numero: "09",
+    sphere: "lithosphere",
+    sphereNom: "Lithosphère",
+    rang: "courante",
+    titre: "Lavgeol",
+    description: "Explore la carte géologique du territoire, croise fonds IGN et relief 3D, et retrouve les ouvrages du sous-sol répertoriés par le BRGM (BSS) à proximité.",
+    liens: [findApplication("lavgeol")],
   },
 ] as const;
 
-const groupes = spheres.map((sphere) => ({ ...sphere, cells: cellsDe([...sphere.ids]) }));
+const majeures = usages.filter((usage) => usage.rang === "majeure");
+const courantes = usages.filter((usage) => usage.rang === "courante");
+const [projet, demarche, applications] = ANCRES_ACCUEIL;
 ---
 
 <Layout
-  title="OpenDataVal — Portail des services"
-  description="Portail unique pour accéder à toutes les applications, thèmes de données et services techniques d'OpenDataVal, le jumeau numérique ouvert de Val-d'Aigoual."
+  title="LAV — Localiser, Agréger, Valoriser"
+  description="Un système d’intégration des données publiques au service des territoires et des usages."
 >
-  <main class="launcher-page">
-    <header class="launcher-hero">
-      <p class="sur-titre">Val-d'Aigoual · portail des services</p>
-      <h1>Un seul accès pour tout le territoire numérique.</h1>
-      <p class="introduction">
-        Survolez une tuile : elle pivote et révèle ce qu'elle contient ainsi que ses actions. Cliquez pour ouvrir l'application. Applications et thèmes de données sont regroupés par grande sphère du territoire ; les outils techniques figurent à part, en bas de page.
-      </p>
-    </header>
-    {groupes.map((groupe) => (
-      <section class="sphere" aria-labelledby={`sphere-${groupe.id}`}>
-        <h2 id={`sphere-${groupe.id}`}>
-          <span class="pastille" style={`--c:${groupe.couleur}`} />
-          {groupe.titre}
-        </h2>
-        <LauncherGrid client:load cells={groupe.cells} />
-      </section>
-    ))}
+  <header class="entete">
+    <div class="conteneur hero">
+      <div class="hero__texte">
+        {/* La marque est déjà portée par la barre permanente : la répéter ici
+            n'ajouterait rien et volerait de la place au titre. */}
+        <h1>Localiser, agréger, valoriser.</h1>
+        <p class="hero__accroche">Un système d’intégration des données publiques au service des territoires et des usages.</p>
+        <p class="introduction">LAV transforme des données publiques dispersées en informations utiles, organisées autour d’un lieu.</p>
+        <a class="hero__appel" href={`#${applications.id}`}>Voir les applications <span aria-hidden="true">↓</span></a>
+      </div>
+      <div class="hero__medias">
+        <HeroVisual />
+      </div>
+    </div>
+    <span class="sentinelle" data-sentinelle-entete aria-hidden="true"></span>
+  </header>
+
+  <main>
+    <section id={projet.id} class="section manifeste" aria-labelledby="projet-titre">
+      <div class="conteneur">
+        <p class="indice-section">{projet.numero} · {projet.titre}</p>
+        <div class="manifeste__grille">
+          <h2 id="projet-titre">Un jumeau numérique documenté et évolutif.</h2>
+          <div class="prose">
+            <p>À partir d’un point sur la carte, LAV rassemble les données disponibles pour décrire son environnement : relief, bâtiments, végétation, eau, sous-sol, météo, climat, activités humaines, infrastructures et risques.</p>
+            <p>Issues de multiples sources publiques, ces données sont localisées, croisées et replacées dans leur contexte. Elles proposent une lecture cohérente du lieu, de son voisinage et de son territoire.</p>
+            <p>LAV fournit ainsi un socle de données commun, à partir duquel peuvent être développés des services répondant à des besoins concrets, locaux et citoyens.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id={demarche.id} class="section section--fond" aria-labelledby="demarche-titre">
+      <div class="conteneur">
+        <div class="section__entete">
+          <div>
+            <p class="indice-section">{demarche.numero} · {demarche.titre}</p>
+            <h2 id="demarche-titre">Du point sur la carte à l’information utile.</h2>
+          </div>
+          <p>Une même infrastructure de localisation, de collecte, de cartographie et de documentation des données.</p>
+        </div>
+
+        <div class="demarche__corps">
+          <ol class="etapes">
+            <li><span>01</span><div><h3>Localiser</h3><p>Partir d’un lieu précis et retrouver son contexte géographique.</p></div></li>
+            <li><span>02</span><div><h3>Agréger</h3><p>Rassembler des sources publiques différentes dans un socle commun et documenté.</p></div></li>
+            <li><span>03</span><div><h3>Valoriser</h3><p>Développer des services répondant à des besoins concrets, locaux et citoyens.</p></div></li>
+          </ol>
+          <div class="demarche__appui">
+            <ImagePlaceholder />
+            <p class="demarche__note">Les applications s’appuient toutes sur cette infrastructure. Elles peuvent ainsi être enrichies ou complétées sans reconnecter séparément chaque source publique.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id={applications.id} class="section" aria-labelledby="applications-titre">
+      <div class="conteneur">
+        <div class="section__entete">
+          <div>
+            <p class="indice-section">{applications.numero} · {applications.titre}</p>
+            <h2 id="applications-titre">Une infrastructure commune, des usages concrets.</h2>
+          </div>
+          <p>Les applications déjà réalisées illustrent cette diversité d’usages.</p>
+        </div>
+
+        <div class="applications applications--majeures">
+          {majeures.map((usage) => <CarteUsage {...usage} />)}
+        </div>
+
+        <div class="applications applications--courantes">
+          {courantes.map((usage) => <CarteUsage {...usage} />)}
+        </div>
+      </div>
+    </section>
   </main>
+
+  <section class="sortie conteneur" slot="final" aria-labelledby="finalites-titre">
+    <p class="indice-section">04 · Les finalités</p>
+    <p id="finalites-titre" class="sortie__phrase">Comprendre un lieu. Suivre une situation. Préparer une intervention. Éclairer une décision.</p>
+    <div class="sortie__suite">
+      <p>Autour de l’infrastructure commune, chaque application répond à une question concrète, locale et citoyenne.</p>
+      <div class="sortie__appels">
+        <a class="bouton" href="/carte/">Ouvrir la carte du territoire</a>
+        <a class="bouton bouton--discret" href={`#${applications.id}`}>Revoir les applications</a>
+        <a class="bouton bouton--discret" href="/api/v2">Services &amp; API</a>
+      </div>
+    </div>
+  </section>
 </Layout>
 
 <style>
-  .launcher-page {
-    width: min(1280px, calc(100% - 2rem));
-    margin: 0 auto;
-    padding: clamp(2rem, 5vw, 4rem) 0 clamp(3rem, 8vw, 6rem);
+  :global(body) {
+    background: var(--surface-fond);
+    color: var(--texte-principal);
+    font-family: var(--font-body);
+    font-size: var(--txt-l);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
   }
+  :global(html) { scroll-behavior: smooth; }
 
-  .launcher-hero {
-    max-width: 62ch;
-    margin-bottom: clamp(2rem, 5vw, 3.5rem);
-  }
+  /* ---- Hero ----
+     Aucun ornement : ni dégradé radial ni cercle. Le seul geste graphique de la
+     page est réservé au bloc sombre final, où il ne concurrence rien. */
+  /* Dégradé vertical : la barre permanente, plate et de la même couleur en haut
+     de page, s'y raccorde sans coupure sur toute la largeur. */
+  .entete { position: relative; border-bottom: 1px solid var(--bordure); background: linear-gradient(var(--surface-plate) 0 42%, var(--surface-fond) 100%); }
+  .hero { display: grid; min-height: calc(100svh - 3.5rem); gap: var(--esp-xl); align-items: center; padding-block: clamp(var(--esp-xl), 7vw, 5rem); }
+  .hero__texte { display: grid; justify-items: start; align-content: center; }
+  .hero__accroche { max-width: 46ch; margin: var(--esp-l) 0 0; color: var(--texte-principal); font-family: var(--font-display); font-size: clamp(1.15rem, 2vw, 1.45rem); line-height: 1.2; text-wrap: balance; }
+  .introduction { max-width: 48ch; margin: var(--esp-m) 0 0; color: var(--texte-secondaire); font-size: clamp(1rem, 1.7vw, 1.2rem); text-wrap: pretty; }
+  .hero__appel { display: inline-flex; min-height: var(--cible); align-items: center; gap: var(--esp-s); margin-top: var(--esp-xl); border-bottom: 1px solid var(--couleur-action); color: var(--couleur-action); font-size: var(--txt-xs); font-weight: var(--poids-fort); text-decoration: none; }
+  .hero__medias { display: grid; min-width: 0; }
+  /* Repère de défilement lu par la barre permanente (aucun rendu propre). */
+  .sentinelle { position: absolute; bottom: 0; display: block; height: 1px; width: 1px; }
 
-  .sur-titre {
-    margin: 0;
-    color: var(--accent);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
+  /* ---- Titres et repères communs ---- */
+  .indice-section { margin: 0 0 var(--esp-s); color: var(--couleur-action); font-family: var(--font-mono); font-size: var(--txt-micro); font-weight: var(--poids-fort); letter-spacing: var(--ls-label); text-transform: uppercase; }
+  h1, h2 { font-family: var(--font-display); font-weight: var(--poids-normal); letter-spacing: var(--ls-titre); text-wrap: balance; }
+  h1 { max-width: 10ch; margin: 0; font-size: clamp(2.65rem, 6.2vw, 5.4rem); line-height: .91; }
+  h2 { max-width: 23ch; margin: 0; font-size: clamp(1.55rem, 4vw, 2.25rem); line-height: 1; }
 
-  h1 {
-    margin: 0.9rem 0 0;
-    font-family: var(--font-display);
-    font-size: clamp(2.2rem, 4.5vw, 3.6rem);
-    font-weight: 600;
-    letter-spacing: -0.03em;
-    line-height: 1.02;
-  }
+  .section { padding-block: var(--esp-2xl); border-bottom: 1px solid var(--bordure); scroll-margin-top: 3.5rem; }
+  .section--fond { background: var(--surface-fond); }
+  .manifeste { background: var(--surface-plate); }
+  .manifeste__grille { display: grid; gap: var(--esp-xl); }
+  /* Filet neutre : une couleur de classement posée ici ne classerait rien. */
+  .prose { padding-left: var(--esp-l); border-left: 2px solid var(--bordure-forte); }
+  .prose p { max-width: var(--largeur-lecture); margin: var(--esp-m) 0 0; color: var(--texte-secondaire); font-size: var(--txt-m); }
+  .prose p:first-child { margin-top: 0; color: var(--texte-principal); font-size: var(--txt-l); }
+  .section__entete { display: grid; gap: var(--esp-2xs); margin-bottom: var(--esp-l); }
+  .section__entete > p { max-width: var(--largeur-intro); margin: 0; color: var(--texte-secondaire); font-size: var(--txt-m); text-wrap: pretty; }
 
-  .introduction {
-    margin: 1.1rem 0 0;
-    color: var(--muted);
-    font-size: 1.02rem;
-    line-height: 1.6;
-  }
+  /* ---- La démarche ---- */
+  .demarche__corps { display: grid; gap: var(--esp-l); }
+  .etapes { display: grid; gap: var(--esp-s); margin: 0; padding: 0; list-style: none; }
+  .etapes li { position: relative; display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: var(--esp-m); padding: var(--esp-m); border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface-elevee); box-shadow: var(--ombre-courte); }
+  .etapes li::before { position: absolute; inset: 0 auto 0 0; width: 2px; background: var(--couleur-action); content: ""; }
+  .etapes > li > span { color: var(--texte-tertiaire); font-family: var(--font-mono); font-size: var(--txt-micro); }
+  .etapes h3 { margin: 0 0 var(--esp-xs); font-size: var(--txt-xs); font-weight: var(--poids-fort); letter-spacing: var(--ls-label); text-transform: uppercase; }
+  .etapes p { max-width: var(--largeur-lecture); margin: 0; color: var(--texte-secondaire); font-size: var(--txt-m); }
+  .demarche__appui { display: grid; gap: var(--esp-m); align-content: start; }
+  .demarche__note { max-width: var(--largeur-intro); margin: 0; color: var(--texte-secondaire); font-size: var(--txt-m); text-wrap: pretty; }
 
-  .sphere {
-    margin: 0 0 clamp(2.5rem, 6vw, 4rem);
-  }
+  /* ---- Applications ---- */
+  /* Plafond de colonnes du référentiel (§Grilles) : la borne basse de minmax()
+     vaut au moins 100 % / --cols, si bien que la grille ne peut pas dépasser
+     --cols colonnes tout en se réduisant librement sur petit écran. */
+  .applications { --gap-grille: var(--esp-s); display: grid; gap: var(--gap-grille); grid-template-columns: repeat(auto-fit, minmax(max(var(--min-col), (100% - (var(--cols) - 1) * var(--gap-grille)) / var(--cols)), 1fr)); }
+  .applications--majeures { --cols: 2; --min-col: 19rem; margin-bottom: var(--esp-s); }
+  .applications--courantes { --cols: 3; --min-col: 15rem; }
 
-  .sphere h2 {
-    display: flex;
+  /* ---- Sortie de page (dans l'aplat sombre du pied) ---- */
+  .sortie { position: relative; z-index: 1; display: grid; gap: var(--esp-l); padding-block: var(--esp-2xl); color: var(--texte-sur-sombre); }
+  .sortie .indice-section { color: var(--texte-sur-sombre-doux); }
+  .sortie__phrase { max-width: 22ch; margin: 0; font-family: var(--font-display); font-size: clamp(2.25rem, 7vw, 4rem); font-weight: var(--poids-normal); line-height: .96; letter-spacing: var(--ls-titre); text-wrap: balance; }
+  .sortie__suite { display: grid; gap: var(--esp-l); }
+  .sortie__suite > p { max-width: var(--largeur-intro); margin: 0; color: var(--texte-sur-sombre-doux); font-size: var(--txt-m); }
+  .sortie__appels { display: flex; flex-wrap: wrap; gap: var(--esp-xs); }
+  .bouton {
+    display: inline-flex;
+    min-height: var(--cible);
     align-items: center;
-    gap: 0.6rem;
-    margin: 0 0 1.1rem;
-    font-family: var(--font-display);
-    font-size: clamp(1.15rem, 2vw, 1.5rem);
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    justify-content: center;
+    padding-inline: var(--esp-m);
+    border: 1px solid var(--focus-sur-sombre);
+    border-radius: var(--rayon);
+    background: var(--focus-sur-sombre);
+    color: var(--vert-profond);
+    font-size: var(--txt-xs);
+    font-weight: var(--poids-fort);
+    text-decoration: none;
+  }
+  .bouton--discret { background: transparent; color: var(--texte-sur-sombre); }
+  .bouton--discret:hover { background: rgb(255 255 255 / 12%); }
+  .sortie a:focus-visible { outline-color: var(--focus-sur-sombre); }
+
+  @media (min-width: 42rem) {
+    .hero { grid-template-columns: minmax(0, .82fr) minmax(22rem, 1.18fr); }
+    .manifeste__grille { grid-template-columns: minmax(0, 1fr) minmax(18rem, .9fr); }
+    .section__entete { grid-template-columns: 1fr minmax(18rem, .9fr); align-items: end; }
+    .section__entete > p { justify-self: end; }
+    .demarche__corps { grid-template-columns: minmax(0, 1.15fr) minmax(15rem, .85fr); gap: var(--esp-xl); }
+    .sortie { grid-template-columns: minmax(0, 1fr) minmax(20rem, 1fr); align-items: start; }
+    .sortie .indice-section { grid-column: 1 / -1; }
   }
 
-  .pastille {
-    width: 0.7rem;
-    height: 0.7rem;
-    border-radius: 2px;
-    background: var(--c);
-    display: inline-block;
-    flex-shrink: 0;
+  @media (prefers-reduced-motion: reduce) {
+    :global(html) { scroll-behavior: auto; }
   }
 </style>

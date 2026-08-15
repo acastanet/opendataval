@@ -1,7 +1,5 @@
 ---
 import Layout from "./Layout.astro";
-import SiteHeader from "../components/SiteHeader.astro";
-import SiteFooter from "../components/SiteFooter.astro";
 import SourcesDomaine from "../components/SourcesDomaine.astro";
 import SectionAuto from "../components/SectionAuto.astro";
 import { SECTIONS, CATALOGUE_SOURCES, TERRITOIRE, type SectionSlug } from "@opendata-vda/shared";
@@ -15,8 +13,6 @@ if (!section) throw new Error(`Section inconnue : ${slug}`);
 const sources = CATALOGUE_SOURCES.filter((s) => s.theme === slug);
 ---
 <Layout title={`${section.titre} — ${TERRITOIRE.commune.nom}`} description={section.description}>
-  <SiteHeader sectionActive={slug} />
-
   <main class="page-section">
     <header class="entete-section conteneur">
       <span class="pastille-section" style={`background:${section.couleur}`}></span>
@@ -35,7 +31,6 @@ const sources = CATALOGUE_SOURCES.filter((s) => s.theme === slug);
     {sources.length > 0 && <SourcesDomaine sources={sources} />}
   </main>
 
-  <SiteFooter />
 </Layout>
 
 <style>
@@ -66,7 +61,7 @@ const sources = CATALOGUE_SOURCES.filter((s) => s.theme === slug);
     max-width: 56ch;
     font-size: 1rem;
     line-height: 1.5;
-    color: var(--border);
+    color: var(--texte-tertiaire);
   }
 
   .contenu-section {

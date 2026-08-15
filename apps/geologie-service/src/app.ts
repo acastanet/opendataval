@@ -4,15 +4,19 @@ import { createInfoterreClient, type InfoterreClient } from "./clients/infoterre
 import type { GeologieConfig } from "./config.js";
 import { registerSyntheseRoutes } from "./routes/synthese.js";
 import { createCacheMemoire, type CacheMemoire } from "./services/cache.js";
+import { createConvertisseur, type Convertisseur } from "./services/conversion-document.js";
 import { createSyntheseurLlm, type Syntheseur } from "./services/llm-interpretation.js";
 import { rechercherOuvragesProches } from "./services/recherche-bss.js";
 import { createReranker, type Reranker } from "./services/reranker.js";
+import { createSelecteurDocument, type SelecteurDocument } from "./services/selecteur-document.js";
 import type { OuvrageBss } from "./types.js";
 
 export interface GeologieClients {
   brgm: BrgmClient;
   reranker: Reranker;
   infoterre?: InfoterreClient;
+  selecteur?: SelecteurDocument;
+  convertisseur?: Convertisseur;
   syntheseur?: Syntheseur;
 }
 
@@ -74,6 +78,8 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     options.config.cacheMaxEntries,
   );
   const infoterre = clients.infoterre ?? createInfoterreClient(options.config, fetchImpl);
+  const selecteur = clients.selecteur ?? createSelecteurDocument(options.config, fetchImpl);
+  const convertisseur = clients.convertisseur ?? createConvertisseur(options.config.infoterreImageWidthPx);
   const syntheseur = clients.syntheseur ?? createSyntheseurLlm(options.config, fetchImpl);
 
   app.addHook("onSend", async (request, reply, payload) => {
@@ -138,7 +144,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     proches,
   );
 
-  registerSyntheseRoutes(app, { infoterre, syntheseur, config: options.config });
+  registerSyntheseRoutes(app, { infoterre, selecteur, convertisseur, syntheseur, config: options.config });
 
   app.setErrorHandler((failure, request, reply) => {
     request.log.error({ err: failure }, "requête géologie en erreur");

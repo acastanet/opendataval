@@ -1,0 +1,1440 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#eef3ef" />
+    <title>Style VAL v2 — Référentiel de design OpenDataVdA</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="preload" href="./fonts/SourceSerif4-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="preload" href="./fonts/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+    <style>
+      /* ==========================================================================
+         POLICES — auto-hébergées.
+         Aucune requête vers fonts.googleapis.com / fonts.gstatic.com : ces domaines
+         transmettent l'adresse IP des visiteurs à Google, ce qui n'est pas tenable
+         pour un service public territorial. Source Serif 4 et Inter sont sous
+         licence SIL OFL, leur redistribution est libre.
+         Déposer les fichiers dans ./fonts/ (voir ./fonts/README.md).
+         Tant qu'ils sont absents, la page retombe proprement sur la pile système
+         décrite dans --font-display / --font-body : la dégradation est prévue.
+         ========================================================================== */
+      @font-face {
+        font-family: "Source Serif 4";
+        src: local("Source Serif 4"), local("SourceSerif4-Regular"),
+             url("./fonts/SourceSerif4-Variable.woff2") format("woff2-variations");
+        font-weight: 400 600;
+        font-style: normal;
+        font-display: optional;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: local("Inter"), local("Inter-Regular"),
+             url("./fonts/Inter-Variable.woff2") format("woff2-variations");
+        font-weight: 400 700;
+        font-style: normal;
+        font-display: optional;
+      }
+
+      :root {
+        color-scheme: light;
+
+        /* ------------------------------------------------------------------
+           1. PRIMITIVES — teintes brutes. Ne jamais les consommer directement
+           dans un composant : passer par les rôles (§3).
+           ------------------------------------------------------------------ */
+        --encre: #14251d;
+        --encre-douce: #52645b;
+        --encre-tertiaire: #616f67;
+        --vert: #24543d;
+        --vert-profond: #173e2b;
+        --vert-clair: #dce9e1;
+        --brume: #eef3ef;
+        --papier: #fbfcfa;
+        --blanc: #ffffff;
+        --torrent: #3d6f7d;
+        --chataigne: #795039;
+        --lichen: #718260;
+        --granite: #89958e;
+        --alerte: #a94332;
+
+        /* ------------------------------------------------------------------
+           2. CLASSEMENT — chaque famille porte DEUX valeurs :
+           l'aplat (repérage : filet, pastille, fond teinté) et la variante
+           texte, assombrie jusqu'à ≥ 4,5:1 sur --brume, la plus sombre des
+           surfaces claires. L'aplat ne doit jamais porter de texte.
+           ------------------------------------------------------------------ */
+        --atmosphere: #2d9cdb;      --atmosphere-texte: #1c73a5;
+        --hydrosphere: #00b8a9;     --hydrosphere-texte: #007a70;
+        --biosphere: #7cb342;       --biosphere-texte: #53772c;
+        --anthroposphere: #7e57c2;  --anthroposphere-texte: #7e57c2;
+        --risques: #f4513b;         --risques-texte: #d4240c;
+        --lithosphere: #d28b28;     --lithosphere-texte: #95621c;
+        --technique: #546573;       --technique-texte: #546573;
+
+        /* ------------------------------------------------------------------
+           2 bis. VIGILANCE — rampe réglementaire à 4 niveaux (Météo-France).
+           Délibérément distincte du vert institutionnel (#24543d, H 151°,
+           sombre et désaturé) pour qu'un vert « aucun danger » ne puisse pas
+           être confondu avec un vert « ceci est cliquable ».
+           RÈGLE : --couleur-action ne doit JAMAIS exprimer un état.
+           ------------------------------------------------------------------ */
+        --vigilance-vert: #31aa46;    --vigilance-vert-texte: #237b33;
+        --vigilance-jaune: #f5d800;   --vigilance-jaune-texte: #7a6c00;
+        --vigilance-orange: #ff8c00;  --vigilance-orange-texte: #a25900;
+        --vigilance-rouge: #e1001a;   --vigilance-rouge-texte: #cc0018;
+
+        /* ------------------------------------------------------------------
+           3. RÔLES — ce que les composants consomment.
+           Un token nommé par sa teinte (--vert) ne dit pas où l'employer et
+           ne peut pas être réaffecté ; un token nommé par son rôle, si.
+           ------------------------------------------------------------------ */
+        --couleur-action: var(--vert);
+        --couleur-action-active: var(--vert-profond);
+        --couleur-action-douce: var(--vert-clair);
+
+        --surface-fond: var(--brume);
+        --surface-plate: var(--papier);
+        --surface-elevee: rgb(255 255 255 / 88%);
+        --surface-sombre: var(--vert-profond);
+
+        --texte-principal: var(--encre);
+        --texte-secondaire: var(--encre-douce);
+        --texte-tertiaire: var(--encre-tertiaire);
+        --texte-sur-sombre: rgb(255 255 255 / 88%);
+        --texte-sur-sombre-doux: rgb(255 255 255 / 70%);
+
+        --bordure: rgb(20 37 29 / 16%);
+        --bordure-forte: rgb(20 37 29 / 31%);
+        --decor: var(--granite);
+
+        --focus: var(--vert);
+        --focus-sur-sombre: var(--vert-clair);
+
+        --ombre: 0 14px 38px rgb(20 37 29 / 9%);
+        --ombre-courte: 0 8px 24px rgb(20 37 29 / 6%);
+
+        /* ------------------------------------------------------------------
+           4. ÉCHELLE D'ESPACEMENT — base 4 px, 8 pas.
+           Aucune valeur d'espacement littérale hors de ce bloc.
+           ------------------------------------------------------------------ */
+        --esp-3xs: .25rem;
+        --esp-2xs: .375rem;
+        --esp-xs: .5rem;
+        --esp-s: .625rem;
+        --esp-m: .75rem;
+        --esp-l: 1rem;
+        --esp-xl: 1.5rem;
+        --esp-2xl: 2.5rem;
+
+        /* ------------------------------------------------------------------
+           5. ÉCHELLE TYPOGRAPHIQUE — 7 pas, plancher à 11 px.
+           Le plancher est une règle d'accessibilité, pas une préférence :
+           en capitales interlettrées, sous 11 px le texte devient illisible
+           en usage terrain (soleil, mouvement, presbytie).
+           ------------------------------------------------------------------ */
+        --txt-micro: .6875rem;
+        --txt-xs: .75rem;
+        --txt-s: .8125rem;
+        --txt-m: .875rem;
+        --txt-l: 1rem;
+        --txt-xl: 1.125rem;
+        --txt-2xl: 1.375rem;
+
+        /* 6. GRAISSES — trois seulement.
+           Les paliers 720/740/750/760/780 de la v2.0 étaient fictifs : sur une
+           police statique, la spec CSS les arrondit tous à 700 ou 800. */
+        --poids-normal: 400;
+        --poids-appui: 600;
+        --poids-fort: 700;
+
+        /* 7. INTERLETTRAGE */
+        --ls-titre: -.03em;
+        --ls-label: .08em;
+
+        /* 8. RAYONS ET MOUVEMENT */
+        --rayon: 2px;
+        --rayon-fin: 1px;
+        --duree-courte: 180ms;
+        --courbe: cubic-bezier(.2, .82, .24, 1);
+
+        /* 9. FAMILLES */
+        --font-display: "Source Serif 4", Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, ui-serif, serif;
+        --font-body: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+
+        /* 10. CIBLE TACTILE MINIMALE — imposée par les principes 03 et 08.
+           Tout élément interactif doit la respecter, sans exception. */
+        --cible: 2.5rem;
+
+        /* ------------------------------------------------------------------
+           11. LARGEURS — trois plafonds distincts.
+           Au-delà d'une certaine largeur, agrandir dégrade la lisibilité au
+           lieu de l'améliorer : les colonnes s'amincissent, les lignes de
+           texte dépassent l'empan de lecture confortable et la composition se
+           dilue. La coque est donc plafonnée à 60rem (960 px), une largeur de
+           document et non de tableau de bord : trois cartes y font ~313 px,
+           les lignes de texte restent dans la mesure, et l'ensemble garde sa
+           densité. Sur un grand écran on centre, on n'étire pas.
+
+           ATTENTION en relisant cette page : un écran « 2560 px » n'offre pas
+           2560 px CSS. Avec la mise à l'échelle Windows à 200 % — courante sur
+           les portables 2560×1600 — le viewport réel ne fait que ~1265 px CSS.
+           C'est cette valeur qui compte ici, pas la définition physique.
+           ------------------------------------------------------------------ */
+        --largeur-page: 60rem;      /* coque */
+        --largeur-lecture: 64ch;    /* paragraphes courants (mesure 45-75ch) */
+        --largeur-intro: 54ch;      /* chapô et introductions */
+        --hauteur-sommaire: 3.5rem;
+
+        /* 12. SIMULATIONS — fonds de démonstration, jamais de l'UI réelle. */
+        --simul-carte: linear-gradient(150deg, #cfd9d0, #aab8ac 55%, #8fa190);
+        --simul-mobile: linear-gradient(#f9fbf9, #e7eee9);
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--texte-principal);
+        background: var(--surface-fond);
+        font-family: var(--font-body);
+        font-size: var(--txt-l);
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a { color: var(--couleur-action); }
+      button, a { font: inherit; }
+      a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 3px;
+      }
+      /* Sur fond sombre, --focus tombe à 1,37:1 : invisible. */
+      .barre-officielle a:focus-visible, footer a:focus-visible {
+        outline-color: var(--focus-sur-sombre);
+      }
+
+      .conteneur {
+        width: min(calc(100% - var(--esp-xl)), var(--largeur-page));
+        margin-inline: auto;
+      }
+
+      /* ==========================================================================
+         SURFACES — trois niveaux, et trois seulement.
+         La v2.0 en comptait sept, sans que la différence porte un sens.
+         ========================================================================== */
+      .surface {
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: var(--surface-plate);
+      }
+      .surface--elevee {
+        background: var(--surface-elevee);
+        box-shadow: var(--ombre-courte);
+      }
+      .surface--accent {
+        position: relative;
+        overflow: hidden;
+        border-color: color-mix(in srgb, var(--accent, var(--couleur-action)) 25%, var(--bordure));
+        background: linear-gradient(150deg, color-mix(in srgb, var(--accent, var(--couleur-action)) 7%, white), white 58%);
+      }
+      .surface--accent::before {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 3px;
+        background: var(--accent, var(--couleur-action));
+        content: "";
+      }
+
+      .barre-officielle {
+        border-bottom: 1px solid rgb(255 255 255 / 15%);
+        background: var(--surface-sombre);
+        color: var(--texte-sur-sombre);
+        font-size: var(--txt-micro);
+        font-weight: var(--poids-fort);
+        letter-spacing: var(--ls-label);
+        text-transform: uppercase;
+      }
+      .barre-officielle .conteneur {
+        display: flex;
+        min-height: var(--cible);
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--esp-l);
+      }
+      /* v2.0 : blanc à 52 % = 4,44:1, sous le seuil. Porté à 70 % = 6,70:1. */
+      .barre-officielle span:last-child { color: var(--texte-sur-sombre-doux); }
+
+      header {
+        position: relative;
+        overflow: hidden;
+        border-bottom: 1px solid var(--bordure);
+        background:
+          radial-gradient(circle at 82% 30%, rgb(61 111 125 / 13%), transparent 24rem),
+          linear-gradient(135deg, var(--surface-plate) 0 58%, var(--surface-fond) 100%);
+      }
+      header::after {
+        position: absolute;
+        right: -9rem;
+        bottom: -16rem;
+        width: 30rem;
+        height: 30rem;
+        border: 1px solid rgb(36 84 61 / 14%);
+        border-radius: 50%;
+        content: "";
+      }
+
+      .hero {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: var(--esp-l);
+        padding-block: var(--esp-2xl);
+      }
+
+      .titre-marque { display: flex; gap: var(--esp-m); align-items: center; }
+      .marque-signe { display: block; width: 3.5rem; height: 3.5rem; flex: 0 0 auto; }
+      .version {
+        display: inline-flex;
+        margin-left: var(--esp-3xs);
+        padding: var(--esp-3xs) var(--esp-2xs);
+        border: 1px solid rgb(36 84 61 / 20%);
+        border-radius: var(--rayon);
+        background: rgb(36 84 61 / 7%);
+        color: var(--couleur-action);
+        font-family: var(--font-mono);
+        font-size: var(--txt-micro);
+        font-weight: var(--poids-fort);
+        letter-spacing: var(--ls-label);
+        vertical-align: middle;
+      }
+
+      .eyebrow {
+        margin: 0 0 var(--esp-s);
+        color: var(--couleur-action);
+        font-size: var(--txt-micro);
+        font-weight: var(--poids-fort);
+        letter-spacing: var(--ls-label);
+        text-transform: uppercase;
+      }
+
+      h1, h2, .titre-apercu {
+        font-family: var(--font-display);
+        font-weight: var(--poids-normal);
+        letter-spacing: var(--ls-titre);
+        text-wrap: balance;
+      }
+
+      h1 {
+        max-width: 14ch;
+        margin: 0;
+        font-size: clamp(2.25rem, 8vw, 4.35rem);
+        line-height: .94;
+      }
+
+      .introduction {
+        max-width: var(--largeur-intro);
+        margin: var(--esp-m) 0 0;
+        color: var(--texte-secondaire);
+        font-size: clamp(.94rem, 1.7vw, 1.08rem);
+        text-wrap: pretty;
+      }
+
+      .signature {
+        align-self: end;
+        padding: var(--esp-m);
+        border: 1px solid var(--bordure-forte);
+        border-radius: var(--rayon);
+        background: var(--surface-elevee);
+        box-shadow: var(--ombre);
+      }
+      .signature strong, .signature span { display: block; }
+      .signature strong {
+        font-family: var(--font-display);
+        font-size: var(--txt-xl);
+        font-weight: var(--poids-normal);
+        letter-spacing: var(--ls-titre);
+      }
+      .signature span { margin-top: var(--esp-3xs); color: var(--texte-secondaire); font-size: var(--txt-xs); }
+
+      /* ==========================================================================
+         SOMMAIRE — deux régimes, pas un défilement masqué.
+         La v2.0 imposait à toutes les tailles un défilement horizontal dont les
+         deux barres étaient cachées : sur mobile, quatre des neuf sections
+         étaient donc inatteignables sans geste deviné. Un sommaire qui cache la
+         moitié de ses entrées ne remplit pas sa fonction.
+         · Petit écran  : statique, les entrées passent à la ligne, tout est visible.
+         · Grand écran  : collant sur une seule ligne, avec séparateurs.
+         ========================================================================== */
+      .sommaire {
+        position: static;
+        z-index: 5;
+        top: 0;
+        border-bottom: 1px solid var(--bordure);
+        background: var(--surface-plate);
+      }
+      .sommaire .conteneur {
+        display: flex;
+        flex-wrap: wrap;
+        column-gap: var(--esp-l);
+        padding-block: var(--esp-3xs);
+      }
+      .sommaire a {
+        display: inline-flex;
+        flex: 0 0 auto;
+        min-height: var(--cible);
+        align-items: center;
+        color: var(--texte-secondaire);
+        font-size: var(--txt-micro);
+        font-weight: var(--poids-fort);
+        letter-spacing: var(--ls-label);
+        text-decoration: none;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .sommaire a:hover { color: var(--couleur-action); }
+      .sommaire a[aria-current="true"] {
+        box-shadow: inset 0 -2px var(--couleur-action);
+        color: var(--couleur-action);
+      }
+
+      main { padding-block: var(--esp-s) var(--esp-2xl); }
+      section {
+        padding-block: var(--esp-2xl);
+        border-bottom: 1px solid var(--bordure);
+        /* Sommaire non collant sur petit écran : aucune marge d'ancrage requise.
+           Elle est rétablie avec la position collante (voir @media 42rem). */
+        scroll-margin-top: var(--esp-s);
+      }
+      section:last-child { border-bottom: 0; }
+
+      .entete-section { display: grid; gap: var(--esp-2xs); margin-bottom: var(--esp-l); }
+      .numero {
+        color: var(--couleur-action);
+        font-family: var(--font-mono);
+        font-size: var(--txt-micro);
+        font-weight: var(--poids-fort);
+        letter-spacing: var(--ls-label);
+      }
+      h2 { max-width: 23ch; margin: 0; font-size: clamp(1.55rem, 4vw, 2.25rem); line-height: 1; }
+      .entete-section p {
+        max-width: var(--largeur-intro);
+        margin: 0;
+        color: var(--texte-secondaire);
+        font-size: var(--txt-m);
+        text-wrap: pretty;
+      }
+      h3 {
+        margin: 0 0 var(--esp-xs);
+        font-size: var(--txt-xs);
+        font-weight: var(--poids-fort);
+        letter-spacing: var(--ls-label);
+        text-transform: uppercase;
+      }
+      p { max-width: var(--largeur-lecture); }
+      .h3-espace { margin-top: var(--esp-xl); }
+
+      /* ==========================================================================
+         GRILLES — auto-fit AVEC PLAFOND DE COLONNES.
+         L'auto-fit seul ne suffit pas : sur un écran de 1440 px et plus, une
+         grille en minmax(9rem, 1fr) part à huit colonnes et disperse le contenu
+         en bandes trop étroites. La borne basse de minmax() vaut donc au moins
+         100 % / --cols : le nombre de colonnes ne peut jamais dépasser --cols,
+         tout en se réduisant librement sur petit écran. Aucun palier arbitraire,
+         mais une limite haute assumée.
+         ========================================================================== */
+      .grille-auto {
+        --cols: 3;
+        --min-col: 15rem;
+        --gap-grille: var(--esp-s);
+        display: grid;
+        gap: var(--gap-grille);
+        grid-template-columns: repeat(
+          auto-fit,
+          minmax(max(var(--min-col), (100% - (var(--cols) - 1) * var(--gap-grille)) / var(--cols)), 1fr)
+        );
+      }
+
+      .grille { --cols: 3; --min-col: 15rem; }
+
+      .carte {
+        position: relative;
+        min-height: 7rem;
+        overflow: hidden;
+        padding: var(--esp-m);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: var(--surface-elevee);
+        box-shadow: var(--ombre-courte);
+        transition: border-color var(--duree-courte) var(--courbe), box-shadow var(--duree-courte) var(--courbe), transform var(--duree-courte) var(--courbe);
+      }
+      .carte::before {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 2px;
+        background: var(--accent, var(--couleur-action));
+        content: "";
+      }
+      .carte:hover {
+        border-color: color-mix(in srgb, var(--accent, var(--couleur-action)) 42%, var(--bordure));
+        box-shadow: var(--ombre);
+        transform: translateY(-2px);
+      }
+      .carte p { margin: 0; color: var(--texte-secondaire); font-size: var(--txt-m); }
+      .carte .indice {
+        display: block;
+        margin-bottom: var(--esp-xl);
+        /* v2.0 : --granite = 3,02:1. --granite est désormais réservé au décor. */
+        color: var(--texte-tertiaire);
+        font-family: var(--font-mono);
+        font-size: var(--txt-micro);
+      }
+
+      .palette { --cols: 4; --min-col: 9rem; --gap-grille: var(--esp-xs); }
+      .nuance {
+        overflow: hidden;
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: var(--surface-elevee);
+      }
+      .nuance b {
+        display: flex;
+        min-height: 5.8rem;
+        align-items: end;
+        padding: var(--esp-s);
+        color: var(--nuance-texte, white);
+        font-size: var(--txt-xs);
+        font-weight: var(--poids-appui);
+      }
+      .nuance span { display: block; padding: var(--esp-xs) var(--esp-s); font-family: var(--font-mono); font-size: var(--txt-micro); }
+
+      .specimens-typo { display: grid; gap: var(--esp-s); margin-bottom: var(--esp-l); }
+      .specimen {
+        display: grid;
+        align-content: space-between;
+        min-height: 11rem;
+        padding: var(--esp-l);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: var(--surface-elevee);
+        box-shadow: var(--ombre-courte);
+      }
+      .specimen > span {
+        color: var(--couleur-action);
+        font-family: var(--font-mono);
+        font-size: var(--txt-micro);
+        font-weight: var(--poids-fort);
+        letter-spacing: var(--ls-label);
+      }
+      .specimen > p { margin: var(--esp-m) 0; }
+      .specimen-display > p {
+        max-width: 19ch;
+        font-family: var(--font-display);
+        font-size: clamp(1.8rem, 5vw, 3.1rem);
+        font-weight: var(--poids-normal);
+        letter-spacing: var(--ls-titre);
+        line-height: .94;
+      }
+      .specimen-body > p { max-width: 46ch; color: var(--texte-secondaire); font-size: var(--txt-l); line-height: 1.6; }
+
+      code {
+        padding: var(--esp-3xs) var(--esp-2xs);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon-fin);
+        background: rgb(255 255 255 / 64%);
+        font-family: var(--font-mono);
+        font-size: .84em;
+      }
+
+      .regles { display: grid; border-top: 1px solid var(--bordure); }
+      .regle {
+        display: grid;
+        grid-template-columns: 2.4rem minmax(0, 1fr);
+        gap: var(--esp-m);
+        padding: var(--esp-l) 0;
+        border-bottom: 1px solid var(--bordure);
+      }
+      .regle > span { color: var(--couleur-action); font-family: var(--font-mono); font-size: var(--txt-xs); }
+      .regle strong { display: block; font-size: var(--txt-m); font-weight: var(--poids-appui); }
+      .regle p { margin: var(--esp-3xs) 0 0; color: var(--texte-secondaire); font-size: var(--txt-s); }
+
+      .demonstrateur { display: grid; gap: var(--esp-m); }
+      .presentation {
+        position: relative;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-height: 18rem;
+        overflow: hidden;
+        padding: var(--esp-xl);
+        border: 1px solid var(--bordure-forte);
+        border-radius: var(--rayon);
+        background:
+          linear-gradient(120deg, rgb(255 255 255 / 90%), rgb(226 237 230 / 68%)),
+          var(--surface-plate);
+        box-shadow: var(--ombre);
+      }
+      .presentation::after {
+        position: absolute;
+        right: -6rem;
+        bottom: -9rem;
+        width: 18rem;
+        height: 18rem;
+        border: 1px solid rgb(36 84 61 / 20%);
+        border-radius: 50%;
+        content: "";
+      }
+      .presentation > * { position: relative; z-index: 1; }
+      .presentation__meta {
+        color: var(--couleur-action);
+        font-size: var(--txt-micro);
+        font-weight: var(--poids-fort);
+        letter-spacing: var(--ls-label);
+        text-transform: uppercase;
+      }
+      .presentation .titre-apercu {
+        max-width: 12ch;
+        margin: var(--esp-xl) 0 var(--esp-s);
+        font-size: clamp(2.1rem, 7vw, 3.6rem);
+        font-weight: var(--poids-normal);
+        line-height: .96;
+        text-transform: none;
+        letter-spacing: var(--ls-titre);
+      }
+      .presentation p { max-width: 34ch; color: var(--texte-secondaire); }
+      /* v2.0 : position absolute — recouvrait le paragraphe dès qu'il s'allongeait. */
+      .presentation__source { align-self: end; font-size: var(--txt-micro); }
+
+      .media-regle {
+        display: grid;
+        gap: var(--esp-m);
+        align-items: center;
+        margin-top: var(--esp-l);
+        padding: var(--esp-m);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: var(--surface-elevee);
+      }
+      .media-placeholder {
+        position: relative;
+        display: grid;
+        min-height: 8rem;
+        place-items: center;
+        overflow: hidden;
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: linear-gradient(135deg, rgb(61 111 125 / 7%), rgb(113 130 96 / 14%));
+      }
+      .media-placeholder::before, .media-placeholder::after { position: absolute; background: rgb(20 37 29 / 13%); content: ""; }
+      .media-placeholder::before { width: 1px; height: 200%; transform: rotate(58deg); }
+      .media-placeholder::after { width: 200%; height: 1px; transform: rotate(32deg); }
+      .media-placeholder span { width: var(--esp-2xl); height: var(--esp-2xl); border: 1px solid rgb(36 84 61 / 25%); border-radius: 50%; background: rgb(255 255 255 / 42%); }
+      .media-regle h3 { margin: 0; }
+      .media-regle p { margin: var(--esp-3xs) 0 0; color: var(--texte-secondaire); font-size: var(--txt-s); }
+
+      .mobile {
+        width: min(100%, 21rem);
+        margin-inline: auto;
+        overflow: hidden;
+        border: 1px solid var(--bordure-forte);
+        border-radius: var(--rayon);
+        background: var(--simul-mobile);
+        box-shadow: var(--ombre);
+      }
+      .mobile__status { display: flex; justify-content: space-between; padding: var(--esp-s) var(--esp-m); font-size: var(--txt-micro); font-weight: var(--poids-fort); }
+      .mobile__head { padding: var(--esp-l); border-block: 1px solid var(--bordure); background: rgb(255 255 255 / 62%); }
+      .mobile__head span { color: var(--couleur-action); font-size: var(--txt-micro); font-weight: var(--poids-fort); letter-spacing: var(--ls-label); text-transform: uppercase; }
+      .mobile__head h3 {
+        margin: var(--esp-3xs) 0 0;
+        font-family: var(--font-display);
+        font-size: var(--txt-2xl);
+        font-weight: var(--poids-normal);
+        letter-spacing: var(--ls-titre);
+        text-transform: none;
+      }
+      .mobile__contenu { display: grid; gap: var(--esp-xs); padding: var(--esp-m); }
+      .donnee {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: var(--esp-2xs);
+        padding: var(--esp-m);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon-fin);
+        background: rgb(255 255 255 / 68%);
+      }
+      .donnee strong { font-size: var(--txt-xs); font-weight: var(--poids-appui); }
+      .donnee > span { color: var(--couleur-action); font-family: var(--font-mono); font-size: var(--txt-xs); font-weight: var(--poids-fort); }
+      .donnee small { grid-column: 1 / -1; color: var(--texte-secondaire); font-size: var(--txt-micro); }
+      .mobile__nav { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--bordure); background: rgb(255 255 255 / 88%); }
+      .mobile__nav span {
+        display: inline-flex;
+        min-height: var(--cible);
+        align-items: center;
+        justify-content: center;
+        padding: var(--esp-s) var(--esp-3xs);
+        color: var(--texte-secondaire);
+        font-size: var(--txt-micro);
+        font-weight: var(--poids-fort);
+        text-align: center;
+      }
+      .mobile__nav .actif { box-shadow: inset 0 -2px var(--couleur-action); color: var(--couleur-action); }
+
+      .composants { display: grid; gap: var(--esp-m); }
+      .plateau {
+        padding: var(--esp-m);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: var(--surface-elevee);
+      }
+      .exemples { display: flex; flex-wrap: wrap; gap: var(--esp-2xs); align-items: center; }
+      button, .bouton {
+        display: inline-flex;
+        min-height: var(--cible);
+        align-items: center;
+        justify-content: center;
+        padding: var(--esp-2xs) var(--esp-m);
+        border: 1px solid var(--couleur-action);
+        border-radius: var(--rayon);
+        background: var(--couleur-action);
+        color: white;
+        font-size: var(--txt-xs);
+        font-weight: var(--poids-fort);
+        text-decoration: none;
+        cursor: pointer;
+      }
+      button:hover, .bouton:hover { background: var(--couleur-action-active); }
+      button:active, .bouton:active { transform: translateY(1px); }
+      .secondaire { background: rgb(255 255 255 / 54%); color: var(--couleur-action); }
+      .secondaire:hover { background: var(--couleur-action-douce); }
+      .lien-action { border: 0; border-bottom: 1px solid currentColor; border-radius: 0; background: transparent; color: var(--couleur-action); }
+      .lien-action:hover { background: transparent; color: var(--couleur-action-active); }
+      button[disabled], .bouton[aria-disabled="true"] {
+        border-color: var(--bordure-forte);
+        background: rgb(255 255 255 / 40%);
+        color: var(--texte-tertiaire);
+        cursor: not-allowed;
+      }
+
+      /* ==========================================================================
+         VIGILANCE ET FRAÎCHEUR — les deux composants qui manquaient.
+         ========================================================================== */
+      .badges { display: flex; flex-wrap: wrap; gap: var(--esp-2xs); align-items: center; }
+      .vigilance {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--esp-2xs);
+        padding: var(--esp-3xs) var(--esp-xs);
+        border: 1px solid color-mix(in srgb, var(--niveau) 42%, transparent);
+        border-radius: var(--rayon-fin);
+        background: color-mix(in srgb, var(--niveau) 12%, white);
+        color: var(--niveau-texte);
+        font-size: var(--txt-xs);
+        font-weight: var(--poids-fort);
+      }
+      /* Repère non chromatique : la couleur seule ne doit jamais porter le sens. */
+      .vigilance::before {
+        width: .55rem;
+        height: .55rem;
+        flex: 0 0 auto;
+        background: var(--niveau);
+        box-shadow: inset 0 0 0 1px rgb(20 37 29 / 22%);
+        content: "";
+      }
+      .vigilance--vert   { --niveau: var(--vigilance-vert);   --niveau-texte: var(--vigilance-vert-texte); }
+      .vigilance--jaune  { --niveau: var(--vigilance-jaune);  --niveau-texte: var(--vigilance-jaune-texte); }
+      .vigilance--orange { --niveau: var(--vigilance-orange); --niveau-texte: var(--vigilance-orange-texte); border-radius: 0; }
+      .vigilance--rouge  { --niveau: var(--vigilance-rouge);  --niveau-texte: var(--vigilance-rouge-texte); }
+      .vigilance--vert::before   { border-radius: 50%; }
+      .vigilance--jaune::before  { border-radius: var(--rayon-fin); }
+      .vigilance--orange::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); box-shadow: none; }
+      .vigilance--rouge::before  { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); box-shadow: none; }
+
+      .fraicheur {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--esp-3xs);
+        color: var(--fraicheur-texte, var(--texte-secondaire));
+        font-family: var(--font-mono);
+        font-size: var(--txt-micro);
+      }
+      .fraicheur::before {
+        width: .45rem;
+        height: .45rem;
+        border-radius: 50%;
+        background: var(--fraicheur-point, var(--vigilance-vert));
+        content: "";
+      }
+      .fraicheur--jour { --fraicheur-point: var(--vigilance-vert); --fraicheur-texte: var(--vigilance-vert-texte); }
+      .fraicheur--vieillissante { --fraicheur-point: var(--vigilance-orange); --fraicheur-texte: var(--vigilance-orange-texte); }
+      .fraicheur--perimee { --fraicheur-point: var(--vigilance-rouge); --fraicheur-texte: var(--vigilance-rouge-texte); }
+      .fraicheur--indisponible { --fraicheur-point: var(--decor); --fraicheur-texte: var(--texte-tertiaire); }
+      .fraicheur--indisponible::before { border-radius: 0; transform: rotate(45deg); }
+
+      .etats-liste { --cols: 4; --min-col: 14rem; --gap-grille: var(--esp-xs); }
+
+      /* Réemploi du composant de fraîcheur pour dire quelle police rend
+         réellement : sur un référentiel typographique, « laquelle est-ce que
+         je regarde » ne doit jamais rester une question ouverte. */
+      .statut-polices {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--esp-s);
+        max-width: none;
+        margin: 0 0 var(--esp-l);
+        padding: var(--esp-xs) var(--esp-m);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: rgb(255 255 255 / 48%);
+      }
+      .etat-fiche {
+        display: grid;
+        gap: var(--esp-3xs);
+        padding: var(--esp-m);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: var(--surface-elevee);
+      }
+      .etat-fiche p { margin: 0; color: var(--texte-secondaire); font-size: var(--txt-micro); }
+
+      .note {
+        margin-top: var(--esp-l);
+        padding: var(--esp-l);
+        border: 1px solid var(--bordure);
+        border-left: 3px solid var(--couleur-action);
+        border-radius: var(--rayon);
+        background: rgb(255 255 255 / 48%);
+        color: var(--texte-secondaire);
+        font-size: var(--txt-s);
+      }
+      .note strong { color: var(--texte-principal); }
+
+      footer { border-top: 1px solid rgb(255 255 255 / 13%); background: var(--surface-sombre); color: var(--texte-sur-sombre); }
+      footer .conteneur { display: grid; gap: var(--esp-s); padding-block: var(--esp-xl); }
+      footer p { margin: 0; font-size: var(--txt-xs); }
+      footer strong { color: white; font-weight: var(--poids-appui); }
+
+      .grille-carto { --cols: 4; --min-col: 13rem; --gap-grille: var(--esp-m); }
+      .carto-plateau {
+        display: grid;
+        gap: var(--esp-s);
+        padding: var(--esp-l);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: var(--surface-elevee);
+      }
+      .carto-plateau h3 { margin: 0; }
+      .carto-plateau p { margin: 0; color: var(--texte-secondaire); font-size: var(--txt-s); }
+      .carto-vignette {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 6.5rem;
+        border-radius: var(--rayon);
+        background: var(--simul-carte);
+      }
+      .demo-accueil, .demo-hamburger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--esp-2xs);
+        min-height: var(--cible);
+        padding: var(--esp-2xs) var(--esp-m);
+        border: 1px solid var(--bordure-forte);
+        border-radius: var(--rayon);
+        background: rgb(255 255 255 / 88%);
+        color: var(--texte-principal);
+        font-size: var(--txt-xs);
+        font-weight: var(--poids-fort);
+        box-shadow: var(--ombre);
+      }
+      .demo-hamburger { width: var(--cible); padding: var(--esp-2xs); }
+      .demo-hamburger span { display: block; width: 1rem; height: 2px; background: currentColor; box-shadow: 0 5px currentColor, 0 -5px currentColor; }
+      .demo-boussole {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        filter: drop-shadow(0 2px 3px rgb(20 37 29 / 48%));
+      }
+      .demo-boussole svg { width: 2.8rem; height: 3.4rem; }
+      .demo-echelle {
+        position: relative;
+        padding: 0 0 var(--esp-2xs);
+        border-bottom: 2px solid var(--texte-principal);
+        color: var(--texte-principal);
+        font-family: var(--font-mono);
+        font-size: var(--txt-xs);
+        font-weight: var(--poids-fort);
+      }
+      .demo-echelle::before, .demo-echelle::after {
+        position: absolute;
+        bottom: -.3rem;
+        width: 2px;
+        height: .6rem;
+        background: var(--texte-principal);
+        content: "";
+      }
+      .demo-echelle::before { left: 0; }
+      .demo-echelle::after { right: 0; }
+
+      .spheres-tuiles {
+        --cols: 4;
+        --min-col: 11rem;
+        --gap-grille: var(--esp-2xs);
+        margin: 0 0 var(--esp-l);
+        padding: 0;
+        list-style: none;
+      }
+      .sphere-tuile {
+        display: flex;
+        min-height: var(--cible);
+        align-items: center;
+        gap: var(--esp-s);
+        padding: var(--esp-xs) var(--esp-s);
+        border: 1px solid color-mix(in srgb, var(--sphere) 28%, var(--bordure));
+        border-radius: var(--rayon);
+        background: linear-gradient(105deg, color-mix(in srgb, var(--sphere) 13%, white), rgb(255 255 255 / 72%));
+        color: var(--texte-principal);
+        font-size: var(--txt-xs);
+        font-weight: var(--poids-appui);
+      }
+      .sphere-tuile::before {
+        width: 1rem;
+        height: 1rem;
+        flex: 0 0 auto;
+        border-radius: var(--rayon);
+        background: var(--sphere);
+        box-shadow: inset 0 0 0 1px rgb(20 37 29 / 10%);
+        content: "";
+      }
+      .sphere-tuile code { border: 0; background: none; color: var(--sphere-texte); font-size: var(--txt-micro); }
+
+      .grille-usages { --cols: 4; --min-col: 13rem; --gap-grille: var(--esp-xs); margin-top: var(--esp-m); }
+      .usage-demo {
+        --accent: var(--usage);
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-height: 13rem;
+        padding: var(--esp-m);
+        box-shadow: var(--ombre-courte);
+        transition: border-color var(--duree-courte) var(--courbe), box-shadow var(--duree-courte) var(--courbe), transform var(--duree-courte) var(--courbe);
+      }
+      .usage-demo::after {
+        position: absolute;
+        top: -.8rem;
+        right: -.8rem;
+        width: 3rem;
+        height: 3rem;
+        border: 1px solid color-mix(in srgb, var(--usage) 32%, transparent);
+        border-radius: 50%;
+        content: "";
+      }
+      .usage-demo:hover {
+        border-color: color-mix(in srgb, var(--usage) 48%, var(--bordure));
+        box-shadow: var(--ombre);
+        transform: translateY(-2px);
+      }
+      .usage-demo > span { color: var(--usage-texte); font-family: var(--font-mono); font-size: var(--txt-micro); font-weight: var(--poids-fort); }
+      .usage-demo > div { align-self: center; padding-block: var(--esp-s); }
+      .usage-demo h3 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: var(--txt-xl);
+        font-weight: var(--poids-normal);
+        letter-spacing: var(--ls-titre);
+        text-transform: none;
+      }
+      .usage-demo p { margin: var(--esp-3xs) 0 0; color: var(--texte-secondaire); font-size: var(--txt-xs); line-height: 1.45; }
+      .usage-demo a {
+        display: inline-flex;
+        min-height: var(--cible);
+        align-items: center;
+        margin-top: var(--esp-3xs);
+        border-top: 1px solid var(--bordure);
+        /* v2.0 : color-mix(usage 72%, encre) descendait à 3,74:1 sur 4 sphères. */
+        color: var(--usage-texte);
+        font-size: var(--txt-micro);
+        font-weight: var(--poids-fort);
+        text-decoration: none;
+      }
+      .usage-demo a:hover { text-decoration: underline; }
+
+      .anatomie-tuiles { display: grid; gap: var(--esp-m); margin-top: var(--esp-l); }
+      .parcours-tuile {
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid var(--bordure);
+        list-style: none;
+        counter-reset: parcours;
+      }
+      .parcours-tuile li {
+        display: grid;
+        grid-template-columns: 2rem minmax(0, 1fr);
+        gap: var(--esp-s);
+        padding: var(--esp-m) 0;
+        border-bottom: 1px solid var(--bordure);
+        color: var(--texte-secondaire);
+        font-size: var(--txt-s);
+        counter-increment: parcours;
+      }
+      .parcours-tuile li::before {
+        color: var(--couleur-action);
+        font-family: var(--font-mono);
+        font-size: var(--txt-micro);
+        content: "0" counter(parcours);
+      }
+      .parcours-tuile strong { display: block; margin-bottom: var(--esp-3xs); color: var(--texte-principal); font-size: var(--txt-xs); font-weight: var(--poids-appui); }
+
+      .specifications-tuiles { --cols: 3; --min-col: 9rem; --gap-grille: var(--esp-2xs); }
+      .specification-tuile {
+        min-height: 5.8rem;
+        padding: var(--esp-m);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: rgb(255 255 255 / 48%);
+      }
+      .specification-tuile b { display: block; color: var(--couleur-action); font-family: var(--font-mono); font-size: var(--txt-micro); }
+      .specification-tuile span { display: block; margin-top: var(--esp-2xs); color: var(--texte-secondaire); font-size: var(--txt-xs); }
+
+      .identite-visuelle {
+        display: grid;
+        gap: var(--esp-m);
+        margin-top: var(--esp-l);
+        padding: var(--esp-l);
+        border: 1px solid var(--bordure);
+        border-radius: var(--rayon);
+        background: rgb(255 255 255 / 48%);
+      }
+      .identite-apercus { display: flex; align-items: end; gap: var(--esp-m); margin: 0; }
+      .favicon-apercu { display: grid; gap: var(--esp-3xs); justify-items: center; color: var(--texte-secondaire); font-family: var(--font-mono); font-size: var(--txt-micro); }
+      .favicon-apercu img { display: block; outline: 1px dashed rgb(20 37 29 / 20%); outline-offset: 4px; filter: drop-shadow(0 3px 7px rgb(20 37 29 / 12%)); }
+      .identite-visuelle h3 { margin-bottom: var(--esp-2xs); }
+      .identite-visuelle p { margin: 0; color: var(--texte-secondaire); font-size: var(--txt-s); }
+
+      .a-couvrir { --cols: 4; --min-col: 12rem; --gap-grille: var(--esp-2xs); margin: var(--esp-l) 0 0; padding: 0; list-style: none; }
+      .a-couvrir li {
+        padding: var(--esp-s) var(--esp-m);
+        border: 1px dashed var(--bordure-forte);
+        border-radius: var(--rayon);
+        color: var(--texte-secondaire);
+        font-size: var(--txt-xs);
+      }
+      .a-couvrir strong { display: block; color: var(--texte-principal); font-size: var(--txt-s); font-weight: var(--poids-appui); }
+
+      @media (min-width: 42rem) {
+        .conteneur { width: min(calc(100% - var(--esp-2xl)), var(--largeur-page)); }
+        .hero { grid-template-columns: minmax(0, 1fr) 16rem; align-items: end; }
+        .entete-section { grid-template-columns: 1fr minmax(18rem, .9fr); align-items: end; }
+        .entete-section p { justify-self: end; }
+        .specimens-typo { grid-template-columns: 1.2fr .8fr; }
+        .media-regle { grid-template-columns: minmax(13rem, .55fr) 1fr; }
+        .anatomie-tuiles { grid-template-columns: 1.15fr .85fr; align-items: start; }
+        .identite-visuelle { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+        .demonstrateur { grid-template-columns: minmax(0, 1.6fr) minmax(17rem, .65fr); align-items: start; }
+        .composants { grid-template-columns: 1fr 1fr; }
+        footer .conteneur { grid-template-columns: 1fr auto; align-items: center; }
+      }
+
+      /* Régime « une seule ligne » du sommaire. Le seuil n'est pas le point de
+         rupture général de la page (42rem) mais la largeur où les neuf entrées
+         tiennent réellement côte à côte : les basculer plus tôt les ferait
+         déborder hors écran. Un point de rupture se mesure sur le contenu, il
+         ne se décrète pas. */
+      @media (min-width: 68rem) {
+        .sommaire {
+          position: sticky;
+          background: rgb(251 252 250 / 92%);
+          backdrop-filter: blur(18px);
+        }
+        .sommaire .conteneur {
+          flex-wrap: nowrap;
+          column-gap: 0;
+          padding-block: 0;
+          /* Filet de sécurité pour les fortes majorations de taille de texte.
+             La barre reste visible : on ne masque jamais un défilement. */
+          overflow-x: auto;
+        }
+        /* Gouttière resserrée : les neuf entrées doivent tenir dans les 960 px
+           de la coque, sinon la barre de défilement de secours apparaît. */
+        .sommaire a { padding-right: var(--esp-m); }
+        .sommaire a + a { padding-left: var(--esp-m); border-left: 1px solid var(--bordure); }
+        section { scroll-margin-top: var(--hauteur-sommaire); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { transition-duration: .01ms !important; }
+        .carte:hover, .usage-demo:hover { transform: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="barre-officielle">
+      <div class="conteneur"><span>OpenDataVdA · Val-d’Aigoual</span><span>Référentiel v2.1 · 2026</span></div>
+    </div>
+
+    <header>
+      <div class="hero conteneur">
+        <div>
+          <p class="eyebrow">Référentiel visuel territorial</p>
+          <div class="titre-marque">
+            <img class="marque-signe" src="./favicon.svg" alt="" width="56" height="56" />
+            <h1>Style VAL <span class="version">V2.1</span></h1>
+          </div>
+          <p class="introduction">Un langage visuel officiel, clair et précis pour présenter les données publiques de Val-d’Aigoual — de la projection grand format jusqu’à l’application de terrain.</p>
+        </div>
+        <aside class="signature" aria-label="Principes directeurs">
+          <strong>Clarté · Autorité · Terrain</strong>
+          <span>Des interfaces utiles, identifiables et sobres, pensées mobile first.</span>
+        </aside>
+      </div>
+    </header>
+
+    <nav class="sommaire" aria-label="Sommaire du référentiel">
+      <div class="conteneur">
+        <a href="#direction">Direction</a><a href="#palette">Palette</a><a href="#typographie">Typographie</a><a href="#supports">Supports</a><a href="#composants">Composants</a><a href="#etats">États</a><a href="#cartes-usages">Cartes d’usage</a><a href="#cartographie">Cartographie</a><a href="#accessibilite">Accessibilité</a>
+      </div>
+    </nav>
+
+    <main class="conteneur">
+      <section id="direction">
+        <div class="entete-section">
+          <div><span class="numero">01 / DIRECTION</span><h2>Une présence publique contemporaine</h2></div>
+          <p>Le style doit inspirer confiance sans paraître distant. La donnée, sa source et son actualité structurent l’écran avant tout effet graphique.</p>
+        </div>
+        <div class="grille-auto grille">
+          <article class="carte" style="--accent:var(--torrent)"><span class="indice">PRINCIPE 01</span><h3>Institutionnel</h3><p>Composition rigoureuse, alignements francs, vert territorial profond et typographie éditoriale pour les titres.</p></article>
+          <article class="carte" style="--accent:var(--lichen)"><span class="indice">PRINCIPE 02</span><h3>Lumineux</h3><p>Fonds brume très clairs, panneaux blancs et ombres peu contrastées. La profondeur vient de l’élévation, pas du flou.</p></article>
+          <article class="carte" style="--accent:var(--chataigne)"><span class="indice">PRINCIPE 03</span><h3>Opérationnel</h3><p>Contrôles tactiles d’au moins 40 px, information essentielle visible immédiatement et navigation basse sur mobile.</p></article>
+        </div>
+        <p class="note"><strong>Ces principes sont opposables.</strong> Chaque règle chiffrée de ce document (40 px, 4,5:1, 11 px, rayon 2 px) vaut pour le référentiel lui-même : si un démonstrateur de cette page enfreint une règle qu’elle énonce, c’est le démonstrateur qui a tort.</p>
+      </section>
+
+      <section id="palette">
+        <div class="entete-section">
+          <div><span class="numero">02 / PALETTE</span><h2>Des teintes naturelles, mieux hiérarchisées</h2></div>
+          <p>Le vert devient la couleur institutionnelle principale. Les teintes territoriales restent présentes comme accents de données, jamais comme décoration dominante.</p>
+        </div>
+        <div class="grille-auto palette">
+          <div class="nuance"><b style="background:var(--encre)">Encre</b><span>#14251D · texte</span></div>
+          <div class="nuance"><b style="background:var(--vert)">Vert officiel</b><span>#24543D · action</span></div>
+          <div class="nuance"><b style="background:var(--brume);--nuance-texte:var(--encre)">Brume</b><span>#EEF3EF · fond</span></div>
+          <div class="nuance"><b style="background:var(--papier);--nuance-texte:var(--encre)">Papier</b><span>#FBFCFA · surface</span></div>
+          <div class="nuance"><b style="background:var(--torrent)">Torrent</b><span>#3D6F7D · donnée</span></div>
+          <div class="nuance"><b style="background:var(--chataigne)">Châtaigne</b><span>#795039 · territoire</span></div>
+          <div class="nuance"><b style="background:var(--lichen)">Lichen</b><span>#718260 · contexte</span></div>
+          <div class="nuance"><b style="background:var(--alerte)">Alerte</b><span>#A94332 · vigilance</span></div>
+        </div>
+
+        <h3>Primitives et rôles</h3>
+        <div class="regles">
+          <div class="regle"><span>01</span><div><strong>Les composants consomment des rôles, pas des teintes</strong><p>Un token nommé <code>--vert</code> n’indique pas où l’employer et ne peut pas être réaffecté. Écrire <code>--couleur-action</code>, <code>--surface-plate</code>, <code>--texte-secondaire</code>, <code>--bordure</code>. Les primitives ne servent qu’à définir les rôles.</p></div></div>
+          <div class="regle"><span>02</span><div><strong>Transparence bornée</strong><p><code>88 %</code> pour un panneau porteur de texte, avec bordure visible. <strong>Sur fond cartographique, les panneaux sont opaques</strong> : le contraste d’un texte posé sur une tuile raster n’est pas prévisible, et l’imagerie change à chaque zoom.</p></div></div>
+          <div class="regle"><span>03</span><div><strong>Aucune teinte hors palette</strong><p>Toute couleur employée dans une application doit correspondre à un token. Les valeurs hexadécimales littérales dans le code applicatif sont un défaut à corriger, pas une commodité.</p></div></div>
+          <div class="regle"><span>04</span><div><strong>Le décor n’est pas du texte</strong><p><code>--granite</code> est réservé aux filets, séparateurs et repères non textuels : il plafonne à <code>3,1:1</code>. Pour un libellé discret, employer <code>--texte-tertiaire</code> (<code>#616F67</code>, <code>4,7:1</code> sur Brume, la plus sombre des surfaces claires).</p></div></div>
+        </div>
+      </section>
+
+      <section id="typographie">
+        <div class="entete-section">
+          <div><span class="numero">03 / TYPOGRAPHIE</span><h2>Une serif éditoriale réellement conçue pour l’écran</h2></div>
+          <p>Source Serif 4 remplace Georgia. Conçue pour l’écran, sa hauteur d’x, ses détails ouverts et son axe optique variable restent lisibles sur Windows, sur mobile et dans les titres très larges.</p>
+        </div>
+        <div class="specimens-typo">
+          <article class="specimen specimen-display">
+            <span>TITRES · SOURCE SERIF 4 · 400</span>
+            <p>Comprendre un lieu, dans toutes ses dimensions.</p>
+            <code>font-family: var(--font-display);</code>
+          </article>
+          <article class="specimen specimen-body">
+            <span>LECTURE · INTER</span>
+            <p>La donnée, sa source et son actualité structurent l’écran avant tout effet graphique.</p>
+            <code>font-family: var(--font-body);</code>
+          </article>
+        </div>
+        <p class="statut-polices" id="statut-polices" hidden></p>
+
+        <div class="regles">
+          <div class="regle"><span>01</span><div><strong>Polices auto-hébergées</strong><p>Source Serif 4 et Inter sont servies depuis <code>./fonts/</code>, jamais depuis <code>fonts.gstatic.com</code> : ce domaine transmet l’adresse IP des visiteurs à un tiers, ce qui n’est pas acceptable pour un service public. Les deux polices sont sous licence SIL OFL.</p></div></div>
+          <div class="regle"><span>02</span><div><strong>Le repli est la référence, la police web est un bonus</strong><p>Les polices sont préchargées et utilisent <code>font-display: optional</code> : si elles ne sont pas prêtes immédiatement, la pile système reste affichée pendant toute la navigation, sans remplacement tardif. Les binaires ne sont pas versionnés : <code>node doc/design/fonts/fetch-fonts.mjs</code> les récupère en une commande. Rien ne casse en leur absence, et l’indicateur ci-dessus dit toujours laquelle rend réellement.</p></div></div>
+          <div class="regle"><span>03</span><div><strong>Trois graisses, pas huit</strong><p><code>400</code> pour le texte et les titres, <code>600</code> pour l’appui, <code>700</code> pour les libellés et actions. Les paliers intermédiaires (720, 740, 760, 780) sont fictifs : la spécification CSS les arrondit tous à 700 ou 800 dès que la police n’est pas variable.</p></div></div>
+          <div class="regle"><span>04</span><div><strong>Échelle fermée</strong><p>Sept tailles, de <code>--txt-micro</code> à <code>--txt-2xl</code>, plus les <code>clamp()</code> des titres. Aucune taille littérale hors du bloc <code>:root</code>.</p></div></div>
+          <div class="regle"><span>05</span><div><strong>Plancher de 11 px</strong><p><code>--txt-micro</code> vaut <code>0,6875rem</code>. En capitales interlettrées, sous ce seuil le texte devient illisible au soleil, en mouvement ou avec une presbytie légère — c’est-à-dire dans les conditions réelles d’usage sur le terrain.</p></div></div>
+          <div class="regle"><span>06</span><div><strong>Interlettrage et hauteur</strong><p><code>--ls-titre</code> (<code>-0,03 em</code>) pour les grands titres, <code>--ls-label</code> (<code>0,08 em</code>) pour les capitales. Interligne <code>0,94</code> à <code>1,02</code> pour les titres, <code>1,55</code> pour les paragraphes.</p></div></div>
+        </div>
+      </section>
+
+      <section id="supports">
+        <div class="entete-section">
+          <div><span class="numero">04 / SUPPORTS</span><h2>Un système, deux échelles</h2></div>
+          <p>Les présentations privilégient une idée forte par écran. Les applications mobiles privilégient la tâche, l’état courant et les données utilisables sur le terrain.</p>
+        </div>
+        <div class="demonstrateur">
+          <article class="presentation" aria-labelledby="titre-diapo">
+            <span class="presentation__meta">Val-d’Aigoual · Données territoriales</span>
+            <h3 class="titre-apercu" id="titre-diapo">Comprendre le territoire.</h3>
+            <p>Des données publiques lisibles pour anticiper, décider et agir collectivement.</p>
+            <span class="presentation__source">Source · OpenDataVdA · mise à jour 12.08.2026</span>
+          </article>
+          <article class="mobile" aria-label="Exemple d’application mobile">
+            <div class="mobile__status"><span>9:41</span><span>● ● ●</span></div>
+            <div class="mobile__head"><span>Situation locale</span><h3>Valleraugue</h3></div>
+            <div class="mobile__contenu">
+              <div class="donnee"><strong>Température</strong><span>21,4 °C</span><small class="fraicheur fraicheur--jour">Station · 09:35</small></div>
+              <div class="donnee"><strong>Vigilance</strong><span class="vigilance vigilance--vert">Vert</span><small>Aucun phénomène dangereux prévu</small></div>
+              <div class="donnee"><strong>Risque incendie</strong><span>Faible</span><small class="fraicheur fraicheur--vieillissante">Rayon 10 km · 06:00</small></div>
+            </div>
+            <nav class="mobile__nav" aria-label="Exemple de navigation mobile"><span class="actif">Situation</span><span>Carte</span><span>Services</span></nav>
+          </article>
+        </div>
+        <div class="media-regle">
+          <div class="media-placeholder" aria-label="Exemple d’emplacement réservé à une illustration"><span></span></div>
+          <div><h3>Illustration à venir</h3><p>Lorsqu’un visuel définitif n’existe pas encore, employer ce placeholder neutre au même ratio que le futur média. Il réserve l’espace sans inventer une illustration, évite le saut de mise en page et disparaît entièrement lors de l’intégration du fichier final.</p></div>
+        </div>
+      </section>
+
+      <section id="composants">
+        <div class="entete-section">
+          <div><span class="numero">05 / COMPOSANTS</span><h2>Angles nets, interactions explicites</h2></div>
+          <p>Le rayon standard est limité à <code>2 px</code>. Les formes rondes sont réservées aux indicateurs ponctuels, aux interrupteurs et aux données qui l’exigent.</p>
+        </div>
+        <div class="composants">
+          <div class="plateau">
+            <h3>Actions</h3>
+            <div class="exemples"><button type="button">Consulter les données</button><a class="bouton secondaire" href="#accessibilite">En savoir plus</a><button class="lien-action" type="button">Télécharger ↗</button><button type="button" disabled>Indisponible</button></div>
+          </div>
+          <div class="plateau">
+            <h3>Trois surfaces, et trois seulement</h3>
+            <div class="grille-auto etats-liste">
+              <div class="etat-fiche surface"><strong>surface</strong><p>Contenu dans le flux. Papier, bordure, rayon 2 px, sans ombre.</p></div>
+              <div class="etat-fiche surface surface--elevee"><strong>surface--elevee</strong><p>Panneau flottant ou posé sur une carte. Ombre courte.</p></div>
+              <div class="etat-fiche surface surface--accent" style="--accent:var(--torrent)"><strong>surface--accent</strong><p>Classement par famille. Filet 3 px, fond teinté 7 %.</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="regles">
+          <div class="regle"><span>01</span><div><strong>Rayons</strong><p><code>--rayon</code> (2 px) pour les cartes, panneaux et boutons ; <code>--rayon-fin</code> (1 px) pour les éléments en ligne comme <code>code</code> ou les badges. Aucun grand panneau en forme de pilule, et <strong>aucun composant sans rayon</strong> : l’exception est un oubli, pas un style.</p></div></div>
+          <div class="regle"><span>02</span><div><strong>Ombres fonctionnelles</strong><p>Une seule ombre diffuse pour les éléments flottants. Les surfaces dans le flux utilisent la bordure.</p></div></div>
+          <div class="regle"><span>03</span><div><strong>Le flou est un coût, pas un style</strong><p><code>backdrop-filter</code> est réservé au sommaire collant. Sur un défilement, le flou composité est une source connue de saccade sur mobile d’entrée de gamme — exactement la cible « terrain » du produit.</p></div></div>
+          <div class="regle"><span>04</span><div><strong>Trois états, pas un</strong><p>Tout contrôle documente son survol, son <code>:active</code> (le seul retour perceptible au doigt, où le survol n’existe pas) et son état désactivé. Le survol seul ne suffit pas sur tactile.</p></div></div>
+        </div>
+      </section>
+
+      <section id="etats">
+        <div class="entete-section">
+          <div><span class="numero">06 / ÉTATS</span><h2>La vigilance et la fraîcheur sont des composants</h2></div>
+          <p>Le premier principe de ce référentiel dit que la donnée, sa source et son <em>actualité</em> structurent l’écran. Ces deux notions méritent donc un composant chacune, pas un texte gris.</p>
+        </div>
+
+        <h3>Vigilance — quatre niveaux réglementaires</h3>
+        <p>Rampe alignée sur les niveaux Météo-France, <strong>délibérément distincte du vert institutionnel</strong>. Sans cette séparation, un utilisateur voyant du vert ne saurait pas s’il signifie « ceci est cliquable » ou « aucun danger ».</p>
+        <div class="badges">
+          <span class="vigilance vigilance--vert">Vigilance verte</span>
+          <span class="vigilance vigilance--jaune">Vigilance jaune</span>
+          <span class="vigilance vigilance--orange">Vigilance orange</span>
+          <span class="vigilance vigilance--rouge">Vigilance rouge</span>
+        </div>
+
+        <h3 class="h3-espace">Fraîcheur de la donnée — quatre états</h3>
+        <div class="grille-auto etats-liste">
+          <div class="etat-fiche"><span class="fraicheur fraicheur--jour">Actualisé · 09:35</span><p><strong>À jour.</strong> Dans la fenêtre de rafraîchissement attendue pour cette source.</p></div>
+          <div class="etat-fiche"><span class="fraicheur fraicheur--vieillissante">Actualisé · 06:00</span><p><strong>Vieillissante.</strong> Au-delà de la fenêtre nominale, encore exploitable. Le signaler ne dispense pas d’afficher la valeur.</p></div>
+          <div class="etat-fiche"><span class="fraicheur fraicheur--perimee">Actualisé · 11.08</span><p><strong>Périmée.</strong> Trop ancienne pour fonder une décision. La valeur reste visible mais ne doit plus être mise en avant.</p></div>
+          <div class="etat-fiche"><span class="fraicheur fraicheur--indisponible">Source injoignable</span><p><strong>Indisponible.</strong> Aucune valeur. Ne jamais afficher une donnée périmée comme si elle était courante.</p></div>
+        </div>
+
+        <div class="regles">
+          <div class="regle"><span>01</span><div><strong>La couleur ne porte jamais seule le sens</strong><p>Chaque niveau de vigilance ajoute une forme distincte à sa pastille — disque, carré, triangle, losange — et son libellé écrit. Un daltonien deutéranope distingue mal l’orange du vert ; il distingue parfaitement un triangle d’un disque.</p></div></div>
+          <div class="regle"><span>02</span><div><strong>Le vert d’action ne dit jamais un état</strong><p><code>--couleur-action</code> signifie « ceci répond au clic ». Employer <code>--vigilance-vert</code> pour « aucun danger ». Les deux teintes sont éloignées en clarté et en saturation, pas seulement en nuance.</p></div></div>
+          <div class="regle"><span>03</span><div><strong>Toute valeur porte sa fraîcheur</strong><p>Une donnée sans horodatage visible n’est pas publiable. La fenêtre de fraîcheur est propre à chaque source et doit être déclarée avec elle.</p></div></div>
+        </div>
+      </section>
+
+      <section id="cartes-usages">
+        <div class="entete-section">
+          <div><span class="numero">07 / CARTES D’USAGE</span><h2>Une vue compacte, colorée et immédiatement lisible</h2></div>
+          <p>La carte présente dès le repos le nom, l’utilité et les liens. La couleur de sphère sert au repérage ; elle ne masque jamais le contenu et ne porte jamais le texte.</p>
+        </div>
+
+        <h3>Sphères de classement — aplat et variante texte</h3>
+        <p>Chaque famille porte <strong>deux</strong> valeurs. L’aplat sert au repérage (filet, pastille, fond teinté). La variante <code>-texte</code>, assombrie jusqu’à <code>4,5:1</code> sur la plus sombre des surfaces claires, sert aux libellés et aux liens. Les teintes brutes ne sont pas lisibles en texte : c’est la correction majeure de cette version.</p>
+        <ul class="grille-auto spheres-tuiles" aria-label="Couleurs des sphères de la page d’accueil">
+          <li class="sphere-tuile" style="--sphere:var(--atmosphere);--sphere-texte:var(--atmosphere-texte)">Atmosphère <code>#1C73A5</code></li>
+          <li class="sphere-tuile" style="--sphere:var(--hydrosphere);--sphere-texte:var(--hydrosphere-texte)">Hydrosphère <code>#007A70</code></li>
+          <li class="sphere-tuile" style="--sphere:var(--biosphere);--sphere-texte:var(--biosphere-texte)">Biosphère <code>#53772C</code></li>
+          <li class="sphere-tuile" style="--sphere:var(--anthroposphere);--sphere-texte:var(--anthroposphere-texte)">Anthroposphère <code>#7E57C2</code></li>
+          <li class="sphere-tuile" style="--sphere:var(--risques);--sphere-texte:var(--risques-texte)">Risques <code>#D4240C</code></li>
+          <li class="sphere-tuile" style="--sphere:var(--lithosphere);--sphere-texte:var(--lithosphere-texte)">Lithosphère <code>#95621C</code></li>
+          <li class="sphere-tuile" style="--sphere:var(--technique);--sphere-texte:var(--technique-texte)">Outils techniques <code>#546573</code></li>
+        </ul>
+
+        <div class="grille-auto grille-usages">
+          <article class="usage-demo surface surface--accent" style="--usage:var(--anthroposphere);--usage-texte:var(--anthroposphere-texte)"><span>01</span><div><h3>Carte du territoire</h3><p>Géologie, sous-sol, eau, milieux naturels et services publics réunis sur une même interface.</p></div><a href="#cartographie">Carte du territoire ↗</a></article>
+          <article class="usage-demo surface surface--accent" style="--usage:var(--lithosphere);--usage-texte:var(--lithosphere-texte)"><span>02</span><div><h3>Relief et jumeau numérique</h3><p>Explorer le terrain, les bâtiments et la végétation à partir des données LiDAR.</p></div><a href="#supports">Relief 3D ↗</a></article>
+          <article class="usage-demo surface surface--accent" style="--usage:var(--atmosphere);--usage-texte:var(--atmosphere-texte)"><span>03</span><div><h3>Météo et climat</h3><p>Comprendre la situation, les prévisions et les évolutions climatiques d’un lieu.</p></div><a href="#palette">Météo essentielle ↗</a></article>
+          <article class="usage-demo surface surface--accent" style="--usage:var(--risques);--usage-texte:var(--risques-texte)"><span>04</span><div><h3>Incendies</h3><p>Relier la vigilance officielle, les consignes et les détections thermiques récentes.</p></div><a href="#etats">Vigilance incendie ↗</a></article>
+        </div>
+
+        <div class="anatomie-tuiles">
+          <div>
+            <h3>Fonction et interaction</h3>
+            <ol class="parcours-tuile">
+              <li><div><strong>Comprendre au repos</strong>Le titre, la description et l’action sont visibles sans survol, clic intermédiaire ni retournement.</div></li>
+              <li><div><strong>Repérer par la couleur</strong>Un trait supérieur de 3 px et un fond teinté à 7 % suffisent à identifier la sphère. Le texte, lui, emploie la variante assombrie.</div></li>
+              <li><div><strong>Agir explicitement</strong>Chaque destination est un vrai lien nommé, haut d’au moins 40 px. L’élévation au survol confirme l’interaction sans déplacer la mise en page.</div></li>
+              <li><div><strong>Compacter sans tronquer</strong>La grille est en <code>auto-fit</code> : le nombre de colonnes suit la largeur réelle, sans palier arbitraire. Le texte reste intégral.</div></li>
+            </ol>
+          </div>
+          <div>
+            <h3>Spécifications VAL v2.1</h3>
+            <div class="grille-auto specifications-tuiles">
+              <div class="specification-tuile"><b>AUTO-FIT</b><span>Colonnes déduites de la largeur, minimum 13 rem.</span></div>
+              <div class="specification-tuile"><b>3 PX</b><span>Trait de classement en tête de carte.</span></div>
+              <div class="specification-tuile"><b>7 %</b><span>Teinte maximale du fond coloré.</span></div>
+              <div class="specification-tuile"><b>4,5:1</b><span>Contraste minimal de tout texte et lien — vérifié sur les 7 sphères.</span></div>
+              <div class="specification-tuile"><b>40 PX</b><span>Hauteur minimale de tout lien ou contrôle.</span></div>
+              <div class="specification-tuile"><b>180 MS</b><span>Élévation courte au survol ou au focus.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="identite-visuelle">
+          <p class="identite-apercus" aria-label="Déclinaisons du favicon VAL">
+            <span class="favicon-apercu"><img src="./favicon.svg" width="64" height="64" alt="" />64 px</span>
+            <span class="favicon-apercu"><img src="./favicon.svg" width="32" height="32" alt="" />32 px</span>
+            <span class="favicon-apercu"><img src="./favicon.svg" width="16" height="16" alt="" />16 px</span>
+          </p>
+          <div>
+            <h3>Favicon v2.1</h3>
+            <p>Deux montagnes, marge extérieure de 3 unités, cadre de 58 × 58 et <strong>base des montagnes à y = 50</strong>. Trois corrections par rapport à la v2.0 : le rayon passe de 11 à <code>3</code>, car un cadre à 18 % contredisait frontalement le principe « angles nets » ; le filet passe à <code>--granite #89958E</code> (<code>3,1:1</code> sur blanc) car l’ancien <code>#D5E1DA</code> plafonnait à <code>1,3:1</code> et la boîte n’existait tout simplement pas dans un onglet ; la montagne avant est éclaircie en <code>#46899E</code> pour se détacher du vert profond (<code>3,0:1</code>) et rester lisible à 16 px. Ne jamais étirer, recadrer ni supprimer la marge.</p>
+          </div>
+        </div>
+
+        <p class="note"><strong>Emoji.</strong> La règle « Noto Emoji uniquement » de la v2.0 imposait une police de plusieurs mégaoctets à un produit mobile-first déployé sur un territoire rural mal couvert. Elle est abandonnée : les emoji illustratifs s’affichent avec la police système, toujours accompagnés d’un libellé accessible. Un emoji n’est jamais l’unique contenu d’une commande. <strong>Ceci ne tient pas lieu d’iconographie</strong> — voir les manques ci-dessous.</p>
+      </section>
+
+      <section id="cartographie">
+        <div class="entete-section">
+          <div><span class="numero">08 / CARTOGRAPHIE</span><h2>Des contrôles de carte sobres</h2></div>
+          <p>Sur les applications cartographiques (VAL), les contrôles suivent la même charte que le reste du site : angles nets, un seul point d’ancrage par coin, jamais de bouton flottant qui double une action déjà permise par le geste (zoom à la molette, rotation au glissé).</p>
+        </div>
+        <div class="grille-auto grille-carto">
+          <article class="carto-plateau">
+            <div class="carto-vignette"><span class="demo-accueil">⌂ Accueil</span></div>
+            <h3>Retour accueil</h3>
+            <p>Coin haut-gauche, toujours visible. Remplace la languette générique du portail par un bouton aux angles nets, qui devient vert au survol.</p>
+          </article>
+          <article class="carto-plateau">
+            <div class="carto-vignette"><span class="demo-hamburger" aria-hidden="true"><span></span></span></div>
+            <h3>Menu rétractile</h3>
+            <p>Un seul bouton hamburger, coin haut-droite, à toutes les tailles d’écran. Replie ou déplie le panneau latéral ; jamais de bouton texte contextuel selon le format.</p>
+          </article>
+          <article class="carto-plateau">
+            <div class="carto-vignette">
+              <span class="demo-boussole" aria-hidden="true">
+                <svg viewBox="0 0 64 72"><path d="M32 6 L49 63 L32 51 L15 63 Z" fill="var(--risques-texte)" stroke="var(--blanc)" stroke-width="2.5" stroke-linejoin="round" /></svg>
+              </span>
+            </div>
+            <h3>Boussole</h3>
+            <p>Flèche unique en <code>--risques-texte</code>, posée directement sur la carte sans médaillon ; son liseré blanc garantit la visibilité sur fond clair comme foncé. Élément de lecture uniquement. <strong>Masquée lorsque le nord est en haut</strong> : afficher un repère qui n’informe pas contredit la règle d’ancrage unique.</p>
+          </article>
+          <article class="carto-plateau">
+            <div class="carto-vignette"><span class="demo-echelle">100 m</span></div>
+            <h3>Échelle</h3>
+            <p>Un trait fin sur <code>--texte-principal</code> avec amorces verticales, légende centrée au-dessus : un repère de lecture, pas un bouton ni un pavé de fond.</p>
+          </article>
+        </div>
+        <p class="note"><strong>Panneaux sur fond cartographique.</strong> La règle de transparence à 88 % ne s’applique pas ici : au-dessus d’une tuile raster, le contraste du texte dépend de l’imagerie et change à chaque déplacement. Tout panneau posé sur la carte est opaque.</p>
+      </section>
+
+      <section id="accessibilite">
+        <div class="entete-section">
+          <div><span class="numero">09 / ACCESSIBILITÉ</span><h2>La lisibilité fait partie du style</h2></div>
+          <p>Le système respecte le clavier, les petits écrans et la réduction des mouvements. La transparence ne doit jamais réduire le contraste du contenu.</p>
+        </div>
+        <div class="grille-auto grille">
+          <article class="carte"><span class="indice">CLAVIER</span><h3>Focus visible partout</h3><p>Anneau de 2 px décalé du composant. Sur fond sombre, <code>--focus-sur-sombre</code> prend le relais : le vert institutionnel y tombe à <code>1,4:1</code>, donc invisible.</p></article>
+          <article class="carte"><span class="indice">TACTILE</span><h3>Cibles de 40 px</h3><p><code>--cible</code> s’applique à <em>tout</em> élément interactif, liens de navigation et liens de carte compris — ce sont précisément ceux qui y échappaient.</p></article>
+          <article class="carte"><span class="indice">COULEUR</span><h3>Jamais seule</h3><p>Tout statut exprimé par une couleur porte aussi une forme et un libellé. Le contraste minimal de 4,5:1 est vérifié par calcul, pas à l’œil.</p></article>
+          <article class="carte"><span class="indice">DONNÉES</span><h3>Source explicite</h3><p>Chaque valeur importante indique sa provenance, son périmètre et sa date d’actualisation.</p></article>
+          <article class="carte"><span class="indice">ANCRAGE</span><h3>Titres jamais masqués</h3><p><code>scroll-margin-top</code> sur chaque section : sans lui, le sommaire collant recouvre le titre visé à chaque clic.</p></article>
+          <article class="carte"><span class="indice">MOUVEMENT</span><h3>Réduction respectée</h3><p><code>prefers-reduced-motion</code> neutralise les transitions et le défilement animé, sans jamais masquer de contenu.</p></article>
+        </div>
+
+        <h3 class="h3-espace">Manques assumés — à couvrir en v2.2</h3>
+        <p>Les énoncer explicitement vaut mieux que de laisser croire que le référentiel est complet. Par ordre d’urgence pour un portail de données :</p>
+        <ul class="grille-auto a-couvrir">
+          <li><strong>Formulaires et filtres</strong>Un portail open data est d’abord une interface de filtrage. Rien n’est spécifié aujourd’hui.</li>
+          <li><strong>Tableaux</strong>La donnée ouverte est tabulaire. Tri, pagination, colonnes numériques, en-têtes collants.</li>
+          <li><strong>Légende de carte</strong>La section 08 traite les contrôles mais omet le composant cartographique le plus important.</li>
+          <li><strong>Iconographie</strong>Abandonner les emoji laisse un vide : il faut un jeu d’icônes de commande, tracé sur la même grille que le favicon.</li>
+          <li><strong>Dataviz</strong>Les couleurs de sphère ne sont pas une palette de graphique : elles ne sont pas espacées perceptuellement.</li>
+          <li><strong>Vide, chargement, erreur</strong>Les trois écrans qu’un service de données affiche le plus souvent en conditions réelles.</li>
+          <li><strong>Thème sombre</strong>Choix assumé pour l’instant : <code>color-scheme: light</code>. À réexaminer pour l’usage nocturne sur le terrain.</li>
+          <li><strong>Impression et export</strong>Attendu d’une institution publique : délibérations, fiches, cartes imprimables.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <div class="conteneur"><p><strong>Style VAL v2.1</strong> · Référentiel visuel OpenDataVdA</p><p>Clarté publique · densité maîtrisée · ancrage territorial · usage mobile</p></div>
+    </footer>
+
+    <script>
+      // Repère de position dans le sommaire : sur un document de neuf sections,
+      // savoir où l'on se trouve fait partie de la lisibilité.
+      (function () {
+        var liens = Array.prototype.slice.call(document.querySelectorAll('.sommaire a'));
+        var parId = {};
+        liens.forEach(function (a) { parId[a.getAttribute('href').slice(1)] = a; });
+        var sections = liens
+          .map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); })
+          .filter(Boolean);
+        if (!('IntersectionObserver' in window) || !sections.length) return;
+
+        var visibles = new Set();
+        var obs = new IntersectionObserver(function (entrees) {
+          entrees.forEach(function (e) {
+            if (e.isIntersecting) visibles.add(e.target.id); else visibles.delete(e.target.id);
+          });
+          var courante = sections.map(function (s) { return s.id; }).filter(function (id) { return visibles.has(id); })[0];
+          liens.forEach(function (a) { a.removeAttribute('aria-current'); });
+          if (courante && parId[courante]) parId[courante].setAttribute('aria-current', 'true');
+        }, { rootMargin: '-20% 0px -70% 0px' });
+
+        sections.forEach(function (s) { obs.observe(s); });
+      })();
+
+      // Quelle police rend RÉELLEMENT ? La v2.0 déclarait Inter dans ses tokens
+      // sans jamais la charger : le corps de texte était en Segoe UI et personne
+      // ne pouvait s'en apercevoir. L'indicateur rend l'écart impossible à rater.
+      (function () {
+        var hote = document.getElementById('statut-polices');
+        if (!hote || !document.fonts || !document.fonts.check) return;
+
+        var attendues = [
+          { nom: 'Source Serif 4', role: 'titres' },
+          { nom: 'Inter', role: 'texte' },
+        ];
+
+        function rendre() {
+          hote.textContent = '';
+          attendues.forEach(function (police) {
+            var chargee = document.fonts.check('1rem "' + police.nom + '"');
+            var puce = document.createElement('span');
+            puce.className = 'fraicheur ' + (chargee ? 'fraicheur--jour' : 'fraicheur--indisponible');
+            puce.textContent = police.nom + ' · ' + police.role + ' · ' +
+              (chargee ? 'chargée' : 'repli système');
+            hote.appendChild(puce);
+          });
+          hote.hidden = false;
+        }
+
+        document.fonts.ready.then(rendre).catch(rendre);
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+---
+import Layout from "../layouts/Layout.astro";
+import LavgeolExplorer from "../islands/LavgeolExplorer.svelte";
+---
+<Layout chrome="minimal"
+  title="Lavgeol — Val-d'Aigoual — Explorateur géologique"
+  description="Carte interactive du territoire Val-d'Aigoual, avec recherche des ouvrages géologiques (BSS BRGM) à proximité."
+>
+  <LavgeolExplorer client:only="svelte" />
+</Layout>

@@ -17,9 +17,11 @@
     "maplibre-gl": "^5.9.0",
     "qrcode": "^1.5.4",
     "svelte": "^4.2.19",
-    "svelte-fa": "^4.0.4"
+    "svelte-fa": "^4.0.4",
+    "three": "^0.185.1"
   },
   "devDependencies": {
-    "@types/qrcode": "^1.5.5"
+    "@types/qrcode": "^1.5.5",
+    "@types/three": "^0.185.4"
   }
 }

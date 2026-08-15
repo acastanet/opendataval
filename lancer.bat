@@ -39,13 +39,14 @@ echo Les volumes Docker et les donnees PostgreSQL sont conserves.
 if exist "%METEO_V2_PID_FILE%" (
     set /p "METEO_V2_PID="<"%METEO_V2_PID_FILE%"
     if defined METEO_V2_PID (
-        taskkill /pid !METEO_V2_PID! /t /f >nul 2>nul
+        tasklist /v /fo csv /nh /fi "PID eq !METEO_V2_PID!" | findstr /i /c:"OpenDataVdA Meteo V2" >nul && taskkill /pid !METEO_V2_PID! /t /f >nul 2>nul
     )
     del /q "%METEO_V2_PID_FILE%" >nul 2>nul
 )
 
 echo Liberation du port 4322 pour Meteo V2...
-powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 4322 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }"
+rem Le PID ci-dessus cible uniquement la fenetre Meteo V2 lancee par ce script.
+rem Aucun balayage global du port n'est execute : il pourrait arreter un processus non lie.
 
 echo.
 echo Construction des images Docker (cache pnpm partage, reprises automatiques en cas de coupure reseau)...
@@ -85,7 +86,7 @@ if errorlevel 1 (
     echo Installe Node.js et pnpm 11.10.0, puis relance ce script.
     echo.
 ) else (
-    powershell -NoProfile -Command "$p = Start-Process cmd.exe -ArgumentList '/k', 'cd /d ""%~dp0"" && set VITE_GATEWAY_PROXY_URL=http://localhost:8080 && pnpm --filter meteo-web dev' -PassThru; $p.Id | Set-Content -NoNewline '%METEO_V2_PID_FILE%'"
+    powershell -NoProfile -Command "$p = Start-Process cmd.exe -ArgumentList '/k', 'cd /d ""%~dp0"" && title OpenDataVdA Meteo V2 && set VITE_GATEWAY_PROXY_URL=http://localhost:8080 && pnpm --filter meteo-web dev' -PassThru; $p.Id | Set-Content -NoNewline '%METEO_V2_PID_FILE%'"
 )
 
 start "OpenDataVdA - ouverture navigateur" /min cmd /c "timeout /t 12 /nobreak >nul & start http://localhost:8080/api/v2"

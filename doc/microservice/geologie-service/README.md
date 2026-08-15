@@ -124,11 +124,27 @@ d’exception visible côté route.
 
 `GET /api/v2/geologie/bss/synthese?reference=<ancien_code_bss>` récupère la fiche
 InfoTerre publique de l'ouvrage (`http://ficheinfoterre.brgm.fr/InfoterreFiche/ficheBss.action`),
-en extrait le tableau de log géologique déjà présent en HTML et les scans de coupe
-géologique disponibles, convertit jusqu'à `GEOLOGIE_INFOTERRE_MAX_IMAGES` scans TIFF en PNG,
-puis produit une synthèse en français. C'est une action **coûteuse** (site tiers + éventuel
-appel LLM vision) : elle n'est déclenchée que sur action explicite de l'utilisateur (un
-bouton par fiche sur la démo), jamais automatiquement lors de la recherche `/bss/proches`.
+en extrait le tableau de log géologique déjà présent en HTML et la liste des documents
+numérisés (« Document(s) numérisé(s) », des scans TIFF ou des PDF), puis produit une
+synthèse en français **en deux étapes**. C'est une action **coûteuse** (site tiers +
+éventuel appel LLM) : elle n'est déclenchée que sur action explicite de l'utilisateur
+(un bouton par fiche sur la démo), jamais automatiquement lors de la recherche
+`/bss/proches`.
+
+1. **Sélection** (`src/services/selecteur-document.ts`) — analyser tous les documents
+   d'une fiche serait trop coûteux (téléchargement + conversion + appel LLM par document),
+   donc un seul document est choisi *avant* tout téléchargement, sur ses seules
+   métadonnées (nom, types déclarés). S'il n'y a qu'un document, il est retenu directement
+   sans appel réseau. S'il y en a plusieurs, un appel LLM léger (texte seul, même canal que
+   le reranking de `/bss/proches`) choisit le plus pertinent, avec repli déterministe
+   (classement par mots-clés `classerDocuments`, priorité coupe interprétée > coupe >
+   rapport > reste) si la clé LLM est absente ou la sortie invalide. Exposé dans
+   `document_selectionne.methode_selection` (`aucune` | `unique` | `llm` | `deterministe`).
+2. **Résumé** du seul document retenu (`src/services/conversion-document.ts`) — un scan
+   TIFF est converti en PNG (comme avant) ; un PDF est d'abord tenté en extraction de texte
+   (`pdftotext`, première page), et seulement rasterisé en image (`pdftoppm`) si aucune
+   couche texte exploitable n'est trouvée (PDF scanné). Nécessite `poppler-utils` en
+   environnement d'exécution (déjà inclus dans l'image Docker).
 
 `reference` doit correspondre au format BSS réel (`\d{5}[A-Z]\d{4}/désignation`, ex.
 `09372X0012/MONNA`) : validé par regex côté route (400 rapide) et côté client HTTP
@@ -139,22 +155,23 @@ résolue vers un autre hôte est rejetée.
 
 Cascade de repli, exposée dans `methode_synthese` :
 
-1. **`llm_vision`** — le LLM répond en recevant le log structuré *et* jusqu'à 2 scans
-   convertis en PNG (un seul appel réseau, jamais un appel par image).
-2. **`llm_texte`** — aucune image exploitable (pas de scan de coupe, scan illisible ou
-   trop volumineux), mais le LLM répond à partir du seul log structuré.
-3. **`structure_seule`** — repli 100 % déterministe, sans LLM, toujours disponible :
+1. **`llm_vision`** — le document sélectionné est une image (scan TIFF ou PDF rasterisé) ;
+   le LLM répond en recevant le log structuré et cette image (un seul appel réseau).
+2. **`llm_document_texte`** — le document sélectionné est un PDF dont le texte a pu être
+   extrait ; le LLM répond à partir du log structuré et de ce texte.
+3. **`llm_texte`** — aucun document exploitable (pas de document sur la fiche, document
+   non téléchargeable ou conversion échouée), mais le LLM répond à partir du seul log
+   structuré.
+4. **`structure_seule`** — repli 100 % déterministe, sans LLM, toujours disponible :
    un résumé du log est généré directement à partir des données structurées.
 
-**Aucun log ni scan analysable ⇒ le LLM n'est jamais appelé.** Certaines fiches anciennes
-ne livrent ni tableau de log ni document numérisé exploitable (parfois parce que le
-contenu réel n'existe que sous forme d'un rapport PDF, hors du périmètre de l'extraction
-HTML) : l'interroger produirait un texte poli mais vide de sens (« aucune donnée
-disponible »), facturé pour rien et étiqueté `llm_texte` comme s'il s'agissait d'une
-vraie synthèse. Le service part alors directement en `structure_seule`, avec un
-avertissement qui distingue les deux cas : aucun document du tout (suggestion d'ouvrir la
-fiche InfoTerre, qui peut contenir un PDF non traité), ou des documents présents mais
-aucun typé coupe géologique.
+**Aucun log ni document analysable ⇒ le LLM n'est jamais appelé.** Certaines fiches
+anciennes ne livrent ni tableau de log ni document numérisé exploitable : l'interroger
+produirait un texte poli mais vide de sens (« aucune donnée disponible »), facturé pour
+rien et étiqueté `llm_texte` comme s'il s'agissait d'une vraie synthèse. Le service part
+alors directement en `structure_seule`, avec un avertissement qui distingue les deux cas :
+aucun document du tout sur la fiche, ou un document sélectionné mais dont le téléchargement
+ou la conversion a échoué.
 
 Le passage d'une étape à l'autre ne lève jamais d'exception : seule l'indisponibilité de
 la fiche InfoTerre elle-même (site injoignable, timeout) fait échouer la requête (502/504),
@@ -199,21 +216,25 @@ rangs 1, 3, 4, 6 et 7 plutôt que de monopoliser le haut du classement.
 | `GEOLOGIE_CACHE_TTL_SECONDS` | `21600` | durée de vie du cache mémoire (réponse BRGM normalisée) |
 | `GEOLOGIE_CACHE_MAX_ENTRIES` | `200` | taille maximale du cache (éviction FIFO) |
 | `GEOLOGIE_LLM_URL` | `https://llm.ilaas.fr/v1/chat/completions` | passerelle LLM compatible OpenAI |
-| `GEOLOGIE_LLM_MODEL` | `mistral-medium-latest` | modèle utilisé pour le reranking |
+| `GEOLOGIE_LLM_MODEL` | `mistral-medium-latest` | modèle utilisé pour le reranking et la sélection de document |
 | `GEOLOGIE_LLM_API_KEY` | *(vide)* | secret serveur ; vide = repli déterministe direct, sans appel réseau |
-| `GEOLOGIE_LLM_TIMEOUT_MS` | `20000` | délai de l’appel LLM (reranking) |
-| `GEOLOGIE_LLM_MAX_TOKENS` | `1500` | `max_tokens` de la requête LLM (reranking) |
-| `GEOLOGIE_LLM_VISION_MODEL` | `mistral-medium-latest` | modèle utilisé pour la synthèse (avec ou sans image) |
-| `GEOLOGIE_LLM_VISION_TIMEOUT_MS` | `45000` | délai de l’appel LLM de synthèse (plus long : peut inclure des images) |
+| `GEOLOGIE_LLM_TIMEOUT_MS` | `20000` | délai de l’appel LLM (reranking, sélection de document) |
+| `GEOLOGIE_LLM_MAX_TOKENS` | `1500` | `max_tokens` de la requête LLM (reranking, sélection de document) |
+| `GEOLOGIE_LLM_VISION_MODEL` | `mistral-medium-latest` | modèle utilisé pour la synthèse (avec ou sans document) |
+| `GEOLOGIE_LLM_VISION_TIMEOUT_MS` | `45000` | délai de l’appel LLM de synthèse (plus long : peut inclure une image) |
 | `GEOLOGIE_LLM_SYNTHESE_MAX_TOKENS` | `700` | `max_tokens` de la requête LLM de synthèse |
 | `GEOLOGIE_INFOTERRE_TIMEOUT_MS` | `15000` | délai des appels à InfoTerre (fiche et scans) |
 | `GEOLOGIE_INFOTERRE_MAX_SCAN_BYTES` | `5000000` | taille maximale acceptée pour un scan téléchargé |
-| `GEOLOGIE_INFOTERRE_IMAGE_WIDTH_PX` | `1400` | largeur cible de conversion TIFF → PNG |
-| `GEOLOGIE_INFOTERRE_MAX_IMAGES` | `2` | nombre maximal de scans envoyés au LLM par fiche |
+| `GEOLOGIE_INFOTERRE_IMAGE_WIDTH_PX` | `1400` | largeur cible de conversion image → PNG (scan TIFF ou page PDF rasterisée) |
 | `GEOLOGIE_DEBUG_ENABLED` | `false` | autorise `?debug=true` à exposer les scores intermédiaires |
 | `APP_VERSION` | `dev` | version exposée par la santé |
 
 ## Développement et validation
+
+Prérequis local pour la conversion des documents PDF de la synthèse géologique :
+`poppler-utils` (`pdftotext`, `pdftoppm`) doit être installé et accessible sur le `PATH`.
+Sans lui, `pnpm check:geologie` reste vert (les tests concernés s'ignorent proprement),
+mais `/bss/synthese` ne pourra pas analyser les documents PDF en local.
 
 ```bash
 pnpm dev:geologie
@@ -254,8 +275,11 @@ GeoJSON réel figé (`test/fixtures/`), sans appel réseau.
   peut ne jamais valoir `"llm_vision"` selon la disponibilité du modèle — le service reste
   pleinement fonctionnel dans ce cas (`structure_seule`). Validé empiriquement fonctionnel
   avec `mistral-medium-latest` le 2026-08-07.
-- Plafond de `GEOLOGIE_INFOTERRE_MAX_IMAGES` scans et un seul appel LLM par fiche, pour
-  maîtriser le coût (scraping tiers + appel vision).
+- Un seul document est sélectionné puis analysé par fiche (jamais plusieurs), et au plus
+  deux appels LLM par requête (sélection, puis synthèse), pour maîtriser le coût
+  (scraping tiers + appels LLM).
+- La conversion des PDF (`pdftotext`/`pdftoppm`, `poppler-utils`) ne considère que la
+  première page du document sélectionné.
 
 ## Références
 

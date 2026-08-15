@@ -13,7 +13,7 @@ const config: GeologieConfig = {
   cacheTtlSeconds: 3600, cacheMaxEntries: 10,
   llmUrl: "http://llm.test", llmModel: "test-model", llmApiKey: "cle-de-test", llmTimeoutMs: 1000, llmMaxTokens: 500,
   llmVisionModel: "test-vision-model", llmVisionTimeoutMs: 1000, llmSyntheseMaxTokens: 500,
-  infoterreTimeoutMs: 1000, infoterreMaxScanBytes: 5_000_000, infoterreImageWidthPx: 1400, infoterreMaxImages: 2,
+  infoterreTimeoutMs: 1000, infoterreMaxScanBytes: 5_000_000, infoterreImageWidthPx: 1400,
   debugEnabled: false,
 };
 

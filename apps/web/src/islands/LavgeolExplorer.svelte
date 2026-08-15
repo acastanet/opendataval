@@ -7,22 +7,30 @@
   import { urlGeologieProches, urlGeologieSynthese } from "../lib/geologie";
 
   const EXAGERATION = 1;
+  // Les expressions `paint` de MapLibre n'interprètent pas var(--jeton) : les deux teintes
+  // des repères sont donc écrites en dur, reprises du socle (--papier pour le halo) et
+  // partagées par tous les repères de l'app — un seul bleu, sinon la carte se contredit.
+  const REPERE = "#002fa7";
+  const REPERE_HALO = "#fbfcfa";
   const BSS_SOURCE_ID = "bss-geologie-src";
   const BSS_LAYER_ID = "bss-geologie-points";
   const BSS_LABEL_LAYER_ID = "bss-geologie-numeros";
   const METHODE_SYNTHESE = {
     llm_vision: "Synthèse IA à partir du log et de la coupe scannée",
-    llm_texte: "Synthèse IA à partir du log seul (aucune image exploitable)",
+    llm_document_texte: "Synthèse IA à partir du log et du texte extrait d'un document PDF",
+    llm_texte: "Synthèse IA à partir du log seul (aucun document exploitable)",
     structure_seule: "Résumé déterministe du log (sans appel IA)",
   };
 
-  // IGN et Photos aériennes sont deux fonds raster mutuellement exclusifs côté map-service
-  // (un seul paramètre `fond`) : activer l'un désactive l'autre. Géologie, elle, est une
-  // couche indépendante qui se superpose en transparence à l'un ou l'autre. Le terrain 3D
-  // et l'ombrage sculpté restent en permanence actifs, hors de ce menu.
+  // Carte IGN et Photos aériennes sont deux fonds raster mutuellement exclusifs côté
+  // map-service (un seul paramètre `fond`) : activer l'un désactive l'autre. La carte
+  // géologique, elle, est une couche indépendante qui se superpose en transparence à l'un
+  // ou l'autre. Terrain 3D et ombrage sont activés par défaut, mais restent basculables.
   let ignActif = true;
   let photosActif = false;
   let geologieActif = false;
+  let terrainActif = true;
+  let ombrageActif = true;
 
   function basculerIgn() {
     ignActif = !ignActif;
@@ -39,6 +47,66 @@
   function basculerGeologieFond() {
     geologieActif = !geologieActif;
     map?.setStyle(urlCarte(optionsCarte()));
+  }
+
+  function basculerTerrain() {
+    terrainActif = !terrainActif;
+    map?.setStyle(urlCarte(optionsCarte()));
+  }
+
+  function basculerOmbrage() {
+    ombrageActif = !ombrageActif;
+    map?.setStyle(urlCarte(optionsCarte()));
+  }
+
+  const POSITION_SOURCE_ID = "position-utilisateur";
+  let positionUtilisateur = null;
+  let erreurLocalisation = null;
+
+  /** (Ré)applique le marqueur de position sur la carte : nécessaire après chaque map.setStyle(). */
+  function appliquerMarqueurPosition() {
+    if (!map || !positionUtilisateur) return;
+    if (!map.isStyleLoaded()) {
+      // Style initial pas encore chargé (ex. clic sur « Me localiser » très rapide après
+      // l'ouverture) : map.getSource()/addSource() lèveraient sinon une exception MapLibre.
+      map.once("load", appliquerMarqueurPosition);
+      return;
+    }
+    const point = { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: positionUtilisateur } };
+    const source = map.getSource(POSITION_SOURCE_ID);
+    if (source) {
+      source.setData(point);
+      return;
+    }
+    map.addSource(POSITION_SOURCE_ID, { type: "geojson", data: point });
+    map.addLayer({
+      id: POSITION_SOURCE_ID,
+      type: "circle",
+      source: POSITION_SOURCE_ID,
+      paint: { "circle-radius": 8, "circle-color": REPERE, "circle-stroke-color": REPERE_HALO, "circle-stroke-width": 3 },
+    });
+  }
+
+  function meLocaliser() {
+    erreurLocalisation = null;
+    if (!navigator.geolocation) {
+      erreurLocalisation = "La géolocalisation n'est pas disponible sur cet appareil.";
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        positionUtilisateur = [coords.longitude, coords.latitude];
+        appliquerMarqueurPosition();
+        map?.flyTo({
+          center: positionUtilisateur,
+          zoom: 14,
+          duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 800,
+          essential: false,
+        });
+      },
+      () => { erreurLocalisation = "Votre position n'a pas pu être obtenue. Vérifiez l'autorisation de localisation."; },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
   }
 
   let mapContainer;
@@ -65,9 +133,9 @@
   function optionsCarte() {
     return {
       fond: photosActif ? "photo" : ignActif ? "plan" : "nu",
-      terrain: true,
+      terrain: terrainActif,
       exageration: EXAGERATION,
-      ombrage: "sculpte",
+      ombrage: ombrageActif ? "sculpte" : "aucun",
       geologie: geologieActif,
     };
   }
@@ -120,9 +188,9 @@
       source: BSS_SOURCE_ID,
       paint: {
         "circle-radius": 9,
-        "circle-color": "#002fa7",
+        "circle-color": REPERE,
         "circle-stroke-width": 1.5,
-        "circle-stroke-color": "#fbfcfa",
+        "circle-stroke-color": REPERE_HALO,
         "circle-opacity": 0.92,
       },
     });
@@ -138,7 +206,7 @@
         "text-ignore-placement": true,
       },
       paint: {
-        "text-color": "#fbfcfa",
+        "text-color": REPERE_HALO,
       },
     });
   }
@@ -212,7 +280,10 @@
     map.on("rotate", () => (bearing = map.getBearing()));
     // Un map.setStyle() (bascule fond/géologie) recharge tout le style : les marqueurs BSS,
     // ajoutés côté client, doivent être réappliqués une fois le nouveau style chargé.
-    map.on("style.load", () => { if (resultatsGeologie.length > 0) appliquerMarqueursGeologie(); });
+    map.on("style.load", () => {
+      if (resultatsGeologie.length > 0) appliquerMarqueursGeologie();
+      appliquerMarqueurPosition();
+    });
     const onClicMarqueur = (e) => {
       const feature = e.features?.[0];
       const bssId = feature?.properties?.bss_id;
@@ -237,18 +308,14 @@
 <div class="explorateur">
   <div class="carte" bind:this={mapContainer}></div>
 
-  <a class="accueil" href="/" aria-label="Retour à l'accueil">
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M3 9.5 10 3.5l7 6M5 8.5V16h10V8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-    <span>Accueil</span>
-  </a>
+  <!-- Le retour à l'accueil vient de la languette partagée du Layout (chrome="minimal") :
+       un second bouton local ferait doublon et divergerait du reste du portail. -->
 
   <button
     class="hamburger"
     aria-label={panneauOuvert ? "Masquer le menu" : "Afficher le menu"}
     aria-expanded={panneauOuvert}
-    aria-controls="val-panneau"
+    aria-controls="lavgeol-panneau"
     on:click={() => (panneauOuvert = !panneauOuvert)}
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -259,12 +326,12 @@
   <div class="boussole" aria-hidden="true">
     <svg viewBox="0 0 32 40" style={`transform: rotate(${-bearing}deg)`}>
       <path d="M16 12 L24 39 L16 31 L8 39 Z" fill="var(--papier)" stroke="var(--alerte)" stroke-width="1.5" stroke-linejoin="round" />
-      <text x="16" y="8" text-anchor="middle" font-family="var(--font-mono)" font-size="10" font-weight="700" fill="var(--encre)">N</text>
+      <text x="16" y="8" text-anchor="middle" font-family="var(--font-mono)" font-size="10" font-weight="700" fill="var(--texte-principal)">N</text>
     </svg>
   </div>
 
-  <aside id="val-panneau" class="panneau" class:ouvert={panneauOuvert}>
-    <h2>VAL Géologie</h2>
+  <aside id="lavgeol-panneau" class="panneau" class:ouvert={panneauOuvert}>
+    <h2>Lavgeol</h2>
 
     <div class="onglets" role="tablist" aria-label="Sections du menu">
       <button
@@ -306,13 +373,14 @@
     </div>
 
     <div id="panel-carte" role="tabpanel" aria-labelledby="tab-carte" hidden={ongletActif !== "carte"}>
+      <h4>Fond de carte</h4>
       <div class="couches-fond">
         <button type="button" class="bouton-couche" class:actif={geologieActif} aria-pressed={geologieActif} on:click={basculerGeologieFond}>
-          Géologie
+          Carte géologique
           <span class="pastille" aria-hidden="true"></span>
         </button>
         <button type="button" class="bouton-couche" class:actif={ignActif} aria-pressed={ignActif} on:click={basculerIgn}>
-          IGN
+          Carte IGN
           <span class="pastille" aria-hidden="true"></span>
         </button>
         <button type="button" class="bouton-couche" class:actif={photosActif} aria-pressed={photosActif} on:click={basculerPhotos}>
@@ -320,7 +388,26 @@
           <span class="pastille" aria-hidden="true"></span>
         </button>
       </div>
-      <p class="note-geologie">IGN et Photos aériennes sont deux fonds exclusifs : activer l'un désactive l'autre. Géologie se superpose en transparence, sur l'un ou l'autre.</p>
+      <p class="note-geologie">Carte IGN et Photos aériennes sont deux fonds exclusifs : activer l'un désactive l'autre. Carte géologique se superpose en transparence, sur l'un ou l'autre.</p>
+
+      <h4>Relief</h4>
+      <div class="couches-fond">
+        <button type="button" class="bouton-couche" class:actif={terrainActif} aria-pressed={terrainActif} on:click={basculerTerrain}>
+          Relief 3D
+          <span class="pastille" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="bouton-couche" class:actif={ombrageActif} aria-pressed={ombrageActif} on:click={basculerOmbrage}>
+          Ombrage
+          <span class="pastille" aria-hidden="true"></span>
+        </button>
+      </div>
+      <p class="note-geologie">Relief 3D applique un relief en volume à la carte. Ombrage ajoute un estompage du relief (hillshade) pour en accentuer la lecture.</p>
+
+      <h4>Position</h4>
+      <button type="button" class="bouton-recherche" on:click={meLocaliser}>Me localiser</button>
+      {#if erreurLocalisation}
+        <p class="erreur-geologie">{erreurLocalisation}</p>
+      {/if}
     </div>
 
     <div id="panel-aide" role="tabpanel" aria-labelledby="tab-aide" hidden={ongletActif !== "aide"}>
@@ -332,22 +419,34 @@
       </p>
       <h4>Fond de carte</h4>
       <p class="note-geologie">
-        Dans l'onglet Carte : IGN (plan topographique) et Photos aériennes sont deux fonds
-        exclusifs, activer l'un désactive l'autre. Géologie superpose la carte géologique du
-        BRGM en transparence, sur l'un ou l'autre.
+        Dans l'onglet Carte : Carte IGN (plan topographique) et Photos aériennes sont deux
+        fonds exclusifs, activer l'un désactive l'autre. Carte géologique superpose la carte
+        géologique du BRGM en transparence, sur l'un ou l'autre. Relief 3D et Ombrage
+        activent ou désactivent respectivement le relief en volume et son estompage.
       </p>
       <h4>Ouvrages géologiques</h4>
       <p class="note-geologie">
         Dans l'onglet Géologie, « Rechercher autour du centre » interroge la banque du sous-sol
         du BRGM dans le rayon choisi, centré sur le centre actuel de la carte. Les ouvrages
         trouvés s'affichent numérotés en bleu sur la carte ; cliquer sur un résultat de la liste
-        y recentre la vue. Le bouton « Analyse IA », quand il est proposé, ouvre une synthèse du
-        log géologique et des coupes scannées de la fiche InfoTerre correspondante.
+        y recentre la vue. Le bouton « Analyse IA », quand il est proposé, interroge la fiche
+        InfoTerre de l'ouvrage en deux étapes : elle sélectionne d'abord, parmi les documents
+        numérisés de la fiche (scans TIFF ou PDF), celui le plus susceptible de contenir une
+        coupe géologique exploitable, puis en tire un résumé combiné au log géologique. Le
+        document retenu et, s'il est fourni par l'IA, le motif de son choix sont affichés en
+        tête de la fenêtre d'analyse.
+      </p>
+      <h4>Position</h4>
+      <p class="note-geologie">
+        Dans l'onglet Carte, « Me localiser » utilise la géolocalisation du navigateur pour
+        centrer la carte sur votre position actuelle et y placer un repère bleu ; il faut
+        autoriser l'accès à la position quand le navigateur le demande.
       </p>
       <h4>Accueil et menu</h4>
       <p class="note-geologie">
-        Le bouton « Accueil » en haut à gauche ramène au portail. Le bouton hamburger en haut à
-        droite replie ou déplie ce panneau.
+        La languette « Accueil », au bord haut de l'écran au centre, ramène au portail : elle se
+        déplie au survol ou au passage clavier. Le bouton hamburger en haut à droite replie ou
+        déplie ce panneau.
       </p>
     </div>
 
@@ -414,6 +513,12 @@
           {:else if syntheseErreur}
             <p class="erreur-geologie">{syntheseErreur}</p>
           {:else if syntheseDonnees}
+            {#if syntheseDonnees.document_selectionne}
+              <p class="note-geologie">
+                Document sélectionné : <strong>{syntheseDonnees.document_selectionne.nom}</strong>
+                {#if syntheseDonnees.document_selectionne.raison} — {syntheseDonnees.document_selectionne.raison}{/if}
+              </p>
+            {/if}
             <p class="note-geologie">{METHODE_SYNTHESE[syntheseDonnees.methode_synthese] || syntheseDonnees.methode_synthese}</p>
             <p>{syntheseDonnees.synthese || "Synthèse indisponible."}</p>
             {#if syntheseDonnees.log_geologique?.length > 0}
@@ -432,6 +537,9 @@
                 <img class="scan-geologie" src={image.apercu_data_url} alt={`Aperçu du scan ${image.nom || ""}`} />
               {/if}
             {/each}
+            {#if syntheseDonnees.document_texte_analyse}
+              <p class="note-geologie">Extrait du texte analysé ({syntheseDonnees.document_texte_analyse.nom}) : « {syntheseDonnees.document_texte_analyse.extrait}… »</p>
+            {/if}
             {#each syntheseDonnees.avertissements || [] as avertissement}
               <p class="note-geologie">{avertissement}</p>
             {/each}
@@ -457,36 +565,16 @@
 </div>
 
 <style>
+  /* Aucun jeton n'est redéfini ici : couleurs, typographie, espacements et durées
+     viennent de packages/shared/styles/design-system.css, importé par le Layout.
+     Seul le fond d'alerte, absent du socle, est dérivé de --alerte par color-mix. */
   .explorateur {
-    /* Jetons du référentiel visuel VAL (doc/style_VAL.html), scopés à cette app. */
-    --encre: #14251d;
-    --encre-douce: #52645b;
-    --vert: #24543d;
-    --vert-profond: #173e2b;
-    --vert-clair: #dce9e1;
-    --brume: #eef3ef;
-    --papier: #fbfcfa;
-    --torrent: #3d6f7d;
-    --chataigne: #795039;
-    --lichen: #718260;
-    --granite: #89958e;
-    --alerte: #a94332;
-    --ligne: rgb(20 37 29 / 16%);
-    --ligne-forte: rgb(20 37 29 / 31%);
-    --verre: rgb(255 255 255 / 72%);
-    --verre-fort: rgb(255 255 255 / 88%);
-    --ombre: 0 14px 38px rgb(20 37 29 / 9%);
-    --rayon: 2px;
-    --font-display: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-    --font-body: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
-
     position: relative;
     height: 100vh;
     width: 100%;
     overflow: hidden;
     font-family: var(--font-body);
-    color: var(--encre);
+    color: var(--texte-principal);
   }
 
   .carte {
@@ -500,14 +588,14 @@
     position: relative;
     background: transparent;
     border: none;
-    border-bottom: 2px solid var(--encre);
+    border-bottom: 2px solid var(--texte-principal);
     border-radius: 0;
-    color: var(--encre);
+    color: var(--texte-principal);
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    font-weight: 700;
+    font-size: var(--txt-micro);
+    font-weight: var(--poids-fort);
     text-align: center;
-    padding: 0 0 0.4rem;
+    padding: 0 0 var(--esp-2xs);
     box-shadow: none;
   }
 
@@ -517,8 +605,8 @@
     position: absolute;
     bottom: -0.3rem;
     width: 2px;
-    height: 0.6rem;
-    background: var(--encre);
+    height: var(--esp-s);
+    background: var(--texte-principal);
   }
 
   :global(.explorateur .maplibregl-ctrl-scale::before) {
@@ -529,117 +617,83 @@
     right: 0;
   }
 
-  .accueil {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    z-index: 6;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    min-height: 2.5rem;
-    padding: 0.5rem 0.85rem;
-    background: var(--verre-fort);
-    border: 1px solid var(--ligne-forte);
-    border-radius: var(--rayon);
-    color: var(--encre);
-    font-family: var(--font-body);
-    font-size: 0.82rem;
-    font-weight: 700;
-    text-decoration: none;
-    box-shadow: var(--ombre);
-    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
-  }
-
-  .accueil svg {
-    width: 1rem;
-    height: 1rem;
-    flex-shrink: 0;
-  }
-
-  .accueil:hover {
-    background: var(--vert);
-    border-color: var(--vert);
-    color: #fff;
-  }
-
-  .accueil:focus-visible {
-    outline: 2px solid var(--vert);
-    outline-offset: 3px;
-  }
-
+  /* Cible tactile de 40 px (--cible) : plancher opposable du référentiel. */
   .hamburger {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
+    top: var(--esp-l);
+    right: var(--esp-l);
     z-index: 6;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
+    width: var(--cible);
+    height: var(--cible);
     padding: 0;
-    background: var(--verre-fort);
-    border: 1px solid var(--ligne-forte);
+    background: var(--surface-elevee);
+    border: var(--rayon-fin) solid var(--bordure-forte);
     border-radius: var(--rayon);
-    color: var(--encre);
+    color: var(--texte-principal);
     box-shadow: var(--ombre);
     cursor: pointer;
-    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+    transition:
+      background var(--duree-courte) var(--courbe),
+      color var(--duree-courte) var(--courbe),
+      border-color var(--duree-courte) var(--courbe);
   }
 
   .hamburger svg {
-    width: 1.1rem;
-    height: 1.1rem;
+    width: var(--txt-xl);
+    height: var(--txt-xl);
   }
 
   .hamburger:hover {
-    background: var(--vert);
-    border-color: var(--vert);
-    color: #fff;
-  }
-
-  .hamburger:focus-visible {
-    outline: 2px solid var(--vert);
-    outline-offset: 3px;
+    background: var(--couleur-action);
+    border-color: var(--couleur-action);
+    color: var(--blanc);
   }
 
   /* Indicateur de nord : lecture seule, jamais cliquable ni déplaçable. Aiguille pleine
      posée directement sur la carte, sans médaillon ni fond — voir doc/style_VAL.html. */
   .boussole {
     position: absolute;
-    left: 1.1rem;
+    left: var(--esp-l);
     bottom: 4.4rem;
     z-index: 4;
     pointer-events: none;
-    filter: drop-shadow(0 1px 2px rgb(20 37 29 / 35%));
+    filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--encre) 35%, transparent));
   }
 
   .boussole svg {
     width: 2.25rem;
     height: 2.4rem;
     display: block;
+    /* Suit la rotation de la carte au doigt : linéaire et plus court que --duree-courte,
+       sinon l'aiguille traîne derrière le geste. */
     transition: transform 120ms linear;
   }
 
+  /* Panneau opaque : sur fond cartographique, le contraste d'un texte posé sur une tuile
+     raster n'est pas prévisible et l'imagerie change à chaque zoom (référentiel §02).
+     Calé sous le hamburger, dont il reprend la gouttière. */
   .panneau {
     position: absolute;
-    top: 4.3rem;
-    right: 1rem;
-    bottom: 1rem;
+    top: calc(var(--esp-l) + var(--cible) + var(--esp-m));
+    right: var(--esp-l);
+    bottom: var(--esp-l);
     width: 16rem;
     z-index: 5;
-    background: var(--verre);
-    border: 1px solid var(--ligne-forte);
+    background: var(--surface-plate);
+    border: var(--rayon-fin) solid var(--bordure-forte);
     border-radius: var(--rayon);
-    padding: 0.9rem;
+    padding: var(--esp-l);
     overflow-y: auto;
-    backdrop-filter: blur(12px);
     box-shadow: var(--ombre);
-    transform: translateX(calc(100% + 1rem));
+    transform: translateX(calc(100% + var(--esp-l)));
     opacity: 0;
     pointer-events: none;
-    transition: transform 200ms ease, opacity 200ms ease;
+    transition:
+      transform var(--duree-courte) var(--courbe),
+      opacity var(--duree-courte) var(--courbe);
   }
 
   .panneau.ouvert {
@@ -650,31 +704,32 @@
 
   .panneau h2 {
     font-family: var(--font-display);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    font-size: 1.2rem;
-    margin: 0 0 0.8rem;
-    color: var(--encre);
+    font-weight: var(--poids-appui);
+    letter-spacing: var(--ls-titre);
+    font-size: var(--txt-xl);
+    margin: 0 0 var(--esp-m);
+    color: var(--texte-principal);
   }
 
   .onglets {
     display: flex;
-    border: 1px solid var(--ligne-forte);
+    border: var(--rayon-fin) solid var(--bordure-forte);
     border-radius: var(--rayon);
     overflow: hidden;
-    margin-bottom: 0.9rem;
+    margin-bottom: var(--esp-l);
   }
 
   .onglets button {
     flex: 1;
-    padding: 0.5rem 0.4rem;
+    min-height: var(--cible);
+    padding: var(--esp-xs) var(--esp-2xs);
     border: none;
-    border-right: 1px solid var(--ligne-forte);
-    background: var(--verre-fort);
-    color: var(--encre-douce);
+    border-right: var(--rayon-fin) solid var(--bordure-forte);
+    background: var(--surface-elevee);
+    color: var(--texte-secondaire);
     font: inherit;
-    font-size: 0.78rem;
-    font-weight: 700;
+    font-size: var(--txt-s);
+    font-weight: var(--poids-fort);
     cursor: pointer;
   }
 
@@ -683,53 +738,51 @@
   }
 
   .onglets button.actif {
-    background: var(--vert);
-    color: #fff;
+    background: var(--couleur-action);
+    color: var(--blanc);
   }
 
+  /* Seule exception à l'anneau de focus du socle : posé à l'intérieur, sinon il déborde
+     du groupe d'onglets qui est en overflow: hidden. */
   .onglets button:focus-visible {
-    outline: 2px solid var(--vert);
-    outline-offset: -2px;
+    outline-offset: -3px;
   }
 
   .couches-fond {
     display: grid;
-    gap: 0.4rem;
-    margin-bottom: 0.5rem;
+    gap: var(--esp-2xs);
+    margin-bottom: var(--esp-xs);
   }
 
   .bouton-couche {
     width: 100%;
-    min-height: 2.5rem;
+    min-height: var(--cible);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.6rem;
-    padding: 0.5rem 0.7rem;
-    border: 1px solid var(--ligne-forte);
+    gap: var(--esp-s);
+    padding: var(--esp-xs) var(--esp-m);
+    border: var(--rayon-fin) solid var(--bordure-forte);
     border-radius: var(--rayon);
-    background: var(--verre-fort);
-    color: var(--encre);
+    background: var(--surface-elevee);
+    color: var(--texte-principal);
     font: inherit;
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: var(--txt-s);
+    font-weight: var(--poids-appui);
     text-align: left;
     cursor: pointer;
-    transition: background 150ms ease, border-color 150ms ease;
+    transition:
+      background var(--duree-courte) var(--courbe),
+      border-color var(--duree-courte) var(--courbe);
   }
 
   .bouton-couche:hover {
-    border-color: var(--vert);
+    border-color: var(--couleur-action);
   }
 
   .bouton-couche.actif {
-    background: var(--vert-clair);
-    border-color: var(--vert);
-  }
-
-  .bouton-couche:focus-visible {
-    outline: 2px solid var(--vert);
-    outline-offset: 2px;
+    background: var(--couleur-action-douce);
+    border-color: var(--couleur-action);
   }
 
   /* Commutateur visuel angulaire (pas de pilule, cf. doc/style_VAL.html) : pastille grise
@@ -739,10 +792,12 @@
     width: 2rem;
     height: 1.1rem;
     position: relative;
-    border: 1px solid var(--ligne-forte);
+    border: var(--rayon-fin) solid var(--bordure-forte);
     border-radius: var(--rayon);
-    background: var(--granite);
-    transition: background 150ms ease, border-color 150ms ease;
+    background: var(--decor);
+    transition:
+      background var(--duree-courte) var(--courbe),
+      border-color var(--duree-courte) var(--courbe);
   }
 
   .pastille::after {
@@ -753,96 +808,96 @@
     width: 0.9rem;
     height: 0.9rem;
     background: var(--papier);
-    border-radius: 1px;
-    transition: transform 150ms ease;
+    border-radius: var(--rayon-fin);
+    transition: transform var(--duree-courte) var(--courbe);
   }
 
   .bouton-couche.actif .pastille {
-    background: var(--vert);
-    border-color: var(--vert);
+    background: var(--couleur-action);
+    border-color: var(--couleur-action);
   }
 
   .bouton-couche.actif .pastille::after {
     transform: translateX(0.9rem);
   }
 
-  #panel-aide h4 {
-    margin: 0.9rem 0 0.4rem;
-    font-size: 0.78rem;
+  .panneau h4 {
+    margin: var(--esp-l) 0 var(--esp-2xs);
+    font-size: var(--txt-xs);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--encre-douce);
+    letter-spacing: var(--ls-label);
+    color: var(--texte-secondaire);
   }
 
-  #panel-aide h4:first-child {
+  .panneau h4:first-child {
     margin-top: 0;
   }
 
   .note-geologie {
-    margin: 0 0 0.8rem;
-    font-size: 0.72rem;
-    color: var(--encre-douce);
+    margin: 0 0 var(--esp-m);
+    font-size: var(--txt-xs);
+    color: var(--texte-secondaire);
     line-height: 1.4;
   }
 
   .controle {
-    margin-bottom: 0.8rem;
-    font-size: 0.78rem;
+    margin-bottom: var(--esp-m);
+    font-size: var(--txt-s);
   }
 
   .controle label {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 0.25rem;
-    color: var(--encre);
+    margin-bottom: var(--esp-3xs);
+    color: var(--texte-principal);
   }
 
   .controle .valeur {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
-    color: var(--encre-douce);
+    font-size: var(--txt-xs);
+    color: var(--texte-secondaire);
   }
 
   .controle input[type="range"] {
     width: 100%;
-    accent-color: var(--vert);
+    accent-color: var(--couleur-action);
   }
 
   .case {
     display: flex;
     align-items: center;
-    gap: 0.45rem;
-    margin-bottom: 0.4rem;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--encre);
+    gap: var(--esp-2xs);
+    margin-bottom: var(--esp-2xs);
+    font-size: var(--txt-s);
+    font-weight: var(--poids-appui);
+    color: var(--texte-principal);
   }
 
   .case input {
     width: 1.1rem;
     height: 1.1rem;
-    accent-color: var(--vert);
+    accent-color: var(--couleur-action);
   }
 
   .bouton-recherche {
     width: 100%;
-    min-height: 2.5rem;
-    padding: 0.5rem 0.75rem;
-    margin-top: 0.3rem;
-    border: 1px solid var(--vert);
+    min-height: var(--cible);
+    padding: var(--esp-xs) var(--esp-m);
+    margin-top: var(--esp-3xs);
+    border: var(--rayon-fin) solid var(--couleur-action);
     border-radius: var(--rayon);
-    background: var(--vert);
-    color: #fff;
+    background: var(--couleur-action);
+    color: var(--blanc);
     font: inherit;
-    font-size: 0.82rem;
-    font-weight: 700;
+    font-size: var(--txt-s);
+    font-weight: var(--poids-fort);
     cursor: pointer;
   }
 
   .bouton-recherche:hover:not(:disabled) {
-    background: var(--vert-profond);
-    border-color: var(--vert-profond);
+    background: var(--couleur-action-active);
+    border-color: var(--couleur-action-active);
   }
 
   .bouton-recherche:disabled {
@@ -850,25 +905,22 @@
     cursor: wait;
   }
 
-  .bouton-recherche:focus-visible {
-    outline: 2px solid var(--vert);
-    outline-offset: 3px;
-  }
-
+  /* Vigilance non chromatique : le texte porte l'information, le fond n'est qu'un rappel
+     dérivé de --alerte — le socle ne définit pas de jeton de fond d'alerte. */
   .erreur-geologie {
-    margin: 0.6rem 0 0;
-    padding: 0.5rem 0.6rem;
-    border: 1px solid rgb(169 67 50 / 24%);
+    margin: var(--esp-s) 0 0;
+    padding: var(--esp-xs) var(--esp-s);
+    border: var(--rayon-fin) solid color-mix(in srgb, var(--alerte) 24%, transparent);
     border-radius: var(--rayon);
-    background: rgb(169 67 50 / 10%);
+    background: color-mix(in srgb, var(--alerte) 10%, transparent);
     color: var(--alerte);
-    font-size: 0.76rem;
+    font-size: var(--txt-xs);
   }
 
   .resume-geologie {
-    margin: 0.8rem 0 0.5rem;
-    font-size: 0.74rem;
-    color: var(--encre-douce);
+    margin: var(--esp-m) 0 var(--esp-xs);
+    font-size: var(--txt-xs);
+    color: var(--texte-secondaire);
   }
 
   .liste-geologie {
@@ -876,67 +928,60 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.5rem;
+    gap: var(--esp-xs);
   }
 
   .ligne-geologie {
     display: grid;
-    gap: 0.3rem;
+    gap: var(--esp-3xs);
   }
 
   .item-geologie {
     width: 100%;
+    min-height: var(--cible);
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
-    padding: 0.5rem 0.65rem;
-    border: 1px solid var(--ligne);
+    justify-content: center;
+    gap: var(--esp-3xs);
+    padding: var(--esp-xs) var(--esp-s);
+    border: var(--rayon-fin) solid var(--bordure);
     border-radius: var(--rayon);
-    background: var(--verre-fort);
-    color: var(--encre);
+    background: var(--surface-elevee);
+    color: var(--texte-principal);
     font: inherit;
     text-align: left;
     cursor: pointer;
   }
 
   .item-geologie strong {
-    font-size: 0.78rem;
+    font-size: var(--txt-s);
   }
 
   .item-geologie span {
-    font-size: 0.7rem;
-    color: var(--encre-douce);
+    font-size: var(--txt-micro);
+    color: var(--texte-secondaire);
   }
 
   .item-geologie:hover {
-    border-color: var(--vert);
-  }
-
-  .item-geologie:focus-visible {
-    outline: 2px solid var(--vert);
-    outline-offset: 2px;
+    border-color: var(--couleur-action);
   }
 
   .bouton-analyse {
     justify-self: start;
-    padding: 0.3rem 0.6rem;
-    border: 1px solid var(--vert);
+    min-height: var(--cible);
+    padding: var(--esp-3xs) var(--esp-s);
+    border: var(--rayon-fin) solid var(--couleur-action);
     border-radius: var(--rayon);
-    background: rgb(255 255 255 / 54%);
-    color: var(--vert);
+    background: var(--surface-elevee);
+    color: var(--couleur-action);
     font: inherit;
-    font-size: 0.7rem;
-    font-weight: 700;
+    font-size: var(--txt-xs);
+    font-weight: var(--poids-fort);
     cursor: pointer;
   }
 
   .bouton-analyse:hover {
-    background: var(--vert-clair);
-  }
-
-  .bouton-analyse:focus-visible {
-    outline: 2px solid var(--vert);
-    outline-offset: 2px;
+    background: var(--couleur-action-douce);
   }
 
   /* Fenêtre pop-up de l'analyse IA d'une fiche : superposée à toute l'app, pas seulement au panneau. */
@@ -947,8 +992,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
-    background: rgb(20 37 29 / 45%);
+    padding: var(--esp-l);
+    /* Le socle ne définit pas de rôle « voile » : dérivé de l'encre plutôt qu'écrit en dur. */
+    background: color-mix(in srgb, var(--encre) 45%, transparent);
   }
 
   .modale {
@@ -956,10 +1002,10 @@
     max-height: 85vh;
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--ligne-forte);
+    border: var(--rayon-fin) solid var(--bordure-forte);
     border-radius: var(--rayon);
-    background: var(--papier);
-    color: var(--encre);
+    background: var(--surface-plate);
+    color: var(--texte-principal);
     box-shadow: var(--ombre);
   }
 
@@ -967,55 +1013,51 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.6rem;
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--ligne);
+    gap: var(--esp-s);
+    padding: var(--esp-m) var(--esp-l);
+    border-bottom: var(--rayon-fin) solid var(--bordure);
   }
 
   .modale-entete h3 {
     margin: 0;
     font-family: var(--font-display);
-    font-weight: 500;
-    font-size: 1.05rem;
+    font-weight: var(--poids-appui);
+    letter-spacing: var(--ls-titre);
+    font-size: var(--txt-xl);
   }
 
   .modale-fermer {
     flex-shrink: 0;
-    width: 2rem;
-    height: 2rem;
-    border: 1px solid var(--ligne-forte);
+    width: var(--cible);
+    height: var(--cible);
+    border: var(--rayon-fin) solid var(--bordure-forte);
     border-radius: var(--rayon);
-    background: var(--verre-fort);
-    color: var(--encre);
-    font-size: 0.9rem;
+    background: var(--surface-elevee);
+    color: var(--texte-principal);
+    font-size: var(--txt-m);
     line-height: 1;
     cursor: pointer;
   }
 
   .modale-fermer:hover {
-    background: var(--vert);
-    border-color: var(--vert);
-    color: #fff;
-  }
-
-  .modale-fermer:focus-visible {
-    outline: 2px solid var(--vert);
-    outline-offset: 2px;
+    background: var(--couleur-action);
+    border-color: var(--couleur-action);
+    color: var(--blanc);
   }
 
   .modale-corps {
-    padding: 1rem;
+    padding: var(--esp-l);
     overflow-y: auto;
-    font-size: 0.85rem;
+    font-size: var(--txt-m);
     line-height: 1.5;
   }
 
   .modale-corps h4 {
-    margin: 0.9rem 0 0.4rem;
-    font-size: 0.78rem;
+    margin: var(--esp-l) 0 var(--esp-2xs);
+    font-size: var(--txt-xs);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--encre-douce);
+    letter-spacing: var(--ls-label);
+    color: var(--texte-secondaire);
   }
 
   .log-geologique {
@@ -1023,22 +1065,22 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.3rem;
-    font-size: 0.8rem;
+    gap: var(--esp-3xs);
+    font-size: var(--txt-s);
   }
 
   .log-geologique li {
-    padding: 0.4rem 0.55rem;
-    border: 1px solid var(--ligne);
+    padding: var(--esp-2xs) var(--esp-xs);
+    border: var(--rayon-fin) solid var(--bordure);
     border-radius: var(--rayon);
-    background: var(--verre);
+    background: var(--surface-fond);
   }
 
   .scan-geologie {
     display: block;
     width: 100%;
-    margin-top: 0.6rem;
-    border: 1px solid var(--ligne);
+    margin-top: var(--esp-s);
+    border: var(--rayon-fin) solid var(--bordure);
     border-radius: var(--rayon);
   }
 
@@ -1047,28 +1089,28 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.3rem;
-    font-size: 0.8rem;
+    gap: var(--esp-3xs);
+    font-size: var(--txt-s);
   }
 
   .documents-geologie li {
     display: flex;
     align-items: baseline;
-    gap: 0.4rem;
-    padding: 0.4rem 0.55rem;
-    border: 1px solid var(--ligne);
+    gap: var(--esp-2xs);
+    padding: var(--esp-2xs) var(--esp-xs);
+    border: var(--rayon-fin) solid var(--bordure);
     border-radius: var(--rayon);
-    background: var(--verre);
+    background: var(--surface-fond);
   }
 
   .documents-geologie a {
-    color: var(--vert);
-    font-weight: 600;
+    color: var(--couleur-action);
+    font-weight: var(--poids-appui);
   }
 
   .documents-geologie span {
-    font-size: 0.7rem;
-    color: var(--encre-douce);
+    font-size: var(--txt-micro);
+    color: var(--texte-secondaire);
   }
 
   @media (max-width: 720px) {
@@ -1088,10 +1130,6 @@
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .panneau,
-    .boussole svg {
-      transition: none;
-    }
-  }
+  /* Pas de bloc prefers-reduced-motion local : le socle neutralise déjà toutes les
+     transitions et animations de la page (design-system.css). */
 </style>
