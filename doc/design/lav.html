@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eef3ef">
+  <title>LAV : Localiser, Agréger, Valoriser — VAL</title>
+  <link rel="icon" href="./favicon.svg">
+  <link rel="preload" href="/fonts/SourceSerif4-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="preload" href="/fonts/Inter-Variable.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+  <link rel="stylesheet" href="../../packages/shared/styles/design-system.css">
+  <link rel="stylesheet" href="./design.css">
+  <style>
+    /* Styles spécifiques LAV — uniquement jetons VAL */
+    .lav-intro { max-width: var(--largeur-intro); }
+    .lav-manifeste { display: grid; gap: var(--esp-l); }
+    .lav-manifeste__texte { display: grid; gap: var(--esp-m); }
+    .lav-manifeste__texte p { margin: 0; color: var(--texte-secondaire); font-size: var(--txt-m); max-width: var(--largeur-lecture); }
+    .lav-manifeste__texte p:first-child { color: var(--texte-principal); font-size: var(--txt-l); }
+    .lav-manifeste__accroche { padding-left: var(--esp-l); border-left: 2px solid var(--bordure-forte); }
+    .lav-list { display: grid; gap: var(--esp-m); margin: 0; padding: 0; list-style: none; }
+    .lav-list li { position: relative; padding-left: var(--esp-m); }
+    .lav-list li::before { content: "—"; position: absolute; left: 0; color: var(--texte-tertiaire); }
+    .lav-applications { --cols: 2; --min-col: 20rem; }
+    .lav-carte strong { font-weight: var(--poids-fort); color: var(--texte-principal); }
+    .lav-carte { display: grid; gap: var(--esp-xs); }
+    .lav-carte__meta { color: var(--texte-tertiaire); font-family: var(--font-mono); font-size: var(--txt-micro); letter-spacing: var(--ls-label); text-transform: uppercase; }
+    .lav-infrastructure p { margin: 0; color: var(--texte-secondaire); font-size: var(--txt-m); max-width: var(--largeur-lecture); }
+    .lav-infrastructure__grille { display: grid; gap: var(--esp-m); }
+    .lav-finale { padding: var(--esp-l); border: 1px solid var(--bordure); border-left: 3px solid var(--couleur-action); border-radius: var(--rayon); background: var(--surface-elevee); }
+    .lav-finale p { margin: 0; font-family: var(--font-display); font-size: clamp(1.15rem, 2.2vw, 1.55rem); line-height: 1.2; text-wrap: balance; }
+    .lav-finale small { display: block; margin-top: var(--esp-xs); color: var(--texte-secondaire); font-family: var(--font-body); font-size: var(--txt-m); line-height: 1.5; text-wrap: pretty; }
+    @media (min-width: 52rem) {
+      .lav-manifeste { grid-template-columns: minmax(0, 1.15fr) minmax(16rem, .85fr); }
+      .lav-infrastructure__grille { grid-template-columns: 1fr 1fr; gap: var(--esp-xl); }
+    }
+  </style>
+</head>
+<body>
+  <div class="prototype-note"><div class="coque"><span>OpenDataVdA · Atelier HTML/CSS</span><span>LAV · Page autonome — texte de référence</span></div></div>
+
+  <header class="entete">
+    <div class="coque entete__interieur">
+      <a class="marque" href="./accueil.html"><img src="./favicon.svg" alt=""><span><strong>VAL</strong><span>OpenData · Val-d’Aigoual</span></span></a>
+    </div>
+    <div class="coque hero hero__grille">
+      <div>
+        <p class="surtitre">LAV : Localiser, Agréger, Valoriser</p>
+        <h1>Localiser, Agréger, Valoriser.</h1>
+        <p class="introduction lav-intro"><em>Un système d'intégration des données publiques au service des territoires et des usages</em></p>
+      </div>
+      <aside class="hero__repere">
+        <strong>Un point sur la carte</strong>
+        <span>Relief, bâtiments, végétation, eau, sous-sol, météo, climat, activités humaines, infrastructures et risques.</span>
+        <span class="fraicheur fraicheur--jour">Socle documenté et évolutif</span>
+      </aside>
+    </div>
+  </header>
+
+  <nav class="navigation" aria-label="Prototypes">
+    <div class="coque">
+      <a href="./accueil.html">Accueil</a>
+      <a href="./lav.html" aria-current="page">LAV</a>
+      <a href="./meteo.html">Météo</a>
+      <a href="./carte.html">Carte</a>
+      <a href="./composants.html">Composants</a>
+      <a href="./style_VAL.html">Référentiel</a>
+    </div>
+  </nav>
+
+  <main>
+    <!-- 01 — Texte exact : manifeste LAV -->
+    <section class="section">
+      <div class="coque">
+        <div class="section__entete">
+          <div>
+            <p class="surtitre">01 · Manifeste</p>
+            <h2>Un jumeau numérique documenté et évolutif.</h2>
+          </div>
+          <p>Le texte de référence LAV, repris à l'identique, sans reformulation.</p>
+        </div>
+
+        <div class="lav-manifeste">
+          <div class="lav-manifeste__accroche lav-manifeste__texte">
+            <!-- Texte exact — paragraphes 1 à 4 -->
+            <p>LAV transforme des données publiques dispersées en informations utiles, organisées autour d'un lieu.</p>
+            <p>À partir d'un point sur la carte, LAV rassemble les données disponibles pour décrire son environnement : relief, bâtiments, végétation, eau, sous-sol, météo, climat, activités humaines, infrastructures et risques.</p>
+            <p>Issues de multiples sources publiques, ces données sont localisées, croisées et replacées dans leur contexte. Elles alimentent un jumeau numérique documenté et évolutif, qui propose une lecture cohérente du lieu, de son voisinage et de son territoire.</p>
+            <p>LAV fournit ainsi un socle de données commun, à partir duquel peuvent être développés des services répondant à des besoins concrets, locaux et citoyens. Les applications déjà réalisées illustrent cette diversité d'usages.</p>
+          </div>
+
+          <aside class="lav-finale" aria-label="Finalités">
+            <p>Comprendre un lieu. Suivre une situation. Préparer une intervention. Éclairer une décision.</p>
+            <small>Autour de cette infrastructure commune, chaque application répond à une question concrète.</small>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 — Texte exact : les 8 applications -->
+    <section class="section section--plate">
+      <div class="coque">
+        <div class="section__entete">
+          <div>
+            <p class="surtitre">02 · Applications</p>
+            <h2>Une infrastructure commune, des usages concrets.</h2>
+          </div>
+          <p>Les huit applications existantes, décrites avec le texte exact fourni.</p>
+        </div>
+
+        <div class="grille lav-applications">
+          <article class="carte filet-biosphere lav-carte">
+            <span class="lav-carte__meta">01 · Territoire</span>
+            <p><strong>Carte du territoire</strong> rassemble sur une même interface les données relatives à la géologie, au sous-sol, à l'eau, aux milieux naturels et aux services publics.</p>
+          </article>
+
+          <article class="carte filet-lithosphere lav-carte">
+            <span class="lav-carte__meta">02 · Relief</span>
+            <p><strong>Relief 3D</strong> permet d'explorer le terrain, les bâtiments et la végétation à partir des données LiDAR et des modèles numériques de terrain.</p>
+          </article>
+
+          <article class="carte filet-atmosphere lav-carte">
+            <span class="lav-carte__meta">03 · Météo et climat</span>
+            <p><strong>Météo essentielle</strong>, <strong>Bilan thermique</strong> et la <strong>Fiche climat</strong> fournissent une information localisée sur la situation météorologique, les prévisions et les évolutions climatiques du lieu.</p>
+          </article>
+
+          <article class="carte filet-biosphere lav-carte">
+            <span class="lav-carte__meta">04 · Eau</span>
+            <p>Le <strong>Tableau de bord de l'eau</strong> permet de suivre les cours d'eau, les crues, les étiages, les nappes souterraines ainsi que la qualité de l'eau et des sites de baignade.</p>
+          </article>
+
+          <article class="carte filet-risques lav-carte">
+            <span class="lav-carte__meta">05 · Risques</span>
+            <p><strong>Incendies, risque et consignes</strong>, <strong>Vigilance feu</strong> et <strong>Incendies, temps réel</strong> mettent en relation les niveaux officiels de vigilance, les recommandations publiques et les détections thermiques satellitaires récentes.</p>
+          </article>
+
+          <article class="carte filet-risques lav-carte">
+            <span class="lav-carte__meta">06 · Terrain</span>
+            <p><strong>Valfeu</strong>, conçue pour un usage mobile sur le terrain, localise l'utilisateur et recherche les suspicions satellitaires de feu observées à proximité.</p>
+          </article>
+
+          <article class="carte filet-risques lav-carte">
+            <span class="lav-carte__meta">07 · Débroussaillement</span>
+            <p><strong>OLD, obligations légales de débroussaillement</strong>, aide à préparer le périmètre indicatif à débroussailler en croisant la position d'un bâtiment, le cadastre, le zonage réglementaire et les données cartographiques.</p>
+          </article>
+
+          <article class="carte lav-carte">
+            <span class="lav-carte__meta">08 · Mobilité</span>
+            <p><strong>Itinéraire poids lourd</strong> propose un parcours adapté au gabarit connu du véhicule et signale les portions pour lesquelles les données ouvertes ne permettent pas une vérification complète.</p>
+          </article>
+        </div>
+
+        <!-- Version liste brute pour vérification du texte exact -->
+        <details class="espacement-haut-large">
+          <summary>Version liste brute — contrôle du texte exact</summary>
+          <ul class="lav-list espacement-haut">
+            <li><strong>Carte du territoire</strong> rassemble sur une même interface les données relatives à la géologie, au sous-sol, à l'eau, aux milieux naturels et aux services publics.</li>
+            <li><strong>Relief 3D</strong> permet d'explorer le terrain, les bâtiments et la végétation à partir des données LiDAR et des modèles numériques de terrain.</li>
+            <li><strong>Météo essentielle</strong>, <strong>Bilan thermique</strong> et la <strong>Fiche climat</strong> fournissent une information localisée sur la situation météorologique, les prévisions et les évolutions climatiques du lieu.</li>
+            <li>Le <strong>Tableau de bord de l'eau</strong> permet de suivre les cours d'eau, les crues, les étiages, les nappes souterraines ainsi que la qualité de l'eau et des sites de baignade.</li>
+            <li><strong>Incendies, risque et consignes</strong>, <strong>Vigilance feu</strong> et <strong>Incendies, temps réel</strong> mettent en relation les niveaux officiels de vigilance, les recommandations publiques et les détections thermiques satellitaires récentes.</li>
+            <li><strong>Valfeu</strong>, conçue pour un usage mobile sur le terrain, localise l'utilisateur et recherche les suspicions satellitaires de feu observées à proximité.</li>
+            <li><strong>OLD, obligations légales de débroussaillement</strong>, aide à préparer le périmètre indicatif à débroussailler en croisant la position d'un bâtiment, le cadastre, le zonage réglementaire et les données cartographiques.</li>
+            <li><strong>Itinéraire poids lourd</strong> propose un parcours adapté au gabarit connu du véhicule et signale les portions pour lesquelles les données ouvertes ne permettent pas une vérification complète.</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <!-- 03 — Texte exact : infrastructure et finalités -->
+    <section class="section">
+      <div class="coque">
+        <div class="section__entete">
+          <div>
+            <p class="surtitre">03 · Socle et finalités</p>
+            <h2>Comprendre, suivre, préparer, décider.</h2>
+          </div>
+          <p>Deux paragraphes de clôture, texte exact.</p>
+        </div>
+
+        <div class="lav-infrastructure__grille">
+          <div class="lav-infrastructure">
+            <p>Ces applications s'appuient sur la même infrastructure de localisation, de collecte, de cartographie et de documentation des données. Elles peuvent ainsi être enrichies ou complétées sans reconnecter séparément chaque source publique.</p>
+          </div>
+          <div class="lav-infrastructure">
+            <p>Autour de cette infrastructure commune, chaque application répond à une question concrète : comprendre un lieu, suivre une situation, préparer une intervention ou éclairer une décision.</p>
+          </div>
+        </div>
+
+        <div class="boutons espacement-haut-large">
+          <a class="bouton" href="./accueil.html">Revenir à l'accueil prototype</a>
+          <a class="bouton bouton--secondaire" href="../../apps/web/src/pages/index.astro">Voir index.astro actuel</a>
+          <a class="bouton bouton--secondaire" href="./lav.md">Texte source Markdown</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 — Bloc source pour copier-coller garanti -->
+    <section class="section section--plate">
+      <div class="coque">
+        <div class="specimen__titre"><span>04 / SOURCE</span><h2>Texte de référence intégral</h2></div>
+        <div class="alerte">
+          <strong>Reproduction exacte</strong>
+          <div class="secondaire">Ci-dessous le texte exact fourni, encapsulé pour vérification et copier-coller.</div>
+        </div>
+        <pre style="white-space: pre-wrap; word-wrap: break-word; padding: var(--esp-l); margin-top: var(--esp-l); border: 1px solid var(--bordure); border-radius: var(--rayon); background: var(--surface-elevee); font-family: var(--font-mono); font-size: var(--txt-s); line-height: 1.6;"># LAV : Localiser, Agréger, Valoriser
+
+*Un système d'intégration des données publiques au service des territoires et des usages*
+
+LAV transforme des données publiques dispersées en informations utiles, organisées autour d'un lieu.
+
+À partir d'un point sur la carte, LAV rassemble les données disponibles pour décrire son environnement : relief, bâtiments, végétation, eau, sous-sol, météo, climat, activités humaines, infrastructures et risques.
+
+Issues de multiples sources publiques, ces données sont localisées, croisées et replacées dans leur contexte. Elles alimentent un jumeau numérique documenté et évolutif, qui propose une lecture cohérente du lieu, de son voisinage et de son territoire.
+
+LAV fournit ainsi un socle de données commun, à partir duquel peuvent être développés des services répondant à des besoins concrets, locaux et citoyens. Les applications déjà réalisées illustrent cette diversité d'usages.
+
+- **Carte du territoire** rassemble sur une même interface les données relatives à la géologie, au sous-sol, à l'eau, aux milieux naturels et aux services publics.
+- **Relief 3D** permet d'explorer le terrain, les bâtiments et la végétation à partir des données LiDAR et des modèles numériques de terrain.
+- **Météo essentielle**, **Bilan thermique** et la **Fiche climat** fournissent une information localisée sur la situation météorologique, les prévisions et les évolutions climatiques du lieu.
+- Le **Tableau de bord de l'eau** permet de suivre les cours d'eau, les crues, les étiages, les nappes souterraines ainsi que la qualité de l'eau et des sites de baignade.
+- **Incendies, risque et consignes**, **Vigilance feu** et **Incendies, temps réel** mettent en relation les niveaux officiels de vigilance, les recommandations publiques et les détections thermiques satellitaires récentes.
+- **Valfeu**, conçue pour un usage mobile sur le terrain, localise l'utilisateur et recherche les suspicions satellitaires de feu observées à proximité.
+- **OLD, obligations légales de débroussaillement**, aide à préparer le périmètre indicatif à débroussailler en croisant la position d'un bâtiment, le cadastre, le zonage réglementaire et les données cartographiques.
+- **Itinéraire poids lourd** propose un parcours adapté au gabarit connu du véhicule et signale les portions pour lesquelles les données ouvertes ne permettent pas une vérification complète.
+
+Ces applications s'appuient sur la même infrastructure de localisation, de collecte, de cartographie et de documentation des données. Elles peuvent ainsi être enrichies ou complétées sans reconnecter séparément chaque source publique.
+
+Autour de cette infrastructure commune, chaque application répond à une question concrète : comprendre un lieu, suivre une situation, préparer une intervention ou éclairer une décision.</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pied">
+    <div class="coque pied__interieur">
+      <span>Page autonome LAV — texte exact intégré dans doc/design/</span>
+      <a href="./accueil.html">Retour atelier design</a>
+    </div>
+  </footer>
+</body>
+</html>
