@@ -23,6 +23,8 @@ $env:DESIGN_PORT=4180; pnpm design:preview
 ## Fichiers
 
 - `accueil.html` : coque générale, navigation, manifeste et entrées du portail ;
+- `lav.html` : page autonome LAV — texte de référence exact “Localiser, Agréger, Valoriser” avec 8 usages ;
+- `lav.md` : source Markdown du texte exact LAV pour copier-coller et documentation ;
 - `meteo.html` : page éditoriale avec mesures, vigilance et prévisions ;
 - `carte.html` : composition d'une carte avec panneau, légende et contrôles simulés ;
 - `composants.html` : inventaire visuel des composants communs ;
